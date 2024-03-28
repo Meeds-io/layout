@@ -203,9 +203,12 @@ export default {
       const lastCellRowIndex = Math.max(...selectedCells.map(c => c.rowIndex));
       const lastCellColIndex = Math.max(...selectedCells.map(c => c.colIndex));
 
+      const singleCell = selectedCells?.length === 1;
+      const section = this.$layoutUtils.getSection(this.layoutToEdit, selectedSectionId);
+      const isDynamicSection = section.template === this.$layoutUtils.flexTemplate;
       try {
-        const firstCell = selectedCells.find(c => c.rowIndex === firstCellRowIndex && c.colIndex === firstCellColIndex);
-        const lastCell = selectedCells.find(c => c.rowIndex === lastCellRowIndex && c.colIndex === lastCellColIndex);
+        const firstCell = singleCell && selectedCells[0] || selectedCells.find(c => c.rowIndex === firstCellRowIndex && c.colIndex === firstCellColIndex);
+        const lastCell = singleCell && selectedCells[0] || selectedCells.find(c => c.rowIndex === lastCellRowIndex && c.colIndex === lastCellColIndex);
         if (!firstCell) {
           console.error('Can not find the first cell to add an application into it', selectedCells, firstCellRowIndex, firstCellColIndex); // eslint-lint-disable no-console
           return;
@@ -216,7 +219,7 @@ export default {
           this.mergeCell(selectedSectionId, firstCell, lastCell.rowIndex, lastCell.colIndex);
         }
         const cell = this.$layoutUtils.getCell(this.layoutToEdit, firstCell.storageId);
-        this.$layoutUtils.newApplication(cell, application);
+        this.$layoutUtils.newApplication(cell, application, isDynamicSection);
         this.saveDraft();
       } finally {
         this.$root.initCellsSelection();

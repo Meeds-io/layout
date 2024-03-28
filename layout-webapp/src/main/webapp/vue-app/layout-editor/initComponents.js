@@ -39,7 +39,7 @@ import SectionBorderMenu from './components/content/common/SectionBorderMenu.vue
 import SectionSelectionGrid from './components/content/common/SectionSelectionGrid.vue';
 import SectionSelectionGridCell from './components/content/common/SectionSelectionGridCell.vue';
 import SectionGridEditor from './components/content/common/SectionGridEditor.vue';
-import SectionGrid from './components/content/common/SectionGrid.vue';
+import SectionFlexEditor from './components/content/common/SectionFlexEditor.vue';
 import ApplicationCategoryCard from './components/content/common/ApplicationCategoryCard.vue';
 import ApplicationCard from './components/content/common/ApplicationCard.vue';
 import CellTopMenu from './components/content/common/CellTopMenu.vue';
@@ -72,10 +72,10 @@ const components = {
   'layout-editor-container-section': Section,
   'layout-editor-container-cell': Cell,
   'layout-editor-container-application': Application,
-  'layout-editor-section-grid': SectionGrid,
   'layout-editor-section-selection-grid': SectionSelectionGrid,
   'layout-editor-section-selection-grid-cell': SectionSelectionGridCell,
   'layout-editor-section-grid-editor': SectionGridEditor,
+  'layout-editor-section-flex-editor': SectionFlexEditor,
   'layout-editor-section-add-drawer': AddSectionDrawer,
   'layout-editor-section-edit-drawer': EditSectionDrawer,
   'layout-editor-section-border-menu': SectionBorderMenu,

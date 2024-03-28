@@ -21,7 +21,7 @@
 <template>
   <div ref="menu">
     <v-btn
-      v-if="hover && !moving && !$root.drawerOpened"
+      v-if="hover && !moving && !dynamicSection && !$root.drawerOpened"
       ref="resizeButton"
       :title="$t('layout.resizeCell')"
       :width="iconSize"
@@ -39,7 +39,7 @@
     <v-fade-transition>
       <div
         v-show="hover && !moving && !$root.drawerOpened"
-        class="layout-no-multi-select absolute-horizontal-center z-index-drawer mt-n4">
+        class="layout-no-multi-select absolute-horizontal-center z-index-drawer t-0 mt-n4">
         <v-chip color="white" class="elevation-2">
           <v-btn
             :title="$t('layout.moveCell')"
@@ -79,6 +79,10 @@ export default {
     container: {
       type: Object,
       default: null,
+    },
+    dynamicSection: {
+      type: Boolean,
+      default: false,
     },
     applicationCategory: {
       type: String,

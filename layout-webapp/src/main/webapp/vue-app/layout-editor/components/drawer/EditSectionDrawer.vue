@@ -31,9 +31,14 @@
     <template v-if="drawer && section" #content>
       <v-card class="pa-4" flat>
         <layout-editor-section-grid-editor
+          v-if="sectionType === $layoutUtils.gridTemplate"
           :rows-count="section.rowsCount"
           :cols-count="section.colsCount"
           @rows-updated="rows = $event"
+          @cols-updated="cols = $event" />
+        <layout-editor-section-flex-editor
+          v-else-if="sectionType === $layoutUtils.flexTemplate"
+          :cols-count="cols"
           @cols-updated="cols = $event" />
       </v-card>
     </template>
@@ -78,6 +83,9 @@ export default {
   computed: {
     modified() {
       return this.section?.rowsCount !== this.rows || this.section?.colsCount !== this.cols;
+    },
+    sectionType() {
+      return this.section?.template;
     },
   },
   methods: {

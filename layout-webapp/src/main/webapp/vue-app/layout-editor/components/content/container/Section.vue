@@ -33,7 +33,7 @@
       type="section"
       no-draggable
       @hovered="hoverSection = $event && !drawerOpened">
-      <template v-if="$root.movingParentId === storageId" #header>
+      <template v-if="$root.movingParentId === storageId" #footer>
         <layout-editor-section-selection-grid
           :section="container"
           class="position-absolute z-index-two full-width full-height" />

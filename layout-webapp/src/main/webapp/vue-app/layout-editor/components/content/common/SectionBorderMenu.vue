@@ -34,7 +34,7 @@
                 height="32"
                 width="32"
                 icon
-                @click="$root.$emit('layout-add-section-drawer', index, 1, 4)">
+                @click="$root.$emit('layout-add-section-drawer', index)">
                 <v-icon size="24">fa-plus</v-icon>
               </v-btn>
             </template>
@@ -50,7 +50,7 @@
                 height="32"
                 width="32"
                 icon
-                @click="$root.$emit('layout-add-section-drawer', index + 1, 1, 4)">
+                @click="$root.$emit('layout-add-section-drawer', index + 1)">
                 <v-icon size="24">fa-plus</v-icon>
               </v-btn>
             </template>

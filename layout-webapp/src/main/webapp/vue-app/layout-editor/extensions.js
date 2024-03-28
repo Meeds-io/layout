@@ -40,14 +40,21 @@ extensionRegistry.registerExtension('layout-editor', 'container', {
 
 extensionRegistry.registerExtension('layout-editor', 'container', {
   rank: 300,
-  type: 'grid',
+  type: 'grid-section',
   isValid: container => container?.template === 'GridContainer',
   containerType: 'layout-editor-container-section',
 });
 
 extensionRegistry.registerExtension('layout-editor', 'container', {
   rank: 400,
-  type: 'grid-cell',
+  type: 'flex-section',
+  isValid: container => container?.template === 'FlexContainer',
+  containerType: 'layout-editor-container-section',
+});
+
+extensionRegistry.registerExtension('layout-editor', 'container', {
+  rank: 500,
+  type: 'cell',
   isValid: container => container?.template === 'CellContainer',
   containerType: 'layout-editor-container-cell',
 });

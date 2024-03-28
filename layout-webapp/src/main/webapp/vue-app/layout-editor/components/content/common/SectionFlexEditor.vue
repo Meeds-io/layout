@@ -19,47 +19,8 @@
 
 -->
 <template>
-  <div v-show="rows && cols">
+  <div v-show="cols">
     <div class="pb-2 subtitle-1 text-color font-weight-bold">{{ $t('layout.chooseSectionDisplay') }}</div>
-    <div class="d-flex align-center my-2">
-      <div class="flex-grow-0 flex-shrink-0 align-start pt-1">
-        <span class="subtitle-1 text-color">{{ $t('layout.row') }}</span>
-      </div>
-      <v-card
-        class="flex-grow-1 flex-shrink-1 align-end ms-auto mt-4"
-        max-width="80%"
-        flat>
-        <v-slider
-          v-model="rows"
-          :thumb-size="24"
-          :min="1"
-          :max="12"
-          thumb-label="always">
-          <template #prepend>
-            <v-btn
-              :disabled="rows === 1"
-              class="me-n2 mt-n1"
-              icon
-              fab
-              x-small
-              @click="rows--">
-              <v-icon class="pt-2px">fa-minus</v-icon>
-            </v-btn>
-          </template>
-          <template #append>
-            <v-btn
-              :disabled="rows === 12"
-              class="ms-n2 mt-n1"
-              icon
-              fab
-              x-small
-              @click="rows++">
-              <v-icon class="pt-2px">fa-plus</v-icon>
-            </v-btn>
-          </template>
-        </v-slider>
-      </v-card>
-    </div>
     <div class="d-flex align-center my-2">
       <div class="flex-grow-0 flex-shrink-0 align-start pb-3">
         <span class="subtitle-1 text-color">{{ $t('layout.column') }}</span>
@@ -102,10 +63,13 @@
     <div class="border-color-thin-grey-opacity2 border-radius mt-2 mb-4 pa-2">
       <div :class="gridClass" class="grid-gap-1">
         <div
-          v-for="i in length"
+          v-for="i in cols"
           :key="i"
           :id="`grid-cell-${i}`"
-          class="grey-background aspect-ratio-1 grid-cell-lg-colspan-1 grid-cell-lg-rowspan-1 opacity-5"></div>
+          :style="{
+            'aspect-ratio': 0.5,
+          }"
+          class="grey-background grid-cell-lg-colspan-1 grid-cell-lg-rowspan-1 opacity-5"></div>
       </div>
     </div>
   </div>
@@ -113,37 +77,25 @@
 <script>
 export default {
   props: {
-    rowsCount: {
-      type: Number,
-      default: null,
-    },
     colsCount: {
       type: Number,
       default: null,
     },
   },
   data: () => ({
-    rows: 0,
     cols: 0,
   }),
   computed: {
     gridClass() {
-      return `d-md-grid grid-cols-md-${this.cols} grid-rows-md-${this.rows}`;
-    },
-    length() {
-      return this.rows * this.cols;
+      return `d-md-grid grid-cols-md-${this.cols}`;
     },
   },
   watch: {
-    rows() {
-      this.$emit('rows-updated', this.rows);
-    },
     cols() {
       this.$emit('cols-updated', this.cols);
     },
   },
   created() {
-    this.rows = this.rowsCount;
     this.cols = this.colsCount;
   },
 };

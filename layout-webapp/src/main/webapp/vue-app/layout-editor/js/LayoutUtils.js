@@ -23,6 +23,7 @@ export const currentBreakpoint = 'xl';
 export const pageLayoutTemplate = 'system:/groovy/portal/webui/container/UIPageLayout.gtmpl';
 export const simpleTemplate = 'system:/groovy/portal/webui/container/UIContainer.gtmpl';
 export const gridTemplate = 'GridContainer';
+export const flexTemplate = 'FlexContainer';
 export const cellTemplate = 'CellContainer';
 
 export const defaultMarginTop = 20;
@@ -138,13 +139,13 @@ export function getParentContainer(layout) {
 export function newParentContainer(layout) {
   const vuetifyAppContainer = newContainer(simpleTemplate, 'VuetifyApp', layout, 0);
   const parent = newContainer(pageLayoutTemplate, 'v-application v-application--is-ltr v-application--wrap singlePageApplication layout-sections-parent', vuetifyAppContainer, 0);
-  newSection(parent, 0, 12, 12);
+  newSection(parent, 0, 12, 12, gridTemplate);
 }
 
 export function applyMobileStyle(container) {
-  if (container.template === gridTemplate) {
+  if (container.template === gridTemplate || container.template === flexTemplate) {
     container.children?.forEach(applyMobileStyle);
-    cleanBreakpointClasses(container, 'grid-rows', 'grid-cols');
+    cleanBreakpointClasses(container, container.template === gridTemplate && 'grid-rows' || null, 'grid-cols');
   } else if (container.template === cellTemplate) {
     cleanBreakpointClasses(container, 'grid-cell-rowspan', 'grid-cell-colspan');
   } else {
@@ -157,9 +158,9 @@ export function applyDesktopStyle(container) {
 }
 
 export function applyGridStyle(container) {
-  if (container.template === gridTemplate) {
+  if (container.template === gridTemplate || container.template === flexTemplate) {
     container.children?.forEach(applyGridStyle);
-    applyBreakpointClasses(container, 'grid-rows', 'grid-cols');
+    applyBreakpointClasses(container, container.template === gridTemplate && 'grid-rows' || null, 'grid-cols');
   } else if (container.template === cellTemplate) {
     applyBreakpointClasses(container, 'grid-cell-rowspan', 'grid-cell-colspan');
     applyCellHeightStyle(container);
@@ -209,7 +210,7 @@ export function parseSections(layout) {
     if (!parentContainer.children) {
       parentContainer.children = [];
     }
-    const compatible = parentContainer.children.every(c => c.template === gridTemplate);
+    const compatible = parentContainer.children.every(c => c.template === gridTemplate || c.template === flexTemplate);
     if (compatible) {
       try {
         parentContainer.children.forEach(parseSection);
@@ -237,11 +238,11 @@ export function getCell(container, storageId) {
   }
 }
 
-export function newSection(parentContainer, index, rows, cols) {
+export function newSection(parentContainer, index, rows, cols, sectionType) {
   rows = rows || 1;
   cols = cols || 4;
   const section = newContainer(
-    gridTemplate,
+    sectionType,
     'd-flex flex-column d-md-grid',
     parentContainer,
     index || 0);
@@ -258,12 +259,12 @@ export function newSection(parentContainer, index, rows, cols) {
   return section;
 }
 
-export function newApplication(parentContainer, appFromRegistry) {
+export function newApplication(parentContainer, appFromRegistry, append) {
   const application = JSON.parse(JSON.stringify(applicationModel));
   application.contentId = appFromRegistry.contentId;
   application.title = appFromRegistry.displayName;
   application.showApplicationMode = true;
-  if (!parentContainer.children) {
+  if (append && parentContainer.children) {
     parentContainer.children.push(application);
   } else {
     parentContainer.children = [application];
@@ -457,7 +458,7 @@ export function cleanAttributes(container) {
 
 function newCell(section, index, rows, cols) {
   const container = newContainer(cellTemplate,
-    'grid-cell',
+    section.template === flexTemplate ? 'flex-cell row-gap-5' : 'grid-cell',
     (index === 0 || index) && section || null,
     index);
   applyBreakpointValues(container, rows, cols);
@@ -484,7 +485,8 @@ function newContainer(template, cssClass, parentContainer, index) {
 }
 
 function parseSection(section) {
-  if (section.template !== gridTemplate || !section.children.length) {
+  if ((section.template !== gridTemplate && section.template !== flexTemplate)
+    || !section.children.length) {
     return;
   }
   if (section.children) {
@@ -541,7 +543,7 @@ function applyBreakpointClasses(container, rowClassPrefix, colClassPrefix) {
   if (container.colBreakpoints) {
     breakpoints.forEach(b => cssClasses += ` ${colClassPrefix}-${b}-${container.colBreakpoints[b]}`);
   }
-  if (container.rowBreakpoints) {
+  if (container.rowBreakpoints && rowClassPrefix) {
     breakpoints.forEach(b => cssClasses += ` ${rowClassPrefix}-${b}-${container.rowBreakpoints[b]}`);
   }
   container.cssClass = cssClasses;
@@ -556,10 +558,12 @@ function cleanBreakpointClasses(container, rowClassPrefix, colClassPrefix) {
     colClasses.forEach(c => cssClasses = cssClasses.replace(c, ''));
   }
 
-  const rowClasses = cssClasses.match(new RegExp(`(^| )${rowClassPrefix}-((md|lg|xl)-)?[0-9]{1,2}`, 'g'));
-  // Remove old Classes
-  if (rowClasses?.length) {
-    rowClasses.forEach(c => cssClasses = cssClasses.replace(c, ''));
+  if (rowClassPrefix) {
+    const rowClasses = cssClasses.match(new RegExp(`(^| )${rowClassPrefix}-((md|lg|xl)-)?[0-9]{1,2}`, 'g'));
+    // Remove old Classes
+    if (rowClasses?.length) {
+      rowClasses.forEach(c => cssClasses = cssClasses.replace(c, ''));
+    }
   }
 
   // Apply new Classes

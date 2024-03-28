@@ -28,12 +28,33 @@
     <template #title>
       {{ $t('layout.addSectionTitle') }}
     </template>
-    <template v-if="drawer && rows && cols" #content>
+    <template v-if="drawer && cols" #content>
       <v-card class="pa-4" flat>
+        <div class="subtitle-1 font-weight-bold">
+          {{ $t('layout.selectSectionType') }}
+        </div>
+        <v-radio-group v-model="sectionType" class="my-auto text-no-wrap ms-n1">
+          <v-radio
+            :label="$t('layout.fixedSectionTypeChoice')"
+            value="GridContainer"
+            class="mx-0" />
+          <v-radio
+            :label="$t('layout.dynamicSectionTypeChoice')"
+            value="FlexContainer"
+            class="mx-0" />
+        </v-radio-group>
+
         <layout-editor-section-grid-editor
+          v-if="sectionType === $layoutUtils.gridTemplate"
           :rows-count="rows"
           :cols-count="cols"
+          class="mt-4"
           @rows-updated="rows = $event"
+          @cols-updated="cols = $event" />
+        <layout-editor-section-flex-editor
+          v-else-if="sectionType === $layoutUtils.flexTemplate"
+          :cols-count="cols"
+          class="mt-4"
           @cols-updated="cols = $event" />
       </v-card>
     </template>
@@ -59,21 +80,32 @@ export default {
   data: () => ({
     parentContainer: null,
     section: null,
+    sectionType: null,
     drawer: false,
     index: null,
     rows: 0,
     cols: 0,
   }),
+  watch: {
+    sectionType() {
+      if (this.sectionType === this.$layoutUtils.gridTemplate) {
+        this.rows = 3;
+        this.cols = 12;
+      } else if (this.sectionType === this.$layoutUtils.flexTemplate) {
+        this.rows = 1;
+        this.cols = 3;
+      }
+    },
+  },
   methods: {
     open(parentContainer, index) {
+      this.sectionType = this.$layoutUtils.gridTemplate;
       this.parentContainer = parentContainer;
       this.index = index;
-      this.rows = 1;
-      this.cols = 4;
       this.$nextTick().then(() => this.$refs.drawer.open());
     },
     apply() {
-      this.section = this.$layoutUtils.newSection(null, null, this.rows, this.cols);
+      this.section = this.$layoutUtils.newSection(null, null, this.rows, this.cols, this.sectionType);
       this.$root.$emit('layout-add-section', this.section, this.index);
       this.close();
     },
