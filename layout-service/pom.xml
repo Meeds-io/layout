@@ -27,7 +27,7 @@
   <parent>
     <groupId>io.meeds.layout</groupId>
     <artifactId>layout</artifactId>
-    <version>7.0.x-exo-SNAPSHOT</version>
+    <version>7.0.x-security-fix-SNAPSHOT</version>
   </parent>
   <artifactId>layout-service</artifactId>
   <packaging>jar</packaging>
