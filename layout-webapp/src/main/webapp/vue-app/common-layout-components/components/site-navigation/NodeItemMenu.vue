@@ -35,7 +35,7 @@
     </template>
     <v-list class="pa-0" dense>
       <v-list-item
-        v-if="canEditPage"
+        v-if="canEditPageLayout"
         class="subtitle-2" 
         @click="editLayout">
         <v-icon
@@ -233,6 +233,12 @@ export default {
     },
     canEditPage() {
       return this.navigationNode?.canEditPage && this.pageRef;
+    },
+    pageLink() {
+      return this.navigationNode?.pageLink;
+    },
+    canEditPageLayout() {
+      return this.canEditPage && !this.pageLink;
     },
   },
   watch: {

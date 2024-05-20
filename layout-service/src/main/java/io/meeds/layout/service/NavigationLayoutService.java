@@ -150,6 +150,8 @@ public class NavigationLayoutService {
                                                   getNodeLabels(nodeId, username).getLabels()),
                         username);
     } else {
+      NodeState state = clonedNode.getState().builder().pageRef(clonedPageKey).build();
+      navigationService.updateNode(Long.parseLong(clonedNode.getId()), state);
       return navigationService.getNodeById(Long.parseLong(clonedNode.getId()));
     }
   }

@@ -410,7 +410,7 @@ export default {
         this.loading = true;
         this.$navigationLayoutService.updateNode(this.navigationNode.id, this.nodeLabel, pageRef, this.visible, this.isScheduled, startScheduleDate, endScheduleDate, nodeLabels?.labels, pageData?.nodeTarget || this.navigationNode.target, this.nodeIcon)
           .then(() => {
-            this.openTargetPage(pageData);
+            this.openTargetPage(pageData, this.navigationNode.id);
             this.$root.$emit('refresh-navigation-nodes');
             this.$root.$emit('close-add-element-drawer');
             this.close();

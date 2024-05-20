@@ -241,7 +241,13 @@ export default {
         this.loading = false;
       } else {
         this.loading = true;
-        this.$pageLayoutService.createPage(this.elementName, this.elementTitle, this.navigationNode.siteKey.name, this.navigationNode.siteKey.type, this.elementType, this.elementType === 'LINK' && this.link || null, this.elementType === 'PAGE' && this.pageTemplate?.id)
+        this.$pageLayoutService.createPage(
+          this.elementName,
+          this.elementTitle,
+          this.navigationNode.siteKey.name,
+          this.navigationNode.siteKey.type,
+          this.elementType, this.elementType === 'LINK' && this.link || null,
+          this.elementType === 'PAGE' && this.pageTemplate?.id || null)
           .then((createdPage) => {
             const pageRef = createdPage?.key?.ref || `${createdPage?.key.site.typeName}::${createdPage?.key.site.name}::${createdPage?.pageContext?.key.name}`;
             this.$root.$emit('save-node-with-page', {

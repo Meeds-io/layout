@@ -152,8 +152,8 @@ export default {
     },
     setLayout(layout) {
       this.initContainer(layout);
-      this.isCompatible = this.$layoutUtils.parseSections(layout);
-      if (!this.isCompatible) {
+      const isCompatible = this.$layoutUtils.parseSections(layout);
+      if (!isCompatible) {
         const applications = this.$layoutUtils.getApplications(layout);
         layout.children = [];
         const parentContainer = this.$layoutUtils.newParentContainer(layout);
@@ -162,6 +162,7 @@ export default {
         if (applications?.length && applications?.length > 1) {
           this.$layoutUtils.newSection(parentContainer, 1, 1, 2, this.$layoutUtils.flexTemplate);
         }
+        this.isCompatible = !applications?.length;
         this.modified = true;
       }
       if (this.layoutToEdit) {
