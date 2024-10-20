@@ -50,7 +50,7 @@
             <field name="permissions">
               <collection type="java.util.ArrayList">
                 <value>
-                  <string>*:/platform/administrators</string>
+                  <string>*:/platform/users</string>
                 </value>
               </collection>
             </field>
