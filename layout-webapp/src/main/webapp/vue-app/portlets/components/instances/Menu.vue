@@ -48,21 +48,31 @@
             target="_blank"
             rel="opener"
             dense>
-            <v-icon size="13">
-              fa-edit
-            </v-icon>
-            <v-list-item-title class="ps-2">
+            <v-list-item-icon class="me-auto">
+              <v-icon size="13">fa-edit</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>
               {{ $t('portlets.label.editInstance') }}
             </v-list-item-title>
           </v-list-item>
           <v-list-item
             dense
             @click="$root.$emit('portlet-instance-edit', portletInstance)">
-            <v-icon size="13">
-              fa-edit
-            </v-icon>
-            <v-list-item-title class="ps-2">
+            <v-list-item-icon class="me-auto">
+              <v-icon size="13">fa-edit</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>
               {{ $t('portlets.label.editProperties') }}
+            </v-list-item-title>
+          </v-list-item>
+          <v-list-item
+            dense
+            @click="$root.$emit('serialize-drawer-open', 'PortletInstance', portletInstanceId)">
+            <v-list-item-icon class="me-auto">
+              <v-icon size="13">fa-download</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>
+              {{ $t('portletInstance.label.export') }}
             </v-list-item-title>
           </v-list-item>
           <v-tooltip :disabled="!portletInstance.system" bottom>
@@ -74,14 +84,15 @@
                   :disabled="portletInstance.system"
                   dense
                   @click="$root.$emit('portlet-instance-delete', portletInstance)">
-                  <v-icon
-                    :class="!portletInstance.system && 'error--text' || 'disabled--text'"
-                    size="13">
-                    fa-trash
-                  </v-icon>
+                  <v-list-item-icon class="me-auto">
+                    <v-icon
+                      :class="!portletInstance.system && 'error--text' || 'disabled--text'"
+                      size="13">
+                      fa-trash
+                    </v-icon>
+                  </v-list-item-icon>
                   <v-list-item-title
-                    :class="!portletInstance.system && 'error--text' || 'disabled--text'"
-                    class="ps-2">
+                    :class="!portletInstance.system && 'error--text' || 'disabled--text'">
                     {{ $t('portlets.label.delete') }}
                   </v-list-item-title>
                 </v-list-item>
