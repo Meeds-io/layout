@@ -42,7 +42,18 @@
     @toggle-select="$emit('select-tab', $event)"
     @filter-text-input="$emit('portlet-instance-filter', $event)">
     <template v-if="!$root.isMobile && tabName === 'instances'" #left>
+      <div v-if="$root.selectedPortletInstances?.length && !$root.isMobile">
+        <v-btn
+          color="primary"
+          elevation="0"
+          outlined
+          @click="$root.$emit('serialize-drawer-open', 'PortletInstance', selectedPortletInstancesIds)">
+          <v-icon size="16" class="me-2">fa-download</v-icon>
+          {{ $t('portletInstance.label.export') }}
+        </v-btn>
+      </div>
       <v-btn
+        v-else
         id="applicationToolbarLeftButton"
         :aria-label="$t('layout.portletInstance.add')"
         :class="$root.isMobile && 'px-0'"
@@ -69,5 +80,10 @@ export default {
       default: null,
     }
   },
+  computed: {
+    selectedPortletInstancesIds() {
+      return this.$root.selectedPortletInstances.map(item => item.id);
+    }
+  }
 };
 </script>
