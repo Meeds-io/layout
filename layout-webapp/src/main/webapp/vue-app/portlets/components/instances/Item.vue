@@ -20,10 +20,17 @@
 -->
 <template>
   <tr>
+    <td align="center">
+      <v-checkbox
+        :value="selected || $root.allPortletInstancesSelected"
+        on-icon="fas fa-check-square fa-lg primary--text"
+        off-icon="far fa-square fa-lg"
+        class="my-auto pt-2"
+        @change="changeCheckboxStatus" />
+    </td>
     <!-- Illustration -->
     <td
       v-if="!$root.isMobile"
-      class="px-0"
       align="center">
       <layout-image-illustration
         :value="portletInstance"
@@ -65,6 +72,14 @@
 export default {
   props: {
     portletInstance: {
+      type: Object,
+      default: null,
+    },
+    selected: {
+      type: Boolean,
+      default: false,
+    },
+    select: {
       type: Object,
       default: null,
     },
@@ -122,6 +137,9 @@ export default {
         .catch(() => this.$root.$emit('alert-message', this.$t('portlets.status.update.error'), 'error'))
         .finally(() => this.loading = false);
     },
+    changeCheckboxStatus(status) {
+      this.select(status);
+    }
   },
 };
 </script>
