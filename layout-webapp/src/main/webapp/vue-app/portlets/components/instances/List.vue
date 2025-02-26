@@ -21,20 +21,48 @@
 <template>
   <div class="application-layout-style">
     <v-data-table
+      v-model="$root.selectedPortletInstances"
       :headers="headers"
       :items="filteredPortletInstances"
       :loading="loading"
       :disable-sort="$root.isMobile"
       :hide-default-header="$root.isMobile"
       :custom-sort="applySortOnItems"
+      :show-select="!$root.isMobile"
       must-sort
       disable-pagination
       hide-default-footer
       class="application-body portletInstancesTable px-5">
+      <template slot="header.data-table-select" slot-scope="{on, props}">
+        <v-checkbox
+          v-on="on"
+          v-bind="props"
+          on-icon="fas fa-check-square fa-lg primary--text"
+          indeterminate-icon="fas fa-minus-square fa-lg"
+          off-icon="far fa-square fa-lg"
+          class="my-auto pt-2"
+          @change="on.input" />
+      </template>
+      <template v-if="$root.selectedPortletInstances.length" slot="body.prepend">
+        <tr>
+          <td :colspan="headers.length + 1" class="px-0">
+            <v-alert
+              :icon="false"
+              class="ma-0 ps-5 no-border-radius"
+              border="left"
+              type="info"
+              colored-border>
+              <div v-html="selectionLabel"></div>
+            </v-alert>
+          </td>
+        </tr>
+      </template>
       <template slot="item" slot-scope="props">
         <portlets-instance-item
           :key="props.item.id"
-          :portlet-instance="props.item" />
+          :portlet-instance="props.item"
+          :selected="props.isSelected"
+          :select="props.select" />
       </template>
     </v-data-table>
     <exo-confirm-dialog
@@ -168,6 +196,26 @@ export default {
     nameToDelete() {
       return this.portletInstanceToDelete && this.$te(this.portletInstanceToDelete?.name) ? this.$t(this.portletInstanceToDelete?.name) : this.portletInstanceToDelete?.name;
     },
+    selectionLabel() {
+      if (this.$root.allPortletInstancesSelected) {
+        return this.$t('portletInstance.label.allPortletInstancesSelected', {
+          0: `<strong>${this.$root.portletInstancesSize}</strong>`,
+        });
+      } else {
+        return this.$t('portletInstance.label.selectedPortletInstancesCount', {
+          0: `<strong>${this.$root.selectedPortletInstances.length}</strong>`,
+        });
+      }
+    },
+    selectedPortletInstances() {
+      return this.$root.selectedPortletInstances;
+    },
+  },
+  watch: {
+    keyword() {
+      this.$root.allPortletInstancesSelected = false;
+      this.$root.selectedPortletInstances = [];
+    },
   },
   created() {
     this.$root.$on('portlet-instance-delete', this.deletePortletInstanceConfirm);
@@ -204,6 +252,8 @@ export default {
     selectCategoryId(id) {
       if (this.categoryId !== id) {
         this.categoryId = id;
+        this.$root.allPortletInstancesSelected = false;
+        this.$root.selectedPortletInstances = [];
       }
     },
     deletePortletInstance(portletInstance) {
