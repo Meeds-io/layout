@@ -21,27 +21,27 @@ package io.meeds.layout.plugin;
 import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.util.JsonUtils;
-import io.meeds.social.databind.plugin.DatabindPreferencePlugin;
+import io.meeds.social.databind.plugin.DatabindPlugin;
 import io.meeds.social.databind.service.DatabindService;
 import jakarta.annotation.PostConstruct;
-import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.services.log.ExoLogger;
-import org.exoplatform.services.log.Log;
+import lombok.SneakyThrows;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
-public class PortletInstanceDatabindPreferencePlugin implements DatabindPreferencePlugin {
+public class PortletInstanceDatabindPlugin implements DatabindPlugin {
 
-  private static final Log       LOG = ExoLogger.getExoLogger(PortletInstanceDatabindPreferencePlugin.class);
+  public static final String     OBJECT_TYPE = "PortletInstance";
 
   @Autowired
   private PortletInstanceService portletInstanceService;
@@ -49,25 +49,34 @@ public class PortletInstanceDatabindPreferencePlugin implements DatabindPreferen
   @Autowired
   private DatabindService        databindService;
 
-  @Override
-  public String getDataType() {
-    return "PortletInstance";
-  }
-
   @PostConstruct
   public void init() {
-    databindService.addDataPreferencePlugin(this);
+    databindService.addPlugin(this);
   }
 
   @Override
-  public void serialize(String objectId, File zipFile, String username) throws ObjectNotFoundException, IllegalAccessException {
+  public String getObjectType() {
+    return OBJECT_TYPE;
+  }
+
+  @Override
+  public boolean canHandleDatabind(String objectType, String objectId) {
+    return StringUtils.equals(OBJECT_TYPE, objectType);
+  }
+
+  @SneakyThrows
+  @Override
+  public void serialize(String objectId, ZipOutputStream zipOutputStream, String username) {
     List<PortletInstancePreference> preferences = portletInstanceService.getPortletInstancePreferences(Long.parseLong(objectId),
                                                                                                        username);
     String jsonData = JsonUtils.toJsonString(preferences);
-    try (FileWriter writer = new FileWriter(zipFile)) {
-      writer.write(jsonData);
-    } catch (IOException e) {
-      LOG.warn("Fail to serialize portlet instance with id", objectId, e);
-    }
+    writeContent(zipOutputStream, objectId, jsonData);
+  }
+
+  private void writeContent(ZipOutputStream zipOutputStream, String objectId, String content) throws IOException {
+    ZipEntry entry = new ZipEntry(String.format("%s_%s.json", OBJECT_TYPE, objectId));
+    zipOutputStream.putNextEntry(entry);
+    zipOutputStream.write(content.getBytes(StandardCharsets.UTF_8));
+    zipOutputStream.closeEntry();
   }
 }
