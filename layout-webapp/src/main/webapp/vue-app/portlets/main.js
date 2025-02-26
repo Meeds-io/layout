@@ -49,6 +49,9 @@ export function init() {
           selectedCategoryId: null,
           loading: 0,
           collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
+          allPortletInstancesSelected: false,
+          selectedPortletInstances: [],
+          portletInstancesSize: 0
         }),
         computed: {
           isMobile() {
@@ -99,9 +102,14 @@ export function init() {
               .finally(() => this.loading--);
           },
           refreshPortletInstances() {
+            this.allPortletInstancesSelected = false;
+            this.selectedPortletInstances = [];
             this.loading++;
             return this.$portletInstanceService.getPortletInstances()
-              .then(data => this.portletInstances = data || [])
+              .then(data => {
+                this.portletInstances = data || [];
+                this.portletInstancesSize = this.portletInstances?.length;
+              })
               .finally(() => this.loading--);
           },
           refreshPortletInstanceCategories() {
