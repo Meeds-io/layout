@@ -52,23 +52,55 @@
           {{ $t('portletInstance.label.export') }}
         </v-btn>
       </div>
-      <v-btn
+      <v-menu
         v-else
-        id="applicationToolbarLeftButton"
-        :aria-label="$t('layout.portletInstance.add')"
-        :class="$root.isMobile && 'px-0'"
-        class="btn btn-primary text-truncate"
-        @click="$root.$emit('portlet-instance-add')">
-        <v-icon
-          size="18">
-          fa-plus
-        </v-icon>
-        <span
-          v-if="!$root.isMobile"
-          class="text-truncate text-none ms-2">
-          {{ $t('layout.portletInstance.add') }}
-        </span>
-      </v-btn>
+        :left="!$vuetify.rtl"
+        :right="$vuetify.rtl"
+        content-class="application-menu z-index-modal"
+        offset-y>
+        <template #activator="{attrs, on}">
+          <v-btn
+            id="applicationToolbarLeftButton"
+            v-bind="attrs"
+            v-on="on"
+            :aria-label="$t('layout.portletInstance.add')"
+            :class="$root.isMobile && 'px-0'"
+            class="btn btn-primary text-truncate"
+            dense>
+            <span
+              v-if="!$root.isMobile"
+              class="text-truncate text-none">
+              {{ $t('layout.portletInstance.add') }}
+            </span>
+          </v-btn>
+        </template>
+        <v-list max-width="300" dense>
+          <v-list-item
+            link
+            dense
+            @click="$root.$emit('portlet-instance-add')">
+            <v-list-item-icon class="me-3">
+              <v-icon size="18">fa-plus</v-icon>
+            </v-list-item-icon>
+            <v-list-item-content class="d-inline">
+              <v-list-item-title>{{ $t('layout.portletInstance.create') }}</v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
+          <v-list-item
+            link
+            dense
+            @click="openFileExplorer">
+            <v-list-item-icon class="me-3">
+              <v-icon size="18">fas fa-upload</v-icon>
+            </v-list-item-icon>
+            <v-list-item-content class="d-inline">
+              <v-list-item-title>{{ $t('layout.portletInstance.import') }}</v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
+          <portlets-instance-file-input
+            ref="inputFile" />
+        </v-list>
+      </v-menu>
     </template>
   </application-toolbar>
 </template>
@@ -83,7 +115,18 @@ export default {
   computed: {
     selectedPortletInstancesIds() {
       return this.$root.selectedPortletInstances.map(item => item.id);
-    }
+    },
+  },
+  created() {
+    this.$root.$on('portlet-instance-file-explorer', this.openFileExplorer);
+  },
+  beforeDestroy() {
+    this.$root.$off('portlet-instance-file-explorer', this.openFileExplorer);
+  },
+  methods: {
+    openFileExplorer() {
+      this.$refs.inputFile.openFileExplorer();
+    },
   }
 };
 </script>

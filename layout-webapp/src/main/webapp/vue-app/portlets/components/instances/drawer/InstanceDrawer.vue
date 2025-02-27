@@ -80,6 +80,7 @@
             disable-suggester
             @ready="checkCKEdtiorDisplay" />
         </translation-text-field>
+        <div class="mb-2 mt-4">{{ $t('layout.category') }}</div>
         <portlets-instance-category-input
           v-model="categoryId"
           class="mt-4" />
