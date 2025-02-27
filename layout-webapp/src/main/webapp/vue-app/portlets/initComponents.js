@@ -44,6 +44,8 @@ import PortletItem from './components/portlets/Item.vue';
 import PortletMenu from './components/portlets/Menu.vue';
 
 import PortletInstancesDrawer from './components/portlets/drawer/InstancesDrawer.vue';
+import PortletInstanceFileInput from './components/instances/form/PortletInstanceFileInput.vue';
+import PortletInstanceDeserializeDrawer from './components/instances/drawer/PortletInstanceDeserializeDrawer.vue';
 
 const components = {
   'portlets-management': PortletsManagement,
@@ -64,6 +66,8 @@ const components = {
   'portlets-instance-preview': InstancePreview,
   'portlets-instance-category-input': CategoryInput,
   'portlets-instance-portlet-input': PortletInput,
+  'portlets-instance-file-input': PortletInstanceFileInput,
+  'portlets-instance-deserialize-drawer': PortletInstanceDeserializeDrawer,
 
   'portlets-list': PortletList,
   'portlets-item': PortletItem,
