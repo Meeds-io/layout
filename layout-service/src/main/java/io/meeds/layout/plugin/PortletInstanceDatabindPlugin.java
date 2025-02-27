@@ -18,14 +18,21 @@
  */
 package io.meeds.layout.plugin;
 
-import io.meeds.layout.model.PortletInstancePreference;
+import io.meeds.layout.model.PortletInstance;
+import io.meeds.layout.model.PortletInstanceDatabind;
+import io.meeds.layout.plugin.translation.PortletInstanceTranslationPlugin;
 import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.util.JsonUtils;
 import io.meeds.social.databind.plugin.DatabindPlugin;
 import io.meeds.social.databind.service.DatabindService;
+import io.meeds.social.translation.model.TranslationField;
+import io.meeds.social.translation.service.TranslationService;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.commons.file.model.FileItem;
+import org.exoplatform.commons.file.services.FileService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -33,7 +40,9 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -48,6 +57,12 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
 
   @Autowired
   private DatabindService        databindService;
+
+  @Autowired
+  private FileService            fileService;
+
+  @Autowired
+  private TranslationService     translationService;
 
   @PostConstruct
   public void init() {
@@ -67,9 +82,47 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
   @SneakyThrows
   @Override
   public void serialize(String objectId, ZipOutputStream zipOutputStream, String username) {
-    List<PortletInstancePreference> preferences = portletInstanceService.getPortletInstancePreferences(Long.parseLong(objectId),
-                                                                                                       username);
-    String jsonData = JsonUtils.toJsonString(preferences);
+    PortletInstance portletInstance = portletInstanceService.getPortletInstance(Long.parseLong(objectId),
+                                                                                username,
+                                                                                Locale.getDefault(),
+                                                                                true);
+
+    PortletInstanceDatabind databind = new PortletInstanceDatabind();
+    databind.setContentId(portletInstance.getContentId());
+    TranslationField translationNameField =
+                                          translationService.getTranslationField(PortletInstanceTranslationPlugin.OBJECT_TYPE,
+                                                                                 Long.parseLong(objectId),
+                                                                                 PortletInstanceTranslationPlugin.TITLE_FIELD_NAME,
+                                                                                 username);
+    if (translationNameField != null) {
+      Map<String, String> names = translationNameField.getLabels()
+                                                      .entrySet()
+                                                      .stream()
+                                                      .collect(Collectors.toMap(entry -> entry.getKey().toLanguageTag(),
+                                                                                Map.Entry::getValue));
+      databind.setNames(names);
+    }
+
+    TranslationField translationDescriptionField =
+                                                 translationService.getTranslationField(PortletInstanceTranslationPlugin.OBJECT_TYPE,
+                                                                                        Long.parseLong(objectId),
+                                                                                        PortletInstanceTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                                                                        username);
+    if (translationDescriptionField != null) {
+      Map<String, String> descriptions = translationDescriptionField.getLabels()
+                                                                    .entrySet()
+                                                                    .stream()
+                                                                    .collect(Collectors.toMap(entry -> entry.getKey()
+                                                                                                            .toLanguageTag(),
+                                                                                              Map.Entry::getValue));
+      databind.setDescriptions(descriptions);
+    }
+    FileItem file = fileService.getFile(portletInstance.getIllustrationId());
+    if (file != null) {
+      databind.setIllustrationId(Base64.encodeBase64String(file.getAsByte()));
+    }
+    databind.setPreferences(portletInstance.getPreferences());
+    String jsonData = JsonUtils.toJsonString(databind);
     writeContent(zipOutputStream, objectId, jsonData);
   }
 
