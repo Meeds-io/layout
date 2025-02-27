@@ -20,7 +20,6 @@
 -->
 <template>
   <div>
-    <div class="mb-2">{{ $t('layout.category') }}</div>
     <v-autocomplete
       ref="autocomplete"
       v-model="categoryId"
