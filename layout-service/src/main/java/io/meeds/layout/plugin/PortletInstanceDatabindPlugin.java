@@ -119,9 +119,9 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     }
     FileItem file = fileService.getFile(portletInstance.getIllustrationId());
     if (file != null) {
-      databind.setIllustrationId(Base64.encodeBase64String(file.getAsByte()));
+      databind.setIllustration(Base64.encodeBase64String(file.getAsByte()));
     }
-    databind.setPreferences(portletInstance.getPreferences());
+    databind.setPreferences(portletInstanceService.getPortletInstancePreferences(Long.parseLong(objectId), username));
     String jsonData = JsonUtils.toJsonString(databind);
     writeContent(zipOutputStream, objectId, jsonData);
   }

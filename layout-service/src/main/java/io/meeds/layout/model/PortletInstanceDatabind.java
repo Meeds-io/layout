@@ -36,8 +36,8 @@ public class PortletInstanceDatabind {
 
   private String                          contentId;
 
-  private List<PortletInstancePreference> preferences;
+  private String                          illustration;
 
-  private String                          illustrationId;
+  private List<PortletInstancePreference> preferences;
 
 }
