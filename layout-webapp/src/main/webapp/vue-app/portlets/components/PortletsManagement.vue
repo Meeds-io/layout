@@ -51,6 +51,7 @@
         <v-card-text class="pb-0">{{ $t('portletInstance.label.exportInstance.part4') }}</v-card-text>
       </template>
     </serialize-drawer>
+    <portlets-instance-deserialize-drawer />
   </v-app>
 </template>
 <script>
