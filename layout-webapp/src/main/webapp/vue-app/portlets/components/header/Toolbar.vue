@@ -54,8 +54,8 @@
       </div>
       <v-menu
         v-else
-        :left="!$vuetify.rtl"
-        :right="$vuetify.rtl"
+        :right="!$vuetify.rtl"
+        :left="$vuetify.rtl"
         content-class="application-menu z-index-modal"
         offset-y>
         <template #activator="{attrs, on}">
@@ -74,7 +74,7 @@
             </span>
           </v-btn>
         </template>
-        <v-list max-width="300" dense>
+        <v-list dense>
           <v-list-item
             link
             dense
