@@ -31,7 +31,6 @@ import io.meeds.social.translation.service.TranslationService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.portal.config.UserACL;
-import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.core.manager.IdentityManager;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -79,9 +78,6 @@ class PortletInstanceDatabindPluginTest {
   private AttachmentService              attachmentService;
 
   @MockBean
-  private ListenerService                listenerService;
-
-  @MockBean
   private UserACL                        userAcl;
 
   @MockBean
@@ -123,9 +119,10 @@ class PortletInstanceDatabindPluginTest {
 
     when(portletInstanceService.createPortletInstance(any())).thenReturn(new PortletInstance());
 
+    when(translationImportService.postImport(any())).thenReturn(CompletableFuture.completedFuture(null));
+
     // When
     CompletableFuture<DatabindReport> futureReport = portletInstanceDatabindPlugin.deserialize(zipFile,
-                                                                                               true,
                                                                                                Map.of("categoryId", "1"),
                                                                                                "admin");
 
