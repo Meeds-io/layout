@@ -39,7 +39,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.commons.file.model.FileItem;
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.portal.config.UserACL;
-import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.social.attachment.AttachmentService;
 import org.exoplatform.social.attachment.model.UploadedAttachmentDetail;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -59,8 +58,6 @@ import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
-
-import static io.meeds.layout.service.PortletInstanceService.INSTANCE_CREATED_EVENT;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -82,16 +79,13 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
   private FileService                    fileService;
 
   @Autowired
-  private LayoutTranslationImportService translationImportService;
+  private LayoutTranslationImportService layoutTranslationService;
 
   @Autowired
   private TranslationService             translationService;
 
   @Autowired
   private AttachmentService              attachmentService;
-
-  @Autowired
-  private ListenerService                listenerService;
 
   @Autowired
   private UserACL                        userAcl;
@@ -176,9 +170,10 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
         List<String> processedInstances = new ArrayList<>();
         for (Map.Entry<String, PortletInstanceDatabind> entry : instances.entrySet()) {
           PortletInstanceDatabind instance = entry.getValue();
-          processPortletInstance(instance, Long.parseLong(categoryId), username);
+          processPortletInstance(instance, Long.parseLong(categoryId));
           processedInstances.add(instance.getContentId());
         }
+        layoutTranslationService.postImport(PortletInstanceTranslationPlugin.OBJECT_TYPE);
         DatabindReport report = new DatabindReport();
         report.setSuccess(!processedInstances.isEmpty());
         report.setProcessedInstances(processedInstances);
@@ -223,7 +218,7 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     return instances;
   }
 
-  private void processPortletInstance(PortletInstanceDatabind instance, long categoryId, String username) {
+  private void processPortletInstance(PortletInstanceDatabind instance, long categoryId) {
     PortletInstance portletInstance = new PortletInstance();
     portletInstance.setName(instance.getNames().get("en"));
     portletInstance.setDescription(instance.getDescriptions().get("en"));
@@ -234,9 +229,8 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     portletInstance.setSystem(false);
     portletInstance.setSupportedModes(List.of("view"));
     PortletInstance createdPortletInstance = portletInstanceService.createPortletInstance(portletInstance);
-    listenerService.broadcast(INSTANCE_CREATED_EVENT, username, createdPortletInstance);
-    saveNames(instance, portletInstance);
-    saveDescriptions(instance, portletInstance);
+    saveNames(instance, createdPortletInstance);
+    saveDescriptions(instance, createdPortletInstance);
   }
 
   protected void saveIllustration(long portletInstanceId, byte[] illustrationBytes) {
@@ -279,14 +273,14 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
   }
 
   protected void saveNames(PortletInstanceDatabind portletInstanceDatabind, PortletInstance portletInstance) {
-    translationImportService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
+    layoutTranslationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
                                                    portletInstance.getId(),
                                                    PortletInstanceTranslationPlugin.TITLE_FIELD_NAME,
                                                    portletInstanceDatabind.getNames());
   }
 
   protected void saveDescriptions(PortletInstanceDatabind portletInstanceDatabind, PortletInstance portletInstance) {
-    translationImportService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
+    layoutTranslationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
                                                    portletInstance.getId(),
                                                    PortletInstanceTranslationPlugin.DESCRIPTION_FIELD_NAME,
                                                    portletInstanceDatabind.getDescriptions());
