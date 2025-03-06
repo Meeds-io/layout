@@ -25,12 +25,12 @@
     allow-expand
     right>
     <template #title>
-      Import Instance
+      {{ $t('portletInstance.label.importInstance') }}
     </template>
     <template #content>
       <div class="pa-4" flat>
         <div class="text-header">
-          Template to import
+          {{ header }}
         </div>
         <v-list-item class="pa-0">
           <v-list-item-content class="pb-3">
@@ -38,7 +38,7 @@
               {{ fileName }}
             </v-list-item-title>
           </v-list-item-content>
-          <v-list-item-action>
+          <v-list-item-action v-if="!importFinished">
             <v-btn
               class="dark-grey-color"
               text
@@ -47,31 +47,74 @@
             </v-btn>
           </v-list-item-action>
         </v-list-item>
-        <div class="text-header">
-          Select Destination
-        </div>
-        <portlets-instance-category-input
-          v-model="categoryId"
-          class="mt-4" />
-        <div class="text-header pt-4">
-          Duplicate management rule
-        </div>
-        <v-card-text class="pb-0 pt-2">
-          <v-radio-group v-model="duplicateType" class="ma-0">
-            <v-radio
-              label="Replace existing item"
-              value="REPLACE" />
-            <v-radio
-              label="Duplicate if already existing"
-              value="DUPLICATE" />
-          </v-radio-group>
-        </v-card-text>
+        <template v-if="!importFinished">
+          <div class="text-header">
+            {{ $t('portletInstance.label.selectDestination') }}
+          </div>
+          <portlets-instance-category-input
+            v-model="categoryId"
+            class="mt-4" />
+          <div class="text-header pt-4">
+            {{ $t('portletInstance.label.duplicateManagementRule') }}
+          </div>
+          <v-card-text class="pb-0 pt-2">
+            <v-radio-group v-model="duplicateType" class="ma-0">
+              <v-radio
+                :label="$t('portletInstance.label.replaceExistingItem')"
+                value="REPLACE" />
+              <v-radio
+                :label="$t('portletInstance.label.duplicateExisting')"
+                value="DUPLICATE" />
+            </v-radio-group>
+          </v-card-text>
+        </template>
+        <template v-else>
+          <v-list-item
+            class="px-0"
+            dense>
+            <v-list-item-avatar
+              class="ms-0"
+              size="20">
+              <v-icon
+                size="20"
+                class="success--text"
+                dark>
+                fa-check-circle
+              </v-icon>
+            </v-list-item-avatar>
+            <v-list-item-content>
+              <v-list-item-title>{{ $t('portletInstance.label.characteristics') }}</v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
+          <v-list-item
+            class="px-0"
+            dense>
+            <v-list-item-avatar
+              class="ms-0"
+              size="20">
+              <v-icon
+                size="20"
+                class="success--text"
+                dark>
+                fa-check-circle
+              </v-icon>
+            </v-list-item-avatar>
+            <v-list-item-content>
+              <v-list-item-title>{{ $t('portletInstance.label.layoutAndPreferences') }}</v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
+        </template>
         <div class="d-flex justify-center pt-5">
           <v-btn
-            :disabled="disableDeserializeButton"
+            :disabled="disableDeserializeButton || loading"
             class="btn btn-primary"
-            @click="deserializePortletInstances">
-            Import
+            @click="handleButtonClick">
+            <v-progress-circular
+              v-if="loading"
+              indeterminate
+              size="20"
+              class="me-2" />
+            {{ buttonLabel }}
           </v-btn>
         </div>
       </div>
@@ -85,11 +128,19 @@ export default {
     fileName: '',
     uploadId: '',
     categoryId: '',
-    duplicateType: 'REPLACE'
+    duplicateType: 'REPLACE',
+    importFinished: false
+
   }),
   computed: {
     disableDeserializeButton() {
       return !this.fileName || !this.categoryId;
+    },
+    header() {
+      return this.importFinished ? this.$t('portletInstance.label.importInProgress') : this.$t('portletInstance.label.templateToImport');
+    },
+    buttonLabel() {
+      return this.importFinished ? this.$t('portletInstance.label.close') : this.$t('portletInstance.label.import');
     }
   },
   created() {
@@ -101,10 +152,18 @@ export default {
       this.uploadId = uploadId;
       this.$refs.deserializeDrawer.open();
     },
-    deserializePortletInstances() {
+    close() {
+      this.importFinished = false;
+      this.fileName = '';
+      this.uploadId = '';
+      this.categoryId = '';
+      this.$refs.deserializeDrawer.close();
+    },
+    async deserializePortletInstances() {
       if (!this.uploadId) {
         return;
       }
+      this.loading = true;
       const params = {
         categoryId: this.categoryId
       };
@@ -114,12 +173,23 @@ export default {
         replaceExisting: true,
         params: params
       };
-
-      return this.$databindService.deserialize(databind);
-
+      try {
+        await this.$databindService.deserialize(databind);
+        this.importFinished = true;
+        this.$root.$emit('portlet-instance-saved');
+      } finally {
+        this.loading = false;
+      }
     },
     changeFile() {
       this.$root.$emit('portlet-instance-file-explorer');
+    },
+    handleButtonClick() {
+      if (this.importFinished) {
+        this.close();
+      } else {
+        this.deserializePortletInstances();
+      }
     }
   }
 };
