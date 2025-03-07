@@ -121,7 +121,6 @@ class PortletInstanceDatabindPluginTest {
 
     // When
     CompletableFuture<DatabindReport> futureReport = portletInstanceDatabindPlugin.deserialize(zipFile,
-                                                                                               true,
                                                                                                Map.of("categoryId", "1"),
                                                                                                "admin");
 
