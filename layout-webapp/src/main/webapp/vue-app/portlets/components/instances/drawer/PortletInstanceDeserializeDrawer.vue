@@ -54,19 +54,6 @@
           <portlets-instance-category-input
             v-model="categoryId"
             class="mt-4" />
-          <div class="text-header pt-4">
-            {{ $t('portletInstance.label.duplicateManagementRule') }}
-          </div>
-          <v-card-text class="pb-0 pt-2">
-            <v-radio-group v-model="duplicateType" class="ma-0">
-              <v-radio
-                :label="$t('portletInstance.label.replaceExistingItem')"
-                value="REPLACE" />
-              <v-radio
-                :label="$t('portletInstance.label.duplicateExisting')"
-                value="DUPLICATE" />
-            </v-radio-group>
-          </v-card-text>
         </template>
         <template v-else>
           <v-list-item
@@ -128,7 +115,6 @@ export default {
     fileName: '',
     uploadId: '',
     categoryId: '',
-    duplicateType: 'REPLACE',
     importFinished: false
 
   }),
@@ -170,7 +156,6 @@ export default {
       const databind = {
         objectType: 'PortletInstance',
         uploadId: this.uploadId,
-        replaceExisting: true,
         params: params
       };
       try {

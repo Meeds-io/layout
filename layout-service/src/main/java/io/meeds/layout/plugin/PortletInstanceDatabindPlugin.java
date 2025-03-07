@@ -159,10 +159,7 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
 
   @Async
   @ContainerTransactional
-  public CompletableFuture<DatabindReport> deserialize(File zipFile,
-                                                       boolean replaceExisting,
-                                                       Map<String, String> params,
-                                                       String username) {
+  public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
     String categoryId = params.get("categoryId");
     if (categoryId != null) {
       return CompletableFuture.supplyAsync(() -> {
