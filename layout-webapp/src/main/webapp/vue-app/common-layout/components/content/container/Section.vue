@@ -28,9 +28,8 @@
     v-on="!isDynamicSection && {
       'mousedown': startSelection,
     }">
-    <v-hover :disabled="$root.mobileDisplayMode">
+    <v-hover v-model="hover" :disabled="$root.mobileDisplayMode">
       <div
-        slot-scope="{ hover }"
         :class="{
           'z-index-two': hoverSectionMenuButton,
           'normal-page-width': !$root.pageFullWindow,
@@ -40,7 +39,7 @@
         <div class="position-relative full-height full-width">
           <layout-editor-section-menu
             :container="container"
-            :hover="!drawerOpened && (hover || hoverSection || movingSection)"
+            :hover="hoverSectionMenu"
             :index="index"
             :length="length"
             :moving="movingSection"
@@ -96,6 +95,7 @@ export default {
     },
   },
   data: () => ({
+    hover: false,
     hoverSection: false,
     hoverSectionMenuButton: false,
     movingSection: false,
@@ -115,6 +115,9 @@ export default {
     isDynamicSection() {
       return this.container.template === this.$layoutUtils.flexTemplate;
     },
+    hoverSectionMenu() {
+      return !this.drawerOpened && (this.hover || this.hoverSection || this.movingSection);
+    },
     cssStyle() {
       return this.$applicationUtils.getStyle(this.container, {
         onlyBackgroundStyle: true,
@@ -125,6 +128,13 @@ export default {
       return this.isDynamicSection
         && this.$root.mobileDisplayMode
         && this.container?.cssClass?.includes?.('layout-mobile-columns');
+    },
+  },
+  watch: {
+    hoverSectionMenu(newVal, oldVal) {
+      if (!oldVal && newVal) {
+        this.hoverSectionMenuButton = true;
+      }
     },
   },
   created() {
