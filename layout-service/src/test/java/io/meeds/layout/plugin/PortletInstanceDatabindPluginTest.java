@@ -119,6 +119,8 @@ class PortletInstanceDatabindPluginTest {
 
     when(portletInstanceService.createPortletInstance(any())).thenReturn(new PortletInstance());
 
+    when(translationImportService.postImport(any())).thenReturn(CompletableFuture.completedFuture(null));
+
     // When
     CompletableFuture<DatabindReport> futureReport = portletInstanceDatabindPlugin.deserialize(zipFile,
                                                                                                Map.of("categoryId", "1"),
