@@ -46,7 +46,6 @@ import org.exoplatform.upload.UploadResource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import java.io.*;
@@ -157,7 +156,6 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     writeContent(zipOutputStream, objectId, jsonData);
   }
 
-  @Async
   @ContainerTransactional
   public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
     String categoryId = params.get("categoryId");
@@ -170,14 +168,18 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
           processPortletInstance(instance, Long.parseLong(categoryId));
           processedInstances.add(instance.getContentId());
         }
-        layoutTranslationService.postImport(PortletInstanceTranslationPlugin.OBJECT_TYPE);
-        DatabindReport report = new DatabindReport();
-        report.setSuccess(!processedInstances.isEmpty());
-        report.setProcessedInstances(processedInstances);
-        return report;
-      });
+        return processedInstances;
+      }).thenCompose(processedInstances ->
+              layoutTranslationService.postImport(PortletInstanceTranslationPlugin.OBJECT_TYPE)
+                      .thenApply(v -> {
+                        DatabindReport report = new DatabindReport();
+                        report.setSuccess(!processedInstances.isEmpty());
+                        report.setProcessedInstances(processedInstances);
+                        return report;
+                      })
+      );
     }
-    return null;
+    return CompletableFuture.completedFuture(null);
   }
 
   private void writeContent(ZipOutputStream zipOutputStream, String objectId, String content) throws IOException {
