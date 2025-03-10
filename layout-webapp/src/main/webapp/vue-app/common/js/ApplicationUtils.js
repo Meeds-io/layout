@@ -295,6 +295,12 @@ export function getStyle(container, options) {
         }
       }
     }
+  } else if (!options.noBackgroundStyle && options.siteStyle) {
+    document.body.style.removeProperty('--allPagesBackgroundColor');
+    document.body.style.removeProperty('--allPagesBackgroundImage');
+    document.body.style.removeProperty('--allPagesBackgroundRepeat');
+    document.body.style.removeProperty('--allPagesBackgroundSize');
+    document.body.style.removeProperty('--allPagesBackgroundPosition');
   }
   if (container.appBackgroundColor) {
     style['--appBackgroundColor'] = container.appBackgroundColor;
