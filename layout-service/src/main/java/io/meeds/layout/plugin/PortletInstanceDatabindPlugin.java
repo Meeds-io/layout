@@ -21,6 +21,7 @@ package io.meeds.layout.plugin;
 import io.meeds.common.ContainerTransactional;
 import io.meeds.layout.model.PortletInstance;
 import io.meeds.layout.model.PortletInstanceDatabind;
+import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.plugin.attachment.PortletInstanceAttachmentPlugin;
 import io.meeds.layout.plugin.translation.PortletInstanceTranslationPlugin;
 import io.meeds.layout.service.PortletInstanceService;
@@ -217,19 +218,27 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     return instances;
   }
 
+  @SneakyThrows
   private void processPortletInstance(PortletInstanceDatabind instance, long categoryId) {
     PortletInstance portletInstance = new PortletInstance();
     portletInstance.setName(instance.getNames().get("en"));
     portletInstance.setDescription(instance.getDescriptions().get("en"));
     portletInstance.setContentId(instance.getContentId());
     portletInstance.setCategoryId(categoryId);
-    portletInstance.setPreferences(instance.getPreferences());
     portletInstance.setPermissions(List.of(PLATFORM_USERS_PERMISSION));
     portletInstance.setSystem(false);
     portletInstance.setSupportedModes(List.of("view"));
     PortletInstance createdPortletInstance = portletInstanceService.createPortletInstance(portletInstance);
     saveNames(instance, createdPortletInstance);
     saveDescriptions(instance, createdPortletInstance);
+    List<PortletInstancePreference> preferences = instance.getPreferences();
+    if (preferences != null) {
+      preferences.add(new PortletInstancePreference("portletInstanceId", String.valueOf(createdPortletInstance.getId())));
+    } else {
+      preferences = Collections.singletonList(new PortletInstancePreference("portletInstanceId", String.valueOf(createdPortletInstance.getId())));
+    }
+    createdPortletInstance.setPreferences(preferences);
+    portletInstanceService.updatePortletInstance(createdPortletInstance);
   }
 
   protected void saveIllustration(long portletInstanceId, byte[] illustrationBytes) {
