@@ -157,30 +157,32 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     writeContent(zipOutputStream, objectId, jsonData);
   }
 
-  @ContainerTransactional
   public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
     String categoryId = params.get("categoryId");
     if (categoryId != null) {
-      return CompletableFuture.supplyAsync(() -> {
-        Map<String, PortletInstanceDatabind> instances = extractInstances(zipFile);
-        List<String> processedInstances = new ArrayList<>();
-        for (Map.Entry<String, PortletInstanceDatabind> entry : instances.entrySet()) {
-          PortletInstanceDatabind instance = entry.getValue();
-          processPortletInstance(instance, Long.parseLong(categoryId));
-          processedInstances.add(instance.getContentId());
-        }
-        return processedInstances;
-      }).thenCompose(processedInstances ->
-              layoutTranslationService.postImport(PortletInstanceTranslationPlugin.OBJECT_TYPE)
-                      .thenApply(v -> {
-                        DatabindReport report = new DatabindReport();
-                        report.setSuccess(!processedInstances.isEmpty());
-                        report.setProcessedInstances(processedInstances);
-                        return report;
-                      })
-      );
+      return CompletableFuture.supplyAsync(() -> importPortletInstances(zipFile, Long.parseLong(categoryId)))
+                              .thenCompose(processedInstances -> layoutTranslationService.postImport(PortletInstanceTranslationPlugin.OBJECT_TYPE)
+                                                                                         .thenApply(v -> {
+                                                                                           DatabindReport report =
+                                                                                                                 new DatabindReport();
+                                                                                           report.setSuccess(!processedInstances.isEmpty());
+                                                                                           report.setProcessedInstances(processedInstances);
+                                                                                           return report;
+                                                                                         }));
     }
     return CompletableFuture.completedFuture(null);
+  }
+
+  @ContainerTransactional
+  public List<String> importPortletInstances(File zipFile, long categoryId) {
+    Map<String, PortletInstanceDatabind> instances = extractInstances(zipFile);
+    List<String> processedInstances = new ArrayList<>();
+    for (Map.Entry<String, PortletInstanceDatabind> entry : instances.entrySet()) {
+      PortletInstanceDatabind instance = entry.getValue();
+      processPortletInstance(instance, categoryId);
+      processedInstances.add(instance.getContentId());
+    }
+    return processedInstances;
   }
 
   private void writeContent(ZipOutputStream zipOutputStream, String objectId, String content) throws IOException {
@@ -231,11 +233,15 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     PortletInstance createdPortletInstance = portletInstanceService.createPortletInstance(portletInstance);
     saveNames(instance, createdPortletInstance);
     saveDescriptions(instance, createdPortletInstance);
+    if (instance.getIllustration() != null) {
+      saveIllustration(createdPortletInstance.getId(), Base64.decodeBase64(instance.getIllustration()));
+    }
     List<PortletInstancePreference> preferences = instance.getPreferences();
     if (preferences != null) {
       preferences.add(new PortletInstancePreference("portletInstanceId", String.valueOf(createdPortletInstance.getId())));
     } else {
-      preferences = Collections.singletonList(new PortletInstancePreference("portletInstanceId", String.valueOf(createdPortletInstance.getId())));
+      preferences = Collections.singletonList(new PortletInstancePreference("portletInstanceId",
+                                                                            String.valueOf(createdPortletInstance.getId())));
     }
     createdPortletInstance.setPreferences(preferences);
     portletInstanceService.updatePortletInstance(createdPortletInstance);
@@ -273,13 +279,6 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     }
   }
 
-  @SneakyThrows
-  private File getIllustrationFile(byte[] data) {
-    File tempFile = File.createTempFile("temp", ".png");
-    FileUtils.writeByteArrayToFile(tempFile, data);
-    return tempFile;
-  }
-
   protected void saveNames(PortletInstanceDatabind portletInstanceDatabind, PortletInstance portletInstance) {
     layoutTranslationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
                                                    portletInstance.getId(),
@@ -292,6 +291,16 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
                                                    portletInstance.getId(),
                                                    PortletInstanceTranslationPlugin.DESCRIPTION_FIELD_NAME,
                                                    portletInstanceDatabind.getDescriptions());
+  }
+
+  @SneakyThrows
+  private File getIllustrationFile(byte[] data) {
+    if (data == null) {
+      throw new IllegalArgumentException("Illustration data is null");
+    }
+    File tempFile = File.createTempFile("temp", ".png");
+    FileUtils.writeByteArrayToFile(tempFile, data);
+    return tempFile;
   }
 
   private long getSuperUserIdentityId() {
