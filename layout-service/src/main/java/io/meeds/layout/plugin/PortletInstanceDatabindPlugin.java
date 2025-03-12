@@ -166,7 +166,7 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
                                                                                            DatabindReport report =
                                                                                                                  new DatabindReport();
                                                                                            report.setSuccess(!processedInstances.isEmpty());
-                                                                                           report.setProcessedInstances(processedInstances);
+                                                                                           report.setProcessedItems(processedInstances);
                                                                                            return report;
                                                                                          }));
     }
