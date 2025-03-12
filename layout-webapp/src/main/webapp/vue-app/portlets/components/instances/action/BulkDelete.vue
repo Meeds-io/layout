@@ -59,7 +59,7 @@ export default {
         portletInstance => this.$portletInstanceService.deletePortletInstance(portletInstance.id),
         null,
         () => {
-          this.$root.$emit('alert-message', this.$root.$t('portlets.label.bulk.delete.success', 'success'));
+          this.$root.$emit('alert-message', this.$root.$t('portlets.label.bulk.delete.success'), 'success');
           this.$root.$emit('portlets-instances-list-refresh');
         });
     },
