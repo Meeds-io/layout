@@ -131,9 +131,9 @@ class PortletInstanceDatabindPluginTest {
     // Then
     assertNotNull(report);
     assertTrue(report.isSuccess());
-    assertEquals(2, report.getProcessedInstances().size());
-    assertTrue(report.getProcessedInstances().contains("12345"));
-    assertTrue(report.getProcessedInstances().contains("67890"));
+    assertEquals(2, report.getProcessedItems().size());
+    assertTrue(report.getProcessedItems().contains("12345"));
+    assertTrue(report.getProcessedItems().contains("67890"));
 
     verify(portletInstanceService, times(2)).createPortletInstance(any());
   }
