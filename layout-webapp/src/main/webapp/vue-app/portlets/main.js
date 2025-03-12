@@ -51,7 +51,9 @@ export function init() {
           collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
           allPortletInstancesSelected: false,
           selectedPortletInstances: [],
-          portletInstancesSize: 0
+          portletInstancesSize: 0,
+          processedPortletInstances: 0,
+          isBulkProcessing: false,
         }),
         computed: {
           isMobile() {
@@ -69,8 +71,12 @@ export function init() {
               return a;
             }, {});
           },
+          SystemSelectedPortletInstances() {
+            return this.selectedPortletInstances.every(portletInstance => portletInstance.system);
+          }
         },
         created() {
+          this.$root.$on('portlets-instances-list-refresh', this.refreshPortletInstances);
           this.$root.$on('portlet-instance-enabled', this.refreshPortletInstances);
           this.$root.$on('portlet-instance-disabled', this.refreshPortletInstances);
           this.$root.$on('portlet-instance-saved', this.refreshPortletInstances);
@@ -117,6 +123,63 @@ export function init() {
             return this.$portletInstanceCategoryService.getPortletInstanceCategories()
               .then(data => this.portletInstanceCategories = data || [])
               .finally(() => this.loading--);
+          },
+          async applyOperationInBulk(callback, params, onFinish, onCancel) {
+            this.processedPortletInstances = 0;
+            this.isBulkProcessing = true;
+            this.$emit('portlets-instances-bulk-operation-status', null, 'disabled');
+            try {
+              if (this.allPortletInstancesSelected) {
+                let index = 0;
+                do {
+                  while (index < this.portletInstances.length && this.isBulkProcessing) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.applyOperationOnPortletInstance(this.portletInstances[index++], params, callback);
+                  }
+                  if (index >= this.portletInstances.length && this.isBulkProcessing) {
+                    // eslint-disable-next-line no-await-in-loop
+                    this.selectedPortletInstances = this.portletInstances;
+                  }
+                } while (index < this.portletInstances.length && this.isBulkProcessing);
+              } else {
+                for (const element of this.portletInstances) {
+                  if (!this.isBulkProcessing) {
+                    break;
+                  }
+                  const portletInstance = element;
+                  if (this.selectedPortletInstances.find(s => s.id === portletInstance.id)) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.applyOperationOnPortletInstance(portletInstance, params, callback);
+                  }
+                }
+              }
+            } finally {
+              this.allPortletInstancesSelected = false;
+              this.selectedPortletInstances = [];
+              this.$emit('portlets-instances-bulk-operation-status', null, null);
+              if (this.isBulkProcessing) {
+                this.isBulkProcessing = false;
+                await this.$nextTick();
+                if (onFinish) {
+                  onFinish(params);
+                }
+              } else if (onCancel) {
+                onCancel(params);
+              }
+            }
+          },
+          async applyOperationOnPortletInstance(portletInstance, params, callback) {
+            this.$emit('portlets-instances-bulk-operation-status', portletInstance.id, 'processing');
+            try {
+              await callback(portletInstance, params);
+              this.$emit('portlets-instances-bulk-operation-status', portletInstance.id, 'done');
+            } catch (e) {
+              // eslint-disable-next-line no-console
+              console.error('Error processing portlets instance ', portletInstance.id, '. Error: ', e);
+              this.$emit('portlets-instances-bulk-operation-status', portletInstance.id, 'error');
+            } finally {
+              this.processedPortletInstances++;
+            }
           },
         },
       }, `#${appId}`, 'Portlets Management')
