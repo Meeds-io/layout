@@ -46,6 +46,7 @@ import PortletMenu from './components/portlets/Menu.vue';
 import PortletInstancesDrawer from './components/portlets/drawer/InstancesDrawer.vue';
 import PortletInstanceFileInput from './components/instances/form/PortletInstanceFileInput.vue';
 import PortletInstanceDeserializeDrawer from './components/instances/drawer/PortletInstanceDeserializeDrawer.vue';
+import BulkDelete from './components/instances/action/BulkDelete.vue';
 
 const components = {
   'portlets-management': PortletsManagement,
@@ -73,6 +74,8 @@ const components = {
   'portlets-item': PortletItem,
   'portlets-item-menu': PortletMenu,
   'portlets-item-instances-drawer': PortletInstancesDrawer,
+
+  'portlets-instances-bulk-delete': BulkDelete,
 };
 
 for (const key in components) {
