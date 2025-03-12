@@ -42,15 +42,17 @@
     @toggle-select="$emit('select-tab', $event)"
     @filter-text-input="$emit('portlet-instance-filter', $event)">
     <template v-if="!$root.isMobile && tabName === 'instances'" #left>
-      <div v-if="$root.selectedPortletInstances?.length && !$root.isMobile">
+      <div v-if="$root.selectedPortletInstances?.length && !$root.isMobile" class="d-flex">
         <v-btn
           color="primary"
           elevation="0"
+          class="me-2"
           outlined
           @click="$root.$emit('serialize-drawer-open', 'PortletInstance', selectedPortletInstancesIds)">
           <v-icon size="16" class="me-2">fa-download</v-icon>
           {{ $t('portletInstance.label.export') }}
         </v-btn>
+        <portlets-instances-bulk-delete />
       </div>
       <v-menu
         v-else
