@@ -33,19 +33,19 @@ if (extensionRegistry) {
 
 extensionRegistry.registerComponent('manageSpaceActions', 'manage-space-actions', {
   id: 'manage-space-actions',
-  vueComponent: Vue.options.components['site-navigation-button'],
+  vueComponent: Vue.component['site-navigation-button'],
   rank: 20,
 });
 
 extensionRegistry.registerComponent('manageSpaceDrawers', 'manage-space-drawers', {
   id: 'manage-space-drawers',
-  vueComponent: Vue.options.components['site-navigation-drawers-actions'],
+  vueComponent: Vue.component['site-navigation-drawers-actions'],
   rank: 20,
 });
 
 extensionRegistry.registerComponent('space-templates', 'space-templates-drawers', {
   id: 'manage-space-drawers',
-  vueComponent: Vue.options.components['site-navigation-drawers-actions'],
+  vueComponent: Vue.component['site-navigation-drawers-actions'],
   rank: 10,
 });
 
@@ -70,12 +70,12 @@ const lang = eXo && eXo.env.portal.language || 'en';
 const url = `/layout/i18n/locale.portlet.SiteNavigation?lang=${lang}`;
 const i18nPromise = exoi18n.loadLanguageAsync(lang, url);
 
-export function init(canManageSiteNavigation) {
+export function init (canManageSiteNavigation) {
   i18nPromise.then(i18n => {
     // init Vue app when locale ressources are ready
     Vue.createApp({
       template: `<site-navigation id="${appId}" :can-manage-site-navigation="${canManageSiteNavigation}"/>`,
-      vuetify: Vue.prototype.vuetifyOptions,
+      vuetify: eXo.vuetify,
       i18n,
       data: () => ({
         pageTemplates: null,

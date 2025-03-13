@@ -19,32 +19,32 @@
 
 -->
 <script>
-export default {
-  created() {
-    this.$root.$on('space-templates-created', this.openSiteNavigationDrawer);
-  },
-  beforeDestroy() {
-    this.$root.$off('space-templates-created', this.openSiteNavigationDrawer);
-  },
-  methods: {
-    async openSiteNavigationDrawer(spaceTemplate) {
-      try {
-        const site = await this.$siteService.getSite('group_template', spaceTemplate?.layout, {
-          expandNavigations: false,
-        });
-        document.dispatchEvent(new CustomEvent('open-site-navigation-drawer',{detail: {
-          siteName: site.name,
-          siteType: site.siteType,
-          siteId: site.siteId,
-          siteLabel: spaceTemplate?.name,
-          information: 'spaceTemplate.label.editNavigation.information',
-          displayCloseFooter: true,
-          includeGlobal: false,
-        }}));
-      } finally {
-        this.$emit('loading', false);
-      }
+  export default {
+    created () {
+      this.$root.$on('space-templates-created', this.openSiteNavigationDrawer);
     },
-  },
-};
+    beforeUnmount () {
+      this.$root.$off('space-templates-created', this.openSiteNavigationDrawer);
+    },
+    methods: {
+      async openSiteNavigationDrawer (spaceTemplate) {
+        try {
+          const site = await eXo.$siteService.getSite('group_template', spaceTemplate?.layout, {
+            expandNavigations: false,
+          });
+          document.dispatchEvent(new CustomEvent('open-site-navigation-drawer',{ detail: {
+            siteName: site.name,
+            siteType: site.siteType,
+            siteId: site.siteId,
+            siteLabel: spaceTemplate?.name,
+            information: 'spaceTemplate.label.editNavigation.information',
+            displayCloseFooter: true,
+            includeGlobal: false,
+          } }));
+        } finally {
+          this.$emit('loading', false);
+        }
+      },
+    },
+  };
 </script>

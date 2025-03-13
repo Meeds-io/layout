@@ -21,10 +21,10 @@
 <template>
   <v-dialog
     v-model="dialog"
-    :width="width"
     content-class="uiPopup full-width full-height overflow-x-hidden"
+    max-width="100vw"
     persistent
-    max-width="100vw">
+    :width="width">
     <v-card class="full-height full-width" flat>
       <v-flex class="ms-5 me-0 drawerHeader flex-grow-0">
         <v-list-item class="pe-0 ps-1">
@@ -33,8 +33,8 @@
           </v-list-item-content>
           <v-list-item-action class="drawerIcons align-end d-flex flex-row">
             <v-btn
-              :title="$t('label.close')"
-              icon>
+              icon
+              :title="$t('label.close')">
               <v-icon @click="close()">mdi-close</v-icon>
             </v-btn>
           </v-list-item-action>
@@ -44,72 +44,72 @@
       <v-card
         v-if="dialog"
         :id="applicationId"
-        data-mode="EDIT"
-        max-width="100%"
         class="ma-4"
-        flat>
+        data-mode="EDIT"
+        flat
+        max-width="100%">
         <div
-          ref="content"
           :id="id"
+          ref="content"
           class="layout-application"></div>
       </v-card>
     </v-card>
   </v-dialog>
 </template>
 <script>
-export default {
-  data: () => ({
-    dialog: false,
-    expand: false,
-    applicationId: null,
-    applicationCategoryTitle: null,
-    applicationTitle: null,
-  }),
-  computed: {
-    drawerTitle() {
-      return this.applicationCategoryTitle?.length && this.$t('layout.editPortletTitle', {
-        0: this.applicationTitle,
-        1: this.applicationCategoryTitle,
-      }) || this.$t('layout.editPortletTitleNoCategory', {
-        0: this.applicationTitle,
-      });
+  export default {
+    data: () => ({
+      dialog: false,
+      expand: false,
+      applicationId: null,
+      applicationCategoryTitle: null,
+      applicationTitle: null,
+    }),
+    computed: {
+      drawerTitle () {
+        return this.applicationCategoryTitle?.length && this.$t('layout.editPortletTitle', {
+          0: this.applicationTitle,
+          1: this.applicationCategoryTitle,
+        }) || this.$t('layout.editPortletTitleNoCategory', {
+          0: this.applicationTitle,
+        });
+      },
+      nodeUri () {
+        return this.$root.draftNodeUri;
+      },
     },
-    nodeUri() {
-      return this.$root.draftNodeUri;
+    watch: {
+      dialog () {
+        if (this.dialog) {
+          window.eXo.env.portal.maximizedPortletMode = 'EDIT';
+          window.setTimeout(() => this.installApplication(), 200);
+        } else {
+          window.eXo.env.portal.maximizedPortletMode = null;
+          this.$root.$emit('layout-editor-portlet-properties-updated', this.applicationId);
+        }
+      },
     },
-  },
-  watch: {
-    dialog() {
-      if (this.dialog) {
-        window.eXo.env.portal.maximizedPortletMode = 'EDIT';
-        window.setTimeout(() => this.installApplication(), 200);
-      } else {
-        window.eXo.env.portal.maximizedPortletMode = null;
-        this.$root.$emit('layout-editor-portlet-properties-updated', this.applicationId);
-      }
+    created () {
+      this.$root.$on('layout-editor-portlet-edit', this.open);
     },
-  },
-  created() {
-    this.$root.$on('layout-editor-portlet-edit', this.open);
-  },
-  beforeDestroy() {
-    this.$root.$off('layout-editor-portlet-edit', this.open);
-  },
-  methods: {
-    open(applicationId, applicationCategoryTitle, applicationTitle) {
-      this.applicationId = applicationId;
-      this.applicationCategoryTitle = applicationCategoryTitle;
-      this.applicationTitle = applicationTitle;
-      this.$nextTick(() => this.dialog = true);
+    beforeUnmount () {
+      this.$root.$off('layout-editor-portlet-edit', this.open);
     },
-    close() {
-      this.dialog = false;
+    methods: {
+      open (applicationId, applicationCategoryTitle, applicationTitle) {
+        this.applicationId = applicationId;
+        this.applicationCategoryTitle = applicationCategoryTitle;
+        this.applicationTitle = applicationTitle;
+        this.$nextTick(() => this.dialog = true);
+      },
+      close () {
+        this.dialog = false;
+      },
+      installApplication () {
+        if (this.$refs.content) {
+          eXo.$applicationUtils.installApplication(this.nodeUri, this.applicationId, this.$refs.content, 'EDIT', this.$root.isSiteLayout, true);
+        }
+      },
     },
-    installApplication() {
-      if (this.$refs.content) {
-        this.$applicationUtils.installApplication(this.nodeUri, this.applicationId, this.$refs.content, 'EDIT', this.$root.isSiteLayout, true);
-      }
-    },
-  },
-};
+  };
 </script>

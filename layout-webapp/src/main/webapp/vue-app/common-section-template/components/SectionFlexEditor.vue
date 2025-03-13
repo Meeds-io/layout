@@ -27,20 +27,20 @@
       </div>
       <v-card
         class="flex-grow-1 flex-shrink-1 align-end ms-auto"
-        max-width="80%"
-        flat>
+        flat
+        max-width="80%">
         <v-slider
           v-model="cols"
-          :thumb-size="24"
-          :min="1"
           :max="12"
-          thumb-label="always">
+          :min="1"
+          thumb-label="always"
+          :thumb-size="24">
           <template #prepend>
             <v-btn
-              :disabled="cols === 1"
               class="me-n2 mt-n1"
-              icon
+              :disabled="cols === 1"
               fab
+              icon
               x-small
               @click="decrementCols">
               <v-icon class="icon-default-color pt-2px">fa-minus</v-icon>
@@ -48,8 +48,8 @@
           </template>
           <template #append>
             <v-btn
-              :disabled="cols === 12"
               class="ms-n2 mt-n1"
+              :disabled="cols === 12"
               fab
               icon
               x-small
@@ -61,75 +61,75 @@
       </v-card>
     </div>
     <div
-      :style="cssStyle"
-      class="border-color-thin-grey-opacity2 border-radius mt-2 mb-4 pa-2">
+      class="border-color-thin-grey-opacity2 border-radius mt-2 mb-4 pa-2"
+      :style="cssStyle">
       <div
-        :class="gridClass"
-        class="grid-gap-1">
+        class="grid-gap-1"
+        :class="gridClass">
         <v-card
           v-for="i in cols"
-          :key="i"
           :id="`grid-cell-${i}`"
-          height="100px"
+          :key="i"
           class="grey-background grid-cell grid-cell-colspan-lg-1 grid-cell-lg-rowspan-1 opacity-5"
-          flat />
+          flat
+          height="100px" />
       </div>
     </div>
   </div>
 </template>
 <script>
-export default {
-  props: {
-    colsCount: {
-      type: Number,
-      default: null,
+  export default {
+    props: {
+      colsCount: {
+        type: Number,
+        default: null,
+      },
+      backgroundProperties: {
+        type: Object,
+        default: null,
+      },
     },
-    backgroundProperties: {
-      type: Object,
-      default: null,
+    data: () => ({
+      cols: 0,
+      allowedCols: [1, 2, 3, 4, 6, 12],
+    }),
+    computed: {
+      gridClass () {
+        return `d-md-grid pb-0 grid-cols-md-${this.cols}`;
+      },
+      cssStyle () {
+        return this.backgroundProperties && eXo.$applicationUtils.getStyle(this.backgroundProperties, {
+          onlyBackgroundStyle: true,
+        });
+      },
     },
-  },
-  data: () => ({
-    cols: 0,
-    allowedCols: [1, 2, 3, 4, 6, 12],
-  }),
-  computed: {
-    gridClass() {
-      return `d-md-grid pb-0 grid-cols-md-${this.cols}`;
-    },
-    cssStyle() {
-      return this.backgroundProperties && this.$applicationUtils.getStyle(this.backgroundProperties, {
-        onlyBackgroundStyle: true,
-      });
-    },
-  },
-  watch: {
-    cols(newVal, oldVal) {
-      const index = this.allowedCols.indexOf(this.cols);
-      if (index < 0) {
-        this.cols = oldVal;
-        if (newVal - oldVal > 0) {
-          this.incrementCols();
+    watch: {
+      cols (newVal, oldVal) {
+        const index = this.allowedCols.indexOf(this.cols);
+        if (index < 0) {
+          this.cols = oldVal;
+          if (newVal - oldVal > 0) {
+            this.incrementCols();
+          } else {
+            this.decrementCols();
+          }
         } else {
-          this.decrementCols();
+          this.$emit('cols-updated', this.cols);
         }
-      } else {
-        this.$emit('cols-updated', this.cols);
-      }
+      },
     },
-  },
-  created() {
-    this.cols = this.colsCount;
-  },
-  methods: {
-    decrementCols() {
-      const index = this.allowedCols.indexOf(this.cols);
-      this.cols = this.allowedCols[index - 1];
+    created () {
+      this.cols = this.colsCount;
     },
-    incrementCols() {
-      const index = this.allowedCols.indexOf(this.cols);
-      this.cols = this.allowedCols[index + 1];
+    methods: {
+      decrementCols () {
+        const index = this.allowedCols.indexOf(this.cols);
+        this.cols = this.allowedCols[index - 1];
+      },
+      incrementCols () {
+        const index = this.allowedCols.indexOf(this.cols);
+        this.cols = this.allowedCols[index + 1];
+      },
     },
-  },
-};
+  };
 </script>

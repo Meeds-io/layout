@@ -19,25 +19,25 @@
 <template>
   <v-btn
     id="topBarSiteNavigation"
-    :title="$t('siteNavigation.button.tooltip.label')"
-    :role="'button'"
     class="ms-5"
     icon
+    :role="'button'"
+    :title="$t('siteNavigation.button.tooltip.label')"
     @click="openSiteNavigationDrawer">
     <v-icon size="20">fa-project-diagram</v-icon>
   </v-btn>
 </template>
 <script>
-export default {
-  mounted() {
-    this.openSiteNavigationDrawer();
-  },
-  methods: {
-    openSiteNavigationDrawer() {
-      document.dispatchEvent(new CustomEvent('open-site-navigation-drawer',{detail: {
-        includeGlobal: eXo.env.portal.metaPortalName === eXo.env.portal.siteKeyName && eXo.env.portal.siteKeyType === 'portal',
-      }}));
-    }
-  }
-};
+  export default {
+    mounted () {
+      this.openSiteNavigationDrawer();
+    },
+    methods: {
+      openSiteNavigationDrawer () {
+        document.dispatchEvent(new CustomEvent('open-site-navigation-drawer',{ detail: {
+          includeGlobal: eXo.env.portal.metaPortalName === eXo.env.portal.siteKeyName && eXo.env.portal.siteKeyType === 'portal',
+        } }));
+      },
+    },
+  };
 </script>

@@ -22,32 +22,32 @@
 <template>
   <layout-editor-container-base
     :container="container"
-    :parent-id="parentId"
+    :draggable="childrenSize > 1"
     :index="index"
     :length="childrenSize"
-    :draggable="childrenSize > 1"
+    :parent-id="parentId"
     site-style />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
+      index: {
+        type: Number,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    computed: {
+      childrenSize () {
+        return this.container?.children?.length || 0;
+      },
     },
-    index: {
-      type: Number,
-      default: null,
-    },
-  },
-  computed: {
-    childrenSize() {
-      return this.container?.children?.length || 0;
-    },
-  },
-};
+  };
 </script>

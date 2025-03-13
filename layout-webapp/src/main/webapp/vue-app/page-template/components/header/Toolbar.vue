@@ -21,20 +21,20 @@
 <template>
   <application-toolbar
     id="pageTemplatesApplication"
+    class="px-1"
     :right-text-filter="{
       minCharacters: 1,
       placeholder: $t('pageTemplates.filter.placeholder'),
       tooltip: $t('pageTemplates.filter.placeholder'),
     }"
-    class="px-1"
     @filter-text-input="$emit('page-templates-filter', $event)">
     <template v-if="!$root.isMobile" #left>
       <v-btn
         id="applicationToolbarLeftButton"
         :aria-label="$t('pageTemplates.add')"
+        class="btn btn-primary text-truncate"
         :class="$root.isMobile && 'px-0'"
         :loading="creating"
-        class="btn btn-primary text-truncate"
         @click="$root.$emit('page-templates-create')">
         <v-icon
           size="18">
@@ -50,15 +50,15 @@
   </application-toolbar>
 </template>
 <script>
-export default {
-  props: {
-    creating: {
-      type: Boolean,
-      default: false,
+  export default {
+    props: {
+      creating: {
+        type: Boolean,
+        default: false,
+      },
     },
-  },
-  data: () => ({
-    pageTemplates: null,
-  }),
-};
+    data: () => ({
+      pageTemplates: null,
+    }),
+  };
 </script>

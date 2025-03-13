@@ -38,16 +38,16 @@
         <v-list-item-content class="my-auto">
           <v-card
             v-if="label"
-            :min-width="minTextWidth"
-            flat>
+            flat
+            :min-width="minTextWidth">
             <div class="text-body">{{ label }}</div>
             <div class="text-subtitle">{{ value }}</div>
           </v-card>
           <v-card
             v-else
-            :min-width="minTextWidth"
             class="text-body text-end"
-            flat>
+            flat
+            :min-width="minTextWidth">
             {{ value }}
           </v-card>
         </v-list-item-content>
@@ -55,22 +55,22 @@
     </template>
     <v-color-picker
       v-model="color"
-      :swatches="swatches"
       mode="hexa"
-      show-swatches />
+      show-swatches
+      :swatches="swatches" />
     <v-row class="mx-0 white">
       <v-col class="center">
         <v-btn
-          text
           color="primary"
+          text
           @click="cancel">
           {{ $t('layout.cancel') }}
         </v-btn>
       </v-col>
       <v-col class="center">
         <v-btn
-          text
           color="primary"
+          text
           @click="save">
           {{ $t('layout.ok') }}
         </v-btn>
@@ -79,55 +79,55 @@
   </v-dialog>
 </template>
 <script>
-export default {
-  props: {
-    value: {
-      type: String,
-      default: null,
+  export default {
+    props: {
+      value: {
+        type: String,
+        default: null,
+      },
+      label: {
+        type: String,
+        default: null,
+      },
+      minTextWidth: {
+        type: String,
+        default: () => 'auto',
+      },
     },
-    label: {
-      type: String,
-      default: null,
+    data: () => ({
+      modal: false,
+      color: null,
+      originalValue: null,
+      swatches: [
+        ['#FF0000', '#319ab3', '#f97575'],
+        ['#98cc81', '#4273c8', '#cea6ac'],
+        ['#bc99e7', '#9ee4f5', '#774ea9'],
+        ['#ffa500', '#bed67e', '#0E100F'],
+        ['#ffaacc', '#0000AA', '#000055'],
+      ],
+    }),
+    watch: {
+      modal () {
+        if (this.modal) {
+          this.originalValue = this.value;
+        }
+      },
+      value () {
+        this.color = this.value;
+      },
     },
-    minTextWidth: {
-      type: String,
-      default: () => 'auto',
-    },
-  },
-  data: () => ({
-    modal: false,
-    color: null,
-    originalValue: null,
-    swatches: [
-      ['#FF0000', '#319ab3', '#f97575'],
-      ['#98cc81', '#4273c8', '#cea6ac'],
-      ['#bc99e7', '#9ee4f5', '#774ea9'],
-      ['#ffa500', '#bed67e', '#0E100F'],
-      ['#ffaacc', '#0000AA', '#000055'],
-    ],
-  }),
-  watch: {
-    modal() {
-      if (this.modal) {
-        this.originalValue = this.value;
-      }
-    },
-    value() {
+    created () {
       this.color = this.value;
     },
-  },
-  created() {
-    this.color = this.value;
-  },
-  methods: {
-    cancel() {
-      this.$emit('input', this.originalValue);
-      this.modal = false;
+    methods: {
+      cancel () {
+        this.$emit('input', this.originalValue);
+        this.modal = false;
+      },
+      save () {
+        this.$emit('input', this.color);
+        this.modal = false;
+      },
     },
-    save() {
-      this.$emit('input', this.color);
-      this.modal = false;
-    }
-  }
-};
+  };
 </script>

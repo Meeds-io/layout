@@ -24,16 +24,16 @@
     <v-hover
       v-model="hover">
       <v-card
+        class="d-flex flex-column pa-2 hover-elevation overflow-hidden position-relative"
         :class="{
           'primary-border-color': selected,
           'border-color': !selected,
         }"
-        class="d-flex flex-column pa-2 hover-elevation overflow-hidden position-relative"
-        min-width="170"
+        flat
+        max-height="150"
         max-width="170"
         min-height="150"
-        max-height="150"
-        flat
+        min-width="170"
         @click="$root.$emit('layout-illustration-preview', illustrationSrc, illustrationAction)">
         <p
           v-if="title"
@@ -41,13 +41,13 @@
           class="mb-0 font-weight-regular text-truncate-2"></p>
         <div class="d-flex flex-grow-1 align-center">
           <v-img
-            :src="illustrationSrc"
             :alt="title"
+            class="align-center ma-auto"
+            contain
+            max-width="100%"
             min-height="100%"
             min-width="100%"
-            max-width="100%"
-            contain
-            class="align-center ma-auto" />
+            :src="illustrationSrc" />
         </div>
         <div
           v-if="hover"
@@ -62,15 +62,15 @@
             class="white--text mb-0 text-subtitle text-truncate-3"></p>
           <div class="d-flex flex-grow-1 align-end justify-end">
             <v-btn
-              small
               class="btn btn-primary me-2"
+              small
               @click.prevent.stop="$emit('select')">
               {{ $t('layout.use') }}
             </v-btn>
             <v-btn
-              small
               class="btn"
               color="white"
+              small
               @click="$root.$emit('layout-illustration-preview', illustrationSrc, illustrationAction)">
               {{ $t('layout.preview') }}
             </v-btn>
@@ -81,43 +81,43 @@
   </div>
 </template>
 <script>
-export default {
-  props: {
-    sectionTemplate: {
-      type: Object,
-      default: null
+  export default {
+    props: {
+      sectionTemplate: {
+        type: Object,
+        default: null,
+      },
+      selected: {
+        type: Boolean,
+        default: false,
+      },
     },
-    selected: {
-      type: Boolean,
-      default: false
-    }
-  },
-  data: () => ({
-    hover: false,
-  }),
-  computed: {
-    title() {
-      return this.sectionTemplate?.name;
+    data: () => ({
+      hover: false,
+    }),
+    computed: {
+      title () {
+        return this.sectionTemplate?.name;
+      },
+      description () {
+        return this.sectionTemplate?.description;
+      },
+      illustrationId () {
+        return this.sectionTemplate?.illustrationId;
+      },
+      sectionTemplateId () {
+        return this.sectionTemplate?.id;
+      },
+      illustrationSrc () {
+        return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/sectionTemplate/${this.sectionTemplateId}/${this.illustrationId}` ||  '/layout/images/page-templates/DefaultPreview.webp';
+      },
+      illustrationAction () {
+        return {
+          label: this.$t('layout.use'),
+          closeOnClick: true,
+          click: () => this.$emit('select'),
+        };
+      },
     },
-    description() {
-      return this.sectionTemplate?.description;
-    },
-    illustrationId() {
-      return this.sectionTemplate?.illustrationId;
-    },
-    sectionTemplateId() {
-      return this.sectionTemplate?.id;
-    },
-    illustrationSrc() {
-      return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/sectionTemplate/${this.sectionTemplateId}/${this.illustrationId}` ||  '/layout/images/page-templates/DefaultPreview.webp';
-    },
-    illustrationAction() {
-      return {
-        label: this.$t('layout.use'),
-        closeOnClick: true,
-        click: () => this.$emit('select'),
-      };
-    },
-  },
-};
+  };
 </script>

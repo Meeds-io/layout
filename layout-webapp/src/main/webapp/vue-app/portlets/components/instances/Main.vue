@@ -22,20 +22,20 @@
   <div class="d-flex flex-row my-5">
     <portlets-instance-categories
       ref="list"
-      :keyword="keyword"
-      class="hidden-sm-and-down me-5" />
+      class="hidden-sm-and-down me-5"
+      :keyword="keyword" />
     <portlets-instance-list
       ref="list"
       :keyword="keyword" />
   </div>
 </template>
 <script>
-export default {
-  props: {
-    keyword: {
-      type: String,
-      default: null,
+  export default {
+    props: {
+      keyword: {
+        type: String,
+        default: null,
+      },
     },
-  }
-};
+  };
 </script>

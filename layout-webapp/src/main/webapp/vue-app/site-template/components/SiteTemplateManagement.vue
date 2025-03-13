@@ -38,9 +38,9 @@
   </v-app>
 </template>
 <script>
-export default {
-  data: () => ({
-    keyword: null,
-  }),
-};
+  export default {
+    data: () => ({
+      keyword: null,
+    }),
+  };
 </script>

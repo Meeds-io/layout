@@ -20,11 +20,11 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="editSectionDrawer"
+    ref="drawer"
     v-model="drawer"
-    right
-    disable-pull-to-refresh>
+    disable-pull-to-refresh
+    right>
     <template #title>
       {{ $t('layout.editSectionTitle', {0: index + 1}) }}
     </template>
@@ -32,14 +32,14 @@
       <v-tooltip bottom>
         <template #activator="{on, attrs}">
           <div
-            v-on="on"
-            v-bind="attrs">
+            v-bind="attrs"
+            v-on="on">
             <v-btn
               :aria-label="$t('layout.cloneSection')"
               class="white text-color border-color me-2"
               height="32"
-              width="32"
               icon
+              width="32"
               @click="$root.$emit('layout-section-clone', section, index)">
               <v-icon class="icon-default-color" size="20">fa-copy</v-icon>
             </v-btn>
@@ -50,15 +50,15 @@
       <v-tooltip bottom>
         <template #activator="{on, attrs}">
           <div
-            v-on="on"
-            v-bind="attrs">
+            v-bind="attrs"
+            v-on="on">
             <v-btn
               :aria-label="$t('layout.saveAsSectionTemplate')"
-              :loading="savingAsTemplate"
               class="white text-color border-color me-2"
               height="32"
-              width="32"
               icon
+              :loading="savingAsTemplate"
+              width="32"
               @click="saveAsTemplate">
               <v-icon class="icon-default-color" size="20">fa-columns</v-icon>
             </v-btn>
@@ -71,15 +71,15 @@
       <v-card class="pa-4" flat>
         <section-template-grid-editor
           v-if="sectionType === $layoutUtils.gridTemplate"
-          :rows-count="section.rowsCount"
-          :cols-count="section.colsCount"
           :background-properties="section"
-          @rows-updated="rows = $event"
-          @cols-updated="cols = $event" />
+          :cols-count="section.colsCount"
+          :rows-count="section.rowsCount"
+          @cols-updated="cols = $event"
+          @rows-updated="rows = $event" />
         <section-template-flex-editor
           v-else-if="sectionType === $layoutUtils.flexTemplate"
-          :cols-count="cols"
           :background-properties="section"
+          :cols-count="cols"
           @cols-updated="cols = $event" />
         <layout-editor-section-margin-input
           v-if="section"
@@ -106,15 +106,15 @@
               class="my-auto text-no-wrap ms-n1 mt-2"
               mandatory>
               <v-radio
-                :value="false"
-                class="mx-0">
+                class="mx-0"
+                :value="false">
                 <template #label>
                   <span class="text-font-size text-color">{{ $t('layout.listAppsInRows') }}</span>
                 </template>
               </v-radio>
               <v-radio
-                :value="true"
-                class="mx-0">
+                class="mx-0"
+                :value="true">
                 <template #label>
                   <span class="text-font-size text-color">{{ $t('layout.listAppsInColumns') }}</span>
                 </template>
@@ -130,15 +130,15 @@
               class="my-auto text-no-wrap ms-n1 mt-2"
               mandatory>
               <v-radio
-                :value="false"
-                class="mx-0">
+                class="mx-0"
+                :value="false">
                 <template #label>
                   <span class="text-font-size text-color">{{ $t('layout.scrollNoSticky') }}</span>
                 </template>
               </v-radio>
               <v-radio
-                :value="true"
-                class="mx-0">
+                class="mx-0"
+                :value="true">
                 <template #label>
                   <span class="text-font-size text-color">{{ $t('layout.scrollStickyLastApp') }}</span>
                 </template>
@@ -152,10 +152,10 @@
       <div class="d-flex">
         <v-btn
           v-if="canRemove"
-          color="error"
-          outlined
-          elevation="0"
           class="ignore-vuetify-classes"
+          color="error"
+          elevation="0"
+          outlined
           @click="removeSection">
           <span class="text-none">{{ $t('layout.delete') }}</span>
         </v-btn>
@@ -166,8 +166,8 @@
           <span class="text-none">{{ $t('layout.cancel') }}</span>
         </v-btn>
         <v-btn
-          :disabled="!modified"
           class="btn btn-primary ms-4"
+          :disabled="!modified"
           @click="apply">
           <span class="text-none">{{ $t('layout.apply') }}</span>
         </v-btn>
@@ -176,126 +176,126 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    originalSection: null,
-    section: null,
-    drawer: false,
-    index: null,
-    rows: 0,
-    cols: 0,
-    canRemove: false,
-    mobileInColumns: false,
-    enableBackgroundColor: false,
-    enableBackgroundImage: false,
-    backgroundColor: '#FFFFFFFF',
-    backgroundImageStyle: null,
-    backgroundImage: null,
-    backgroundEffect: null,
-    backgroundRepeat: null,
-    backgroundSize: null,
-    stickyApplication: false,
-    optionsModified: false,
-    savingAsTemplate: false,
-  }),
-  computed: {
-    colsCount() {
-      return this.section.template === this.$layoutUtils.flexTemplate ? this.section.children.length : this.section?.colsCount;
+  export default {
+    data: () => ({
+      originalSection: null,
+      section: null,
+      drawer: false,
+      index: null,
+      rows: 0,
+      cols: 0,
+      canRemove: false,
+      mobileInColumns: false,
+      enableBackgroundColor: false,
+      enableBackgroundImage: false,
+      backgroundColor: '#FFFFFFFF',
+      backgroundImageStyle: null,
+      backgroundImage: null,
+      backgroundEffect: null,
+      backgroundRepeat: null,
+      backgroundSize: null,
+      stickyApplication: false,
+      optionsModified: false,
+      savingAsTemplate: false,
+    }),
+    computed: {
+      colsCount () {
+        return this.section.template === eXo.$layoutUtils.flexTemplate ? this.section.children.length : this.section?.colsCount;
+      },
+      modified () {
+        return this.optionsModified || this.section?.rowsCount !== this.rows || this.colsCount !== this.cols;
+      },
+      sectionType () {
+        return this.section?.template;
+      },
+      isDynamicSection () {
+        return this.sectionType === eXo.$layoutUtils.flexTemplate;
+      },
     },
-    modified() {
-      return this.optionsModified || this.section?.rowsCount !== this.rows || this.colsCount !== this.cols;
-    },
-    sectionType() {
-      return this.section?.template;
-    },
-    isDynamicSection() {
-      return this.sectionType === this.$layoutUtils.flexTemplate;
-    },
-  },
-  watch: {
-    section: {
-      deep: true,
-      handler() {
+    watch: {
+      section: {
+        deep: true,
+        handler () {
+          if (this.drawer) {
+            this.optionsModified = true;
+          }
+        },
+      },
+      stickyApplication () {
         if (this.drawer) {
+          if (!this.section.cssClass) {
+            this.section.cssClass = '';
+          }
+          if (this.stickyApplication) {
+            this.section.cssClass += ' layout-sticky-application';
+          } else {
+            this.section.cssClass = this.section.cssClass.replace(/layout-sticky-application/g, '');
+          }
           this.optionsModified = true;
         }
-      }
-    },
-    stickyApplication() {
-      if (this.drawer) {
-        if (!this.section.cssClass) {
-          this.section.cssClass = '';
+      },
+      mobileInColumns () {
+        if (this.drawer) {
+          if (!this.section.cssClass) {
+            this.section.cssClass = '';
+          }
+          if (this.mobileInColumns) {
+            this.section.cssClass += ' layout-mobile-columns';
+          } else {
+            this.section.cssClass = this.section.cssClass.replace(/layout-mobile-columns/g, '');
+          }
+          this.optionsModified = true;
         }
-        if (this.stickyApplication) {
-          this.section.cssClass += ' layout-sticky-application';
+      },
+    },
+    methods: {
+      open (section, index, length) {
+        this.section = JSON.parse(JSON.stringify(section));
+        this.section.children = section.children;
+        this.stickyApplication = this.section.cssClass?.includes?.('layout-sticky-application');
+        this.mobileInColumns = this.section.cssClass?.includes?.('layout-mobile-columns');
+        this.optionsModified = false;
+        this.originalSection = JSON.parse(JSON.stringify(section));
+        this.index = index;
+        if (this.section.template === eXo.$layoutUtils.flexTemplate) {
+          this.rows = 1;
+          this.cols = this.section.children.length;
         } else {
-          this.section.cssClass = this.section.cssClass.replace(/layout-sticky-application/g, '');
+          this.rows = this.section?.rowsCount;
+          this.cols = this.section?.colsCount;
         }
-        this.optionsModified = true;
-      }
-    },
-    mobileInColumns() {
-      if (this.drawer) {
-        if (!this.section.cssClass) {
-          this.section.cssClass = '';
-        }
-        if (this.mobileInColumns) {
-          this.section.cssClass += ' layout-mobile-columns';
-        } else {
-          this.section.cssClass = this.section.cssClass.replace(/layout-mobile-columns/g, '');
-        }
-        this.optionsModified = true;
-      }
-    },
-  },
-  methods: {
-    open(section, index, length) {
-      this.section = JSON.parse(JSON.stringify(section));
-      this.section.children = section.children;
-      this.stickyApplication = this.section.cssClass?.includes?.('layout-sticky-application');
-      this.mobileInColumns = this.section.cssClass?.includes?.('layout-mobile-columns');
-      this.optionsModified = false;
-      this.originalSection = JSON.parse(JSON.stringify(section));
-      this.index = index;
-      if (this.section.template === this.$layoutUtils.flexTemplate) {
-        this.rows = 1;
-        this.cols = this.section.children.length;
-      } else {
-        this.rows = this.section?.rowsCount;
-        this.cols = this.section?.colsCount;
-      }
-      this.canRemove = length > 1;
-      this.$nextTick().then(() => this.$refs.drawer.open());
-    },
-    removeSection() {
-      this.close();
-      this.$root.$emit('layout-remove-section', this.index);
-    },
-    async apply() {
-      await this.$refs.backgroundInput.apply();
-      const section = JSON.parse(JSON.stringify(this.section));
-      section.children = this.section.children;
-      if (section.template === this.$layoutUtils.flexTemplate && this.section.children.length !== this.cols) {
-        this.$layoutUtils.editDynamicSection(section, this.cols);
-      } else if (section.template === this.$layoutUtils.gridTemplate) {
-        this.$layoutUtils.editGridSection(section, this.rows, this.cols);
-      }
-      this.$root.$emit('layout-replace-section', this.index, section);
-      this.close();
-    },
-    close() {
-      this.$refs.drawer.close();
-      this.section = null;
-    },
-    async saveAsTemplate() {
-      this.savingAsTemplate = true;
-      await this.$nextTick();
-      window.setTimeout(() => {
-        this.$root.$emit('layout-section-save-as-template', this.section);
+        this.canRemove = length > 1;
+        this.$nextTick().then(() => this.$refs.drawer.open());
+      },
+      removeSection () {
         this.close();
-        this.savingAsTemplate = false;
-      }, 200);
+        this.$root.$emit('layout-remove-section', this.index);
+      },
+      async apply () {
+        await this.$refs.backgroundInput.apply();
+        const section = JSON.parse(JSON.stringify(this.section));
+        section.children = this.section.children;
+        if (section.template === eXo.$layoutUtils.flexTemplate && this.section.children.length !== this.cols) {
+          eXo.$layoutUtils.editDynamicSection(section, this.cols);
+        } else if (section.template === eXo.$layoutUtils.gridTemplate) {
+          eXo.$layoutUtils.editGridSection(section, this.rows, this.cols);
+        }
+        this.$root.$emit('layout-replace-section', this.index, section);
+        this.close();
+      },
+      close () {
+        this.$refs.drawer.close();
+        this.section = null;
+      },
+      async saveAsTemplate () {
+        this.savingAsTemplate = true;
+        await this.$nextTick();
+        window.setTimeout(() => {
+          this.$root.$emit('layout-section-save-as-template', this.section);
+          this.close();
+          this.savingAsTemplate = false;
+        }, 200);
+      },
     },
-  },
-};
+  };
 </script>

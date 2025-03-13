@@ -23,32 +23,32 @@ import * as pageLayoutService from './js/PageLayoutService.js';
 import * as pageTemplateService from './js/PageTemplateService.js';
 import * as applicationUtils from './js/ApplicationUtils.js';
 
-if (!Vue.prototype.$navigationLayoutService) {
-  window.Object.defineProperty(Vue.prototype, '$navigationLayoutService', {
+if (!eXo.$navigationLayoutService) {
+  window.Object.defineProperty(eXo, '$navigationLayoutService', {
     value: navigationLayoutService,
   });
 }
 
-if (!Vue.prototype.$siteLayoutService) {
-  window.Object.defineProperty(Vue.prototype, '$siteLayoutService', {
+if (!eXo.$siteLayoutService) {
+  window.Object.defineProperty(eXo, '$siteLayoutService', {
     value: siteLayoutService,
   });
 }
 
-if (!Vue.prototype.$pageLayoutService) {
-  window.Object.defineProperty(Vue.prototype, '$pageLayoutService', {
+if (!eXo.$pageLayoutService) {
+  window.Object.defineProperty(eXo, '$pageLayoutService', {
     value: pageLayoutService,
   });
 }
 
-if (!Vue.prototype.$pageTemplateService) {
-  window.Object.defineProperty(Vue.prototype, '$pageTemplateService', {
+if (!eXo.$pageTemplateService) {
+  window.Object.defineProperty(eXo, '$pageTemplateService', {
     value: pageTemplateService,
   });
 }
 
-if (!Vue.prototype.$applicationUtils) {
-  window.Object.defineProperty(Vue.prototype, '$applicationUtils', {
+if (!eXo.$applicationUtils) {
+  window.Object.defineProperty(eXo, '$applicationUtils', {
     value: applicationUtils,
   });
 }

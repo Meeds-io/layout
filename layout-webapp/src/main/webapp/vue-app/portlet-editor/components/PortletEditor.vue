@@ -30,9 +30,9 @@
   </v-app>
 </template>
 <script>
-export default {
-  data: () => ({
-    node: null,
-  }),
-};
+  export default {
+    data: () => ({
+      node: null,
+    }),
+  };
 </script>

@@ -17,7 +17,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-export function getPages(siteType, siteName, pageDisplayName) {
+export function getPages (siteType, siteName, pageDisplayName) {
   const formData = new FormData();
   if (siteName) {
     formData.append('siteName', siteName);
@@ -41,7 +41,7 @@ export function getPages(siteType, siteName, pageDisplayName) {
   });
 }
 
-export function updatePageLayout(pageRef, pageLayout, expand, publish) {
+export function updatePageLayout (pageRef, pageLayout, expand, publish) {
   return fetch(`/layout/rest/pages/layout?pageRef=${pageRef}&publish=${publish || false}&expand=${expand || ''}`, {
     method: 'PUT',
     credentials: 'include',
@@ -51,7 +51,7 @@ export function updatePageLayout(pageRef, pageLayout, expand, publish) {
     body: JSON.stringify({
       children: pageLayout.children,
     }),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else if (resp.status === 400) {
@@ -65,7 +65,7 @@ export function updatePageLayout(pageRef, pageLayout, expand, publish) {
   });
 }
 
-export function createPage(pageName, pageTitle, pageSiteName, pageSiteType, pageType, link, pageTemplateId) {
+export function createPage (pageName, pageTitle, pageSiteName, pageSiteType, pageType, link, pageTemplateId) {
   return fetch('/layout/rest/pages', {
     credentials: 'include',
     method: 'POST',
@@ -81,7 +81,7 @@ export function createPage(pageName, pageTitle, pageSiteName, pageSiteType, page
       pageSiteName,
       link,
     }),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -90,7 +90,7 @@ export function createPage(pageName, pageTitle, pageSiteName, pageSiteType, page
   });
 }
 
-export function updatePageLink(pageRef, link) {
+export function updatePageLink (pageRef, link) {
   const formData = new FormData();
   formData.append('link', link);
   const params = new URLSearchParams(formData).toString();
@@ -100,7 +100,7 @@ export function updatePageLink(pageRef, link) {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: params
+    body: params,
   }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when updating page link');
@@ -108,7 +108,7 @@ export function updatePageLink(pageRef, link) {
   });
 }
 
-export function cloneSection(pageRef, containerId) {
+export function cloneSection (pageRef, containerId) {
   return fetch(`/layout/rest/pages/cloneSection/${containerId}`, {
     credentials: 'include',
     method: 'POST',
@@ -116,14 +116,14 @@ export function cloneSection(pageRef, containerId) {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: `pageRef=${pageRef}`,
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when creating a section template based on an existing section container identifier');
     }
   });
 }
 
-export function updatePagePermissions(pageRef, editPermission, accessPermissions) {
+export function updatePagePermissions (pageRef, editPermission, accessPermissions) {
   return fetch(`/layout/rest/pages/permissions?pageRef=${pageRef}`, {
     method: 'PATCH',
     credentials: 'include',
@@ -134,14 +134,14 @@ export function updatePagePermissions(pageRef, editPermission, accessPermissions
       editPermission: editPermission || null,
       accessPermissions: accessPermissions || null,
     }),
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error(resp.status);
     }
   });
 }
 
-export function getPage(pageRef) {
+export function getPage (pageRef) {
   return fetch(`/layout/rest/pages/byRef?pageRef=${pageRef}`, {
     method: 'GET',
     credentials: 'include',
@@ -154,7 +154,7 @@ export function getPage(pageRef) {
   });
 }
 
-export function getPageLayout({pageRef, siteId, expand, impersonate}) {
+export function getPageLayout ({ pageRef, siteId, expand, impersonate }) {
   const formData = new FormData();
   if (pageRef) {
     formData.append('pageRef', pageRef);
@@ -181,7 +181,7 @@ export function getPageLayout({pageRef, siteId, expand, impersonate}) {
   });
 }
 
-export function getPageApplicationLayout(pageRef, applicationId, expand) {
+export function getPageApplicationLayout (pageRef, applicationId, expand) {
   return fetch(`/layout/rest/pages/layout?pageRef=${pageRef}&applicationId=${applicationId}&expand=${expand || ''}`, {
     method: 'GET',
     credentials: 'include',
@@ -194,7 +194,7 @@ export function getPageApplicationLayout(pageRef, applicationId, expand) {
   });
 }
 
-export function editPageLayout(nodeId, pageId) {
+export function editPageLayout (nodeId, pageId) {
   const formData = new FormData();
   if (nodeId) {
     formData.append('nodeId', nodeId);

@@ -17,7 +17,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-export function getPortletInstanceCategories() {
+export function getPortletInstanceCategories () {
   return fetch('/layout/rest/portlet/instance/categories', {
     method: 'GET',
     credentials: 'include',
@@ -30,7 +30,7 @@ export function getPortletInstanceCategories() {
   });
 }
 
-export function getPortletInstanceCategory(id) {
+export function getPortletInstanceCategory (id) {
   return fetch(`/layout/rest/portlet/instance/categories/${id}`, {
     method: 'GET',
     credentials: 'include',
@@ -43,7 +43,7 @@ export function getPortletInstanceCategory(id) {
   });
 }
 
-export function createPortletInstanceCategory(category) {
+export function createPortletInstanceCategory (category) {
   return fetch('/layout/rest/portlet/instance/categories', {
     credentials: 'include',
     method: 'POST',
@@ -51,7 +51,7 @@ export function createPortletInstanceCategory(category) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(category),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -60,7 +60,7 @@ export function createPortletInstanceCategory(category) {
   });
 }
 
-export function updatePortletInstanceCategory(category) {
+export function updatePortletInstanceCategory (category) {
   return fetch(`/layout/rest/portlet/instance/categories/${category.id}`, {
     credentials: 'include',
     method: 'PUT',
@@ -68,18 +68,18 @@ export function updatePortletInstanceCategory(category) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(category),
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when updating portlet instance categories');
     }
   });
 }
 
-export function deletePortletInstanceCategory(id) {
+export function deletePortletInstanceCategory (id) {
   return fetch(`/layout/rest/portlet/instance/categories/${id}`, {
     credentials: 'include',
     method: 'DELETE',
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when deleting portlet instance categories');
     }

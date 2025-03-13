@@ -21,71 +21,72 @@
 -->
 <template>
   <v-hover v-if="childrenSize" :disabled="$root.mobileDisplayMode">
-    <layout-editor-container-base
-      slot-scope="{ hover }"
-      ref="container"
-      :container="container"
-      :parent-id="parentId"
-      :index="index"
-      style="height: inherit;"
-      class="position-relative overflow-initial layout-sidebar-section layout-section-content z-index-zero"
-      type="sidebar-section"
-      section-style
-      @hovered="hoverSection = $event && !drawerOpened">
-      <template #footer>
-        <site-layout-editor-sidebar-section-menu
-          :container="container"
-          :parent-id="parentId"
-          :hover="!drawerOpened && (hover || hoverSection || movingSection)"
-          :index="index"
-          :length="length"
-          :moving="movingSection"
-          @hover-button="hoverSectionMenuButton = $event"
-          @move-start="movingSection = true"
-          @move-end="movingSection = false" />
-      </template>
-    </layout-editor-container-base>
+    <template #default="{ hover }">
+      <layout-editor-container-base
+        ref="container"
+        class="position-relative overflow-initial layout-sidebar-section layout-section-content z-index-zero"
+        :container="container"
+        :index="index"
+        :parent-id="parentId"
+        section-style
+        style="height: inherit;"
+        type="sidebar-section"
+        @hovered="hoverSection = $event && !drawerOpened">
+        <template #footer>
+          <site-layout-editor-sidebar-section-menu
+            :container="container"
+            :hover="!drawerOpened && (hover || hoverSection || movingSection)"
+            :index="index"
+            :length="length"
+            :moving="movingSection"
+            :parent-id="parentId"
+            @hover-button="hoverSectionMenuButton = $event"
+            @move-end="movingSection = false"
+            @move-start="movingSection = true" />
+        </template>
+      </layout-editor-container-base>
+    </template>
   </v-hover>
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
+      index: {
+        type: Number,
+        default: null,
+      },
+      length: {
+        type: Number,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    data: () => ({
+      hoverSection: false,
+      hoverSectionMenuButton: false,
+      movingSection: false,
+      sectionWidth: 0,
+    }),
+    computed: {
+      storageId () {
+        return this.container?.storageId;
+      },
+      zIndexClass () {
+        return !this.drawerOpened && 'z-index-one';
+      },
+      drawerOpened () {
+        return this.$root.drawerOpened;
+      },
+      childrenSize () {
+        return this.container?.children?.length;
+      },
     },
-    index: {
-      type: Number,
-      default: null,
-    },
-    length: {
-      type: Number,
-      default: null,
-    },
-  },
-  data: () => ({
-    hoverSection: false,
-    hoverSectionMenuButton: false,
-    movingSection: false,
-    sectionWidth: 0,
-  }),
-  computed: {
-    storageId() {
-      return this.container?.storageId;
-    },
-    zIndexClass() {
-      return !this.drawerOpened && 'z-index-one';
-    },
-    drawerOpened() {
-      return this.$root.drawerOpened;
-    },
-    childrenSize() {
-      return this.container?.children?.length;
-    },
-  },
-};
+  };
 </script>

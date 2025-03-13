@@ -26,10 +26,10 @@
         <div v-bind="attrs" v-on="on">
           <v-btn
             :aria-label="$t('layout.editSiteProperties')"
-            target="_blank"
             icon
+            target="_blank"
             @click="$root.$emit('layout-page-properties-open', $root.middleCenterContainer, $root.layout)">
-            <v-icon size="20" class="icon-default-color">fa-palette</v-icon>
+            <v-icon class="icon-default-color" size="20">fa-palette</v-icon>
           </v-btn>
         </div>
       </template>

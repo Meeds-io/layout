@@ -23,11 +23,11 @@
   <v-tooltip bottom>
     <template #activator="{on, attrs}">
       <v-btn
-        v-on="on"
         v-bind="attrs"
-        :loading="loading"
         :aria-label="$t('layout.saveDraft')"
         class="btn me-3"
+        :loading="loading"
+        v-on="on"
         @click="saveDraft">
         {{ $t('layout.saveDraft') }}
       </v-btn>
@@ -36,31 +36,31 @@
   </v-tooltip>
 </template>
 <script>
-export default {
-  data: () => ({
-    loading: false,
-  }),
-  methods: {
-    saveDraft() {
-      this.loading = true;
-      this.$root.$on('layout-draft-saved', this.stopLoadingSuccess);
-      this.$root.$on('layout-draft-save-error', this.stopLoadingError);
-      this.$root.$emit('layout-save-draft');
+  export default {
+    data: () => ({
+      loading: false,
+    }),
+    methods: {
+      saveDraft () {
+        this.loading = true;
+        this.$root.$on('layout-draft-saved', this.stopLoadingSuccess);
+        this.$root.$on('layout-draft-save-error', this.stopLoadingError);
+        this.$root.$emit('layout-save-draft');
+      },
+      stopLoadingSuccess () {
+        this.stopLoading(true);
+      },
+      stopLoadingError () {
+        this.stopLoading();
+      },
+      stopLoading (success) {
+        if (this.loading && success) {
+          this.$root.$emit('alert-message', this.$t('layout.siteDraftSavedSuccessfully'), 'success');
+        }
+        this.$root.$off('layout-draft-saved', this.stopLoadingSuccess);
+        this.$root.$off('layout-draft-save-error', this.stopLoadingError);
+        this.loading = false;
+      },
     },
-    stopLoadingSuccess() {
-      this.stopLoading(true);
-    },
-    stopLoadingError() {
-      this.stopLoading();
-    },
-    stopLoading(success) {
-      if (this.loading && success) {
-        this.$root.$emit('alert-message', this.$t('layout.siteDraftSavedSuccessfully'), 'success');
-      }
-      this.$root.$off('layout-draft-saved', this.stopLoadingSuccess);
-      this.$root.$off('layout-draft-save-error', this.stopLoadingError);
-      this.loading = false;
-    },
-  },
-};
+  };
 </script>

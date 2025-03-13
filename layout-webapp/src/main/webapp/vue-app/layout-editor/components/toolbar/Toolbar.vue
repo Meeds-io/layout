@@ -21,10 +21,10 @@
 <template>
   <v-card
     class="d-flex align-center no-border-radius border-box-sizing px-4 layout-sticky-top-bar"
+    flat
     height="57"
     min-width="100vw"
-    width="100vw"
-    flat>
+    width="100vw">
     <v-icon class="icon-default-color">fa-pager</v-icon>
     <span v-if="pageTemplate" class="px-2">{{ $t('layout.editPageTemplate', {0: pageTemplate.name}) }}</span>
     <span v-else-if="!pageTemplateId" class="px-2">{{ $t('layout.editPageName', {0: pageName}) }}</span>
@@ -53,40 +53,40 @@
   </v-card>
 </template>
 <script>
-export default {
-  props: {
-    page: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      page: {
+        type: Object,
+        default: null,
+      },
+      node: {
+        type: Object,
+        default: null,
+      },
+      nodeLabels: {
+        type: Object,
+        default: null,
+      },
     },
-    node: {
-      type: Object,
-      default: null,
+    computed: {
+      disabledDraft () {
+        return !this.$root.sectionHistory?.length && !this.$root.sectionRedo?.length;
+      },
+      defaultLanguage () {
+        return eXo.env.portal.defaultLanguage;
+      },
+      pageTemplateId () {
+        return this.$root.pageTemplateId;
+      },
+      pageTemplate () {
+        return this.$root.pageTemplate;
+      },
+      pageName () {
+        return this.nodeLabels?.labels && (this.nodeLabels.labels[eXo.env.portal.language] || this.nodeLabels.labels[this.defaultLanguage]) || this.page?.title;
+      },
     },
-    nodeLabels: {
-      type: Object,
-      default: null,
+    mounted () {
+      document.querySelector('#vuetify-apps').append(this.$el);
     },
-  },
-  computed: {
-    disabledDraft() {
-      return !this.$root.sectionHistory?.length && !this.$root.sectionRedo?.length;
-    },
-    defaultLanguage() {
-      return eXo.env.portal.defaultLanguage;
-    },
-    pageTemplateId() {
-      return this.$root.pageTemplateId;
-    },
-    pageTemplate() {
-      return this.$root.pageTemplate;
-    },
-    pageName() {
-      return this.nodeLabels?.labels && (this.nodeLabels.labels[eXo.env.portal.language] || this.nodeLabels.labels[this.defaultLanguage]) || this.page?.title;
-    },
-  },
-  mounted() {
-    document.querySelector('#vuetify-apps').append(this.$el);
-  },
-};
+  };
 </script>

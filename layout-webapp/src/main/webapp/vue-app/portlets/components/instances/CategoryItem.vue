@@ -21,27 +21,27 @@
 <template>
   <v-hover @input="hover = $event">
     <v-list-item
-      :value="category.id"
       :aria-label="category.name"
-      role="listitem">
+      role="listitem"
+      :value="category.id">
       <v-list-item-icon class="my-auto me-4">
         <v-card
-          width="30"
           class="transparent d-flex align-center justify-center"
-          flat>
-          <v-icon v-text="category.icon" class="icon-default-color" />
+          flat
+          width="30">
+          <v-icon class="icon-default-color">{{ category.icon }}</v-icon>
         </v-card>
       </v-list-item-icon>
       <v-list-item-content>
-        <v-list-item-title
-          :title="category.name"
-          v-text="category.name" />
+        <v-list-item-title :title="category.name">
+          {{ category.name }}
+        </v-list-item-title>
       </v-list-item-content>
       <v-list-item-action class="my-auto">
         <v-card
-          width="30"
           class="transparent d-flex align-center justify-center"
-          flat>
+          flat
+          width="30">
           <portlets-instance-category-menu
             v-if="hover || menu"
             :category="category"
@@ -52,16 +52,16 @@
   </v-hover>
 </template>
 <script>
-export default {
-  props: {
-    category: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      category: {
+        type: Object,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    hover: false,
-    menu: false,
-  }),
-};
+    data: () => ({
+      hover: false,
+      menu: false,
+    }),
+  };
 </script>

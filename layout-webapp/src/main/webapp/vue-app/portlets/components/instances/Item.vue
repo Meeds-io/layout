@@ -23,12 +23,12 @@
     <!-- Illustration -->
     <td
       v-if="!$root.isMobile"
-      class="px-0"
-      align="center">
+      align="center"
+      class="px-0">
       <layout-image-illustration
-        :value="portletInstance"
+        default-src="/layout/images/portlets/DefaultPortlet.png"
         object-type="portletInstance"
-        default-src="/layout/images/portlets/DefaultPortlet.png" />
+        :value="portletInstance" />
     </td>
     <!-- name -->
     <td align="left">
@@ -40,18 +40,18 @@
     </td>
     <!-- description -->
     <td
-      v-if="!$vuetify.breakpoint.lgAndDown"
+      v-if="!$vuetify.display.lgAndDown.value"
+      v-sanitized-html="description"
       align="left"
-      class="text-break"
-      v-sanitized-html="description"></td>
+      class="text-break"></td>
     <td
       v-if="!$root.isMobile"
       align="center">
       <v-switch
         v-model="enabled"
-        :loading="loading"
         :aria-label="enabled && $t('portlets.label.disableInstance') || $t('portlets.label.enableInstance')"
         class="mt-0 mx-auto width-fit-content"
+        :loading="loading"
         @click="changeStatus" />
     </td>
     <td
@@ -62,66 +62,66 @@
   </tr>
 </template>
 <script>
-export default {
-  props: {
-    portletInstance: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      portletInstance: {
+        type: Object,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    menu: false,
-    hoverMenu: false,
-  }),
-  computed: {
-    portletInstanceId() {
-      return this.portletInstance?.id;
+    data: () => ({
+      menu: false,
+      hoverMenu: false,
+    }),
+    computed: {
+      portletInstanceId () {
+        return this.portletInstance?.id;
+      },
+      enabled () {
+        return !this.portletInstance?.disabled;
+      },
+      name () {
+        return this.$te(this.portletInstance?.name) ? this.$t(this.portletInstance?.name) : this.portletInstance?.name;
+      },
+      description () {
+        return this.$te(this.portletInstance?.description) ? this.$t(this.portletInstance?.description) : this.portletInstance?.description;
+      },
+      illustrationId () {
+        return this.portletInstance?.illustrationId;
+      },
+      illustrationSrc () {
+        return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/portletInstance/${this.portletInstanceId}/${this.illustrationId}` || '/layout/images/portlets/DefaultPortlet.png';
+      },
     },
-    enabled() {
-      return !this.portletInstance?.disabled;
+    watch: {
+      hoverMenu () {
+        if (!this.hoverMenu) {
+          window.setTimeout(() => {
+            if (!this.hoverMenu) {
+              this.menu = false;
+            }
+          }, 200);
+        }
+      },
     },
-    name() {
-      return this.$te(this.portletInstance?.name) ? this.$t(this.portletInstance?.name) : this.portletInstance?.name;
+    methods: {
+      changeStatus () {
+        this.$root.$emit('close-alert-message');
+        this.loading = true;
+        eXo.$portletInstanceService.getPortletInstance(this.portletInstance.id)
+          .then(portletInstance => {
+            portletInstance.disabled = this.enabled;
+            return eXo.$portletInstanceService.updatePortletInstance(portletInstance)
+              .then(() => {
+                this.$root.$emit(`portlet-instance-${this.enabled && 'disabled' || 'enabled'}`, portletInstance);
+              });
+          })
+          .then(() => {
+            this.$root.$emit('alert-message', this.enabled && this.$t('portlets.status.disabled.success') || this.$t('portlets.status.enabled.success'), 'success');
+          })
+          .catch(() => this.$root.$emit('alert-message', this.$t('portlets.status.update.error'), 'error'))
+          .finally(() => this.loading = false);
+      },
     },
-    description() {
-      return this.$te(this.portletInstance?.description) ? this.$t(this.portletInstance?.description) : this.portletInstance?.description;
-    },
-    illustrationId() {
-      return this.portletInstance?.illustrationId;
-    },
-    illustrationSrc() {
-      return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/portletInstance/${this.portletInstanceId}/${this.illustrationId}` || '/layout/images/portlets/DefaultPortlet.png';
-    },
-  },
-  watch: {
-    hoverMenu() {
-      if (!this.hoverMenu) {
-        window.setTimeout(() => {
-          if (!this.hoverMenu) {
-            this.menu = false;
-          }
-        }, 200);
-      }
-    },
-  },
-  methods: {
-    changeStatus() {
-      this.$root.$emit('close-alert-message');
-      this.loading = true;
-      this.$portletInstanceService.getPortletInstance(this.portletInstance.id)
-        .then(portletInstance => {
-          portletInstance.disabled = this.enabled;
-          return this.$portletInstanceService.updatePortletInstance(portletInstance)
-            .then(() => {
-              this.$root.$emit(`portlet-instance-${this.enabled && 'disabled' || 'enabled'}`, portletInstance);
-            });
-        })
-        .then(() => {
-          this.$root.$emit('alert-message', this.enabled && this.$t('portlets.status.disabled.success') || this.$t('portlets.status.enabled.success'), 'success');
-        })
-        .catch(() => this.$root.$emit('alert-message', this.$t('portlets.status.update.error'), 'error'))
-        .finally(() => this.loading = false);
-    },
-  },
-};
+  };
 </script>

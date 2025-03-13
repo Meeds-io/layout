@@ -18,7 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-export function getSectionTemplates() {
+export function getSectionTemplates () {
   return fetch('/layout/rest/sections', {
     method: 'GET',
     credentials: 'include',
@@ -31,7 +31,7 @@ export function getSectionTemplates() {
   });
 }
 
-export function getSectionTemplate(id) {
+export function getSectionTemplate (id) {
   return fetch(`/layout/rest/sections/${id}`, {
     method: 'GET',
     credentials: 'include',
@@ -44,7 +44,7 @@ export function getSectionTemplate(id) {
   });
 }
 
-export function generateSectionTemplateNodeId(id) {
+export function generateSectionTemplateNodeId (id) {
   return fetch(`/layout/rest/sections/${id}/nodeId`, {
     method: 'GET',
     credentials: 'include',
@@ -57,7 +57,7 @@ export function generateSectionTemplateNodeId(id) {
   });
 }
 
-export function generateSectionTemplateContent(id) {
+export function generateSectionTemplateContent (id) {
   return fetch(`/layout/rest/sections/${id}/content`, {
     method: 'GET',
     credentials: 'include',
@@ -70,7 +70,7 @@ export function generateSectionTemplateContent(id) {
   });
 }
 
-export function saveAsSectionTemplate(pageRef, containerId) {
+export function saveAsSectionTemplate (pageRef, containerId) {
   return fetch(`/layout/rest/sections/container/${containerId}`, {
     credentials: 'include',
     method: 'POST',
@@ -78,7 +78,7 @@ export function saveAsSectionTemplate(pageRef, containerId) {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
     body: `pageRef=${pageRef}`,
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -87,7 +87,7 @@ export function saveAsSectionTemplate(pageRef, containerId) {
   });
 }
 
-export function createSectionTemplate(sectionTemplate) {
+export function createSectionTemplate (sectionTemplate) {
   return fetch('/layout/rest/sections', {
     credentials: 'include',
     method: 'POST',
@@ -95,7 +95,7 @@ export function createSectionTemplate(sectionTemplate) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(sectionTemplate),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -104,7 +104,7 @@ export function createSectionTemplate(sectionTemplate) {
   });
 }
 
-export function updateSectionTemplate(sectionTemplate) {
+export function updateSectionTemplate (sectionTemplate) {
   return fetch(`/layout/rest/sections/${sectionTemplate.id}`, {
     credentials: 'include',
     method: 'PUT',
@@ -112,18 +112,18 @@ export function updateSectionTemplate(sectionTemplate) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(sectionTemplate),
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when updating section template');
     }
   });
 }
 
-export function deleteSectionTemplate(id) {
+export function deleteSectionTemplate (id) {
   return fetch(`/layout/rest/sections/${id}`, {
     credentials: 'include',
     method: 'DELETE',
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when deleting section template');
     }

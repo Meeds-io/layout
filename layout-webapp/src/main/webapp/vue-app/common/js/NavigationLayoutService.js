@@ -17,7 +17,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-export function createNode(parentNodeId,
+export function createNode (parentNodeId,
   previousNodeId,
   nodeLabel,
   nodeId,
@@ -34,7 +34,7 @@ export function createNode(parentNodeId,
     credentials: 'include',
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       parentNodeId,
@@ -51,7 +51,7 @@ export function createNode(parentNodeId,
       target,
       labels,
     }),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -60,11 +60,11 @@ export function createNode(parentNodeId,
   });
 }
 
-export function createDraftNode(nodeId) {
+export function createDraftNode (nodeId) {
   return fetch(`/layout/rest/navigations/${nodeId}/draft`, {
     credentials: 'include',
     method: 'POST',
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -73,7 +73,7 @@ export function createDraftNode(nodeId) {
   });
 }
 
-export function updateNode(nodeId,
+export function updateNode (nodeId,
   nodeLabel,
   pageRef,
   visible,
@@ -87,7 +87,7 @@ export function updateNode(nodeId,
     credentials: 'include',
     method: 'PUT',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       nodeLabel,
@@ -100,30 +100,30 @@ export function updateNode(nodeId,
       target,
       labels,
     }),
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when updating navigation node');
     }
   });
 }
 
-export function deleteNode(nodeId, delay) {
+export function deleteNode (nodeId, delay) {
   localStorage.setItem('deletedNode', nodeId);
   return fetch(`/layout/rest/navigations/${nodeId}?delay=${delay || 0}`, {
     credentials: 'include',
-    method: 'DELETE'
-  }).then((resp) => {
+    method: 'DELETE',
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when deleting navigation node');
     }
   });
 }
 
-export function undoDeleteNode(nodeId) {
+export function undoDeleteNode (nodeId) {
   return fetch(`/layout/rest/navigations/${nodeId}/undoDelete`, {
     method: 'POST',
     credentials: 'include',
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       localStorage.removeItem('deletedNode');
     } else {
@@ -132,7 +132,7 @@ export function undoDeleteNode(nodeId) {
   });
 }
 
-export function moveNode(nodeId, destinationParentId, previousNodeId) {
+export function moveNode (nodeId, destinationParentId, previousNodeId) {
   const formData = new FormData();
   if (destinationParentId) {
     formData.append('destinationParentId', destinationParentId);
@@ -147,18 +147,18 @@ export function moveNode(nodeId, destinationParentId, previousNodeId) {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: params
-  }).then((resp) => {
+    body: params,
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when moving navigation node');
     }
   });
 }
 
-export function getNode(nodeId) {
+export function getNode (nodeId) {
   return fetch(`/layout/rest/navigations/${nodeId}`, {
     credentials: 'include',
-    method: 'GET'
+    method: 'GET',
   }).then(resp => {
     if (resp?.ok) {
       return resp.json();
@@ -168,10 +168,10 @@ export function getNode(nodeId) {
   });
 }
 
-export function getNodeLabels(nodeId) {
+export function getNodeLabels (nodeId) {
   return fetch(`/layout/rest/navigations/${nodeId}/labels`, {
     credentials: 'include',
-    method: 'GET'
+    method: 'GET',
   }).then(resp => {
     if (resp?.ok) {
       return resp.json();
@@ -181,10 +181,10 @@ export function getNodeLabels(nodeId) {
   });
 }
 
-export function getNodeUri(nodeId) {
+export function getNodeUri (nodeId) {
   return fetch(`/layout/rest/navigations/${nodeId}/uri`, {
     credentials: 'include',
-    method: 'GET'
+    method: 'GET',
   }).then(resp => {
     if (resp?.ok) {
       return resp.text();

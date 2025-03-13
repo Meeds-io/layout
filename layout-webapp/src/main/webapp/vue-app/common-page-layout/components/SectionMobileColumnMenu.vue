@@ -25,19 +25,19 @@
       <div class="position-sticky t-quarter b-quarter z-index-floating-button d-flex align-center">
         <v-card
           v-if="hasLeftColumn"
+          class="position-absolute l-0 d-flex align-center justify-center elevation-2 rounded-lg"
           color="white"
           height="60"
           width="60"
-          class="position-absolute l-0 d-flex align-center justify-center elevation-2 rounded-lg"
           @click="displayedColumn--">
           <v-icon class="icon-default-color">fa-angle-double-right</v-icon>
         </v-card>
         <v-card
           v-if="hasRightColumn"
+          class="position-absolute r-0 d-flex align-center justify-center elevation-2 rounded-lg"
           color="white"
           height="60"
           width="60"
-          class="position-absolute r-0 d-flex align-center justify-center elevation-2 rounded-lg"
           @click="displayedColumn++">
           <v-icon class="icon-default-color">fa-angle-double-left</v-icon>
         </v-card>
@@ -47,45 +47,45 @@
   </div>
 </template>
 <script>
-export default {
-  props: {
-    value: {
-      type: String,
-      default: null,
-    },
-    container: {
-      type: Object,
-      default: null,
-    },
-  },
-  data: () => ({
-    displayedColumn: 1,
-  }),
-  computed: {
-    isMobileColumns() {
-      return this.container?.template === 'FlexContainer'
-        && this.container?.cssClass?.includes?.('layout-mobile-columns');
-    },
-    colsCount() {
-      return this.isMobileColumns && this.container?.children?.length || 1;
-    },
-    hasRightColumn() {
-      return this.isMobileColumns && this.displayedColumn < this.colsCount;
-    },
-    hasLeftColumn() {
-      return this.isMobileColumns && this.displayedColumn > 1;
-    },
-    mobilePageClass() {
-      return `mobile-column-display-${(this.displayedColumn - 1)}`;
-    },
-  },
-  watch: {
-    mobilePageClass: {
-      immediate: true,
-      handler(value) {
-        this.$emit('input', value);
+  export default {
+    props: {
+      value: {
+        type: String,
+        default: null,
+      },
+      container: {
+        type: Object,
+        default: null,
       },
     },
-  },
-};
+    data: () => ({
+      displayedColumn: 1,
+    }),
+    computed: {
+      isMobileColumns () {
+        return this.container?.template === 'FlexContainer'
+          && this.container?.cssClass?.includes?.('layout-mobile-columns');
+      },
+      colsCount () {
+        return this.isMobileColumns && this.container?.children?.length || 1;
+      },
+      hasRightColumn () {
+        return this.isMobileColumns && this.displayedColumn < this.colsCount;
+      },
+      hasLeftColumn () {
+        return this.isMobileColumns && this.displayedColumn > 1;
+      },
+      mobilePageClass () {
+        return `mobile-column-display-${(this.displayedColumn - 1)}`;
+      },
+    },
+    watch: {
+      mobilePageClass: {
+        immediate: true,
+        handler (value) {
+          this.$emit('input', value);
+        },
+      },
+    },
+  };
 </script>

@@ -20,11 +20,11 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="portletInstanceCategoryDrawer"
+    ref="drawer"
     v-model="drawer"
-    :loading="saving"
     allow-expand
+    :loading="saving"
     right>
     <template #title>
       <span class="text-wrap">{{ isNew && $t('layout.portletInstance.category.drawerTitie.add') || $t('layout.portletInstance.category.drawerTitie.edit') }}</span>
@@ -32,18 +32,18 @@
     <template v-if="drawer" #content>
       <div class="pa-4" flat>
         <translation-text-field
-          ref="title"
           id="pageTemplateTitle"
+          ref="title"
           v-model="titleTranslations"
-          :field-value.sync="title"
-          :placeholder="$t('layout.portletInstance.category.namePlaceholder')"
+          v-model:field-value="title"
+          back-icon
+          class="width-auto flex-grow-1 pb-1"
+          drawer-title="layout.portletInstance.category.nameTranslationDrawerTitle"
+          field-name="title"
           :maxlength="maxTitleLength"
           :object-id="categoryId"
           object-type="portletInstanceCategory"
-          field-name="title"
-          drawer-title="layout.portletInstance.category.nameTranslationDrawerTitle"
-          class="width-auto flex-grow-1 pb-1"
-          back-icon
+          :placeholder="$t('layout.portletInstance.category.namePlaceholder')"
           required>
           <template #title>
             <div class="text-subtitle-1">
@@ -65,8 +65,8 @@
           {{ $t('layout.cancel') }}
         </v-btn>
         <v-btn
-          :loading="saving"
           class="btn btn-primary"
+          :loading="saving"
           @click="save">
           {{ $t('layout.save') }}
         </v-btn>
@@ -75,76 +75,76 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    drawer: false,
-    categoryIcon: null,
-    categoryId: null,
-    title: null,
-    titleTranslations: {},
-    maxTitleLength: 100,
-    saving: false,
-    isNew: false,
-  }),
-  created() {
-    this.$root.$on('portlet-instance-category-add', this.open);
-    this.$root.$on('portlet-instance-category-edit', this.open);
-  },
-  beforeDestroy() {
-    this.$root.$off('portlet-instance-category-add', this.open);
-    this.$root.$off('portlet-instance-category-edit', this.open);
-  },
-  methods: {
-    open(category) {
-      this.$root.$emit('close-alert-message');
-      this.isNew = !category;
-      this.categoryId = category?.id || null;
-      this.title = null;
-      this.titleTranslations = {};
-      this.categoryIcon = category?.icon || 'fa-braille';
-      this.$nextTick().then(() => this.$refs.drawer.open());
+  export default {
+    data: () => ({
+      drawer: false,
+      categoryIcon: null,
+      categoryId: null,
+      title: null,
+      titleTranslations: {},
+      maxTitleLength: 100,
+      saving: false,
+      isNew: false,
+    }),
+    created () {
+      this.$root.$on('portlet-instance-category-add', this.open);
+      this.$root.$on('portlet-instance-category-edit', this.open);
     },
-    close() {
-      this.$refs.drawer.close();
+    beforeUnmount () {
+      this.$root.$off('portlet-instance-category-add', this.open);
+      this.$root.$off('portlet-instance-category-edit', this.open);
     },
-    save() {
-      this.saving = true;
-      let message = null;
-      const saveCategoryRequest =
-        this.categoryId ?
-          this.$portletInstanceCategoryService.getPortletInstanceCategory(this.categoryId)
-            .then(category => {
-              category.icon = this.categoryIcon;
-              return this.$portletInstanceCategoryService.updatePortletInstanceCategory(category)
-                .then(() => {
-                  this.$root.$emit('portlet-instance-category-updated', category);
-                  message = this.$t('layout.portletInstanceCategoryUpdatedSuccessfully');
-                  return category;
-                });
+    methods: {
+      open (category) {
+        this.$root.$emit('close-alert-message');
+        this.isNew = !category;
+        this.categoryId = category?.id || null;
+        this.title = null;
+        this.titleTranslations = {};
+        this.categoryIcon = category?.icon || 'fa-braille';
+        this.$nextTick().then(() => this.$refs.drawer.open());
+      },
+      close () {
+        this.$refs.drawer.close();
+      },
+      save () {
+        this.saving = true;
+        let message = null;
+        const saveCategoryRequest =
+          this.categoryId ?
+            eXo.$portletInstanceCategoryService.getPortletInstanceCategory(this.categoryId)
+              .then(category => {
+                category.icon = this.categoryIcon;
+                return eXo.$portletInstanceCategoryService.updatePortletInstanceCategory(category)
+                  .then(() => {
+                    this.$root.$emit('portlet-instance-category-updated', category);
+                    message = this.$t('layout.portletInstanceCategoryUpdatedSuccessfully');
+                    return category;
+                  });
+              })
+            : eXo.$portletInstanceCategoryService.createPortletInstanceCategory({
+              icon: this.categoryIcon,
             })
-          : this.$portletInstanceCategoryService.createPortletInstanceCategory({
-            icon: this.categoryIcon
+              .then(category => {
+                this.$root.$emit('portlet-instance-category-created', category);
+                message = this.$t('layout.portletInstanceCategoryCreatedSuccessfully');
+                return category;
+              });
+        return saveCategoryRequest
+          .then(category => {
+            if (category) {
+              this.categoryId = category.id;
+              return this.$nextTick();
+            }
           })
-            .then(category => {
-              this.$root.$emit('portlet-instance-category-created', category);
-              message = this.$t('layout.portletInstanceCategoryCreatedSuccessfully');
-              return category;
-            });
-      return saveCategoryRequest
-        .then(category => {
-          if (category) {
-            this.categoryId = category.id;
-            return this.$nextTick();
-          }
-        })
-        .then(() => this.$translationService.saveTranslations('portletInstanceCategory', this.categoryId, 'title', this.titleTranslations))
-        .then(() => {
-          this.$root.$emit('portlet-instance-category-saved', this.categoryId);
-          this.$root.$emit('alert-message', message, 'success');
-          this.close();
-        })
-        .finally(() => this.saving = false);
+          .then(() => eXo.$translationService.saveTranslations('portletInstanceCategory', this.categoryId, 'title', this.titleTranslations))
+          .then(() => {
+            this.$root.$emit('portlet-instance-category-saved', this.categoryId);
+            this.$root.$emit('alert-message', message, 'success');
+            this.close();
+          })
+          .finally(() => this.saving = false);
+      },
     },
-  },
-};
+  };
 </script>

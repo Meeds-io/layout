@@ -20,8 +20,8 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="portletInstancesDrawer"
+    ref="drawer"
     v-model="drawer"
     allow-expand
     right>
@@ -32,8 +32,8 @@
       <div v-if="applications.length" class="my-4">
         <v-btn
           :aria-label="$t('layout.portletInstance.add')"
-          :class="$root.isMobile && 'px-0'"
           class="btn btn-primary text-truncate mb-6 mx-4"
+          :class="$root.isMobile && 'px-0'"
           @click="$root.$emit('portlet-instance-add', null, true, contentId)">
           {{ $t('layout.portletInstance.add') }}
         </v-btn>
@@ -44,10 +44,10 @@
           <v-list-item-content>
             <v-list-item-title>
               <v-card
+                flat
                 v-on="application.illustrationId && {
                   click: () => openIllustration(application)
-                }"
-                flat>
+                }">
                 {{ application.name }}
               </v-card>
             </v-list-item-title>
@@ -56,11 +56,11 @@
             <v-tooltip bottom>
               <template #activator="{on, attrs}">
                 <div
-                  v-on="on"
-                  v-bind="attrs">
+                  v-bind="attrs"
+                  v-on="on">
                   <v-btn
-                    :disabled="!application.illustrationId"
                     class="transparent d-flex align-center justify-center"
+                    :disabled="!application.illustrationId"
                     icon
                     @click="openIllustration(application)">
                     <v-icon class="icon-default-color">fa-eye</v-icon>
@@ -73,12 +73,12 @@
         </v-list-item>
       </div>
       <div v-else class="d-flex flex-column align-center justify-center pa-4 subtitle-1">
-        <v-icon size="40" class="icon-default-color">fa-braille</v-icon>
+        <v-icon class="icon-default-color" size="40">fa-braille</v-icon>
         <span class="text-sub-title my-4">{{ $t('portlets.noPortletInstancesYet') }}</span>
         <v-btn
           :aria-label="$t('layout.portletInstance.add')"
-          :class="$root.isMobile && 'px-0'"
           class="btn btn-primary text-truncate"
+          :class="$root.isMobile && 'px-0'"
           @click="$root.$emit('portlet-instance-add', null, true, contentId)">
           {{ $t('layout.portletInstance.add') }}
         </v-btn>
@@ -87,40 +87,40 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    drawer: false,
-    contentId: null,
-    name: null,
-  }),
-  computed: {
-    applications() {
-      const applications = this.contentId && this.$root.portletInstances.filter(a => a.contentId === this.contentId) || [];
-      applications.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
-      return applications;
+  export default {
+    data: () => ({
+      drawer: false,
+      contentId: null,
+      name: null,
+    }),
+    computed: {
+      applications () {
+        const applications = this.contentId && this.$root.portletInstances.filter(a => a.contentId === this.contentId) || [];
+        applications.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+        return applications;
+      },
     },
-  },
-  created() {
-    this.$root.$on('portlet-instance-drawer', this.open);
-  },
-  beforeDestroy() {
-    this.$root.$off('portlet-instance-drawer', this.open);
-  },
-  methods: {
-    open(contentId, name) {
-      this.$root.$emit('close-alert-message');
-      this.contentId = contentId;
-      this.name = name;
-      this.$nextTick().then(() => this.$refs.drawer.open());
+    created () {
+      this.$root.$on('portlet-instance-drawer', this.open);
     },
-    openIllustration(application) {
-      const illustrationId = application.illustrationId;
-      const illustrationSrc = `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/portletInstance/${application.id}/${illustrationId}`;
-      this.$root.$emit('layout-illustration-preview', illustrationSrc);
+    beforeUnmount () {
+      this.$root.$off('portlet-instance-drawer', this.open);
     },
-    close() {
-      this.$refs.drawer.close();
+    methods: {
+      open (contentId, name) {
+        this.$root.$emit('close-alert-message');
+        this.contentId = contentId;
+        this.name = name;
+        this.$nextTick().then(() => this.$refs.drawer.open());
+      },
+      openIllustration (application) {
+        const illustrationId = application.illustrationId;
+        const illustrationSrc = `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/portletInstance/${application.id}/${illustrationId}`;
+        this.$root.$emit('layout-illustration-preview', illustrationSrc);
+      },
+      close () {
+        this.$refs.drawer.close();
+      },
     },
-  },
-};
+  };
 </script>

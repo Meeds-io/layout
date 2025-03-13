@@ -24,17 +24,17 @@
   </v-app>
 </template>
 <script>
-export default {
-  props: {
-    canManageSiteNavigation: {
-      type: Boolean,
-      default: false,
-    }
-  },
-  computed: {
-    isMobile() {
-      return this.$vuetify.breakpoint.width < this.$vuetify.breakpoint.thresholds.sm;
+  export default {
+    props: {
+      canManageSiteNavigation: {
+        type: Boolean,
+        default: false,
+      },
     },
-  }
-};
+    computed: {
+      isMobile () {
+        return eXo.vuetify.display.width.value < eXo.vuetify.display.thresholds.value.sm;
+      },
+    },
+  };
 </script>

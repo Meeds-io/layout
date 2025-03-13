@@ -39,10 +39,10 @@
   </v-app>
 </template>
 <script>
-export default {
-  data: () => ({
-    keyword: null,
-    creating: false,
-  }),
-};
+  export default {
+    data: () => ({
+      keyword: null,
+      creating: false,
+    }),
+  };
 </script>

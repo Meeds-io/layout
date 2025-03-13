@@ -21,18 +21,18 @@ import * as portletInstanceCategoryService from './js/PortletInstanceCategorySer
 import * as portletInstanceService from './js/PortletInstanceService.js';
 import * as portletService from './js/PortletService.js';
 
-if (!Vue.prototype.$portletInstanceCategoryService) {
-  window.Object.defineProperty(Vue.prototype, '$portletInstanceCategoryService', {
+if (!eXo.$portletInstanceCategoryService) {
+  window.Object.defineProperty(eXo, '$portletInstanceCategoryService', {
     value: portletInstanceCategoryService,
   });
 }
-if (!Vue.prototype.$portletInstanceService) {
-  window.Object.defineProperty(Vue.prototype, '$portletInstanceService', {
+if (!eXo.$portletInstanceService) {
+  window.Object.defineProperty(eXo, '$portletInstanceService', {
     value: portletInstanceService,
   });
 }
-if (!Vue.prototype.$portletService) {
-  window.Object.defineProperty(Vue.prototype, '$portletService', {
+if (!eXo.$portletService) {
+  window.Object.defineProperty(eXo, '$portletService', {
     value: portletService,
   });
 }

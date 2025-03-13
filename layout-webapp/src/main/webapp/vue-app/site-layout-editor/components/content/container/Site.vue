@@ -22,51 +22,51 @@
 <template>
   <layout-editor-container-base
     :container="containerToDisplay"
-    :parent-id="parentId"
     :index="index"
     :length="length"
+    :parent-id="parentId"
     site-style />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
+      index: {
+        type: Number,
+        default: null,
+      },
+      length: {
+        type: Number,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    data: () => ({
+      refresh: 1,
+    }),
+    computed: {
+      containerToDisplay () {
+        return this.refresh > 0 && {
+          ...this.container,
+        };
+      },
     },
-    index: {
-      type: Number,
-      default: null,
+    created () {
+      this.$root.$on('layout-editor-page-design-updated', this.refreshStyle);
     },
-    length: {
-      type: Number,
-      default: null,
+    beforeUnmount () {
+      this.$root.$off('layout-editor-page-design-updated', this.refreshStyle);
     },
-  },
-  data: () => ({
-    refresh: 1,
-  }),
-  computed: {
-    containerToDisplay() {
-      return this.refresh > 0 && {
-        ...this.container
-      };
+    methods: {
+      refreshStyle () {
+        this.refresh++;
+      },
     },
-  },
-  created() {
-    this.$root.$on('layout-editor-page-design-updated', this.refreshStyle);
-  },
-  beforeDestroy() {
-    this.$root.$off('layout-editor-page-design-updated', this.refreshStyle);
-  },
-  methods: {
-    refreshStyle() {
-      this.refresh++;
-    },
-  },
-};
+  };
 </script>

@@ -24,15 +24,15 @@
     <!-- Illustration -->
     <!-- name -->
     <td
-      colspan="2"
       align="left"
-      class="pe-0">
+      class="pe-0"
+      colspan="2">
       <div class="d-flex align-center text-start">
         <v-card
-          color="transparent"
-          min-width="35"
           class="me-4 d-flex align-center"
-          flat>
+          color="transparent"
+          flat
+          min-width="35">
           <v-icon size="28">{{ site.icon || 'fa-globe' }}</v-icon>
         </v-card>
         <div v-sanitized-html="name" class="text-break"></div>
@@ -45,7 +45,7 @@
       width="50%">
       <div v-sanitized-html="description" class="text-break"></div>
     </td>
-    <td v-if="!$vuetify.breakpoint.lgAndDown" align="center">
+    <td v-if="!$vuetify.display.lgAndDown.value" align="center">
       <v-btn
         :aria-label="$t('sites.label.sitePermissions')"
         icon
@@ -53,7 +53,7 @@
         <v-icon size="20">fa-project-diagram</v-icon>
       </v-btn>
     </td>
-    <td v-if="!$vuetify.breakpoint.lgAndDown" align="center">
+    <td v-if="!$vuetify.display.lgAndDown.value" align="center">
       <v-btn
         :aria-label="$t('sites.label.siteNavigation')"
         icon
@@ -67,49 +67,49 @@
   </tr>
 </template>
 <script>
-export default {
-  props: {
-    site: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      site: {
+        type: Object,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    menu: false,
-    hoverMenu: false,
-  }),
-  computed: {
-    siteId() {
-      return this.site?.id;
+    data: () => ({
+      menu: false,
+      hoverMenu: false,
+    }),
+    computed: {
+      siteId () {
+        return this.site?.id;
+      },
+      name () {
+        return this.$te(this.site?.displayName) ? this.$t(this.site?.displayName) : this.site?.displayName;
+      },
+      description () {
+        return this.$te(this.site?.description) ? this.$t(this.site?.description) : this.site?.description;
+      },
     },
-    name() {
-      return this.$te(this.site?.displayName) ? this.$t(this.site?.displayName) : this.site?.displayName;
+    watch: {
+      hoverMenu () {
+        if (!this.hoverMenu) {
+          window.setTimeout(() => {
+            if (!this.hoverMenu) {
+              this.menu = false;
+            }
+          }, 200);
+        }
+      },
     },
-    description() {
-      return this.$te(this.site?.description) ? this.$t(this.site?.description) : this.site?.description;
+    methods: {
+      openSiteNavigationDrawer () {
+        this.$root.$emit('open-site-navigation-drawer', {
+          siteName: this.site.name,
+          siteType: this.site.siteType,
+          siteId: this.site.siteId,
+          siteLabel: this.site.displayName,
+          includeGlobal: this.site.name.toLowerCase() === eXo.env.portal.globalPortalName.toLowerCase(),
+        });
+      },
     },
-  },
-  watch: {
-    hoverMenu() {
-      if (!this.hoverMenu) {
-        window.setTimeout(() => {
-          if (!this.hoverMenu) {
-            this.menu = false;
-          }
-        }, 200);
-      }
-    },
-  },
-  methods: {
-    openSiteNavigationDrawer() {
-      this.$root.$emit('open-site-navigation-drawer', {
-        siteName: this.site.name,
-        siteType: this.site.siteType,
-        siteId: this.site.siteId,
-        siteLabel: this.site.displayName,
-        includeGlobal: this.site.name.toLowerCase() === eXo.env.portal.globalPortalName.toLowerCase()
-      });
-    },
-  },
-};
+  };
 </script>

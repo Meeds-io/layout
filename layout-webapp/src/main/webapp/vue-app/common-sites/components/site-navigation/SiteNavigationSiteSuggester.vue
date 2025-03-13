@@ -20,29 +20,29 @@
   <v-flex id="siteNavigationsSiteSuggesterAutoComplete">
     <v-autocomplete
       ref="selectSiteNavigation"
-      v-model="selectedSiteNavigation"
-      :placeholder="suggesterLabels.placeholder"
-      :items="sites"
-      :loading="loadingSuggestions"
+      v-model="selectedSiteNavigationValue"
       append-icon=""
-      menu-props="closeOnClick, closeOnContentClick, maxHeight = 100"
+      attach
+      chips
       class="identitySuggester identitySuggesterInputStyle mt-0"
       content-class="identitySuggesterContent"
-      width="100%"
-      max-width="100%"
-      item-text="displayName"
-      item-value="name"
-      return-object
-      persistent-hint
-      hide-selected
-      chips
       dense
       flat
+      hide-selected
+      item-text="displayName"
+      item-value="name"
+      :items="sites"
+      :loading="loadingSuggestions"
+      max-width="100%"
+      menu-props="closeOnClick, closeOnContentClick, maxHeight = 100"
+      persistent-hint
+      :placeholder="suggesterLabels.placeholder"
       required
-      attach
-      @update:search-input="searchTerm = $event"
-      @blur="$refs.selectSiteNavigation.isFocused = false">
-      <template slot="no-data">
+      return-object
+      width="100%"
+      @blur="$refs.selectSiteNavigation.isFocused = false"
+      @update:search-input="searchTerm = $event">
+      <template #no-data>
         <v-list-item class="pa-0">
           <v-list-item-title
             class="px-2">
@@ -50,21 +50,21 @@
           </v-list-item-title>
         </v-list-item>
       </template>
-      <template slot="selection" slot-scope="{item, selected}">
+      <template #selection="{item, selected}">
         <v-chip
-          :input-value="selected"
-          :close="true"
           class="identitySuggesterItem"
+          :close="true"
+          :input-value="selected"
           @click:close="remove()">
           <span class="text-truncate">
             {{ item.displayName }}
           </span>
         </v-chip>
       </template>
-      <template slot="item" slot-scope="data">
-        <v-list-item-title
-          class="text-truncate identitySuggestionMenuItemText"
-          v-text="data.item.displayName" />
+      <template #item="data">
+        <v-list-item-title class="text-truncate identitySuggestionMenuItemText">
+          {{ data.item.displayName }}
+        </v-list-item-title>
       </template>
     </v-autocomplete>
     <span v-if="!allSites && !selectedSiteNavigation" class="text-subtitle mt-n3 position-absolute error-color">
@@ -74,57 +74,65 @@
 </template>
 
 <script>
-export default {
-  model: {
-    prop: 'selectedSiteNavigation',
-    event: 'change'
-  },
-  props: {
-    selectedSiteNavigation: {
-      type: Object,
-      default: null,
+  export default {
+    model: {
+      prop: 'selectedSiteNavigation',
+      event: 'change',
     },
-    allSites: {
-      type: Boolean,
-      default: true,
+    props: {
+      selectedSiteNavigation: {
+        type: Object,
+        default: null,
+      },
+      allSites: {
+        type: Boolean,
+        default: true,
+      },
     },
-  },
-  data() {
-    return {
-      sites: [],
-      searchTerm: null,
-      loadingSuggestions: false
-    };
-  },
-  computed: {
-    suggesterLabels() {
+    data () {
       return {
-        placeholder: this.$t('siteNavigation.label.sitesSuggester.searchPlaceholder'),
-        noData: this.$t('siteNavigation.label.sitesSuggester.noData')
+        sites: [],
+        searchTerm: null,
+        loadingSuggestions: false,
       };
-    }
-  },
-  watch: {
-    selectedSiteNavigation() {
-      this.$emit('change', this.selectedSiteNavigation);
     },
-  },
-  created(){
-    this.getSites();
-  },
-  methods: {
-    remove() {
-      this.selectedSiteNavigation = null;
-      this.$emit('change', this.selectedSiteNavigation);
+    computed: {
+      suggesterLabels () {
+        return {
+          placeholder: this.$t('siteNavigation.label.sitesSuggester.searchPlaceholder'),
+          noData: this.$t('siteNavigation.label.sitesSuggester.noData'),
+        };
+      },
+      selectedSiteNavigationValue: {
+        get () {
+          return this.selectedSiteNavigation;
+        },
+        set (value) {
+          this.$emit('change', value);
+        },
+      },
     },
-    getSites() {
-      this.loadingSuggestions = true;
-      return this.$siteService.getSites(null, 'USER', null, true, true, false, false, false, null, true)
-        .then(sites => {
-          this.sites = sites || [];
-        })
-        .finally(() => this.loadingSuggestions = false);
+    watch: {
+      selectedSiteNavigation () {
+        this.$emit('change', this.selectedSiteNavigation);
+      },
     },
-  }
-};
+    created (){
+      this.getSites();
+    },
+    methods: {
+      remove () {
+        this.selectedSiteNavigation = null;
+        this.$emit('change', this.selectedSiteNavigation);
+      },
+      getSites () {
+        this.loadingSuggestions = true;
+        return eXo.$siteService.getSites(null, 'USER', null, true, true, false, false, false, null, true)
+          .then(sites => {
+            this.sites = sites || [];
+          })
+          .finally(() => this.loadingSuggestions = false);
+      },
+    },
+  };
 </script>

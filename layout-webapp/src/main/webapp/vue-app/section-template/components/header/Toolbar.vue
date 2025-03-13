@@ -22,19 +22,19 @@
 <template>
   <application-toolbar
     id="sectionTemplatesToolbar"
+    class="border-box-sizing px-1"
     :right-text-filter="{
       minCharacters: 1,
       placeholder: $t('sectionTemplates.filter.placeholder'),
       tooltip: $t('sectionTemplates.filter.placeholder'),
     }"
-    class="border-box-sizing px-1"
     @filter-text-input="$emit('section-template-filter', $event)">
     <template v-if="!$root.isMobile" #left>
       <v-btn
         id="applicationToolbarLeftButton"
         :aria-label="$t('layout.sectionTemplates.add')"
-        :class="$root.isMobile && 'px-0'"
         class="btn btn-primary text-truncate"
+        :class="$root.isMobile && 'px-0'"
         @click="$root.$emit('section-template-add')">
         <v-icon
           size="18">

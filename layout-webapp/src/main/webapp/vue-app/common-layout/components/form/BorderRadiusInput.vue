@@ -31,17 +31,17 @@
     </div>
     <div
       v-if="enabled"
-      :class="choice === 'same' && 'flex-row' || 'flex-column'"
-      class="d-flex">
+      class="d-flex"
+      :class="choice === 'same' && 'flex-row' || 'flex-column'">
       <v-radio-group v-model="choice" class="my-auto text-no-wrap ms-n1">
         <v-radio
+          class="mx-0"
           :label="$t('layout.sameForAllCorners')"
-          value="same"
-          class="mx-0" />
+          value="same" />
         <v-radio
+          class="mx-0"
           :label="$t('layout.differentForEachCorner')"
-          value="different"
-          class="mx-0" />
+          value="different" />
       </v-radio-group>
       <v-list-item class="pe-0 ps-7 py-0" dense>
         <v-list-item-content v-if="choice === 'different'" class="my-auto">
@@ -49,8 +49,8 @@
         </v-list-item-content>
         <number-input
           v-model="radiusTopRight"
-          :class="choice === 'different' && 'my-auto' || 'mb-auto ms-auto'"
-          class="me-n3" />
+          class="me-n3"
+          :class="choice === 'different' && 'my-auto' || 'mb-auto ms-auto'" />
       </v-list-item>
       <v-list-item
         v-if="choice === 'different'"
@@ -89,88 +89,88 @@
   </div>
 </template>
 <script>
-export default {
-  props: {
-    value: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      value: {
+        type: Object,
+        default: null,
+      },
+      pageStyle: {
+        type: Boolean,
+        default: false,
+      },
     },
-    pageStyle: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  data: () => ({
-    container: null,
-    initialized: false,
-    enabled: true,
-    choice: 'same',
-    radiusTopRight: null,
-    radiusTopLeft: null,
-    radiusBottomRight: null,
-    radiusBottomLeft: null,
-  }),
-  watch: {
-    radiusTopRight() {
-      if (this.initialized) {
-        this.$set(this.container, 'radiusTopRight', this.radiusTopRight);
-        this.$emit('refresh');
+    data: () => ({
+      container: null,
+      initialized: false,
+      enabled: true,
+      choice: 'same',
+      radiusTopRight: null,
+      radiusTopLeft: null,
+      radiusBottomRight: null,
+      radiusBottomLeft: null,
+    }),
+    watch: {
+      radiusTopRight () {
+        if (this.initialized) {
+          this.$set(this.container, 'radiusTopRight', this.radiusTopRight);
+          this.$emit('refresh');
+          if (this.choice === 'same') {
+            this.radiusTopLeft = this.radiusTopRight;
+            this.radiusBottomRight = this.radiusTopRight;
+            this.radiusBottomLeft = this.radiusTopRight;
+          }
+        }
+      },
+      radiusTopLeft () {
+        if (this.initialized) {
+          this.$set(this.container, 'radiusTopLeft', this.radiusTopLeft);
+          this.$emit('refresh');
+        }
+      },
+      radiusBottomRight () {
+        if (this.initialized) {
+          this.$set(this.container, 'radiusBottomRight', this.radiusBottomRight);
+          this.$emit('refresh');
+        }
+      },
+      radiusBottomLeft () {
+        if (this.initialized) {
+          this.$set(this.container, 'radiusBottomLeft', this.radiusBottomLeft);
+          this.$emit('refresh');
+        }
+      },
+      enabled () {
+        if (this.initialized) {
+          const defaultBorderRadius = parseInt(this.$root.branding?.themeStyle?.borderRadius?.replace?.('px', '') || '4');
+          this.choice = 'same';
+          this.radiusTopRight = this.enabled && defaultBorderRadius || null;
+          this.radiusTopLeft = this.radiusTopRight;
+          this.radiusBottomRight = this.radiusTopRight;
+          this.radiusBottomLeft = this.radiusTopRight;
+        }
+      },
+      choice () {
         if (this.choice === 'same') {
           this.radiusTopLeft = this.radiusTopRight;
           this.radiusBottomRight = this.radiusTopRight;
           this.radiusBottomLeft = this.radiusTopRight;
         }
-      }
+      },
     },
-    radiusTopLeft() {
-      if (this.initialized) {
-        this.$set(this.container, 'radiusTopLeft', this.radiusTopLeft);
-        this.$emit('refresh');
-      }
+    created () {
+      this.container = this.value;
+      this.radiusTopRight = this.container.radiusTopRight;
+      this.radiusTopLeft = this.container.radiusTopLeft;
+      this.radiusBottomRight = this.container.radiusBottomRight;
+      this.radiusBottomLeft = this.container.radiusBottomLeft;
+      this.enabled = this.radiusBottomLeft === 0 || !!this.radiusBottomLeft;
+      this.choice =
+        this.radiusTopRight === this.radiusTopLeft
+        && this.radiusBottomRight === this.radiusTopLeft
+        && this.radiusTopLeft === this.radiusBottomLeft
+        && this.radiusBottomLeft === this.radiusTopRight ? 'same' : 'different';
+      this.$nextTick().then(() => this.initialized = true);
     },
-    radiusBottomRight() {
-      if (this.initialized) {
-        this.$set(this.container, 'radiusBottomRight', this.radiusBottomRight);
-        this.$emit('refresh');
-      }
-    },
-    radiusBottomLeft() {
-      if (this.initialized) {
-        this.$set(this.container, 'radiusBottomLeft', this.radiusBottomLeft);
-        this.$emit('refresh');
-      }
-    },
-    enabled() {
-      if (this.initialized) {
-        const defaultBorderRadius = parseInt(this.$root.branding?.themeStyle?.borderRadius?.replace?.('px', '') || '4');
-        this.choice = 'same';
-        this.radiusTopRight = this.enabled && defaultBorderRadius || null;
-        this.radiusTopLeft = this.radiusTopRight;
-        this.radiusBottomRight = this.radiusTopRight;
-        this.radiusBottomLeft = this.radiusTopRight;
-      }
-    },
-    choice() {
-      if (this.choice === 'same') {
-        this.radiusTopLeft = this.radiusTopRight;
-        this.radiusBottomRight = this.radiusTopRight;
-        this.radiusBottomLeft = this.radiusTopRight;
-      }
-    },
-  },
-  created() {
-    this.container = this.value;
-    this.radiusTopRight = this.container.radiusTopRight;
-    this.radiusTopLeft = this.container.radiusTopLeft;
-    this.radiusBottomRight = this.container.radiusBottomRight;
-    this.radiusBottomLeft = this.container.radiusBottomLeft;
-    this.enabled = this.radiusBottomLeft === 0 || !!this.radiusBottomLeft;
-    this.choice =
-      this.radiusTopRight === this.radiusTopLeft
-      && this.radiusBottomRight === this.radiusTopLeft
-      && this.radiusTopLeft === this.radiusBottomLeft
-      && this.radiusBottomLeft === this.radiusTopRight ? 'same' : 'different';
-    this.$nextTick().then(() => this.initialized = true);
-  },
-};
+  };
 </script>

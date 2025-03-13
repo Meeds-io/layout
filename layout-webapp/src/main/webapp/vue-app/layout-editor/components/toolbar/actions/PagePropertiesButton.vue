@@ -26,10 +26,10 @@
         <div v-bind="attrs" v-on="on">
           <v-btn
             :aria-label="$t('layout.editPageProperties')"
-            target="_blank"
             icon
+            target="_blank"
             @click="$root.$emit('layout-page-properties-open', parentContainer)">
-            <v-icon size="20" class="icon-default-color">fa-palette</v-icon>
+            <v-icon class="icon-default-color" size="20">fa-palette</v-icon>
           </v-btn>
         </div>
       </template>
@@ -38,11 +38,11 @@
   </div>
 </template>
 <script>
-export default {
-  computed: {
-    parentContainer() {
-      return this.$layoutUtils.getParentContainer(this.$root.layout);
+  export default {
+    computed: {
+      parentContainer () {
+        return eXo.$layoutUtils.getParentContainer(this.$root.layout);
+      },
     },
-  },
-};
+  };
 </script>

@@ -22,10 +22,10 @@
 <template>
   <v-card
     class="d-flex align-center no-border-radius border-box-sizing px-4 layout-sticky-top-bar"
+    flat
     height="57"
     min-width="100vw"
-    width="100vw"
-    flat>
+    width="100vw">
     <v-icon class="icon-default-color">fa-pager</v-icon>
     <span class="px-2">{{ $t('layout.editSiteName', {0: siteLabel}) }}</span>
     <v-spacer />
@@ -39,17 +39,17 @@
   </v-card>
 </template>
 <script>
-export default {
-  computed: {
-    disabledDraft() {
-      return !this.$root.sectionHistory?.length && !this.$root.sectionRedo?.length;
+  export default {
+    computed: {
+      disabledDraft () {
+        return !this.$root.sectionHistory?.length && !this.$root.sectionRedo?.length;
+      },
+      siteLabel () {
+        return this.$root.isSiteTemplate ? this.$root.siteTemplate?.name : this.$root.site?.displayName;
+      },
     },
-    siteLabel() {
-      return this.$root.isSiteTemplate ? this.$root.siteTemplate?.name : this.$root.site?.displayName;
+    mounted () {
+      document.querySelector('#vuetify-apps').append(this.$el);
     },
-  },
-  mounted() {
-    document.querySelector('#vuetify-apps').append(this.$el);
-  },
-};
+  };
 </script>

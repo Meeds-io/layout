@@ -21,15 +21,15 @@
 <template>
   <v-tooltip
     v-if="spaceTemplate.layout"
-    :disabled="!spaceTemplate.system"
-    bottom>
+    bottom
+    :disabled="!spaceTemplate.system">
     <template #activator="{ on, attrs }">
       <div
-        v-on="on"
-        v-bind="attrs">
+        v-bind="attrs"
+        v-on="on">
         <v-list-item
-          :disabled="spaceTemplate.system"
           dense
+          :disabled="spaceTemplate.system"
           @click="openSiteNavigationDrawer">
           <v-icon
             :class="spaceTemplate.system && 'disabled--text'"
@@ -46,39 +46,39 @@
   </v-tooltip>
 </template>
 <script>
-export default {
-  props: {
-    spaceTemplate: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      spaceTemplate: {
+        type: Object,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    site: null,
-  }),
-  beforeDestroy() {
-    this.$emit('loading', false);
-  },
-  methods: {
-    async openSiteNavigationDrawer() {
-      this.$emit('loading', true);
-      try {
-        if (!this.site) {
-          this.site = await this.$siteService.getSite('group_template', this.spaceTemplate?.layout, {
-            expandNavigations: false,
-          });
+    data: () => ({
+      site: null,
+    }),
+    beforeUnmount () {
+      this.$emit('loading', false);
+    },
+    methods: {
+      async openSiteNavigationDrawer () {
+        this.$emit('loading', true);
+        try {
+          if (!this.site) {
+            this.site = await eXo.$siteService.getSite('group_template', this.spaceTemplate?.layout, {
+              expandNavigations: false,
+            });
+          }
+          document.dispatchEvent(new CustomEvent('open-site-navigation-drawer',{ detail: {
+            siteName: this.site.name,
+            siteType: this.site.siteType,
+            siteId: this.site.siteId,
+            siteLabel: this.spaceTemplate?.name,
+            includeGlobal: false,
+          } }));
+        } finally {
+          this.$emit('loading', false);
         }
-        document.dispatchEvent(new CustomEvent('open-site-navigation-drawer',{detail: {
-          siteName: this.site.name,
-          siteType: this.site.siteType,
-          siteId: this.site.siteId,
-          siteLabel: this.spaceTemplate?.name,
-          includeGlobal: false,
-        }}));
-      } finally {
-        this.$emit('loading', false);
-      }
+      },
     },
-  },
-};
+  };
 </script>

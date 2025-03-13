@@ -22,36 +22,36 @@
 <template>
   <v-menu
     v-model="menu"
-    :close-on-content-click="false"
-    :close-on-click="false"
-    content-class="pagePreviewMenu"
-    transition="slide-x-reverse-transition"
     bottom
+    :close-on-click="false"
+    :close-on-content-click="false"
+    content-class="pagePreviewMenu"
+    left
     offset-y
-    left>
+    transition="slide-x-reverse-transition">
     <template #activator="{on, attrs}">
       <v-btn
         v-bind="attrs"
-        v-on="on"
-        :title="$t('layout.previewDraftPage')"
-        :loading="saving"
         :aria-label="$t('layout.previewDraftPage')"
         class="me-3"
         icon
+        :loading="saving"
+        :title="$t('layout.previewDraftPage')"
+        v-on="on"
         @click.stop.prevent="menu = true">
-        <v-icon size="20" class="icon-default-color">fa-eye</v-icon>
+        <v-icon class="icon-default-color" size="20">fa-eye</v-icon>
       </v-btn>
     </template>
     <v-card
       class="d-flex flex-column white pa-5"
-      width="450"
-      max-width="450">
+      max-width="450"
+      width="450">
       <span>{{ $t('layout.previewAsASpace') }}</span>
       <identity-suggester
         v-model="space"
-        :search-options="searchOptions"
+        include-spaces
         :labels="suggesterLabels"
-        include-spaces />
+        :search-options="searchOptions" />
       <div class="d-flex justify-end align-center">
         <v-btn
           class="btn"
@@ -69,61 +69,61 @@
   </v-menu>
 </template>
 <script>
-export default {
-  data: () => ({
-    menu: false,
-    saving: false,
-    space: null,
-    searchOptions: {
-      filterType: 'accessible',
+  export default {
+    data: () => ({
+      menu: false,
+      saving: false,
+      space: null,
+      searchOptions: {
+        filterType: 'accessible',
+      },
+    }),
+    computed: {
+      draftPageUrl () {
+        return `/portal${this.$root.draftNodeUri}?previewSpaceId=${this.space?.spaceId || ''}&mask=true`;
+      },
+      suggesterLabels () {
+        return {
+          placeholder: this.$t('layout.searchForASpace'),
+          noDataLabel: this.$t('layout.noSpaceFound'),
+        };
+      },
     },
-  }),
-  computed: {
-    draftPageUrl() {
-      return `/portal${this.$root.draftNodeUri}?previewSpaceId=${this.space?.spaceId || ''}&mask=true`;
+    watch: {
+      menu () {
+        if (this.menu) {
+          document.addEventListener('mousedown', this.closeMenu);
+        } else {
+          document.removeEventListener('mousedown', this.closeMenu);
+        }
+      },
     },
-    suggesterLabels() {
-      return {
-        placeholder: this.$t('layout.searchForASpace'),
-        noDataLabel: this.$t('layout.noSpaceFound'),
-      };
+    beforeUnmount () {
+      document.removeEventListener('mousedown', this.closeMenu);
     },
-  },
-  watch: {
-    menu() {
-      if (this.menu) {
-        document.addEventListener('mousedown', this.closeMenu);
-      } else {
-        document.removeEventListener('mousedown', this.closeMenu);
-      }
+    methods: {
+      previewPage () {
+        this.menu = false;
+        this.saving = true;
+        this.$root.$on('layout-draft-saved', this.openPreviewPage);
+        this.$root.$on('layout-draft-save-error', this.stopLoading);
+        this.$root.$emit('layout-save-draft');
+      },
+      stopLoading () {
+        this.saving = false;
+      },
+      openPreviewPage () {
+        this.$root.$off('layout-draft-saved', this.openPreviewPage);
+        this.saving = false;
+        window.open(this.draftPageUrl, '_blank');
+      },
+      closeMenu (event) {
+        if (this.menu && !event?.target?.closest?.('.menuable__content__active')) {
+          window.setTimeout(() => {
+            this.menu = false;
+          },200);
+        }
+      },
     },
-  },
-  beforeDestroy() {
-    document.removeEventListener('mousedown', this.closeMenu);
-  },
-  methods: {
-    previewPage() {
-      this.menu = false;
-      this.saving = true;
-      this.$root.$on('layout-draft-saved', this.openPreviewPage);
-      this.$root.$on('layout-draft-save-error', this.stopLoading);
-      this.$root.$emit('layout-save-draft');
-    },
-    stopLoading() {
-      this.saving = false;
-    },
-    openPreviewPage() {
-      this.$root.$off('layout-draft-saved', this.openPreviewPage);
-      this.saving = false;
-      window.open(this.draftPageUrl, '_blank');
-    },
-    closeMenu(event) {
-      if (this.menu && !event?.target?.closest?.('.menuable__content__active')) {
-        window.setTimeout(() => {
-          this.menu = false;
-        },200);
-      }
-    },
-  },
-};
+  };
 </script>

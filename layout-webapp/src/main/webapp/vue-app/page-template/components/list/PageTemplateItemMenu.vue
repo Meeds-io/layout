@@ -1,28 +1,28 @@
 <template>
   <component
-    v-model="menu"
     :is="$root.isMobile && 'v-bottom-sheet' || 'v-menu'"
-    :left="!$vuetify.rtl"
-    :right="$vuetify.rtl"
+    v-model="menu"
     :content-class="menuId"
-    offset-y>
+    :left="!$vuetify.rtl"
+    offset-y
+    :right="$vuetify.rtl">
     <template #activator="{ on, attrs }">
       <v-btn
         :aria-label="$t('pageTemplates.menu.open')"
+        class="mx-auto"
         icon
         small
-        class="mx-auto"
         v-bind="attrs"
         v-on="on">
-        <v-icon size="16" class="icon-default-color">fas fa-ellipsis-v</v-icon>
+        <v-icon class="icon-default-color" size="16">fas fa-ellipsis-v</v-icon>
       </v-btn>
     </template>
     <v-hover v-if="menu" @input="hoverMenu = $event">
       <v-list
         class="pa-0"
         dense
-        @mouseout="menu = false"
-        @focusout="menu = false">
+        @focusout="menu = false"
+        @mouseout="menu = false">
         <v-subheader v-if="$root.isMobile">
           <div class="d-flex full-width">
             <div class="d-flex flex-grow-1 flex-shrink-1 align-center subtitle-1 text-truncate">
@@ -41,23 +41,23 @@
         <v-list-item-group v-model="listItem">
           <v-tooltip
             v-if="!$root.isMobile"
-            :disabled="!pageTemplate.system"
-            bottom>
+            bottom
+            :disabled="!pageTemplate.system">
             <template #activator="{ on, attrs }">
               <div
-                v-on="on"
-                v-bind="attrs">
+                v-bind="attrs"
+                v-on="on">
                 <v-list-item
-                  :href="editLayoutLink"
+                  dense
                   :disabled="pageTemplate.system"
-                  target="_blank"
+                  :href="editLayoutLink"
                   rel="opener"
-                  dense>
+                  target="_blank">
                   <v-card
-                    color="transparent"
-                    min-width="15"
                     class="me-2"
-                    flat>
+                    color="transparent"
+                    flat
+                    min-width="15">
                     <v-icon
                       :class="pageTemplate.system && 'disabled--text'"
                       size="13">
@@ -76,10 +76,10 @@
             dense
             @click="$root.$emit('layout-page-template-drawer-open', pageTemplate)">
             <v-card
-              color="transparent"
-              min-width="15"
               class="me-2"
-              flat>
+              color="transparent"
+              flat
+              min-width="15">
               <v-icon size="13">
                 fa-edit
               </v-icon>
@@ -92,10 +92,10 @@
             dense
             @click="$root.$emit('layout-page-template-drawer-open', pageTemplate, true)">
             <v-card
-              color="transparent"
-              min-width="15"
               class="me-2"
-              flat>
+              color="transparent"
+              flat
+              min-width="15">
               <v-icon size="13">
                 fa-copy
               </v-icon>
@@ -104,20 +104,20 @@
               {{ $t('pageTemplate.label.duplicate') }}
             </v-list-item-title>
           </v-list-item>
-          <v-tooltip :disabled="!pageTemplate.system" bottom>
+          <v-tooltip bottom :disabled="!pageTemplate.system">
             <template #activator="{ on, attrs }">
               <div
-                v-on="on"
-                v-bind="attrs">
+                v-bind="attrs"
+                v-on="on">
                 <v-list-item
-                  :disabled="pageTemplate.system"
                   dense
+                  :disabled="pageTemplate.system"
                   @click="$root.$emit('page-templates-delete', pageTemplate)">
                   <v-card
-                    color="transparent"
-                    min-width="15"
                     class="me-2"
-                    flat>
+                    color="transparent"
+                    flat
+                    min-width="15">
                     <v-icon
                       :class="!pageTemplate.system && 'error--text' || 'disabled--text'"
                       size="13">
@@ -138,73 +138,73 @@
   </component>
 </template>
 <script>
-export default {
-  props: {
-    pageTemplate: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      pageTemplate: {
+        type: Object,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    menu: false,
-    hoverMenu: false,
-    listItem: null,
-    menuId: `PageTemplateMenu${parseInt(Math.random() * 10000)}`,
-  }),
-  computed: {
-    pageTemplateId() {
-      return this.pageTemplate?.id;
+    data: () => ({
+      menu: false,
+      hoverMenu: false,
+      listItem: null,
+      menuId: `PageTemplateMenu${parseInt(Math.random() * 10000)}`,
+    }),
+    computed: {
+      pageTemplateId () {
+        return this.pageTemplate?.id;
+      },
+      name () {
+        return this.$te(this.pageTemplate?.name) ? this.$t(this.pageTemplate?.name) : this.pageTemplate?.name;
+      },
+      editLayoutLink () {
+        return `/portal/administration/layout-editor?pageTemplateId=${this.pageTemplateId}`;
+      },
     },
-    name() {
-      return this.$te(this.pageTemplate?.name) ? this.$t(this.pageTemplate?.name) : this.pageTemplate?.name;
+    watch: {
+      listItem () {
+        if (this.menu) {
+          this.menu = false;
+          this.listItem = null;
+        }
+      },
+      menu () {
+        if (this.menu) {
+          this.$root.$emit('page-management-menu-opened', this.pageTemplateId);
+        } else {
+          this.$root.$emit('page-management-menu-closed', this.pageTemplateId);
+        }
+      },
+      hoverMenu () {
+        if (!this.hoverMenu) {
+          window.setTimeout(() => {
+            if (!this.hoverMenu) {
+              this.menu = false;
+            }
+          }, 200);
+        }
+      },
     },
-    editLayoutLink() {
-      return `/portal/administration/layout-editor?pageTemplateId=${this.pageTemplateId}`;
+    created () {
+      this.$root.$on('page-management-menu-opened', this.checkMenuStatus);
+      document.addEventListener('click', this.closeMenuOnClick);
     },
-  },
-  watch: {
-    listItem() {
-      if (this.menu) {
-        this.menu = false;
-        this.listItem = null;
-      }
+    beforeUnmount () {
+      this.$root.$off('page-management-menu-opened', this.checkMenuStatus);
+      document.removeEventListener('click', this.closeMenuOnClick);
     },
-    menu() {
-      if (this.menu) {
-        this.$root.$emit('page-management-menu-opened', this.pageTemplateId);
-      } else {
-        this.$root.$emit('page-management-menu-closed', this.pageTemplateId);
-      }
+    methods: {
+      closeMenuOnClick (e) {
+        if (e.target && !e.target.closest(`.${this.menuId}`)) {
+          this.menu = false;
+        }
+      },
+      checkMenuStatus (templateId) {
+        if (this.menu && templateId !== this.pageTemplate.id) {
+          this.menu = false;
+        }
+      },
     },
-    hoverMenu() {
-      if (!this.hoverMenu) {
-        window.setTimeout(() => {
-          if (!this.hoverMenu) {
-            this.menu = false;
-          }
-        }, 200);
-      }
-    },
-  },
-  created() {
-    this.$root.$on('page-management-menu-opened', this.checkMenuStatus);
-    document.addEventListener('click', this.closeMenuOnClick);
-  },
-  beforeDestroy() {
-    this.$root.$off('page-management-menu-opened', this.checkMenuStatus);
-    document.removeEventListener('click', this.closeMenuOnClick);
-  },
-  methods: {
-    closeMenuOnClick(e) {
-      if (e.target && !e.target.closest(`.${this.menuId}`)) {
-        this.menu = false;
-      }
-    },
-    checkMenuStatus(templateId) {
-      if (this.menu && templateId !== this.pageTemplate.id) {
-        this.menu = false;
-      }
-    },
-  },
-};
+  };
 </script>

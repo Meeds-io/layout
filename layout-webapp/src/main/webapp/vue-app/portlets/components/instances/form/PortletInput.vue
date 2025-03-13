@@ -26,88 +26,88 @@
       v-model="portletType"
       class="my-auto text-no-wrap ms-n1">
       <v-radio
+        class="mx-0"
         :label="$t('layout.newPortletChoice')"
-        value="new"
-        class="mx-0" />
+        value="new" />
       <v-radio
+        class="mx-0"
         :label="$t('layout.existingPortletChoice')"
-        value="existing"
-        class="mx-0" />
+        value="existing" />
     </v-radio-group>
     <v-autocomplete
       v-if="portletType === 'existing' || disabled"
       ref="autocomplete"
       v-model="contentId"
-      :items="sortedPortlets"
-      :disabled="disabled"
-      :placeholder="$t('layout.portlet.placeholder')"
+      chips
       class="portlet-instance-autocomplete ma-0 pa-0"
-      item-value="contentId"
-      item-text="name"
-      outlined
       dense
-      chips />
+      :disabled="disabled"
+      item-text="name"
+      item-value="contentId"
+      :items="sortedPortlets"
+      outlined
+      :placeholder="$t('layout.portlet.placeholder')" />
   </div>
 </template>
 <script>
-export default {
-  props: {
-    value: {
-      type: String,
-      default: null,
-    },
-    disabled: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  data: () => ({
-    contentId: null,
-    portletType: null,
-    ideEnabled: eXo.env.portal.ideEnabled,
-  }),
-  computed: {
-    sortedPortlets() {
-      const portlets = this.$root.portlets?.filter?.(c => c.name) || [];
-      portlets.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
-      return portlets;
-    },
-  },
-  watch: {
-    value: {
-      immediate: true,
-      handler() {
-        this.contentId = this.value;
+  export default {
+    props: {
+      value: {
+        type: String,
+        default: null,
+      },
+      disabled: {
+        type: Boolean,
+        default: false,
       },
     },
-    portletType() {
-      if (this.portletType === 'new') {
-        this.contentId = 'ide/WidgetPortlet';
+    data: () => ({
+      contentId: null,
+      portletType: null,
+      ideEnabled: eXo.env.portal.ideEnabled,
+    }),
+    computed: {
+      sortedPortlets () {
+        const portlets = this.$root.portlets?.filter?.(c => c.name) || [];
+        portlets.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+        return portlets;
+      },
+    },
+    watch: {
+      value: {
+        immediate: true,
+        handler () {
+          this.contentId = this.value;
+        },
+      },
+      portletType () {
+        if (this.portletType === 'new') {
+          this.contentId = 'ide/WidgetPortlet';
+        }
+      },
+      contentId () {
+        if (this.contentId !== this.value) {
+          this.$emit('input', this.contentId);
+        }
+      },
+    },
+    created () {
+      if (this.disabled || !this.ideEnabled) {
+        this.portletType = 'existing';
+      } else {
+        this.portletType = 'new';
       }
     },
-    contentId() {
-      if (this.contentId !== this.value) {
-        this.$emit('input', this.contentId);
-      }
+    beforeUnmount () {
+      document.removeEventListener('click', this.closeMenu);
     },
-  },
-  created() {
-    if (this.disabled || !this.ideEnabled) {
-      this.portletType = 'existing';
-    } else {
-      this.portletType = 'new';
-    }
-  },
-  beforeDestroy() {
-    document.removeEventListener('click', this.closeMenu);
-  },
-  methods: {
-    closeMenu(event) {
-      if (this?.$refs?.autocomplete
+    methods: {
+      closeMenu (event) {
+        if (this?.$refs?.autocomplete
           && !event?.target?.closest?.('.portlet-instance-autocomplete')) {
-        this.$refs.autocomplete.blur();
-      }
+          this.$refs.autocomplete.blur();
+        }
+      },
     },
-  }
-};
+  };
 </script>

@@ -29,7 +29,6 @@
       <coediting
         v-if="$root.site"
         v-model="$root.draftSiteId"
-        :object-id="siteId"
         :messages="{
           editingInOtherWindow: 'layout.pageBeingEditedByYouInOther',
           lockConfirmTitle: 'layout.lockConfirmTitle',
@@ -43,11 +42,12 @@
           draftConfirmOkLabel: 'layout.draftConfirmOkLabel',
           draftConfirmCancelLabel: 'layout.draftConfirmCancelLabel',
         }"
+        :object-id="siteId"
         object-type="site"
-        @initialized="initDraftSite"
-        @locked="stopLoading"
+        @canceled="cancelEditSite"
         @draft-detected="stopLoading"
-        @canceled="cancelEditSite">
+        @initialized="initDraftSite"
+        @locked="stopLoading">
         <site-layout-editor-content :layout="layout" />
       </coediting>
       <layout-editor-cells-selection-box />
@@ -60,41 +60,41 @@
   </v-app>
 </template>
 <script>
-export default {
-  data: () => ({
-    layout: null,
-  }),
-  computed: {
-    siteId() {
-      return this.$root.siteId;
+  export default {
+    data: () => ({
+      layout: null,
+    }),
+    computed: {
+      siteId () {
+        return this.$root.siteId;
+      },
     },
-  },
-  created() {
-    this.$root.$on('layout-site-saved', this.deleteDraft);
-  },
-  beforeDestroy() {
-    this.$root.$off('layout-site-saved', this.deleteDraft);
-  },
-  methods: {
-    async initDraftSite() {
-      if (this.$root.draftSiteId) {
-        this.$root.draftSite = await this.$siteLayoutService.getSiteById(this.$root.draftSiteId);
-      } else {
-        this.$root.draftSite = await this.$siteLayoutService.createDraftSite(this.$root.siteType, this.$root.siteName);
-      }
-      this.$root.draftSiteId = this.$root.draftSite.siteId;
-      this.layout = await this.$siteLayoutService.getSiteLayout(this.$root.draftSiteType, this.$root.draftSiteName, 'contentId');
+    created () {
+      this.$root.$on('layout-site-saved', this.deleteDraft);
     },
-    cancelEditSite() {
-      this.stopLoading();
-      window.close();
+    beforeUnmount () {
+      this.$root.$off('layout-site-saved', this.deleteDraft);
     },
-    stopLoading() {
-      document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+    methods: {
+      async initDraftSite () {
+        if (this.$root.draftSiteId) {
+          this.$root.draftSite = await eXo.$siteLayoutService.getSiteById(this.$root.draftSiteId);
+        } else {
+          this.$root.draftSite = await eXo.$siteLayoutService.createDraftSite(this.$root.siteType, this.$root.siteName);
+        }
+        this.$root.draftSiteId = this.$root.draftSite.siteId;
+        this.layout = await eXo.$siteLayoutService.getSiteLayout(this.$root.draftSiteType, this.$root.draftSiteName, 'contentId');
+      },
+      cancelEditSite () {
+        this.stopLoading();
+        window.close();
+      },
+      stopLoading () {
+        document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+      },
+      deleteDraft () {
+        this.$root.$emit('coediting-remove-revision');
+      },
     },
-    deleteDraft() {
-      this.$root.$emit('coediting-remove-revision');
-    },
-  },
-};
+  };
 </script>

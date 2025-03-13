@@ -23,27 +23,27 @@
     <!-- Illustration -->
     <td
       v-if="!$root.isMobile"
-      class="px-0"
-      align="center">
+      align="center"
+      class="px-0">
       <v-img
-        :src="illustrationSrc"
+        contain
         max-height="30"
         max-width="60"
-        contain
+        :src="illustrationSrc"
         @error="illustrationSrc = defaultIllustrationSrc" />
     </td>
     <!-- name -->
     <td
-      class="text-break"
       v-sanitized-html="name"
-      align="left">
+      align="left"
+      class="text-break">
     </td>
     <!-- description -->
     <td
-      v-if="!$vuetify.breakpoint.lgAndDown"
-      class="text-break"
+      v-if="!$vuetify.display.lgAndDown.value"
+      v-sanitized-html="description"
       align="left"
-      v-sanitized-html="description"></td>
+      class="text-break"></td>
     <td align="center">
       <v-btn
         icon
@@ -58,46 +58,46 @@
   </tr>
 </template>
 <script>
-export default {
-  props: {
-    portlet: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      portlet: {
+        type: Object,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    menu: false,
-    hoverMenu: false,
-    defaultIllustrationSrc: '/layout/images/portlets/DefaultPortlet.png',
-    illustrationSrc: null,
-  }),
-  computed: {
-    portletId() {
-      return this.portlet?.id;
+    data: () => ({
+      menu: false,
+      hoverMenu: false,
+      defaultIllustrationSrc: '/layout/images/portlets/DefaultPortlet.png',
+      illustrationSrc: null,
+    }),
+    computed: {
+      portletId () {
+        return this.portlet?.id;
+      },
+      name () {
+        return this.portlet?.name;
+      },
+      description () {
+        return this.portlet?.description;
+      },
+      instancesCount () {
+        return this.$root.portletInstances.filter(a => a.contentId === this.portlet.contentId).length || 0;
+      },
     },
-    name() {
-      return this.portlet?.name;
+    watch: {
+      hoverMenu () {
+        if (!this.hoverMenu) {
+          window.setTimeout(() => {
+            if (!this.hoverMenu) {
+              this.menu = false;
+            }
+          }, 200);
+        }
+      },
     },
-    description() {
-      return this.portlet?.description;
+    created () {
+      this.illustrationSrc = `/${this.portlet.applicationName}/skin/DefaultSkin/portletIcons/${this.portlet.portletName}.png`;
     },
-    instancesCount() {
-      return this.$root.portletInstances.filter(a => a.contentId === this.portlet.contentId).length || 0;
-    },
-  },
-  watch: {
-    hoverMenu() {
-      if (!this.hoverMenu) {
-        window.setTimeout(() => {
-          if (!this.hoverMenu) {
-            this.menu = false;
-          }
-        }, 200);
-      }
-    },
-  },
-  created() {
-    this.illustrationSrc = `/${this.portlet.applicationName}/skin/DefaultSkin/portletIcons/${this.portlet.portletName}.png`;
-  },
-};
+  };
 </script>

@@ -24,13 +24,12 @@
     flat>
     <main class="content-box-sizing">
       <layout-editor-toolbar
-        :page="pageContext"
         :node="node"
-        :node-labels="nodeLabels" />
+        :node-labels="nodeLabels"
+        :page="pageContext" />
       <v-divider />
       <coediting
         v-model="draftNodeId"
-        :object-id="nodeId"
         :messages="{
           editingInOtherWindow: 'layout.pageBeingEditedByYouInOther',
           lockConfirmTitle: 'layout.lockConfirmTitle',
@@ -44,15 +43,16 @@
           draftConfirmOkLabel: 'layout.draftConfirmOkLabel',
           draftConfirmCancelLabel: 'layout.draftConfirmCancelLabel',
         }"
+        :object-id="nodeId"
         object-type="navigation"
-        @initialized="initDraftPage"
-        @locked="stopLoading"
+        @canceled="cancelEditPage"
         @draft-detected="stopLoading"
-        @canceled="cancelEditPage">
+        @initialized="initDraftPage"
+        @locked="stopLoading">
         <layout-editor-content
-          :page="pageContext"
+          :layout="draftLayout"
           :node="draftNode"
-          :layout="draftLayout" />
+          :page="pageContext" />
       </coediting>
       <layout-editor-cells-selection-box />
     </main>
@@ -61,165 +61,165 @@
   </v-app>
 </template>
 <script>
-export default {
-  data: () => ({
-    node: null,
-    pageContext: null,
-    draftNodeId: null,
-    draftNode: null,
-    draftLayout: null,
-    nodeLabels: null,
-  }),
-  computed: {
-    pageKey() {
-      return this.node?.state?.pageRef;
+  export default {
+    data: () => ({
+      node: null,
+      pageContext: null,
+      draftNodeId: null,
+      draftNode: null,
+      draftLayout: null,
+      nodeLabels: null,
+    }),
+    computed: {
+      pageKey () {
+        return this.node?.state?.pageRef;
+      },
+      pageTemplateId () {
+        return eXo.$layoutUtils.getQueryParam('pageTemplateId');
+      },
+      pageRef () {
+        return eXo.$layoutUtils.getQueryParam('pageId') || this.pageKey?.ref || (this.pageKey && `${this.pageKey.site.typeName}::${this.pageKey.site.name}::${this.pageKey.name}`);
+      },
+      nodeId () {
+        return eXo.$layoutUtils.getQueryParam('nodeId') || (this.pageTemplateId && eXo.env.portal.selectedNodeId);
+      },
+      draftPageKey () {
+        return this.draftNode?.state?.pageRef;
+      },
+      draftPageRef () {
+        return this.draftPageKey?.ref || (this.draftPageKey && `${this.draftPageKey.site.typeName}::${this.draftPageKey.site.name}::${this.draftPageKey.name}`);
+      },
     },
-    pageTemplateId() {
-      return this.$layoutUtils.getQueryParam('pageTemplateId');
-    },
-    pageRef() {
-      return this.$layoutUtils.getQueryParam('pageId') || this.pageKey?.ref || (this.pageKey && `${this.pageKey.site.typeName}::${this.pageKey.site.name}::${this.pageKey.name}`);
-    },
-    nodeId() {
-      return this.$layoutUtils.getQueryParam('nodeId') || (this.pageTemplateId && eXo.env.portal.selectedNodeId);
-    },
-    draftPageKey() {
-      return this.draftNode?.state?.pageRef;
-    },
-    draftPageRef() {
-      return this.draftPageKey?.ref || (this.draftPageKey && `${this.draftPageKey.site.typeName}::${this.draftPageKey.site.name}::${this.draftPageKey.name}`);
-    },
-  },
-  watch: {
-    pageTemplateId: {
-      immediate: true,
-      handler() {
-        if (this.pageTemplateId) {
-          this.$root.pageTemplateId = this.pageTemplateId;
+    watch: {
+      pageTemplateId: {
+        immediate: true,
+        handler () {
+          if (this.pageTemplateId) {
+            this.$root.pageTemplateId = this.pageTemplateId;
+          }
+        },
+      },
+      pageRef: {
+        immediate: true,
+        handler () {
+          if (this.pageRef) {
+            this.$root.pageRef = this.pageRef;
+            eXo.$pageLayoutService.getPage(this.pageRef)
+              .then(page => {
+                this.$root.page = page;
+                this.pageContext = page;
+              });
+          }
+        },
+      },
+      draftPageRef: {
+        immediate: true,
+        handler () {
+          if (this.draftPageRef) {
+            this.$root.draftPageRef = this.draftPageRef;
+            if (this.pageTemplateId) {
+              eXo.$pageTemplateService.getPageTemplate(this.pageTemplateId, true)
+                .then(pageTemplate => this.$root.pageTemplate = pageTemplate)
+                .then(() => eXo.$pageLayoutService.updatePageLayout(
+                  this.draftPageRef,
+                  JSON.parse(this.$root.pageTemplate.content),
+                  'contentId'))
+                .then(draftLayout => this.setDraftLayout(draftLayout))
+                .catch(e => this.$root.$emit('alert-message', this.$te(e.message) ? this.$t(e.message) : this.$t('layout.pageSavingError'), 'error'));
+            } else {
+              eXo.$pageLayoutService.getPageLayout({
+                pageRef: this.draftPageRef,
+                expand: 'contentId',
+              }).then(draftLayout => this.setDraftLayout(draftLayout));
+            }
+          }
+        },
+      },
+      nodeId: {
+        immediate: true,
+        handler () {
+          if (this.nodeId) {
+            this.$root.nodeId = this.nodeId;
+            if (this.nodeId && !this.nodeLabels) {
+              eXo.$navigationLayoutService.getNodeLabels(this.nodeId)
+                .then(nodeLabels => this.nodeLabels = nodeLabels);
+            }
+            if (this.nodeId && !this.$root.nodeUri) {
+              eXo.$navigationLayoutService.getNodeUri(this.nodeId)
+                .then(uri => {
+                  uri = uri.replace(/^\/global\//g, `/${eXo.env.portal.portalName}/`);
+                  return eXo.$layoutUtils.initPageContext(uri)
+                    .finally(() => this.$root.nodeUri = uri);
+                });
+            }
+          }
+        },
+      },
+      draftNodeId: {
+        immediate: true,
+        handler () {
+          if (this.draftNodeId) {
+            this.$root.draftNode = this.draftNode;
+            this.$root.draftNodeId = this.draftNodeId;
+            if (this.draftNodeId && !this.$root.draftNodeUri) {
+              eXo.$navigationLayoutService.getNodeUri(this.draftNodeId)
+                .then(uri => this.$root.draftNodeUri = uri.replace(/^\/global\//g, `/${eXo.env.portal.portalName}/`));
+            }
+          }
+        },
+      },
+      layout (newVal, oldVal) {
+        if (!oldVal && newVal) {
+          this.$root.$applicationLoaded();
         }
       },
     },
-    pageRef: {
-      immediate: true,
-      handler() {
-        if (this.pageRef) {
-          this.$root.pageRef = this.pageRef;
-          this.$pageLayoutService.getPage(this.pageRef)
-            .then(page => {
-              this.$root.page = page;
-              this.pageContext = page;
+    created () {
+      this.$root.$on('layout-draft-refresh', this.setDraftLayout);
+      if (this.pageTemplateId) {
+        this.$root.$on('page-templates-saved', this.deleteDraft);
+      } else {
+        this.$root.$on('layout-page-saved', this.deleteDraft);
+      }
+    },
+    beforeUnmount () {
+      this.$root.$off('layout-draft-refresh', this.setDraftLayout);
+      if (this.pageTemplateId) {
+        this.$root.$off('page-templates-saved', this.deleteDraft);
+      } else {
+        this.$root.$off('layout-page-saved', this.deleteDraft);
+      }
+    },
+    methods: {
+      initDraftPage () {
+        if (this.draftNodeId) {
+          eXo.$navigationLayoutService.getNode(this.nodeId)
+            .then(node => this.node = node)
+            .then(() => eXo.$navigationLayoutService.getNode(this.draftNodeId))
+            .then(draftNode => this.draftNode = draftNode);
+        } else {
+          eXo.$navigationLayoutService.getNode(this.nodeId)
+            .then(node => this.node = node)
+            .then(() => eXo.$navigationLayoutService.createDraftNode(this.node.id))
+            .then(draftNode => {
+              this.draftNode = draftNode;
+              this.draftNodeId = draftNode?.id;
             });
         }
       },
-    },
-    draftPageRef: {
-      immediate: true,
-      handler() {
-        if (this.draftPageRef) {
-          this.$root.draftPageRef = this.draftPageRef;
-          if (this.pageTemplateId) {
-            this.$pageTemplateService.getPageTemplate(this.pageTemplateId, true)
-              .then(pageTemplate => this.$root.pageTemplate = pageTemplate)
-              .then(() => this.$pageLayoutService.updatePageLayout(
-                this.draftPageRef,
-                JSON.parse(this.$root.pageTemplate.content),
-                'contentId'))
-              .then(draftLayout => this.setDraftLayout(draftLayout))
-              .catch(e => this.$root.$emit('alert-message', this.$te(e.message) ? this.$t(e.message) : this.$t('layout.pageSavingError'), 'error'));
-          } else {
-            this.$pageLayoutService.getPageLayout({
-              pageRef: this.draftPageRef,
-              expand: 'contentId',
-            }).then(draftLayout => this.setDraftLayout(draftLayout));
-          }
-        }
+      cancelEditPage () {
+        this.stopLoading();
+        window.close();
+      },
+      stopLoading () {
+        document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+      },
+      setDraftLayout (draftLayout) {
+        this.draftLayout = draftLayout;
+      },
+      deleteDraft () {
+        this.$root.$emit('coediting-remove-revision');
       },
     },
-    nodeId: {
-      immediate: true,
-      handler() {
-        if (this.nodeId) {
-          this.$root.nodeId = this.nodeId;
-          if (this.nodeId && !this.nodeLabels) {
-            this.$navigationLayoutService.getNodeLabels(this.nodeId)
-              .then(nodeLabels => this.nodeLabels = nodeLabels);
-          }
-          if (this.nodeId && !this.$root.nodeUri) {
-            this.$navigationLayoutService.getNodeUri(this.nodeId)
-              .then(uri => {
-                uri = uri.replace(/^\/global\//g, `/${eXo.env.portal.portalName}/`);
-                return this.$layoutUtils.initPageContext(uri)
-                  .finally(() => this.$root.nodeUri = uri);
-              });
-          }
-        }
-      },
-    },
-    draftNodeId: {
-      immediate: true,
-      handler() {
-        if (this.draftNodeId) {
-          this.$root.draftNode = this.draftNode;
-          this.$root.draftNodeId = this.draftNodeId;
-          if (this.draftNodeId && !this.$root.draftNodeUri) {
-            this.$navigationLayoutService.getNodeUri(this.draftNodeId)
-              .then(uri => this.$root.draftNodeUri = uri.replace(/^\/global\//g, `/${eXo.env.portal.portalName}/`));
-          }
-        }
-      },
-    },
-    layout(newVal, oldVal) {
-      if (!oldVal && newVal) {
-        this.$root.$applicationLoaded();
-      }
-    },
-  },
-  created() {
-    this.$root.$on('layout-draft-refresh', this.setDraftLayout);
-    if (this.pageTemplateId) {
-      this.$root.$on('page-templates-saved', this.deleteDraft);
-    } else {
-      this.$root.$on('layout-page-saved', this.deleteDraft);
-    }
-  },
-  beforeDestroy() {
-    this.$root.$off('layout-draft-refresh', this.setDraftLayout);
-    if (this.pageTemplateId) {
-      this.$root.$off('page-templates-saved', this.deleteDraft);
-    } else {
-      this.$root.$off('layout-page-saved', this.deleteDraft);
-    }
-  },
-  methods: {
-    initDraftPage() {
-      if (this.draftNodeId) {
-        this.$navigationLayoutService.getNode(this.nodeId)
-          .then(node => this.node = node)
-          .then(() => this.$navigationLayoutService.getNode(this.draftNodeId))
-          .then(draftNode => this.draftNode = draftNode);
-      } else {
-        this.$navigationLayoutService.getNode(this.nodeId)
-          .then(node => this.node = node)
-          .then(() => this.$navigationLayoutService.createDraftNode(this.node.id))
-          .then(draftNode => {
-            this.draftNode = draftNode;
-            this.draftNodeId = draftNode?.id;
-          });
-      }
-    },
-    cancelEditPage() {
-      this.stopLoading();
-      window.close();
-    },
-    stopLoading() {
-      document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
-    },
-    setDraftLayout(draftLayout) {
-      this.draftLayout = draftLayout;
-    },
-    deleteDraft() {
-      this.$root.$emit('coediting-remove-revision');
-    },
-  },
-};
+  };
 </script>

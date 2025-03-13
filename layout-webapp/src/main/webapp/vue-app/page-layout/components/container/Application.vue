@@ -20,95 +20,95 @@
 -->
 <template>
   <div
-    ref="content"
     :id="id"
+    ref="content"
+    class="layout-application"
     :class="cssClass"
-    :style="cssStyle"
-    class="layout-application"></div>
+    :style="cssStyle"></div>
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    data: () => ({
+      applicationContent: null,
+      contentRetrieved: false,
+    }),
+    computed: {
+      nodeUri () {
+        return this.$root.nodeUri;
+      },
+      storageId () {
+        return this.container?.storageId;
+      },
+      portletId () {
+        return this.storageId || this.container?.id;
+      },
+      contentId () {
+        return this.container?.contentId;
+      },
+      id () {
+        return `UIPortlet-${this.container?.id || this.storageId || `${this.parentId}-${parseInt(Math.random() * 10000)}`}`;
+      },
+      cssStyle () {
+        return eXo.$applicationUtils.getStyle(this.container, {
+          isApplicationBackground: true,
+          isApplicationScroll: true,
+          appStyle: true,
+        });
+      },
+      cssClass () {
+        return this.container.cssClass || '';
+      },
     },
-  },
-  data: () => ({
-    applicationContent: null,
-    contentRetrieved: false,
-  }),
-  computed: {
-    nodeUri() {
-      return this.$root.nodeUri;
-    },
-    storageId() {
-      return this.container?.storageId;
-    },
-    portletId() {
-      return this.storageId || this.container?.id;
-    },
-    contentId() {
-      return this.container?.contentId;
-    },
-    id() {
-      return `UIPortlet-${this.container?.id || this.storageId || `${this.parentId}-${parseInt(Math.random() * 10000)}`}`;
-    },
-    cssStyle() {
-      return this.$applicationUtils.getStyle(this.container, {
-        isApplicationBackground: true,
-        isApplicationScroll: true,
-        appStyle: true,
-      });
-    },
-    cssClass() {
-      return this.container.cssClass || '';
-    },
-  },
-  watch: {
-    portletId() {
-      this.retrieveData();
-    },
-    nodeUri() {
-      this.retrieveData();
-    },
-    applicationContent() {
-      if (this.applicationContent) {
-        this.installApplication();
-      }
-    },
-  },
-  created() {
-    this.retrieveData();
-  },
-  mounted() {
-    this.installApplication();
-  },
-  methods: {
-    installApplication() {
-      if (this.$refs.content && this.nodeUri) {
-        if (!this.portletId) {
-          console.warn(`Application '${this.contentId}' doesn't have a storageId neither and id`); // eslint-disable-line no-console
-        } else if (this.applicationContent) {
-          this.$applicationUtils.handleApplicationContent(this.applicationContent, this.$refs.content);
-          this.applicationContent = null;
+    watch: {
+      portletId () {
+        this.retrieveData();
+      },
+      nodeUri () {
+        this.retrieveData();
+      },
+      applicationContent () {
+        if (this.applicationContent) {
+          this.installApplication();
         }
-      }
+      },
     },
-    retrieveData() {
-      if (this.portletId && this.nodeUri && !this.contentRetrieved) {
-        this.contentRetrieved = true;
-        this.$applicationUtils.getApplicationContent(this.nodeUri, this.portletId, 'VIEW', this.$root.siteId)
-          .then(applicationContent => this.applicationContent = applicationContent);
-      }
+    created () {
+      this.retrieveData();
     },
-    hasUnit(length) {
-      return Number.isNaN(Number(length));
+    mounted () {
+      this.installApplication();
     },
-  }
-};
+    methods: {
+      installApplication () {
+        if (this.$refs.content && this.nodeUri) {
+          if (!this.portletId) {
+            console.warn(`Application '${this.contentId}' doesn't have a storageId neither and id`); // eslint-disable-line no-console
+          } else if (this.applicationContent) {
+            eXo.$applicationUtils.handleApplicationContent(this.applicationContent, this.$refs.content);
+            this.applicationContent = null;
+          }
+        }
+      },
+      retrieveData () {
+        if (this.portletId && this.nodeUri && !this.contentRetrieved) {
+          this.contentRetrieved = true;
+          eXo.$applicationUtils.getApplicationContent(this.nodeUri, this.portletId, 'VIEW', this.$root.siteId)
+            .then(applicationContent => this.applicationContent = applicationContent);
+        }
+      },
+      hasUnit (length) {
+        return Number.isNaN(Number(length));
+      },
+    },
+  };
 </script>

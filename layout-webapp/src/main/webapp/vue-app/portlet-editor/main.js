@@ -38,13 +38,13 @@ const lang = eXo?.env.portal.language || 'en';
 //should expose the locale ressources as REST API
 const url = `/layout/i18n/locale.portlet.LayoutEditor?lang=${lang}`;
 
-export function init() {
+export function init () {
   exoi18n.loadLanguageAsync(lang, url)
     .then(i18n => {
       // init Vue app when locale ressources are ready
       Vue.createApp({
         template: `<portlet-editor id="${appId}"/>`,
-        vuetify: Vue.prototype.vuetifyOptions,
+        vuetify: eXo.vuetify,
         i18n,
         data: {
           portletInstanceId: null,
@@ -53,33 +53,33 @@ export function init() {
           portletMode: 'view',
         },
         computed: {
-          editablePortlet() {
+          editablePortlet () {
             return this.portletInstance?.editable || false;
           },
         },
         watch: {
           portletInstanceId: {
             immediate: true,
-            handler() {
+            handler () {
               eXo.env.portal.portletInstanceId = this.portletInstanceId;
-            }
+            },
           },
           portletMode: {
             immediate: true,
-            handler() {
+            handler () {
               eXo.env.portal.maximizedPortletMode = this.portletMode;
-            }
+            },
           },
         },
-        created() {
+        created () {
           this.portletInstanceId = this.getQueryParam('id');
           this.portletMode = this.getQueryParam('portletMode') || 'view';
-          this.$portletInstanceService.getPortletInstance(this.portletInstanceId)
+          eXo.$portletInstanceService.getPortletInstance(this.portletInstanceId)
             .then(data => this.portletInstance = data)
-            .finally(() => this.$applicationLoaded());
+            .finally(() => this.aapplicationLoaded());
         },
         methods: {
-          getQueryParam(paramName) {
+          getQueryParam (paramName) {
             const uri = window.location.search.substring(1);
             const params = new URLSearchParams(uri);
             return params.get(paramName);

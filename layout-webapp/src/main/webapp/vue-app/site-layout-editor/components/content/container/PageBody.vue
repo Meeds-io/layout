@@ -22,19 +22,19 @@
 <template>
   <div
     :id="id"
-    :data-storage-id="storageId"
-    class="position-relative layout-page-parent d-flex flex-column flex-shrink-1 z-index-zero">
+    class="position-relative layout-page-parent d-flex flex-column flex-shrink-1 z-index-zero"
+    :data-storage-id="storageId">
     <div class="layout-section fill-height">
       <div class="layout-section-content fill-height">
         <div class="full-width fill-height position-relative overflow-hidden white">
           <v-card
-            :class="$vuetify.rtl && 'r-0' || 'l-0'"
             class="d-flex align-center justify-center text-title d-flex position-absolute z-index-one t-0 fa-rotate-315 ms-n12 mt-12"
+            :class="$vuetify.rtl && 'r-0' || 'l-0'"
             color="primary"
-            min-height="30"
-            min-width="220"
             dark
-            flat>
+            flat
+            min-height="30"
+            min-width="220">
             {{ $t('layout.editSite.portalPage') }}
           </v-card>
         </div>
@@ -43,32 +43,32 @@
   </div>
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
+      index: {
+        type: Number,
+        default: () => 0,
+      },
+      length: {
+        type: Number,
+        default: () => 0,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    computed: {
+      storageId () {
+        return this.container.storageId;
+      },
+      id () {
+        return this.container.id || this.storageId;
+      },
     },
-    index: {
-      type: Number,
-      default: () => 0,
-    },
-    length: {
-      type: Number,
-      default: () => 0,
-    },
-  },
-  computed: {
-    storageId() {
-      return this.container.storageId;
-    },
-    id() {
-      return this.container.id || this.storageId;
-    },
-  },
-};
+  };
 </script>

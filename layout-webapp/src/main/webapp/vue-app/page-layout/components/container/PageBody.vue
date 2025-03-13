@@ -21,22 +21,22 @@
 -->
 <template>
   <page-layout-container-base
-    :container="container"
-    :parent-id="parentId"
     class="layout-page-parent"
-    page-style />
+    :container="container"
+    page-style
+    :parent-id="parentId" />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
-    },
-  },
-};
+  };
 </script>

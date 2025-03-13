@@ -22,20 +22,20 @@
   <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -->
   <div
     ref="section"
-    :style="cssStyle"
-    :class="mobileInColumns && 'layout-section-mobile-pages' || ''"
     class="position-relative layout-section"
+    :class="mobileInColumns && 'layout-section-mobile-pages' || ''"
+    :style="cssStyle"
     v-on="!isDynamicSection && {
       'mousedown': startSelection,
     }">
     <v-hover v-model="hover" :disabled="$root.mobileDisplayMode">
       <div
+        class="layout-section-border"
         :class="{
           'z-index-two': hoverSectionMenuButton,
           'normal-page-width': !$root.pageFullWindow,
           'full-page-width': $root.pageFullWindow,
-        }"
-        class="layout-section-border">
+        }">
         <div class="position-relative full-height full-width">
           <layout-editor-section-menu
             :container="container"
@@ -44,25 +44,25 @@
             :length="length"
             :moving="movingSection"
             @hover-button="hoverSectionMenuButton = $event"
-            @move-start="movingSection = true"
-            @move-end="movingSection = false" />
+            @move-end="movingSection = false"
+            @move-start="movingSection = true" />
         </div>
       </div>
     </v-hover>
     <layout-editor-container-base
       ref="container"
-      :container="container"
-      :parent-id="parentId"
-      :index="index"
-      :class="`${mobileInColumns && mobileSectionColumnClass || ''}`"
-      :type="isDynamicSection ? 'section-columns' : 'section-grid'"
       class="position-relative overflow-initial layout-section-content"
+      :class="`${mobileInColumns && mobileSectionColumnClass || ''}`"
+      :container="container"
+      :index="index"
       no-background-style
+      :parent-id="parentId"
+      :type="isDynamicSection ? 'section-columns' : 'section-grid'"
       @hovered="hoverSection = $event && !drawerOpened">
       <template v-if="$root.movingParentId === storageId && (!isDynamicSection || $root.moveType === 'resize')" #footer>
         <layout-editor-section-selection-grid
-          :section="container"
-          class="position-absolute z-index-two full-width full-height px-5 layout-grid-hover-shadow" />
+          class="position-absolute z-index-two full-width full-height px-5 layout-grid-hover-shadow"
+          :section="container" />
         <layout-editor-cells-drop-box
           :section="container"
           @hide="$root.movingParentId = null" />
@@ -75,99 +75,99 @@
   </div>
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
+      index: {
+        type: Number,
+        default: null,
+      },
+      length: {
+        type: Number,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    data: () => ({
+      hover: false,
+      hoverSection: false,
+      hoverSectionMenuButton: false,
+      movingSection: false,
+      mobileSectionColumnClass: null,
+      sectionWidth: 0,
+    }),
+    computed: {
+      storageId () {
+        return this.container?.storageId;
+      },
+      zIndexClass () {
+        return !this.drawerOpened && 'z-index-one';
+      },
+      drawerOpened () {
+        return this.$root.drawerOpened;
+      },
+      isDynamicSection () {
+        return this.container.template === eXo.$layoutUtils.flexTemplate;
+      },
+      hoverSectionMenu () {
+        return !this.drawerOpened && (this.hover || this.hoverSection || this.movingSection);
+      },
+      cssStyle () {
+        return eXo.$applicationUtils.getStyle(this.container, {
+          onlyBackgroundStyle: true,
+          sectionStyle: true,
+        });
+      },
+      mobileInColumns () {
+        return this.isDynamicSection
+          && this.$root.mobileDisplayMode
+          && this.container?.cssClass?.includes?.('layout-mobile-columns');
+      },
     },
-    index: {
-      type: Number,
-      default: null,
+    watch: {
+      hoverSectionMenu (newVal, oldVal) {
+        if (!oldVal && newVal) {
+          this.hoverSectionMenuButton = true;
+        }
+      },
     },
-    length: {
-      type: Number,
-      default: null,
+    created () {
+      window.addEventListener('resize', this.refreshDimensions);
+      document.querySelector('.site-scroll-parent').addEventListener('scroll', this.refreshDimensions);
     },
-  },
-  data: () => ({
-    hover: false,
-    hoverSection: false,
-    hoverSectionMenuButton: false,
-    movingSection: false,
-    mobileSectionColumnClass: null,
-    sectionWidth: 0,
-  }),
-  computed: {
-    storageId() {
-      return this.container?.storageId;
+    mounted () {
+      this.refreshDimensions();
     },
-    zIndexClass() {
-      return !this.drawerOpened && 'z-index-one';
+    beforeUnmount () {
+      window.removeEventListener('resize', this.refreshDimensions);
+      document.querySelector('.site-scroll-parent').removeEventListener('scroll', this.refreshDimensions);
     },
-    drawerOpened() {
-      return this.$root.drawerOpened;
-    },
-    isDynamicSection() {
-      return this.container.template === this.$layoutUtils.flexTemplate;
-    },
-    hoverSectionMenu() {
-      return !this.drawerOpened && (this.hover || this.hoverSection || this.movingSection);
-    },
-    cssStyle() {
-      return this.$applicationUtils.getStyle(this.container, {
-        onlyBackgroundStyle: true,
-        sectionStyle: true,
-      });
-    },
-    mobileInColumns() {
-      return this.isDynamicSection
-        && this.$root.mobileDisplayMode
-        && this.container?.cssClass?.includes?.('layout-mobile-columns');
-    },
-  },
-  watch: {
-    hoverSectionMenu(newVal, oldVal) {
-      if (!oldVal && newVal) {
-        this.hoverSectionMenuButton = true;
-      }
-    },
-  },
-  created() {
-    window.addEventListener('resize', this.refreshDimensions);
-    document.querySelector('.site-scroll-parent').addEventListener('scroll', this.refreshDimensions);
-  },
-  mounted() {
-    this.refreshDimensions();
-  },
-  beforeDestroy() {
-    window.removeEventListener('resize', this.refreshDimensions);
-    document.querySelector('.site-scroll-parent').removeEventListener('scroll', this.refreshDimensions);
-  },
-  methods: {
-    refreshDimensions() {
-      window.setTimeout(() => {
-        if (!this.$refs.section) {
+    methods: {
+      refreshDimensions () {
+        window.setTimeout(() => {
+          if (!this.$refs.section) {
+            return;
+          }
+          const dimensions = this.$refs.section.getBoundingClientRect();
+          this.sectionWidth = dimensions.width;
+        }, 300);
+      },
+      startSelection (event) {
+        if (event.button !== 0) {
           return;
         }
-        const dimensions = this.$refs.section.getBoundingClientRect();
-        this.sectionWidth = dimensions.width;
-      }, 300);
-    },
-    startSelection(event) {
-      if (event.button !== 0) {
-        return;
-      }
-      if (!event?.target?.closest?.('.layout-no-multi-select')
+        if (!event?.target?.closest?.('.layout-no-multi-select')
           && event?.target?.tagName !== 'BUTTON'
           && event?.target?.tagName !== 'A') {
-        this.$root.$emit('layout-section-selection-start', event, this.container, this.$refs.container.$el);
-      }
+          this.$root.$emit('layout-section-selection-start', event, this.container, this.$refs.container.$el);
+        }
+      },
     },
-  },
-};
+  };
 </script>

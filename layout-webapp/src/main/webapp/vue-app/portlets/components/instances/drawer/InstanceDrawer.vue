@@ -20,12 +20,12 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="portletInstanceDrawer"
+    ref="drawer"
     v-model="drawer"
-    :loading="saving"
-    :go-back-button="goBackButton"
     allow-expand
+    :go-back-button="goBackButton"
+    :loading="saving"
     right>
     <template #title>
       <span class="text-wrap">{{ isNew && $t('layout.portletInstance.drawerTitie.add') || $t('layout.portletInstance.drawerTitie.edit') }}</span>
@@ -33,18 +33,18 @@
     <template v-if="drawer" #content>
       <div class="pa-4" flat>
         <translation-text-field
-          ref="title"
           id="pageTemplateTitle"
+          ref="title"
           v-model="titleTranslations"
-          :field-value.sync="title"
-          :placeholder="$t('layout.portletInstance.namePlaceholder')"
+          v-model:field-value="title"
+          back-icon
+          class="width-auto flex-grow-1 pb-1"
+          drawer-title="layout.portletInstance.nameTranslationDrawerTitle"
+          field-name="title"
           :maxlength="maxTitleLength"
           :object-id="instanceId"
           object-type="portletInstance"
-          field-name="title"
-          drawer-title="layout.portletInstance.nameTranslationDrawerTitle"
-          class="width-auto flex-grow-1 pb-1"
-          back-icon
+          :placeholder="$t('layout.portletInstance.namePlaceholder')"
           required>
           <template #title>
             <div class="text-subtitle-1">
@@ -55,14 +55,14 @@
         <translation-text-field
           ref="descriptionTranslation"
           v-model="descriptionTranslations"
-          :field-value.sync="description"
+          v-model:field-value="description"
+          back-icon
+          class="ma-1px mt-4"
+          drawer-title="layout.portletInstance.descriptionTranslationDrawerTitle"
+          field-name="description"
           :maxlength="maxDescriptionLength"
           :object-id="instanceId"
           object-type="portletInstance"
-          field-name="description"
-          drawer-title="layout.portletInstance.descriptionTranslationDrawerTitle"
-          class="ma-1px mt-4"
-          back-icon
           rich-editor>
           <template #title>
             <div class="text-subtitle-1">
@@ -73,11 +73,11 @@
             id="portletInstanceDescription"
             ref="portletInstanceDescriptionEditor"
             v-model="descriptionTranslations[lang]"
-            :placeholder="$t('layout.portletInstance.descriptionTranslationDrawerTitle')"
-            :max-length="maxDescriptionLength"
-            :tag-enabled="false"
             ck-editor-type="portletInstanceDescription"
             disable-suggester
+            :max-length="maxDescriptionLength"
+            :placeholder="$t('layout.portletInstance.descriptionTranslationDrawerTitle')"
+            :tag-enabled="false"
             @ready="checkCKEdtiorDisplay" />
         </translation-text-field>
         <portlets-instance-category-input
@@ -85,35 +85,35 @@
           class="mt-4" />
         <portlets-instance-portlet-input
           v-model="contentId"
-          :disabled="!isNew || disableSelectedPortlet"
-          class="mt-4" />
+          class="mt-4"
+          :disabled="!isNew || disableSelectedPortlet" />
         <div class="d-flex flex-column mt-4">
           <div class="mb-2">{{ $t('portlets.selectWhoCanAddIt') }}</div>
           <v-tooltip bottom>
             <template #activator="{on, attrs}">
               <div
-                v-on="on"
-                v-bind="attrs">
+                v-bind="attrs"
+                v-on="on">
                 <v-checkbox
                   v-model="aclAdministrators"
-                  :label="$t('portlets.administrators')"
                   :aria-label="$t('portlets.administrators')"
                   class="ma-0 pa-0"
-                  disabled />
+                  disabled
+                  :label="$t('portlets.administrators')" />
               </div>
             </template>
             <span>{{ $t('portlets.administratorsMandatorySelectionTooltip') }}</span>
           </v-tooltip>
           <v-checkbox
             v-model="aclContributors"
-            :label="$t('portlets.contentManagers')"
             :aria-label="$t('portlets.contentManagers')"
-            class="ma-0 pa-0" />
+            class="ma-0 pa-0"
+            :label="$t('portlets.contentManagers')" />
           <v-checkbox
             v-model="aclSpaceHost"
-            :label="$t('portlets.spaceHost')"
             :aria-label="$t('portlets.spaceHost')"
-            class="ma-0 pa-0" />
+            class="ma-0 pa-0"
+            :label="$t('portlets.spaceHost')" />
         </div>
         <portlets-instance-preview
           ref="portletInstancePreview"
@@ -130,9 +130,9 @@
           {{ $t('layout.cancel') }}
         </v-btn>
         <v-btn
+          class="btn btn-primary"
           :disabled="disabled"
           :loading="saving"
-          class="btn btn-primary"
           @click="save">
           {{ $t('layout.save') }}
         </v-btn>
@@ -141,172 +141,172 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    drawer: false,
-    instance: null,
-    instanceId: null,
-    categoryId: null,
-    contentId: null,
-    title: null,
-    titleTranslations: {},
-    description: null,
-    descriptionTranslations: {},
-    maxTitleLength: 250,
-    maxDescriptionLength: 1000,
-    illustrationUploadId: null,
-    lang: eXo.env.portal.language,
-    goBackButton: false,
-    disableSelectedPortlet: false,
-    saving: false,
-    isNew: false,
-    aclSpaceHost: false,
-    aclContributors: false,
-    aclAdministrators: true,
-  }),
-  computed: {
-    disabled() {
-      return !this.categoryId || !this.contentId || !this.title;
+  export default {
+    data: () => ({
+      drawer: false,
+      instance: null,
+      instanceId: null,
+      categoryId: null,
+      contentId: null,
+      title: null,
+      titleTranslations: {},
+      description: null,
+      descriptionTranslations: {},
+      maxTitleLength: 250,
+      maxDescriptionLength: 1000,
+      illustrationUploadId: null,
+      lang: eXo.env.portal.language,
+      goBackButton: false,
+      disableSelectedPortlet: false,
+      saving: false,
+      isNew: false,
+      aclSpaceHost: false,
+      aclContributors: false,
+      aclAdministrators: true,
+    }),
+    computed: {
+      disabled () {
+        return !this.categoryId || !this.contentId || !this.title;
+      },
     },
-  },
-  watch: {
-    aclContributors() {
-      if (!this.aclContributors && this.aclSpaceHost) {
-        this.aclSpaceHost = false;
-      }
+    watch: {
+      aclContributors () {
+        if (!this.aclContributors && this.aclSpaceHost) {
+          this.aclSpaceHost = false;
+        }
+      },
+      aclSpaceHost () {
+        if (this.aclSpaceHost && !this.aclContributors) {
+          this.aclContributors = true;
+        }
+      },
+      description () {
+        if (this.$refs.descriptionTranslation) {
+          this.$refs.descriptionTranslation.setValue(this.description);
+        }
+        this.checkCKEdtiorDisplay();
+      },
     },
-    aclSpaceHost() {
-      if (this.aclSpaceHost && !this.aclContributors) {
-        this.aclContributors = true;
-      }
+    created () {
+      this.$root.$on('portlet-instance-add', this.open);
+      this.$root.$on('portlet-instance-edit', this.open);
     },
-    description() {
-      if (this.$refs.descriptionTranslation) {
-        this.$refs.descriptionTranslation.setValue(this.description);
-      }
-      this.checkCKEdtiorDisplay();
+    beforeUnmount () {
+      this.$root.$off('portlet-instance-add', this.open);
+      this.$root.$off('portlet-instance-edit', this.open);
     },
-  },
-  created() {
-    this.$root.$on('portlet-instance-add', this.open);
-    this.$root.$on('portlet-instance-edit', this.open);
-  },
-  beforeDestroy() {
-    this.$root.$off('portlet-instance-add', this.open);
-    this.$root.$off('portlet-instance-edit', this.open);
-  },
-  methods: {
-    open(instance, goBackButton, contentId) {
-      this.$root.$emit('close-alert-message');
-      this.isNew = !instance;
-      this.goBackButton = goBackButton;
-      this.disableSelectedPortlet = !!contentId;
-      this.instance = instance || {};
-      this.instanceId = instance?.id || null;
-      if (instance) {
-        this.categoryId = instance.categoryId || null;
-        this.aclSpaceHost = !instance.permissions?.length
-          || !!instance.permissions?.find?.(p => p.includes('Everyone'))
-          || !!instance.permissions?.find?.(p => p.includes('/platform/users'));
-        this.aclContributors = this.aclSpaceHost || !!instance.permissions?.find?.(p => p.includes('/platform/web-contributors'));
-      } else {
-        this.categoryId = this.$root?.selectedCategoryId;
-        this.aclSpaceHost = true;
-        this.aclContributors = true;
-      }
-      this.contentId = instance?.contentId || contentId;
-      this.title = instance?.name || null;
-      this.titleTranslations = {};
-      this.descriptionTranslations = {};
-      this.description = instance?.description || null;
-      this.$nextTick().then(() => this.$refs.drawer.open());
-    },
-    close() {
-      this.$refs.drawer.close();
-    },
-    save() {
-      this.saving = true;
-      let message = null;
-      let savedInstance = null;
-      const newInstance = !this.instanceId;
-      const saveInstanceRequest =
-        !newInstance ?
-          this.$portletInstanceService.getPortletInstance(this.instanceId)
-            .then(instance => {
-              instance.categoryId = this.categoryId;
-              instance.permissions = this.getPermissions();
-              return this.$portletInstanceService.updatePortletInstance(instance)
-                .then(() => {
-                  message = this.$t('layout.portletInstanceUpdatedSuccessfully');
-                  savedInstance = instance;
-                  return instance;
-                });
-            })
-          : this.$portletInstanceService.createPortletInstance({
-            categoryId: this.categoryId,
-            contentId: this.contentId,
-            permissions: this.getPermissions(),
-          })
-            .then(instance => {
-              message = this.$t('layout.portletInstanceCreatedSuccessfully');
-              savedInstance = instance;
-              return instance;
-            });
-      return saveInstanceRequest
-        .then(instance => {
-          if (instance) {
-            this.instanceId = instance.id;
-            return this.$nextTick();
-          }
-        })
-        .then(() => this.$translationService.saveTranslations('portletInstance', this.instanceId, 'title', this.titleTranslations))
-        .then(() => this.$translationService.saveTranslations('portletInstance', this.instanceId, 'description', this.descriptionTranslations))
-        .then(() => this.$refs?.portletInstancePreview?.save())
-        .then(() => {
-          if (newInstance) {
-            if (this.contentId === 'ide/WidgetPortlet') {
-              return this.$portletInstanceService.getPortletInstance(this.instanceId)
-                .then(instance => {
-                  if (!instance?.preferences?.portletInstanceId) {
-                    if (!instance.preferences) {
-                      instance.preferences = [];
-                    }
-                    instance.preferences.push({
-                      name: 'portletInstanceId',
-                      value: this.instanceId,
-                    });
+    methods: {
+      open (instance, goBackButton, contentId) {
+        this.$root.$emit('close-alert-message');
+        this.isNew = !instance;
+        this.goBackButton = goBackButton;
+        this.disableSelectedPortlet = !!contentId;
+        this.instance = instance || {};
+        this.instanceId = instance?.id || null;
+        if (instance) {
+          this.categoryId = instance.categoryId || null;
+          this.aclSpaceHost = !instance.permissions?.length
+            || !!instance.permissions?.find?.(p => p.includes('Everyone'))
+            || !!instance.permissions?.find?.(p => p.includes('/platform/users'));
+          this.aclContributors = this.aclSpaceHost || !!instance.permissions?.find?.(p => p.includes('/platform/web-contributors'));
+        } else {
+          this.categoryId = this.$root?.selectedCategoryId;
+          this.aclSpaceHost = true;
+          this.aclContributors = true;
+        }
+        this.contentId = instance?.contentId || contentId;
+        this.title = instance?.name || null;
+        this.titleTranslations = {};
+        this.descriptionTranslations = {};
+        this.description = instance?.description || null;
+        this.$nextTick().then(() => this.$refs.drawer.open());
+      },
+      close () {
+        this.$refs.drawer.close();
+      },
+      save () {
+        this.saving = true;
+        let message = null;
+        let savedInstance = null;
+        const newInstance = !this.instanceId;
+        const saveInstanceRequest =
+          !newInstance ?
+            eXo.$portletInstanceService.getPortletInstance(this.instanceId)
+              .then(instance => {
+                instance.categoryId = this.categoryId;
+                instance.permissions = this.getPermissions();
+                return eXo.$portletInstanceService.updatePortletInstance(instance)
+                  .then(() => {
+                    message = this.$t('layout.portletInstanceUpdatedSuccessfully');
                     savedInstance = instance;
-                    return this.$portletInstanceService.updatePortletInstance(instance);
-                  }
-                })
-                .then(() => this.$root.$emit('portlet-instance-created', savedInstance, true));
-            } else {
-              this.$root.$emit('portlet-instance-created', savedInstance);
+                    return instance;
+                  });
+              })
+            : eXo.$portletInstanceService.createPortletInstance({
+              categoryId: this.categoryId,
+              contentId: this.contentId,
+              permissions: this.getPermissions(),
+            })
+              .then(instance => {
+                message = this.$t('layout.portletInstanceCreatedSuccessfully');
+                savedInstance = instance;
+                return instance;
+              });
+        return saveInstanceRequest
+          .then(instance => {
+            if (instance) {
+              this.instanceId = instance.id;
+              return this.$nextTick();
             }
-          } else {
-            this.$root.$emit('portlet-instance-updated', savedInstance);
-          }
-        })
-        .then(() => {
-          this.$root.$emit('portlet-instance-saved', this.instanceId);
-          this.$root.$emit('alert-message', message, 'success');
-          this.close();
-        })
-        .finally(() => this.saving = false);
-    },
-    getPermissions() {
-      const permissions = [this.aclSpaceHost && '*:/platform/users' || '*:/platform/administrators'];
-      if (this.aclContributors) {
-        permissions.push('*:/platform/web-contributors');
-      }
-      return permissions;
-    },
-    checkCKEdtiorDisplay() {
-      if (this.$refs.portletInstanceDescriptionEditor?.editor
+          })
+          .then(() => eXo.$translationService.saveTranslations('portletInstance', this.instanceId, 'title', this.titleTranslations))
+          .then(() => eXo.$translationService.saveTranslations('portletInstance', this.instanceId, 'description', this.descriptionTranslations))
+          .then(() => this.$refs?.portletInstancePreview?.save())
+          .then(() => {
+            if (newInstance) {
+              if (this.contentId === 'ide/WidgetPortlet') {
+                return eXo.$portletInstanceService.getPortletInstance(this.instanceId)
+                  .then(instance => {
+                    if (!instance?.preferences?.portletInstanceId) {
+                      if (!instance.preferences) {
+                        instance.preferences = [];
+                      }
+                      instance.preferences.push({
+                        name: 'portletInstanceId',
+                        value: this.instanceId,
+                      });
+                      savedInstance = instance;
+                      return eXo.$portletInstanceService.updatePortletInstance(instance);
+                    }
+                  })
+                  .then(() => this.$root.$emit('portlet-instance-created', savedInstance, true));
+              } else {
+                this.$root.$emit('portlet-instance-created', savedInstance);
+              }
+            } else {
+              this.$root.$emit('portlet-instance-updated', savedInstance);
+            }
+          })
+          .then(() => {
+            this.$root.$emit('portlet-instance-saved', this.instanceId);
+            this.$root.$emit('alert-message', message, 'success');
+            this.close();
+          })
+          .finally(() => this.saving = false);
+      },
+      getPermissions () {
+        const permissions = [this.aclSpaceHost && '*:/platform/users' || '*:/platform/administrators'];
+        if (this.aclContributors) {
+          permissions.push('*:/platform/web-contributors');
+        }
+        return permissions;
+      },
+      checkCKEdtiorDisplay () {
+        if (this.$refs.portletInstanceDescriptionEditor?.editor
           && this.description !== this.$refs.portletInstanceDescriptionEditor.inputVal) {
-        this.$refs.portletInstanceDescriptionEditor.editor.setData(this.description);
-      }
+          this.$refs.portletInstanceDescriptionEditor.editor.setData(this.description);
+        }
+      },
     },
-  },
-};
+  };
 </script>

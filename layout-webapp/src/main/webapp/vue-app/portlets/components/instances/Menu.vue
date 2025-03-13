@@ -21,33 +21,33 @@
 <template>
   <v-menu
     v-model="menu"
-    :left="!$vuetify.rtl"
-    :right="$vuetify.rtl"
     :content-class="menuId"
-    offset-y>
+    :left="!$vuetify.rtl"
+    offset-y
+    :right="$vuetify.rtl">
     <template #activator="{ on, attrs }">
       <v-btn
         :aria-label="$t('portlets.menu.open')"
+        class="mx-auto"
         icon
         small
-        class="mx-auto"
         v-bind="attrs"
         v-on="on">
-        <v-icon size="16" class="icon-default-color">fas fa-ellipsis-v</v-icon>
+        <v-icon class="icon-default-color" size="16">fas fa-ellipsis-v</v-icon>
       </v-btn>
     </template>
     <v-hover v-if="menu" @input="hoverMenu = $event">
       <v-list
         class="pa-0"
         dense
-        @mouseout="menu = false"
-        @focusout="menu = false">
+        @focusout="menu = false"
+        @mouseout="menu = false">
         <v-list-item-group v-model="listItem">
           <v-list-item
+            dense
             :href="editLayoutLink"
-            target="_blank"
             rel="opener"
-            dense>
+            target="_blank">
             <v-icon size="13">
               fa-edit
             </v-icon>
@@ -65,14 +65,14 @@
               {{ $t('portlets.label.editProperties') }}
             </v-list-item-title>
           </v-list-item>
-          <v-tooltip :disabled="!portletInstance.system" bottom>
+          <v-tooltip bottom :disabled="!portletInstance.system">
             <template #activator="{ on, attrs }">
               <div
-                v-on="on"
-                v-bind="attrs">
+                v-bind="attrs"
+                v-on="on">
                 <v-list-item
-                  :disabled="portletInstance.system"
                   dense
+                  :disabled="portletInstance.system"
                   @click="$root.$emit('portlet-instance-delete', portletInstance)">
                   <v-icon
                     :class="!portletInstance.system && 'error--text' || 'disabled--text'"
@@ -80,8 +80,8 @@
                     fa-trash
                   </v-icon>
                   <v-list-item-title
-                    :class="!portletInstance.system && 'error--text' || 'disabled--text'"
-                    class="ps-2">
+                    class="ps-2"
+                    :class="!portletInstance.system && 'error--text' || 'disabled--text'">
                     {{ $t('portlets.label.delete') }}
                   </v-list-item-title>
                 </v-list-item>
@@ -95,76 +95,76 @@
   </v-menu>
 </template>
 <script>
-export default {
-  props: {
-    portletInstance: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      portletInstance: {
+        type: Object,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    menu: false,
-    hoverMenu: false,
-    listItem: null,
-    menuId: `PortletInstanceMenu${parseInt(Math.random() * 10000)}`,
-  }),
-  computed: {
-    portletInstanceId() {
-      return this.portletInstance?.id;
+    data: () => ({
+      menu: false,
+      hoverMenu: false,
+      listItem: null,
+      menuId: `PortletInstanceMenu${parseInt(Math.random() * 10000)}`,
+    }),
+    computed: {
+      portletInstanceId () {
+        return this.portletInstance?.id;
+      },
+      name () {
+        return this.$te(this.portletInstance?.name) ? this.$t(this.portletInstance?.name) : this.portletInstance?.name;
+      },
+      hasEditMode () {
+        return this.portletInstance?.supportedModes?.find?.(mode => mode === 'edit');
+      },
+      editLayoutLink () {
+        return `/portal/${eXo.env.portal.portalName}/portlet-editor?id=${this.portletInstanceId}&portletMode=${this.hasEditMode && 'edit' || 'view'}`;
+      },
     },
-    name() {
-      return this.$te(this.portletInstance?.name) ? this.$t(this.portletInstance?.name) : this.portletInstance?.name;
+    watch: {
+      listItem () {
+        if (this.menu) {
+          this.menu = false;
+          this.listItem = null;
+        }
+      },
+      menu () {
+        if (this.menu) {
+          this.$root.$emit('portlet-instance-menu-opened', this.portletInstanceId);
+        } else {
+          this.$root.$emit('portlet-instance-menu-closed', this.portletInstanceId);
+        }
+      },
+      hoverMenu () {
+        if (!this.hoverMenu) {
+          window.setTimeout(() => {
+            if (!this.hoverMenu) {
+              this.menu = false;
+            }
+          }, 200);
+        }
+      },
     },
-    hasEditMode() {
-      return this.portletInstance?.supportedModes?.find?.(mode => mode === 'edit');
+    created () {
+      this.$root.$on('portlet-instance-menu-opened', this.checkMenuStatus);
+      document.addEventListener('click', this.closeMenuOnClick);
     },
-    editLayoutLink() {
-      return `/portal/${eXo.env.portal.portalName}/portlet-editor?id=${this.portletInstanceId}&portletMode=${this.hasEditMode && 'edit' || 'view'}`;
+    beforeUnmount () {
+      this.$root.$off('portlet-instance-menu-opened', this.checkMenuStatus);
+      document.removeEventListener('click', this.closeMenuOnClick);
     },
-  },
-  watch: {
-    listItem() {
-      if (this.menu) {
-        this.menu = false;
-        this.listItem = null;
-      }
+    methods: {
+      closeMenuOnClick (e) {
+        if (e.target && !e.target.closest(`.${this.menuId}`)) {
+          this.menu = false;
+        }
+      },
+      checkMenuStatus (instanceId) {
+        if (this.menu && instanceId !== this.portletInstance.id) {
+          this.menu = false;
+        }
+      },
     },
-    menu() {
-      if (this.menu) {
-        this.$root.$emit('portlet-instance-menu-opened', this.portletInstanceId);
-      } else {
-        this.$root.$emit('portlet-instance-menu-closed', this.portletInstanceId);
-      }
-    },
-    hoverMenu() {
-      if (!this.hoverMenu) {
-        window.setTimeout(() => {
-          if (!this.hoverMenu) {
-            this.menu = false;
-          }
-        }, 200);
-      }
-    },
-  },
-  created() {
-    this.$root.$on('portlet-instance-menu-opened', this.checkMenuStatus);
-    document.addEventListener('click', this.closeMenuOnClick);
-  },
-  beforeDestroy() {
-    this.$root.$off('portlet-instance-menu-opened', this.checkMenuStatus);
-    document.removeEventListener('click', this.closeMenuOnClick);
-  },
-  methods: {
-    closeMenuOnClick(e) {
-      if (e.target && !e.target.closest(`.${this.menuId}`)) {
-        this.menu = false;
-      }
-    },
-    checkMenuStatus(instanceId) {
-      if (this.menu && instanceId !== this.portletInstance.id) {
-        this.menu = false;
-      }
-    },
-  },
-};
+  };
 </script>

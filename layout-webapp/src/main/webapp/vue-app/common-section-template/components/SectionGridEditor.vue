@@ -27,20 +27,20 @@
       </div>
       <v-card
         class="flex-grow-1 flex-shrink-1 align-end ms-auto mt-4"
-        max-width="80%"
-        flat>
+        flat
+        max-width="80%">
         <v-slider
           v-model="rows"
-          :thumb-size="24"
-          :min="1"
           :max="12"
-          thumb-label="always">
+          :min="1"
+          thumb-label="always"
+          :thumb-size="24">
           <template #prepend>
             <v-btn
-              :disabled="rows === 1"
               class="me-n2 mt-n1"
-              icon
+              :disabled="rows === 1"
               fab
+              icon
               x-small
               @click="rows--">
               <v-icon class="icon-default-color pt-2px">fa-minus</v-icon>
@@ -48,10 +48,10 @@
           </template>
           <template #append>
             <v-btn
-              :disabled="rows === 12"
               class="ms-n2 mt-n1"
-              icon
+              :disabled="rows === 12"
               fab
+              icon
               x-small
               @click="rows++">
               <v-icon class="icon-default-color pt-2px">fa-plus</v-icon>
@@ -66,20 +66,20 @@
       </div>
       <v-card
         class="flex-grow-1 flex-shrink-1 align-end ms-auto"
-        max-width="80%"
-        flat>
+        flat
+        max-width="80%">
         <v-slider
           v-model="cols"
-          :thumb-size="24"
-          :min="1"
           :max="12"
-          thumb-label="always">
+          :min="1"
+          thumb-label="always"
+          :thumb-size="24">
           <template #prepend>
             <v-btn
-              :disabled="cols === 1"
               class="me-n2 mt-n1"
-              icon
+              :disabled="cols === 1"
               fab
+              icon
               x-small
               @click="cols--">
               <v-icon class="icon-default-color pt-2px">fa-minus</v-icon>
@@ -87,8 +87,8 @@
           </template>
           <template #append>
             <v-btn
-              :disabled="cols === 12"
               class="ms-n2 mt-n1"
+              :disabled="cols === 12"
               fab
               icon
               x-small
@@ -100,64 +100,64 @@
       </v-card>
     </div>
     <div
-      :style="cssStyle"
-      class="border-color-thin-grey-opacity2 border-radius mt-2 mb-4 pa-2">
+      class="border-color-thin-grey-opacity2 border-radius mt-2 mb-4 pa-2"
+      :style="cssStyle">
       <div
-        :class="gridClass"
-        class="grid-gap-1">
+        class="grid-gap-1"
+        :class="gridClass">
         <div
           v-for="i in length"
-          :key="i"
           :id="`grid-cell-${i}`"
+          :key="i"
           class="grey-background aspect-ratio-1 grid-cell grid-cell-colspan-lg-1 grid-cell-lg-rowspan-1 opacity-5"></div>
       </div>
     </div>
   </div>
 </template>
 <script>
-export default {
-  props: {
-    rowsCount: {
-      type: Number,
-      default: null,
+  export default {
+    props: {
+      rowsCount: {
+        type: Number,
+        default: null,
+      },
+      colsCount: {
+        type: Number,
+        default: null,
+      },
+      backgroundProperties: {
+        type: Object,
+        default: null,
+      },
     },
-    colsCount: {
-      type: Number,
-      default: null,
+    data: () => ({
+      rows: 0,
+      cols: 0,
+    }),
+    computed: {
+      gridClass () {
+        return `d-md-grid pb-0 grid-cols-md-${this.cols} grid-rows-md-${this.rows}`;
+      },
+      cssStyle () {
+        return this.backgroundProperties && eXo.$applicationUtils.getStyle(this.backgroundProperties, {
+          onlyBackgroundStyle: true,
+        });
+      },
+      length () {
+        return this.rows * this.cols;
+      },
     },
-    backgroundProperties: {
-      type: Object,
-      default: null,
+    watch: {
+      rows () {
+        this.$emit('rows-updated', this.rows);
+      },
+      cols () {
+        this.$emit('cols-updated', this.cols);
+      },
     },
-  },
-  data: () => ({
-    rows: 0,
-    cols: 0,
-  }),
-  computed: {
-    gridClass() {
-      return `d-md-grid pb-0 grid-cols-md-${this.cols} grid-rows-md-${this.rows}`;
+    created () {
+      this.rows = this.rowsCount;
+      this.cols = this.colsCount;
     },
-    cssStyle() {
-      return this.backgroundProperties && this.$applicationUtils.getStyle(this.backgroundProperties, {
-        onlyBackgroundStyle: true,
-      });
-    },
-    length() {
-      return this.rows * this.cols;
-    },
-  },
-  watch: {
-    rows() {
-      this.$emit('rows-updated', this.rows);
-    },
-    cols() {
-      this.$emit('cols-updated', this.cols);
-    },
-  },
-  created() {
-    this.rows = this.rowsCount;
-    this.cols = this.colsCount;
-  },
-};
+  };
 </script>

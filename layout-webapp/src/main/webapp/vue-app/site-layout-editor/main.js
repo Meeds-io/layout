@@ -45,17 +45,17 @@ const lang = eXo?.env.portal.language || 'en';
 //should expose the locale ressources as REST API
 const url = `/layout/i18n/locale.portlet.LayoutEditor?lang=${lang}`;
 
-export function init() {
+export function init () {
   exoi18n.loadLanguageAsync(lang, url)
     .then(i18n => {
       // init Vue app when locale ressources are ready
       Vue.createApp({
         template: `<site-layout-editor id="${appId}"/>`,
-        vuetify: Vue.prototype.vuetifyOptions,
+        vuetify: eXo.vuetify,
         i18n,
         data: () => ({
           containerTypes: extensionRegistry.loadExtensions('layout-editor', 'container'),
-          collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
+          collator: new Intl.Collator(eXo.env.portal.language, { numeric: true, sensitivity: 'base' }),
           hoveredParentId: null,
           hoveredSectionId: null,
           hoveredSection: null,
@@ -91,145 +91,145 @@ export function init() {
           middleCenterContainersMinHeight: 0,
         }),
         computed: {
-          parentAppX() {
+          parentAppX () {
             return this.parentAppDimensions?.x || 0;
           },
-          parentAppY() {
+          parentAppY () {
             return this.parentAppDimensions?.y || 0;
           },
-          defaultContainer() {
+          defaultContainer () {
             return this.containerTypes.find(extension => extension.type === 'default');
           },
-          isResize() {
+          isResize () {
             return this.moveType === 'resize';
           },
-          isMove() {
+          isMove () {
             return this.moveType === 'drag';
           },
-          mobileDisplayMode() {
+          mobileDisplayMode () {
             return this.$root.displayMode === 'mobile';
           },
-          desktopDisplayMode() {
+          desktopDisplayMode () {
             return this.$root.displayMode === 'desktop';
           },
-          siteId() {
-            return this.$layoutUtils.getQueryParam('siteId');
+          siteId () {
+            return eXo.$layoutUtils.getQueryParam('siteId');
           },
-          siteType() {
+          siteType () {
             return this.site?.siteType?.toUpperCase?.();
           },
-          siteName() {
+          siteName () {
             return this.site?.name;
           },
-          isSiteTemplate() {
+          isSiteTemplate () {
             return this.siteType === 'PORTAL_TEMPLATE' || this.siteType === 'GROUP_TEMPLATE';
           },
-          siteUri() {
+          siteUri () {
             return this.isSiteTemplate ? `${eXo.env.portal.context}/t/${this.siteId}` : `${eXo.env.portal.context}/${this.siteName}`;
           },
-          draftSiteType() {
+          draftSiteType () {
             return this.draftSite?.siteType;
           },
-          draftSiteName() {
+          draftSiteName () {
             return this.draftSite?.name;
           },
-          draftNodeUri() {
+          draftNodeUri () {
             return `/d/${this.draftSiteId}/`;
           },
-          leftContainer() {
+          leftContainer () {
             return this.layout?.children?.[0];
           },
-          middleContainer() {
-            return this.layout?.children?.find(c => c.template === this.$layoutUtils.siteBodyMiddleTemplate);
+          middleContainer () {
+            return this.layout?.children?.find(c => c.template === eXo.$layoutUtils.siteBodyMiddleTemplate);
           },
-          middleContainerBannersHeight() {
+          middleContainerBannersHeight () {
             return this.$root.middleContainer?.children?.map?.(c => (c.height && Number(c.height) || 57) + (c.marginTop || 0) + (c.marginBottom || 0))?.reduce?.((acc, v) => acc + v, 0) || 0;
           },
-          rightContainer() {
+          rightContainer () {
             return this.layout?.children?.[2];
           },
-          middleCenterContainer() {
-            return this.middleContainer?.children?.find(c => c.template === this.$layoutUtils.siteBodyMiddleCenterTemplate);
+          middleCenterContainer () {
+            return this.middleContainer?.children?.find(c => c.template === eXo.$layoutUtils.siteBodyMiddleCenterTemplate);
           },
-          middleCenterContainerIndex() {
-            return this.middleContainer?.children?.findIndex(c => c.template === this.$layoutUtils.siteBodyMiddleCenterTemplate);
+          middleCenterContainerIndex () {
+            return this.middleContainer?.children?.findIndex(c => c.template === eXo.$layoutUtils.siteBodyMiddleCenterTemplate);
           },
-          internalLeftContainer() {
+          internalLeftContainer () {
             return this.middleCenterContainer?.children?.[0];
           },
-          pageBodyContainer() {
+          pageBodyContainer () {
             return this.middleCenterContainer?.children?.[1];
           },
-          internalRightContainer() {
+          internalRightContainer () {
             return this.middleCenterContainer?.children?.[2];
           },
         },
         watch: {
-          movingParentId() {
+          movingParentId () {
             if (this.movingParentId) {
               this.$root.$emit('layout-editor-moving-start', this.movingParentId);
             } else {
               this.$root.$emit('layout-editor-moving-end', this.movingParentId);
             }
           },
-          async siteType() {
+          async siteType () {
             if (this.isSiteTemplate) {
-              this.siteTemplate = await this.$siteTemplateService.getSiteTemplate(this.siteId);
+              this.siteTemplate = await eXo.$siteTemplateService.getSiteTemplate(this.siteId);
             }
           },
         },
-        created() {
+        created () {
           document.addEventListener('extension-layout-editor-container-updated', this.refreshContainerTypes);
           this.$on('layout-editor-portlet-instances-refresh', this.refreshPortletInstances);
           document.addEventListener('drawerOpened', this.setDrawerOpened);
           document.addEventListener('drawerClosed', this.setDrawerClosed);
           this.refreshPortletInstances();
-          this.$siteLayoutService.getSiteById(this.siteId)
+          eXo.$siteLayoutService.getSiteById(this.siteId)
             .then(site => this.site = site);
-          this.$brandingService.getBrandingInformation()
+          eXo.$brandingService.getBrandingInformation()
             .then(data => this.branding = data);
         },
-        mounted() {
+        mounted () {
           this.$el?.closest?.('.PORTLET-FRAGMENT')?.classList?.remove?.('PORTLET-FRAGMENT');
         },
         methods: {
-          setDrawerOpened() {
+          setDrawerOpened () {
             this.drawerOpened++;
           },
-          setDrawerClosed() {
+          setDrawerClosed () {
             this.drawerOpened--;
           },
-          refreshPortletInstances() {
+          refreshPortletInstances () {
             this.loadingPortletInstances = true;
-            return this.$portletInstanceCategoryService.getPortletInstanceCategories()
+            return eXo.$portletInstanceCategoryService.getPortletInstanceCategories()
               .then(categories => this.portletInstanceCategories = categories)
-              .then(()  => this.$portletInstanceService.getPortletInstances())
+              .then(()  => eXo.$portletInstanceService.getPortletInstances())
               .then(applications => this.portletInstances = applications.filter(a => !a.disabled))
               .finally(() => this.loadingPortletInstances = false);
           },
-          refreshContainerTypes() {
+          refreshContainerTypes () {
             this.containerTypes = extensionRegistry.loadExtensions('layout-editor', 'container');
           },
-          updateParentAppDimensions() {
+          updateParentAppDimensions () {
             this.parentAppDimensions = document.querySelector('#siteLayoutEditor').getBoundingClientRect();
           },
-          initScrollPosition() {
+          initScrollPosition () {
             this.updateParentAppDimensions();
             this.startScrollX = this.parentAppDimensions.x;
             this.startScrollY = this.parentAppDimensions.y;
             this.diffScrollX = 0;
             this.diffScrollY = 0;
           },
-          updateScrollPosition() {
+          updateScrollPosition () {
             this.updateParentAppDimensions();
             this.diffScrollX = this.parentAppDimensions.x - this.startScrollX;
             this.diffScrollY = this.parentAppDimensions.y - this.startScrollY;
           },
-          initCellsSelection() {
+          initCellsSelection () {
             this.selectedSectionId = null;
             this.moveType = null;
           },
-          resetMoving() {
+          resetMoving () {
             this.parentAppDimensions = null;
             this.moveType = null;
           },
@@ -237,7 +237,7 @@ export function init() {
       }, `#${appId}`, 'Site Layout Editor');
     })
     .finally(() => {
-      Vue.prototype.$utils.includeExtensions('LayoutEditorExtension');
+      eXo.$utils.includeExtensions('LayoutEditorExtension');
       document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
     });
 }

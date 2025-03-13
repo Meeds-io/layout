@@ -21,50 +21,50 @@
 <template>
   <div class="d-flex">
     <v-btn 
-      text
-      small
       class="ms-n3"
+      small
+      text
       @click="bordeRadius = 0">
       {{ $t('layout.square') }}
     </v-btn>
     <v-slider
       v-model="bordeRadius"
-      :thumb-size="24"
+      color="primary"
       :max="maxBorderRadius"
-      tick-size="2"
-      thumb-label="always"
-      ticks
       min="0"
       step="4"
-      color="primary" />
+      thumb-label="always"
+      :thumb-size="24"
+      tick-size="2"
+      ticks />
     <v-btn
-      text
-      small
       class="me-n3"
+      small
+      text
       @click="bordeRadius = maxBorderRadius"> 
       {{ $t('layout.rounded') }} 
     </v-btn>
   </div>
 </template>
 <script>
-export default {
-  props: {
-    value: {
-      type: String,
-      default: null,
+  export default {
+    props: {
+      value: {
+        type: String,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    bordeRadius: 8,
-    maxBorderRadius: 20
-  }),
-  watch: {
-    bordeRadius() {
-      this.$emit('input', this.bordeRadius);
+    data: () => ({
+      bordeRadius: 8,
+      maxBorderRadius: 20,
+    }),
+    watch: {
+      bordeRadius () {
+        this.$emit('input', this.bordeRadius);
+      },
     },
-  },
-  created() {
-    this.bordeRadius = this.value;
-  },
-};
+    created () {
+      this.bordeRadius = this.value;
+    },
+  };
 </script>

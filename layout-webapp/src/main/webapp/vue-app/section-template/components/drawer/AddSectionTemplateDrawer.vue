@@ -21,11 +21,11 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="addSectionDrawer"
+    ref="drawer"
     v-model="drawer"
-    right
-    disable-pull-to-refresh>
+    disable-pull-to-refresh
+    right>
     <template #title>
       {{ $t('layout.addSectionTitle') }}
     </template>
@@ -36,26 +36,26 @@
         </div>
         <v-radio-group v-model="sectionType" class="my-auto text-no-wrap ms-n1">
           <v-radio
+            class="mx-0"
             :label="$t('layout.dynamicSectionTypeChoice')"
-            value="FlexContainer"
-            class="mx-0" />
+            value="FlexContainer" />
           <v-radio
+            class="mx-0"
             :label="$t('layout.fixedSectionTypeChoice')"
-            value="GridContainer"
-            class="mx-0" />
+            value="GridContainer" />
         </v-radio-group>
 
         <section-template-grid-editor
           v-if="sectionType === $layoutUtils.gridTemplate"
-          :rows-count="rows"
-          :cols-count="cols"
           class="mt-4"
-          @rows-updated="rows = $event"
-          @cols-updated="cols = $event" />
+          :cols-count="cols"
+          :rows-count="rows"
+          @cols-updated="cols = $event"
+          @rows-updated="rows = $event" />
         <section-template-flex-editor
           v-else-if="sectionType === $layoutUtils.flexTemplate"
-          :cols-count="cols"
           class="mt-4"
+          :cols-count="cols"
           @cols-updated="cols = $event" />
       </v-card>
     </template>
@@ -63,14 +63,14 @@
       <div class="d-flex">
         <v-spacer />
         <v-btn
-          :disabled="saving"
           class="btn"
+          :disabled="saving"
           @click="close">
           <span class="text-none">{{ $t('layout.cancel') }}</span>
         </v-btn>
         <v-btn
-          :loading="saving"
           class="btn btn-primary ms-4"
+          :loading="saving"
           @click="next">
           <span class="text-none">{{ $t('layout.next') }}</span>
         </v-btn>
@@ -79,54 +79,54 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    sectionType: null,
-    drawer: false,
-    saving: false,
-    rows: 0,
-    cols: 0,
-  }),
-  watch: {
-    sectionType() {
-      if (this.sectionType === this.$layoutUtils.gridTemplate) {
-        this.rows = 4;
-        this.cols = 12;
-      } else if (this.sectionType === this.$layoutUtils.flexTemplate) {
-        this.rows = 1;
-        this.cols = 3;
-      }
+  export default {
+    data: () => ({
+      sectionType: null,
+      drawer: false,
+      saving: false,
+      rows: 0,
+      cols: 0,
+    }),
+    watch: {
+      sectionType () {
+        if (this.sectionType === eXo.$layoutUtils.gridTemplate) {
+          this.rows = 4;
+          this.cols = 12;
+        } else if (this.sectionType === eXo.$layoutUtils.flexTemplate) {
+          this.rows = 1;
+          this.cols = 3;
+        }
+      },
     },
-  },
-  created() {
-    this.$root.$on('section-template-add', this.open);
-  },
-  beforeDestroy() {
-    this.$root.$off('section-template-add', this.open);
-  },
-  methods: {
-    close() {
-      this.$refs.drawer.close();
+    created () {
+      this.$root.$on('section-template-add', this.open);
     },
-    async open() {
-      this.sectionType = this.$layoutUtils.flexTemplate;
-      await this.$nextTick();
-      this.$refs.drawer.open();
+    beforeUnmount () {
+      this.$root.$off('section-template-add', this.open);
     },
-    async next() {
-      this.saving = true;
-      try {
-        const section = this.$layoutUtils.newSection(null, null, this.rows, this.cols, this.sectionType);
-        const sectionTemplate = await this.$sectionTemplateService.createSectionTemplate({
-          category: 'custom',
-          content: JSON.stringify(section),
-        });
-        this.$root.$emit('section-template-created', sectionTemplate);
-        this.close();
-      } finally {
-        this.saving = false;
-      }
+    methods: {
+      close () {
+        this.$refs.drawer.close();
+      },
+      async open () {
+        this.sectionType = eXo.$layoutUtils.flexTemplate;
+        await this.$nextTick();
+        this.$refs.drawer.open();
+      },
+      async next () {
+        this.saving = true;
+        try {
+          const section = eXo.$layoutUtils.newSection(null, null, this.rows, this.cols, this.sectionType);
+          const sectionTemplate = await eXo.$sectionTemplateService.createSectionTemplate({
+            category: 'custom',
+            content: JSON.stringify(section),
+          });
+          this.$root.$emit('section-template-created', sectionTemplate);
+          this.close();
+        } finally {
+          this.saving = false;
+        }
+      },
     },
-  },
-};
+  };
 </script>

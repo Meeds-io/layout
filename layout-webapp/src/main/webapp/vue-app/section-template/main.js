@@ -36,24 +36,24 @@ const lang = eXo?.env.portal.language || 'en';
 const url = `/layout/i18n/locale.portlet.LayoutEditor?lang=${lang}`;
 
 const appId = 'sectionTemplateManagement';
-export function init() {
+export function init () {
   exoi18n.loadLanguageAsync(lang, url)
     .then(i18n =>
       Vue.createApp({
         template: `<section-template-management id="${appId}"/>`,
-        vuetify: Vue.prototype.vuetifyOptions,
+        vuetify: eXo.vuetify,
         i18n,
         data: () => ({
           sectionTemplates: [],
           loading: 0,
-          collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
+          collator: new Intl.Collator(eXo.env.portal.language, { numeric: true, sensitivity: 'base' }),
         }),
         computed: {
-          isMobile() {
-            return this.$vuetify.breakpoint.smAndDown;
+          isMobile () {
+            return eXo.vuetify.display.smAndDown.value;
           },
         },
-        created() {
+        created () {
           this.$root.$on('section-template-enabled', this.refreshSectionTemplates);
           this.$root.$on('section-template-disabled', this.refreshSectionTemplates);
           this.$root.$on('section-template-saved', this.refreshSectionTemplates);
@@ -63,12 +63,12 @@ export function init() {
           this.refreshSectionTemplates();
         },
         methods: {
-          propagateEventListenerLocally(event) {
+          propagateEventListenerLocally (event) {
             this.$root.$emit(event.type, event.detail);
           },
-          refreshSectionTemplates() {
+          refreshSectionTemplates () {
             this.loading++;
-            return this.$sectionTemplateService.getSectionTemplates()
+            return eXo.$sectionTemplateService.getSectionTemplates()
               .then(data => this.sectionTemplates = data || [])
               .finally(() => this.loading--);
           },

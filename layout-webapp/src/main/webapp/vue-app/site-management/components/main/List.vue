@@ -21,17 +21,17 @@
 -->
 <template>
   <v-data-table
+    class="application-body sitesTable px-5"
+    :custom-sort="!$root.isMobile && applySortOnItems"
+    disable-pagination
+    :disable-sort="$root.isMobile"
     :headers="headers"
+    hide-default-footer
+    :hide-default-header="$root.isMobile"
     :items="filteredSites"
     :loading="loading"
-    :disable-sort="$root.isMobile"
-    :hide-default-header="$root.isMobile"
-    :custom-sort="!$root.isMobile && applySortOnItems"
-    :must-sort="!$root.isMobile"
-    disable-pagination
-    hide-default-footer
-    class="application-body sitesTable px-5">
-    <template slot="item" slot-scope="props">
+    :must-sort="!$root.isMobile">
+    <template #item="props">
       <site-management-item
         :key="props.item.id"
         :site="props.item" />
@@ -39,157 +39,157 @@
   </v-data-table>
 </template>
 <script>
-export default {
-  props: {
-    sites: {
-      type: Array,
-      default: () => [],
+  export default {
+    props: {
+      sites: {
+        type: Array,
+        default: () => [],
+      },
+      keyword: {
+        type: String,
+        default: null,
+      },
+      loading: {
+        type: Boolean,
+        default: false,
+      },
     },
-    keyword: {
-      type: String,
-      default: null,
+    computed: {
+      headers () {
+        return (this.$root.isMobile && [
+          {
+            text: '',
+            value: 'icon',
+            align: 'left',
+            sortable: false,
+            class: 'site-icon-header',
+            width: '75px',
+          },
+          {
+            text: this.$t('sites.label.name'),
+            value: 'name',
+            align: 'left',
+            sortable: false,
+            class: 'site-name-header',
+            width: 'auto',
+          },
+          {
+            text: this.$t('sites.label.actions'),
+            value: 'actions',
+            align: 'center',
+            sortable: false,
+            class: 'site-actions-header',
+            width: '75px',
+          },
+        ]) || (eXo.vuetify.display.lgAndDown.value && [
+          {
+            text: '',
+            value: 'icon',
+            align: 'left',
+            sortable: false,
+            class: 'site-icon-header',
+            width: '35px',
+          },
+          {
+            text: this.$t('sites.label.name'),
+            value: 'name',
+            align: 'left',
+            sortable: true,
+            class: 'site-name-header',
+            width: 'auto',
+          },
+          {
+            text: this.$t('sites.label.description'),
+            value: 'description',
+            align: 'left',
+            sortable: false,
+            class: 'site-description-header',
+            width: '50%',
+          },
+          {
+            text: this.$t('sites.label.actions'),
+            value: 'actions',
+            align: 'center',
+            sortable: false,
+            class: 'site-actions-header',
+            width: '75px',
+          },
+        ]) || [
+          {
+            text: '',
+            value: 'icon',
+            align: 'left',
+            sortable: false,
+            class: 'site-icon-header ps-0',
+            width: '35px',
+          },
+          {
+            text: this.$t('sites.label.name'),
+            value: 'displayName',
+            align: 'left',
+            sortable: true,
+            class: 'site-name-header',
+            width: 'auto',
+          },
+          {
+            text: this.$t('sites.label.description'),
+            value: 'description',
+            align: 'left',
+            sortable: false,
+            class: 'site-description-header',
+            width: '50%',
+          },
+          {
+            text: this.$t('sites.label.navigation'),
+            value: 'navigation',
+            align: 'center',
+            sortable: false,
+            class: 'site-navigation-header',
+            width: '75px',
+          },
+          {
+            text: this.$t('sites.label.permission'),
+            value: 'permission',
+            align: 'center',
+            sortable: false,
+            class: 'site-permission-header',
+            width: '75px',
+          },
+          {
+            text: this.$t('sites.label.actions'),
+            value: 'actions',
+            align: 'center',
+            sortable: false,
+            class: 'site-actions-header',
+            width: '75px',
+          },
+        ];
+      },
+      filteredSites () {
+        return this.keyword?.length && this.sites.filter(s => {
+          const name = this.$te(s.name) ? this.$t(s.name) : s.name;
+          const description = this.$te(s.description) ? this.$t(s.description) : s.description;
+          return name?.toLowerCase?.()?.includes(this.keyword.toLowerCase())
+            || eXo.$utils.htmlToText(description)?.toLowerCase?.()?.includes(this.keyword.toLowerCase());
+        }) || this.sites;
+      },
     },
-    loading: {
-      type: Boolean,
-      default: false,
+    methods: {
+      applySortOnItems (sites, sortFields, sortDescendings) {
+        for (let i = 0; i < sortFields.length; i++) {
+          sites = this.applySortOnItemsUsingField(sites, sortFields[i], sortDescendings[i]);
+        }
+        return sites;
+      },
+      applySortOnItemsUsingField (sites, field, desc) {
+        if (field === 'name') {
+          sites.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+        }
+        if (desc) {
+          sites.reverse();
+        }
+        return sites;
+      },
     },
-  },
-  computed: {
-    headers() {
-      return (this.$root.isMobile && [
-        {
-          text: '',
-          value: 'icon',
-          align: 'left',
-          sortable: false,
-          class: 'site-icon-header',
-          width: '75px'
-        },
-        {
-          text: this.$t('sites.label.name'),
-          value: 'name',
-          align: 'left',
-          sortable: false,
-          class: 'site-name-header',
-          width: 'auto'
-        },
-        {
-          text: this.$t('sites.label.actions'),
-          value: 'actions',
-          align: 'center',
-          sortable: false,
-          class: 'site-actions-header',
-          width: '75px'
-        },
-      ]) || (this.$vuetify.breakpoint.lgAndDown && [
-        {
-          text: '',
-          value: 'icon',
-          align: 'left',
-          sortable: false,
-          class: 'site-icon-header',
-          width: '35px'
-        },
-        {
-          text: this.$t('sites.label.name'),
-          value: 'name',
-          align: 'left',
-          sortable: true,
-          class: 'site-name-header',
-          width: 'auto'
-        },
-        {
-          text: this.$t('sites.label.description'),
-          value: 'description',
-          align: 'left',
-          sortable: false,
-          class: 'site-description-header',
-          width: '50%'
-        },
-        {
-          text: this.$t('sites.label.actions'),
-          value: 'actions',
-          align: 'center',
-          sortable: false,
-          class: 'site-actions-header',
-          width: '75px'
-        },
-      ]) || [
-        {
-          text: '',
-          value: 'icon',
-          align: 'left',
-          sortable: false,
-          class: 'site-icon-header ps-0',
-          width: '35px'
-        },
-        {
-          text: this.$t('sites.label.name'),
-          value: 'displayName',
-          align: 'left',
-          sortable: true,
-          class: 'site-name-header',
-          width: 'auto'
-        },
-        {
-          text: this.$t('sites.label.description'),
-          value: 'description',
-          align: 'left',
-          sortable: false,
-          class: 'site-description-header',
-          width: '50%'
-        },
-        {
-          text: this.$t('sites.label.navigation'),
-          value: 'navigation',
-          align: 'center',
-          sortable: false,
-          class: 'site-navigation-header',
-          width: '75px'
-        },
-        {
-          text: this.$t('sites.label.permission'),
-          value: 'permission',
-          align: 'center',
-          sortable: false,
-          class: 'site-permission-header',
-          width: '75px'
-        },
-        {
-          text: this.$t('sites.label.actions'),
-          value: 'actions',
-          align: 'center',
-          sortable: false,
-          class: 'site-actions-header',
-          width: '75px'
-        },
-      ];
-    },
-    filteredSites() {
-      return this.keyword?.length && this.sites.filter(s => {
-        const name = this.$te(s.name) ? this.$t(s.name) : s.name;
-        const description = this.$te(s.description) ? this.$t(s.description) : s.description;
-        return name?.toLowerCase?.()?.includes(this.keyword.toLowerCase())
-          || this.$utils.htmlToText(description)?.toLowerCase?.()?.includes(this.keyword.toLowerCase());
-      }) || this.sites;
-    },
-  },
-  methods: {
-    applySortOnItems(sites, sortFields, sortDescendings) {
-      for (let i = 0; i < sortFields.length; i++) {
-        sites = this.applySortOnItemsUsingField(sites, sortFields[i], sortDescendings[i]);
-      }
-      return sites;
-    },
-    applySortOnItemsUsingField(sites, field, desc) {
-      if (field === 'name') {
-        sites.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
-      }
-      if (desc) {
-        sites.reverse();
-      }
-      return sites;
-    },
-  },
-};
+  };
 </script>

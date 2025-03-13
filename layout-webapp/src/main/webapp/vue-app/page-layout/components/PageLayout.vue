@@ -20,13 +20,17 @@
 -->
 <template>
   <v-app
-    :class="!$root.siteId && 'layout-page-parent'"
     class="layout-sections-parent transparent"
-    role="main"
-    flat>
+    :class="!$root.siteId && 'layout-page-parent'"
+    flat
+    role="main">
     <page-layout-page-container
       v-if="$root.page"
       :container="$root.layout" />
   </v-app>
 </template>
-<script></script>
+<script>
+  export default {
+    
+  };
+</script>
