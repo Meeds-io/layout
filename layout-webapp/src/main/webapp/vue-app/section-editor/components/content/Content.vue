@@ -21,12 +21,12 @@
 -->
 <template>
   <v-card
-    :class="parentClass"
     class="transparent layout-sections-parent page-content mx-auto"
+    :class="parentClass"
     flat>
     <layout-editor-container-extension
-      :container="pageLayout"
-      class="layout-page-body no-border-radius" />
+      class="layout-page-body no-border-radius"
+      :container="pageLayout" />
     <layout-editor-section-edit-drawer
       ref="sectionEditDrawer" />
     <layout-editor-application-edit-drawer
@@ -40,306 +40,306 @@
   </v-card>
 </template>
 <script>
-export default {
-  props: {
-    page: {
-      type: Object,
-      default: null,
-    },
-    node: {
-      type: Object,
-      default: null,
-    },
-    layout: {
-      type: Object,
-      default: null,
-    },
-  },
-  data: () => ({
-    layoutToEdit: null,
-    loading: 1,
-  }),
-  computed: {
-    pageLayout() {
-      if (this.layoutToEdit?.children?.[0]?.children?.[0]?.template === 'system:/groovy/portal/webui/container/UIPageLayout.gtmpl') {
-        return this.layoutToEdit?.children?.[0]?.children?.[0];
-      } else {
-        return this.layoutToEdit?.children?.[0];
-      }
-    },
-    mobileDisplayMode() {
-      return this.$root.mobileDisplayMode;
-    },
-    parentClass() {
-      return this.mobileDisplayMode && 'layout-mobile-view elevation-3 mt-3' || 'layout-desktop-view';
-    },
-  },
-  watch: {
-    layoutToEdit: {
-      immediate: true,
-      handler() {
-        this.$root.layout = this.layoutToEdit;
+  export default {
+    props: {
+      page: {
+        type: Object,
+        default: null,
+      },
+      node: {
+        type: Object,
+        default: null,
+      },
+      layout: {
+        type: Object,
+        default: null,
       },
     },
-    loading(newVal, oldVal) {
-      if (newVal - oldVal > 0) {
-        document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
-      } else if (newVal - oldVal < 0) {
-        document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
-      }
-    },
-    layout: {
-      immediate: true,
-      handler() {
-        if (this.layout) {
-          const layout = JSON.parse(JSON.stringify(this.layout));
-          this.setLayout(layout);
+    data: () => ({
+      layoutToEdit: null,
+      loading: 1,
+    }),
+    computed: {
+      pageLayout () {
+        if (this.layoutToEdit?.children?.[0]?.children?.[0]?.template === 'system:/groovy/portal/webui/container/UIPageLayout.gtmpl') {
+          return this.layoutToEdit?.children?.[0]?.children?.[0];
+        } else {
+          return this.layoutToEdit?.children?.[0];
         }
       },
+      mobileDisplayMode () {
+        return this.$root.mobileDisplayMode;
+      },
+      parentClass () {
+        return this.mobileDisplayMode && 'layout-mobile-view elevation-3 mt-3' || 'layout-desktop-view';
+      },
     },
-    mobileDisplayMode() {
-      this.switchDisplayMode();
+    watch: {
+      layoutToEdit: {
+        immediate: true,
+        handler () {
+          this.$root.layout = this.layoutToEdit;
+        },
+      },
+      loading (newVal, oldVal) {
+        if (newVal - oldVal > 0) {
+          document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
+        } else if (newVal - oldVal < 0) {
+          document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+        }
+      },
+      layout: {
+        immediate: true,
+        handler () {
+          if (this.layout) {
+            const layout = JSON.parse(JSON.stringify(this.layout));
+            this.setLayout(layout);
+          }
+        },
+      },
+      mobileDisplayMode () {
+        this.switchDisplayMode();
+      },
     },
-  },
-  created() {
-    this.$root.$on('layout-edit-section-drawer', this.editSection);
-    this.$root.$on('layout-add-application-category-drawer', this.openApplicationCategoryDrawer);
-    this.$root.$on('layout-replace-section', this.handleReplaceSection);
-    this.$root.$on('layout-children-size-updated', this.handleSectionUpdated);
-    this.$root.$on('layout-cell-resize', this.handleCellResize);
-    this.$root.$on('layout-cell-drag', this.handleCellMove);
-    this.$root.$on('layout-cells-select', this.addApplicationOnCells);
-    this.$root.$on('layout-add-application', this.handleAddApplication);
-    this.$root.$on('layout-edit-application', this.handleEditApplication);
-    this.$root.$on('layout-delete-application', this.handleDeleteApplication);
-    this.$root.$on('layout-application-category-drawer-closed', this.resetCellsSelection);
-    this.$root.$on('layout-section-history-add', this.addSectionVersion);
-    this.$root.$on('layout-page-saved', this.handlePageSaved);
-    this.$root.$on('layout-apply-grid-style', this.handleApplyGridStyle);
-    this.$root.$on('layout-save-draft', this.saveDraft);
-    document.addEventListener('keydown', this.restoreSectionVersion);
-  },
-  methods: {
-    setLayout(layout) {
-      this.initContainer(layout);
-      this.$layoutUtils.parseSections(layout);
-      if (this.layoutToEdit) {
-        Object.assign(this.layoutToEdit, layout);
-      } else {
-        this.layoutToEdit = layout;
-      }
+    created () {
+      this.$root.$on('layout-edit-section-drawer', this.editSection);
+      this.$root.$on('layout-add-application-category-drawer', this.openApplicationCategoryDrawer);
+      this.$root.$on('layout-replace-section', this.handleReplaceSection);
+      this.$root.$on('layout-children-size-updated', this.handleSectionUpdated);
+      this.$root.$on('layout-cell-resize', this.handleCellResize);
+      this.$root.$on('layout-cell-drag', this.handleCellMove);
+      this.$root.$on('layout-cells-select', this.addApplicationOnCells);
+      this.$root.$on('layout-add-application', this.handleAddApplication);
+      this.$root.$on('layout-edit-application', this.handleEditApplication);
+      this.$root.$on('layout-delete-application', this.handleDeleteApplication);
+      this.$root.$on('layout-application-category-drawer-closed', this.resetCellsSelection);
+      this.$root.$on('layout-section-history-add', this.addSectionVersion);
+      this.$root.$on('layout-page-saved', this.handlePageSaved);
+      this.$root.$on('layout-apply-grid-style', this.handleApplyGridStyle);
+      this.$root.$on('layout-save-draft', this.saveDraft);
+      document.addEventListener('keydown', this.restoreSectionVersion);
     },
-    switchDisplayMode() {
-      if (this.$root.displayMode === 'mobile') {
-        this.$layoutUtils.applyMobileStyle(this.layoutToEdit);
-      } else {
-        this.$layoutUtils.applyDesktopStyle(this.layoutToEdit);
-      }
-    },
-    initContainer(container) {
-      if (container.children) {
-        container.children.forEach(this.initContainer);
-      } else {
-        container.children = [];
-      }
-    },
-    editSection(index) {
-      const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
-      if (parentContainer) {
-        this.$refs.sectionEditDrawer.open(parentContainer.children[index], index, parentContainer.children.length);
-      }
-    },
-    openApplicationCategoryDrawer(sectionId, container) {
-      this.$root.selectedSectionId = sectionId;
-      this.$root.selectedCells = [container];
-      this.$refs.applicationCategoryDrawer.open();
-    },
-    resetCellsSelection() {
-      window.setTimeout(() => {
-        this.$root.resetMoving();
-        this.$root.initCellsSelection();
-      }, 300);
-    },
-    addApplicationOnCells(selection) {
-      const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
-      const section = parentContainer.children.find(c => c.storageId === this.$root.selectedSectionId);
-      if (section) {
-        this.$root.selectedCells = section.children?.filter?.(c =>
-          this.$layoutUtils.isBetween(c.colIndex, selection.fromColIndex, selection.toColIndex)
-          && this.$layoutUtils.isBetween(c.rowIndex, selection.fromRowIndex, selection.toRowIndex)
-        ) || [];
+    methods: {
+      setLayout (layout) {
+        this.initContainer(layout);
+        eXo.$layoutUtils.parseSections(layout);
+        if (this.layoutToEdit) {
+          Object.assign(this.layoutToEdit, layout);
+        } else {
+          this.layoutToEdit = layout;
+        }
+      },
+      switchDisplayMode () {
+        if (this.$root.displayMode === 'mobile') {
+          eXo.$layoutUtils.applyMobileStyle(this.layoutToEdit);
+        } else {
+          eXo.$layoutUtils.applyDesktopStyle(this.layoutToEdit);
+        }
+      },
+      initContainer (container) {
+        if (container.children) {
+          container.children.forEach(this.initContainer);
+        } else {
+          container.children = [];
+        }
+      },
+      editSection (index) {
+        const parentContainer = eXo.$layoutUtils.getParentContainer(this.layoutToEdit);
+        if (parentContainer) {
+          this.$refs.sectionEditDrawer.open(parentContainer.children[index], index, parentContainer.children.length);
+        }
+      },
+      openApplicationCategoryDrawer (sectionId, container) {
+        this.$root.selectedSectionId = sectionId;
+        this.$root.selectedCells = [container];
         this.$refs.applicationCategoryDrawer.open();
-      } else {
-        console.warn(`Can't find section with id ${this.$root.selectedSectionId}`); // eslint-disable-line no-console
-      }
-    },
-    handlePageSaved() {
-      document.dispatchEvent(new CustomEvent('alert-message', {detail: {
-        alertLink: `/portal${this.$root.nodeUri}`,
-        alertMessage: this.$t('layout.pageSavedSuccessfully'),
-        alertLinkText: this.$t('layout.view'),
-        alertLinkTarget: '_blank',
-        alertType: 'success',
-      }}));
-    },
-    handleApplyGridStyle() {
-      this.$layoutUtils.applyGridStyle(this.layoutToEdit);
-    },
-    handleAddApplication(application) {
-      const selectedCells = this.$root.selectedCells.slice();
-      const selectedSectionId = this.$root.selectedSectionId;
-      const firstCellRowIndex = Math.min(...selectedCells.map(c => c.rowIndex));
-      const firstCellColIndex = Math.min(...selectedCells.map(c => c.colIndex));
-      const lastCellRowIndex = Math.max(...selectedCells.map(c => c.rowIndex));
-      const lastCellColIndex = Math.max(...selectedCells.map(c => c.colIndex));
-
-      const singleCell = selectedCells?.length === 1;
-      const section = this.$layoutUtils.getSection(this.layoutToEdit, selectedSectionId);
-      const isDynamicSection = section.template === this.$layoutUtils.flexTemplate;
-      try {
-        const firstCell = singleCell && selectedCells[0] || selectedCells.find(c => c.rowIndex === firstCellRowIndex && c.colIndex === firstCellColIndex);
-        const lastCell = singleCell && selectedCells[0] || selectedCells.find(c => c.rowIndex === lastCellRowIndex && c.colIndex === lastCellColIndex);
-        if (!firstCell) {
-          console.error('Can not find the first cell to add an application into it', selectedCells, firstCellRowIndex, firstCellColIndex); // eslint-lint-disable no-console
-          return;
-        } else if (!lastCell) {
-          console.error('Can not find the last cell to add an application into it', selectedCells, lastCellRowIndex, lastCellColIndex); // eslint-lint-disable no-console
-          return;
+      },
+      resetCellsSelection () {
+        window.setTimeout(() => {
+          this.$root.resetMoving();
+          this.$root.initCellsSelection();
+        }, 300);
+      },
+      addApplicationOnCells (selection) {
+        const parentContainer = eXo.$layoutUtils.getParentContainer(this.layoutToEdit);
+        const section = parentContainer.children.find(c => c.storageId === this.$root.selectedSectionId);
+        if (section) {
+          this.$root.selectedCells = section.children?.filter?.(c =>
+            eXo.$layoutUtils.isBetween(c.colIndex, selection.fromColIndex, selection.toColIndex)
+            && eXo.$layoutUtils.isBetween(c.rowIndex, selection.fromRowIndex, selection.toRowIndex)
+          ) || [];
+          this.$refs.applicationCategoryDrawer.open();
         } else {
-          this.addSectionVersion(section.storageId);
-          if (selectedCells.length > 1) {
-            this.mergeCell(selectedSectionId, firstCell, lastCell.rowIndex, lastCell.colIndex);
+          console.warn(`Can't find section with id ${this.$root.selectedSectionId}`); // eslint-disable-line no-console
+        }
+      },
+      handlePageSaved () {
+        document.dispatchEvent(new CustomEvent('alert-message', { detail: {
+          alertLink: `/portal${this.$root.nodeUri}`,
+          alertMessage: this.$t('layout.pageSavedSuccessfully'),
+          alertLinkText: this.$t('layout.view'),
+          alertLinkTarget: '_blank',
+          alertType: 'success',
+        } }));
+      },
+      handleApplyGridStyle () {
+        eXo.$layoutUtils.applyGridStyle(this.layoutToEdit);
+      },
+      handleAddApplication (application) {
+        const selectedCells = this.$root.selectedCells.slice();
+        const selectedSectionId = this.$root.selectedSectionId;
+        const firstCellRowIndex = Math.min(...selectedCells.map(c => c.rowIndex));
+        const firstCellColIndex = Math.min(...selectedCells.map(c => c.colIndex));
+        const lastCellRowIndex = Math.max(...selectedCells.map(c => c.rowIndex));
+        const lastCellColIndex = Math.max(...selectedCells.map(c => c.colIndex));
+
+        const singleCell = selectedCells?.length === 1;
+        const section = eXo.$layoutUtils.getSection(this.layoutToEdit, selectedSectionId);
+        const isDynamicSection = section.template === eXo.$layoutUtils.flexTemplate;
+        try {
+          const firstCell = singleCell && selectedCells[0] || selectedCells.find(c => c.rowIndex === firstCellRowIndex && c.colIndex === firstCellColIndex);
+          const lastCell = singleCell && selectedCells[0] || selectedCells.find(c => c.rowIndex === lastCellRowIndex && c.colIndex === lastCellColIndex);
+          if (!firstCell) {
+            console.error('Can not find the first cell to add an application into it', selectedCells, firstCellRowIndex, firstCellColIndex); // eslint-lint-disable no-console
+            return;
+          } else if (!lastCell) {
+            console.error('Can not find the last cell to add an application into it', selectedCells, lastCellRowIndex, lastCellColIndex); // eslint-lint-disable no-console
+            return;
+          } else {
+            this.addSectionVersion(section.storageId);
+            if (selectedCells.length > 1) {
+              this.mergeCell(selectedSectionId, firstCell, lastCell.rowIndex, lastCell.colIndex);
+            }
+          }
+          const cell = eXo.$layoutUtils.getCell(this.layoutToEdit, firstCell.storageId);
+          eXo.$layoutUtils.newApplication(cell, application, isDynamicSection);
+          this.saveDraft();
+        } finally {
+          this.$root.initCellsSelection();
+        }
+      },
+      handleCellResize (event) {
+        this.mergeCell(
+          event.sectionId,
+          event.cell,
+          event.rowIndex + event.rowsCount - 1,
+          event.colIndex + event.colsCount - 1
+        );
+      },
+      handleCellMove (event) {
+        this.moveCell(
+          event.sectionId,
+          event.cell,
+          event.rowIndex,
+          event.colIndex);
+      },
+      handleCellMerge (sectionId, container, targetCellRowIndex, targetCellColIndex) {
+        this.mergeCell(sectionId, container, targetCellRowIndex, targetCellColIndex);
+      },
+      handleDeleteApplication (sectionId, container) {
+        const parentContainer = eXo.$layoutUtils.getParentContainer(this.layoutToEdit);
+        const section = parentContainer.children.find(c => c.storageId === sectionId);
+        if (section) {
+          this.addSectionVersion(sectionId);
+          eXo.$layoutUtils.deleteCell(section, container);
+        } else {
+          console.warn(`Can't find section with id ${sectionId}`); // eslint-disable-line no-console
+        }
+      },
+      handleEditApplication (sectionId, container, applicationCategoryTitle, applicationTitle) {
+        const section = eXo.$layoutUtils.getSection(this.layoutToEdit, sectionId);
+        const containerToEdit = eXo.$layoutUtils.getContainerById(this.layoutToEdit, container.id);
+        this.$refs.applicationPropertiesDrawer.open(section, containerToEdit, applicationCategoryTitle, applicationTitle);
+      },
+      mergeCell (sectionId, container, targetCellRowIndex, targetCellColIndex) {
+        const parentContainer = eXo.$layoutUtils.getParentContainer(this.layoutToEdit);
+        const section = parentContainer.children.find(c => c.storageId === sectionId);
+        if (section) {
+          this.addSectionVersion(sectionId);
+          eXo.$layoutUtils.resizeCell(section, container, targetCellRowIndex, targetCellColIndex);
+        } else {
+          console.warn(`Can't find section with id ${sectionId}`); // eslint-disable-line no-console
+        }
+      },
+      moveCell (sectionId, container, targetCellRowIndex, targetCellColIndex) {
+        const parentContainer = eXo.$layoutUtils.getParentContainer(this.layoutToEdit);
+        const section = parentContainer.children.find(c => c.storageId === sectionId);
+        if (section) {
+          this.addSectionVersion(sectionId);
+          eXo.$layoutUtils.moveCell(section, container, targetCellRowIndex, targetCellColIndex);
+        } else {
+          console.warn(`Can't find section with id ${sectionId}`); // eslint-disable-line no-console
+        }
+      },
+      handleSectionUpdated (container, children) {
+        container.children = children?.filter(c => !!c) || [];
+      },
+      handleReplaceSection (index, section) {
+        const parentContainer = eXo.$layoutUtils.getParentContainer(this.layoutToEdit);
+        this.addSectionVersion(section.storageId);
+        parentContainer.children.splice(index, 1, section);
+        this.setLayout(this.layoutToEdit);
+      },
+      addSectionVersion (sectionId) {
+        const parentContainer = eXo.$layoutUtils.getParentContainer(this.layoutToEdit);
+        const section = parentContainer.children.find(c => c.storageId === sectionId);
+        if (section) {
+          if (!this.$root.sectionHistory) {
+            this.$root.sectionHistory = [JSON.parse(JSON.stringify(section))];
+          } else {
+            this.$root.sectionHistory.push(JSON.parse(JSON.stringify(section)));
+          }
+          this.$root.sectionRedo = [];
+        }
+      },
+      restoreSectionVersion (event) {
+        if (event.ctrlKey) {
+          if (event.keyCode === 90) {
+            if (this.$root.sectionHistory?.length) {
+              const section = this.$root.sectionHistory.pop();
+              const parentContainer = eXo.$layoutUtils.getParentContainer(this.layoutToEdit);
+              const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
+              if (index >= 0) {
+                this.$root.sectionRedo.push(parentContainer.children[index]);
+                parentContainer.children.splice(index, 1, section);
+              }
+            }
+          } else if (event.keyCode === 89) {
+            if (this.$root.sectionRedo?.length) {
+              const section = this.$root.sectionRedo.pop();
+              const parentContainer = eXo.$layoutUtils.getParentContainer(this.layoutToEdit);
+              const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
+              if (index >= 0) {
+                this.$root.sectionHistory.push(parentContainer.children[index]);
+                parentContainer.children.splice(index, 1, section);
+              }
+            }
           }
         }
-        const cell = this.$layoutUtils.getCell(this.layoutToEdit, firstCell.storageId);
-        this.$layoutUtils.newApplication(cell, application, isDynamicSection);
-        this.saveDraft();
-      } finally {
-        this.$root.initCellsSelection();
-      }
-    },
-    handleCellResize(event) {
-      this.mergeCell(
-        event.sectionId,
-        event.cell,
-        event.rowIndex + event.rowsCount - 1,
-        event.colIndex + event.colsCount - 1
-      );
-    },
-    handleCellMove(event) {
-      this.moveCell(
-        event.sectionId,
-        event.cell,
-        event.rowIndex,
-        event.colIndex);
-    },
-    handleCellMerge(sectionId, container, targetCellRowIndex, targetCellColIndex) {
-      this.mergeCell(sectionId, container, targetCellRowIndex, targetCellColIndex);
-    },
-    handleDeleteApplication(sectionId, container) {
-      const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
-      const section = parentContainer.children.find(c => c.storageId === sectionId);
-      if (section) {
-        this.addSectionVersion(sectionId);
-        this.$layoutUtils.deleteCell(section, container);
-      } else {
-        console.warn(`Can't find section with id ${sectionId}`); // eslint-disable-line no-console
-      }
-    },
-    handleEditApplication(sectionId, container, applicationCategoryTitle, applicationTitle) {
-      const section = this.$layoutUtils.getSection(this.layoutToEdit, sectionId);
-      const containerToEdit = this.$layoutUtils.getContainerById(this.layoutToEdit, container.id);
-      this.$refs.applicationPropertiesDrawer.open(section, containerToEdit, applicationCategoryTitle, applicationTitle);
-    },
-    mergeCell(sectionId, container, targetCellRowIndex, targetCellColIndex) {
-      const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
-      const section = parentContainer.children.find(c => c.storageId === sectionId);
-      if (section) {
-        this.addSectionVersion(sectionId);
-        this.$layoutUtils.resizeCell(section, container, targetCellRowIndex, targetCellColIndex);
-      } else {
-        console.warn(`Can't find section with id ${sectionId}`); // eslint-disable-line no-console
-      }
-    },
-    moveCell(sectionId, container, targetCellRowIndex, targetCellColIndex) {
-      const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
-      const section = parentContainer.children.find(c => c.storageId === sectionId);
-      if (section) {
-        this.addSectionVersion(sectionId);
-        this.$layoutUtils.moveCell(section, container, targetCellRowIndex, targetCellColIndex);
-      } else {
-        console.warn(`Can't find section with id ${sectionId}`); // eslint-disable-line no-console
-      }
-    },
-    handleSectionUpdated(container, children) {
-      container.children = children?.filter(c => !!c) || [];
-    },
-    handleReplaceSection(index, section) {
-      const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
-      this.addSectionVersion(section.storageId);
-      parentContainer.children.splice(index, 1, section);
-      this.setLayout(this.layoutToEdit);
-    },
-    addSectionVersion(sectionId) {
-      const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
-      const section = parentContainer.children.find(c => c.storageId === sectionId);
-      if (section) {
-        if (!this.$root.sectionHistory) {
-          this.$root.sectionHistory = [JSON.parse(JSON.stringify(section))];
-        } else {
-          this.$root.sectionHistory.push(JSON.parse(JSON.stringify(section)));
-        }
+      },
+      resetSectionHistory () {
+        this.$root.sectionHistory = [];
         this.$root.sectionRedo = [];
-      }
-    },
-    restoreSectionVersion(event) {
-      if (event.ctrlKey) {
-        if (event.keyCode === 90) {
-          if (this.$root.sectionHistory?.length) {
-            const section = this.$root.sectionHistory.pop();
-            const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
-            const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
-            if (index >= 0) {
-              this.$root.sectionRedo.push(parentContainer.children[index]);
-              parentContainer.children.splice(index, 1, section);
-            }
-          }
-        } else if (event.keyCode === 89) {
-          if (this.$root.sectionRedo?.length) {
-            const section = this.$root.sectionRedo.pop();
-            const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
-            const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
-            if (index >= 0) {
-              this.$root.sectionHistory.push(parentContainer.children[index]);
-              parentContainer.children.splice(index, 1, section);
-            }
-          }
-        }
-      }
-    },
-    resetSectionHistory() {
-      this.$root.sectionHistory = [];
-      this.$root.sectionRedo = [];
-    },
-    saveDraft(layout) {
-      this.resetSectionHistory();
+      },
+      saveDraft (layout) {
+        this.resetSectionHistory();
 
-      this.loading++;
-      const layoutToUpdate = this.$layoutUtils.cleanAttributes(layout || this.layoutToEdit, false, true);
-      return this.$pageLayoutService.updatePageLayout(this.$root.draftPageRef, layoutToUpdate, 'contentId')
-        .then(layout => {
-          this.setLayout(layout);
-          this.$root.$emit('layout-draft-saved');
-        })
-        .catch(e => {
-          this.$root.$emit('alert-message', this.$te(e.message) ? this.$t(e.message) : this.$t('layout.pageSavingError'), 'error');
-          this.$root.$emit('layout-draft-save-error');
-        })
-        .finally(() => {
-          window.setTimeout(() => this.loading--, 200);
-          this.$root.$emit('coediting-set-lock');
-        });
+        this.loading++;
+        const layoutToUpdate = eXo.$layoutUtils.cleanAttributes(layout || this.layoutToEdit, false, true);
+        return eXo.$pageLayoutService.updatePageLayout(this.$root.draftPageRef, layoutToUpdate, 'contentId')
+          .then(layout => {
+            this.setLayout(layout);
+            this.$root.$emit('layout-draft-saved');
+          })
+          .catch(e => {
+            this.$root.$emit('alert-message', this.$te(e.message) ? this.$t(e.message) : this.$t('layout.pageSavingError'), 'error');
+            this.$root.$emit('layout-draft-save-error');
+          })
+          .finally(() => {
+            window.setTimeout(() => this.loading--, 200);
+            this.$root.$emit('coediting-set-lock');
+          });
+      },
     },
-  },
-};
+  };
 </script>

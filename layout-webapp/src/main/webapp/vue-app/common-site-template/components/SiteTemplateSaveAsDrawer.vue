@@ -21,11 +21,11 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="siteTemplateDrawer"
+    ref="drawer"
     v-model="drawer"
-    :loading="saving"
     allow-expand
+    :loading="saving"
     right>
     <template #title>
       <span class="text-wrap">{{ $t('layout.siteTemplate.drawerTitie.add') }}</span>
@@ -33,17 +33,17 @@
     <template v-if="drawer" #content>
       <div class="pa-4" flat>
         <translation-text-field
-          ref="title"
           id="pageTemplateTitle"
+          ref="title"
           v-model="titleTranslations"
-          :field-value.sync="title"
-          :placeholder="$t('layout.siteTemplate.namePlaceholder')"
+          v-model:field-value="title"
+          back-icon
+          class="width-auto flex-grow-1 pb-1"
+          drawer-title="layout.siteTemplate.nameTranslationDrawerTitle"
+          field-name="title"
           :maxlength="maxTitleLength"
           object-type="siteTemplate"
-          field-name="title"
-          drawer-title="layout.siteTemplate.nameTranslationDrawerTitle"
-          class="width-auto flex-grow-1 pb-1"
-          back-icon
+          :placeholder="$t('layout.siteTemplate.namePlaceholder')"
           required>
           <template #title>
             <div class="text-subtitle-1">
@@ -54,13 +54,13 @@
         <translation-text-field
           ref="descriptionTranslation"
           v-model="descriptionTranslations"
-          :field-value.sync="description"
+          v-model:field-value="description"
+          back-icon
+          class="ma-1px mt-4"
+          drawer-title="layout.siteTemplate.descriptionTranslationDrawerTitle"
+          field-name="description"
           :maxlength="maxDescriptionLength"
           object-type="siteTemplate"
-          field-name="description"
-          drawer-title="layout.siteTemplate.descriptionTranslationDrawerTitle"
-          class="ma-1px mt-4"
-          back-icon
           rich-editor>
           <template #title>
             <div class="text-subtitle-1">
@@ -71,11 +71,11 @@
             id="siteTemplateDescription"
             ref="siteTemplateDescriptionEditor"
             v-model="descriptionTranslations[lang]"
-            :placeholder="$t('layout.siteTemplate.descriptionTranslationDrawerTitle')"
-            :max-length="maxDescriptionLength"
-            :tag-enabled="false"
             ck-editor-type="siteTemplateDescription"
             disable-suggester
+            :max-length="maxDescriptionLength"
+            :placeholder="$t('layout.siteTemplate.descriptionTranslationDrawerTitle')"
+            :tag-enabled="false"
             @ready="checkCKEdtiorDisplay" />
         </translation-text-field>
         <site-template-preview
@@ -93,9 +93,9 @@
           {{ $t('layout.cancel') }}
         </v-btn>
         <v-btn
+          class="btn btn-primary"
           :disabled="disabled"
           :loading="saving"
-          class="btn btn-primary"
           @click="save">
           {{ $t('layout.save') }}
         </v-btn>
@@ -104,109 +104,109 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    drawer: false,
-    containerId: null,
-    title: null,
-    titleTranslations: {},
-    description: null,
-    descriptionTranslations: {},
-    maxTitleLength: 250,
-    maxDescriptionLength: 1000,
-    illustrationUploadId: null,
-    lang: eXo.env.portal.language,
-    previewImage: null,
-    saving: false,
-  }),
-  computed: {
-    disabled() {
-      return !this.title?.length;
+  export default {
+    data: () => ({
+      drawer: false,
+      containerId: null,
+      title: null,
+      titleTranslations: {},
+      description: null,
+      descriptionTranslations: {},
+      maxTitleLength: 250,
+      maxDescriptionLength: 1000,
+      illustrationUploadId: null,
+      lang: eXo.env.portal.language,
+      previewImage: null,
+      saving: false,
+    }),
+    computed: {
+      disabled () {
+        return !this.title?.length;
+      },
     },
-  },
-  watch: {
-    description() {
-      if (this.$refs.descriptionTranslation) {
-        this.$refs.descriptionTranslation.setValue(this.description);
-      }
-      this.checkCKEdtiorDisplay();
-    },
-  },
-  created() {
-    this.$root.$on('site-template-save-as-drawer', this.open);
-  },
-  beforeDestroy() {
-    this.$root.$off('site-template-save-as-drawer', this.open);
-  },
-  methods: {
-    async open(pageRef, containerId, previewElement) {
-      this.$root.$emit('close-alert-message');
-      this.pageRef = pageRef;
-      this.containerId = containerId;
-      this.closeOnSave = !!previewElement;
-      this.title = null;
-      this.description = null;
-      this.titleTranslations = {};
-      this.descriptionTranslations = {};
-      try {
-        if (previewElement) {
-          this.illustrationUploadId = await this.generatePreview(previewElement);
-        } else {
-          this.previewImage = null;
+    watch: {
+      description () {
+        if (this.$refs.descriptionTranslation) {
+          this.$refs.descriptionTranslation.setValue(this.description);
         }
-      } finally {
-        this.$nextTick().then(() => this.$refs.drawer.open());
-      }
+        this.checkCKEdtiorDisplay();
+      },
     },
-    async generatePreview(previewElement) {
-      const previewCanvas = await window.html2canvas(previewElement);
-      this.previewImage = previewCanvas.toDataURL('image/png');
-      const previewBlob = this.convertPreviewToFile(this.previewImage);
-      const uploadId =  await this.$uploadService.upload(previewBlob);
-      return await new Promise((resolve, reject) => {
-        const interval = window.setInterval(() => {
-          this.$uploadService.getUploadProgress(uploadId)
-            .then(percent => {
-              if (Number(percent) === 100) {
-                window.clearInterval(interval);
-                resolve(uploadId);
-              }
-            })
-            .catch(e => reject(e));
-        }, 200);
-      });
+    created () {
+      this.$root.$on('site-template-save-as-drawer', this.open);
     },
-    convertPreviewToFile(previewImage) {
-      const imgString = window.atob(previewImage.replace(/^data:image\/\w+;base64,/, ''));
-      const bytes = new Uint8Array(imgString.length);
-      for (let i = 0; i < imgString.length; i++) {
-        bytes[i] = imgString.charCodeAt(i);
-      }
-      return new Blob([bytes], {type: 'image/png'});
+    beforeUnmount () {
+      this.$root.$off('site-template-save-as-drawer', this.open);
     },
-    close() {
-      this.$refs.drawer.close();
-    },
-    async save() {
-      this.saving = true;
-      try {
-        const siteTemplate = await this.$siteTemplateService.saveAsSiteTemplate(this.siteId);
-        this.$translationService.saveTranslations('siteTemplate', siteTemplate.id, 'title', this.titleTranslations);
-        this.$translationService.saveTranslations('siteTemplate', siteTemplate.id, 'description', this.descriptionTranslations);
-        this.$refs?.siteTemplatePreview?.save(siteTemplate.id);
-        this.$root.$emit('site-template-created', siteTemplate.id);
-        this.$root.$emit('alert-message', this.$t('layout.siteTemplateCreatedSuccessfully'), 'success');
-        this.close();
-      } finally {
-        this.saving = false;
-      }
-    },
-    checkCKEdtiorDisplay() {
-      if (this.$refs.siteTemplateDescriptionEditor?.editor
+    methods: {
+      async open (pageRef, containerId, previewElement) {
+        this.$root.$emit('close-alert-message');
+        this.pageRef = pageRef;
+        this.containerId = containerId;
+        this.closeOnSave = !!previewElement;
+        this.title = null;
+        this.description = null;
+        this.titleTranslations = {};
+        this.descriptionTranslations = {};
+        try {
+          if (previewElement) {
+            this.illustrationUploadId = await this.generatePreview(previewElement);
+          } else {
+            this.previewImage = null;
+          }
+        } finally {
+          this.$nextTick().then(() => this.$refs.drawer.open());
+        }
+      },
+      async generatePreview (previewElement) {
+        const previewCanvas = await window.html2canvas(previewElement);
+        this.previewImage = previewCanvas.toDataURL('image/png');
+        const previewBlob = this.convertPreviewToFile(this.previewImage);
+        const uploadId =  await eXo.$uploadService.upload(previewBlob);
+        return await new Promise((resolve, reject) => {
+          const interval = window.setInterval(() => {
+            eXo.$uploadService.getUploadProgress(uploadId)
+              .then(percent => {
+                if (Number(percent) === 100) {
+                  window.clearInterval(interval);
+                  resolve(uploadId);
+                }
+              })
+              .catch(e => reject(e));
+          }, 200);
+        });
+      },
+      convertPreviewToFile (previewImage) {
+        const imgString = window.atob(previewImage.replace(/^data:image\/\w+;base64,/, ''));
+        const bytes = new Uint8Array(imgString.length);
+        for (let i = 0; i < imgString.length; i++) {
+          bytes[i] = imgString.charCodeAt(i);
+        }
+        return new Blob([bytes], { type: 'image/png' });
+      },
+      close () {
+        this.$refs.drawer.close();
+      },
+      async save () {
+        this.saving = true;
+        try {
+          const siteTemplate = await eXo.$siteTemplateService.saveAsSiteTemplate(this.siteId);
+          eXo.$translationService.saveTranslations('siteTemplate', siteTemplate.id, 'title', this.titleTranslations);
+          eXo.$translationService.saveTranslations('siteTemplate', siteTemplate.id, 'description', this.descriptionTranslations);
+          this.$refs?.siteTemplatePreview?.save(siteTemplate.id);
+          this.$root.$emit('site-template-created', siteTemplate.id);
+          this.$root.$emit('alert-message', this.$t('layout.siteTemplateCreatedSuccessfully'), 'success');
+          this.close();
+        } finally {
+          this.saving = false;
+        }
+      },
+      checkCKEdtiorDisplay () {
+        if (this.$refs.siteTemplateDescriptionEditor?.editor
           && this.description !== this.$refs.siteTemplateDescriptionEditor.inputVal) {
-        this.$refs.siteTemplateDescriptionEditor.editor.setData(this.description);
-      }
+          this.$refs.siteTemplateDescriptionEditor.editor.setData(this.description);
+        }
+      },
     },
-  },
-};
+  };
 </script>

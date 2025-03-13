@@ -40,27 +40,27 @@ const lang = eXo?.env.portal.language || 'en';
 const urls = [
   `/layout/i18n/locale.portlet.SiteManagement?lang=${lang}`,
   `/layout/i18n/locale.portlet.SiteNavigation?lang=${lang}`,
-  `/layout/i18n/locale.portlet.LayoutEditor?lang=${lang}`
+  `/layout/i18n/locale.portlet.LayoutEditor?lang=${lang}`,
 ];
 
-export function init() {
+export function init () {
   exoi18n.loadLanguageAsync(lang, urls)
     .then(i18n => {
       // init Vue app when locale ressources are ready
       Vue.createApp({
         template: `<site-management id="${appId}"/>`,
-        vuetify: Vue.prototype.vuetifyOptions,
+        vuetify: eXo.vuetify,
         i18n,
         data: () => ({
           pageTemplates: null,
-          collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
+          collator: new Intl.Collator(eXo.env.portal.language, { numeric: true, sensitivity: 'base' }),
         }),
         computed: {
-          isMobile() {
-            return this.$vuetify.breakpoint.smAndDown;
+          isMobile () {
+            return eXo.vuetify.display.smAndDown.value;
           },
         },
       }, `#${appId}`, 'site-management');
-    }).finally(() => Vue.prototype.$utils?.includeExtensions?.('SiteManagementExtension'));
+    }).finally(() => eXo.$utils?.includeExtensions?.('SiteManagementExtension'));
 
 }

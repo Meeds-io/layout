@@ -21,22 +21,22 @@
 -->
 <template>
   <page-layout-container-base
+    class="full-height flex-grow-1 flex-shrink-1 layout-banner-cell overflow-hidden"
     :container="container"
     :parent-id="parentId"
-    class="full-height flex-grow-1 flex-shrink-1 layout-banner-cell overflow-hidden"
     section-style />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
-    },
-  },
-};
+  };
 </script>

@@ -22,44 +22,44 @@
 <template>
   <v-menu
     v-model="menu"
-    :left="!$vuetify.rtl"
-    :right="$vuetify.rtl"
     :content-class="menuId"
-    offset-y>
+    :left="!$vuetify.rtl"
+    offset-y
+    :right="$vuetify.rtl">
     <template #activator="{ on, attrs }">
       <v-btn
         :aria-label="$t('sectionTemplates.menu.open')"
-        :loading="loading"
-        icon
-        small
         class="mx-auto"
+        icon
+        :loading="loading"
+        small
         v-bind="attrs"
         v-on="on">
-        <v-icon size="16" class="icon-default-color">fas fa-ellipsis-v</v-icon>
+        <v-icon class="icon-default-color" size="16">fas fa-ellipsis-v</v-icon>
       </v-btn>
     </template>
     <v-hover v-if="menu" @input="hoverMenu = $event">
       <v-list
         class="pa-0"
         dense
-        @mouseout="menu = false"
-        @focusout="menu = false">
+        @focusout="menu = false"
+        @mouseout="menu = false">
         <v-list-item-group v-model="listItem">
-          <v-tooltip :disabled="!sectionTemplate.system" bottom>
+          <v-tooltip bottom :disabled="!sectionTemplate.system">
             <template #activator="{ on, attrs }">
               <div
-                v-on="on"
-                v-bind="attrs">
+                v-bind="attrs"
+                v-on="on">
                 <v-list-item
-                  :href="!sectionTemplate.system && editLayoutLink"
+                  dense
                   :disabled="sectionTemplate.system"
-                  target="_blank"
+                  :href="!sectionTemplate.system && editLayoutLink"
                   rel="opener"
-                  dense>
+                  target="_blank">
                   <v-card
                     color="transparent"
-                    min-width="15"
-                    flat>
+                    flat
+                    min-width="15">
                     <v-icon
                       :class="sectionTemplate.system && 'disabled--text'"
                       size="13">
@@ -79,8 +79,8 @@
             @click="$root.$emit('section-template-edit', sectionTemplate)">
             <v-card
               color="transparent"
-              min-width="15"
-              flat>
+              flat
+              min-width="15">
               <v-icon size="13">
                 fa-edit
               </v-icon>
@@ -94,8 +94,8 @@
             @click="duplicateSectionTemplate">
             <v-card
               color="transparent"
-              min-width="15"
-              flat>
+              flat
+              min-width="15">
               <v-icon size="13">
                 fa-copy
               </v-icon>
@@ -104,18 +104,18 @@
               {{ $t('sectionTemplates.label.duplicate') }}
             </v-list-item-title>
           </v-list-item>
-          <v-tooltip :disabled="!sectionTemplate.system" bottom>
+          <v-tooltip bottom :disabled="!sectionTemplate.system">
             <template #activator="{ on, attrs }">
               <div
-                v-on="on"
-                v-bind="attrs">
+                v-bind="attrs"
+                v-on="on">
                 <v-list-item
                   dense
                   @click="$root.$emit('section-template-delete', sectionTemplate)">
                   <v-card
                     color="transparent"
-                    min-width="15"
-                    flat>
+                    flat
+                    min-width="15">
                     <v-icon
                       :class="!sectionTemplate.system && 'error--text' || 'disabled--text'"
                       size="13">
@@ -136,130 +136,130 @@
   </v-menu>
 </template>
 <script>
-export default {
-  props: {
-    sectionTemplate: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      sectionTemplate: {
+        type: Object,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    menu: false,
-    loading: false,
-    hoverMenu: false,
-    listItem: null,
-    menuId: `sectionTemplateMenu${parseInt(Math.random() * 10000)}`,
-  }),
-  computed: {
-    sectionTemplateId() {
-      return this.sectionTemplate?.id;
+    data: () => ({
+      menu: false,
+      loading: false,
+      hoverMenu: false,
+      listItem: null,
+      menuId: `sectionTemplateMenu${parseInt(Math.random() * 10000)}`,
+    }),
+    computed: {
+      sectionTemplateId () {
+        return this.sectionTemplate?.id;
+      },
+      name () {
+        return this.$te(this.sectionTemplate?.name) ? this.$t(this.sectionTemplate?.name) : this.sectionTemplate?.name;
+      },
+      hasEditMode () {
+        return this.sectionTemplate?.supportedModes?.find?.(mode => mode === 'edit');
+      },
+      editLayoutLink () {
+        return `/portal/${eXo.env.portal.portalName}/section-editor?id=${this.sectionTemplateId}`;
+      },
     },
-    name() {
-      return this.$te(this.sectionTemplate?.name) ? this.$t(this.sectionTemplate?.name) : this.sectionTemplate?.name;
-    },
-    hasEditMode() {
-      return this.sectionTemplate?.supportedModes?.find?.(mode => mode === 'edit');
-    },
-    editLayoutLink() {
-      return `/portal/${eXo.env.portal.portalName}/section-editor?id=${this.sectionTemplateId}`;
-    },
-  },
-  watch: {
-    listItem() {
-      if (this.menu) {
-        this.menu = false;
-        this.listItem = null;
-      }
-    },
-    menu() {
-      if (this.menu) {
-        this.$root.$emit('section-template-menu-opened', this.sectionTemplateId);
-      } else {
-        this.$root.$emit('section-template-menu-closed', this.sectionTemplateId);
-      }
-    },
-    hoverMenu() {
-      if (!this.hoverMenu) {
-        window.setTimeout(() => {
-          if (!this.hoverMenu) {
-            this.menu = false;
-          }
-        }, 200);
-      }
-    },
-  },
-  created() {
-    this.$root.$on('section-template-menu-opened', this.checkMenuStatus);
-    document.addEventListener('click', this.closeMenuOnClick);
-  },
-  beforeDestroy() {
-    this.$root.$off('section-template-menu-opened', this.checkMenuStatus);
-    document.removeEventListener('click', this.closeMenuOnClick);
-  },
-  methods: {
-    closeMenuOnClick(e) {
-      if (e.target && !e.target.closest(`.${this.menuId}`)) {
-        this.menu = false;
-      }
-    },
-    checkMenuStatus(sectionTemplateId) {
-      if (this.menu && sectionTemplateId !== this.sectionTemplate.id) {
-        this.menu = false;
-      }
-    },
-    async duplicateSectionTemplate() {
-      this.loading = true;
-      try {
-        const sectionTemplate = JSON.parse(JSON.stringify(this.sectionTemplate));
-        sectionTemplate.id = null;
-        sectionTemplate.system = false;
-        sectionTemplate.category = 'custom';
-        const createdSectionTemplate = await this.$sectionTemplateService.createSectionTemplate(sectionTemplate);
-
-        const nameLabels = await this.$translationService.getTranslations('sectionTemplate', this.sectionTemplate.id, 'title');
-        await this.$translationService.saveTranslations('sectionTemplate', createdSectionTemplate.id, 'title', nameLabels);
-
-        const descriptionLabels = await this.$translationService.getTranslations('sectionTemplate', this.sectionTemplate.id, 'description');
-        await this.$translationService.saveTranslations('sectionTemplate', createdSectionTemplate.id, 'description', descriptionLabels);
-
-        if (this.sectionTemplate.illustrationId) {
-          const illustrationSrc = `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/sectionTemplate/${this.sectionTemplate.id}/${this.sectionTemplate.illustrationId}`;
-          const file = await this.getIllustrationFile(illustrationSrc);
-          const uploadId = await this.uploadFile(file);
-          await this.$fileAttachmentService.saveAttachments({
-            objectType: 'sectionTemplate',
-            objectId: createdSectionTemplate.id,
-            uploadedFiles: [{uploadId}],
-            attachedFiles: [],
-          });
+    watch: {
+      listItem () {
+        if (this.menu) {
+          this.menu = false;
+          this.listItem = null;
         }
-        this.$root.$emit('section-template-edit', createdSectionTemplate);
-      } finally {
-        this.loading = false;
-      }
+      },
+      menu () {
+        if (this.menu) {
+          this.$root.$emit('section-template-menu-opened', this.sectionTemplateId);
+        } else {
+          this.$root.$emit('section-template-menu-closed', this.sectionTemplateId);
+        }
+      },
+      hoverMenu () {
+        if (!this.hoverMenu) {
+          window.setTimeout(() => {
+            if (!this.hoverMenu) {
+              this.menu = false;
+            }
+          }, 200);
+        }
+      },
     },
-    async uploadFile(file) {
-      const uploadId =  await this.$uploadService.upload(file);
-      return await new Promise((resolve, reject) => {
-        const interval = window.setInterval(() => {
-          this.$uploadService.getUploadProgress(uploadId)
-            .then(percent => {
-              if (Number(percent) === 100) {
-                window.clearInterval(interval);
-                resolve(uploadId);
-              }
-            })
-            .catch(e => reject(e));
-        }, 200);
-      });
+    created () {
+      this.$root.$on('section-template-menu-opened', this.checkMenuStatus);
+      document.addEventListener('click', this.closeMenuOnClick);
     },
-    getIllustrationFile(src) {
-      return fetch(src, {
-        'method': 'GET',
-        'credentials': 'include'
-      })
-        .then(resp => resp.ok && resp.blob());
+    beforeUnmount () {
+      this.$root.$off('section-template-menu-opened', this.checkMenuStatus);
+      document.removeEventListener('click', this.closeMenuOnClick);
     },
-  },
-};
+    methods: {
+      closeMenuOnClick (e) {
+        if (e.target && !e.target.closest(`.${this.menuId}`)) {
+          this.menu = false;
+        }
+      },
+      checkMenuStatus (sectionTemplateId) {
+        if (this.menu && sectionTemplateId !== this.sectionTemplate.id) {
+          this.menu = false;
+        }
+      },
+      async duplicateSectionTemplate () {
+        this.loading = true;
+        try {
+          const sectionTemplate = JSON.parse(JSON.stringify(this.sectionTemplate));
+          sectionTemplate.id = null;
+          sectionTemplate.system = false;
+          sectionTemplate.category = 'custom';
+          const createdSectionTemplate = await eXo.$sectionTemplateService.createSectionTemplate(sectionTemplate);
+
+          const nameLabels = await eXo.$translationService.getTranslations('sectionTemplate', this.sectionTemplate.id, 'title');
+          await eXo.$translationService.saveTranslations('sectionTemplate', createdSectionTemplate.id, 'title', nameLabels);
+
+          const descriptionLabels = await eXo.$translationService.getTranslations('sectionTemplate', this.sectionTemplate.id, 'description');
+          await eXo.$translationService.saveTranslations('sectionTemplate', createdSectionTemplate.id, 'description', descriptionLabels);
+
+          if (this.sectionTemplate.illustrationId) {
+            const illustrationSrc = `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/sectionTemplate/${this.sectionTemplate.id}/${this.sectionTemplate.illustrationId}`;
+            const file = await this.getIllustrationFile(illustrationSrc);
+            const uploadId = await this.uploadFile(file);
+            await eXo.$fileAttachmentService.saveAttachments({
+              objectType: 'sectionTemplate',
+              objectId: createdSectionTemplate.id,
+              uploadedFiles: [{ uploadId }],
+              attachedFiles: [],
+            });
+          }
+          this.$root.$emit('section-template-edit', createdSectionTemplate);
+        } finally {
+          this.loading = false;
+        }
+      },
+      async uploadFile (file) {
+        const uploadId =  await eXo.$uploadService.upload(file);
+        return await new Promise((resolve, reject) => {
+          const interval = window.setInterval(() => {
+            eXo.$uploadService.getUploadProgress(uploadId)
+              .then(percent => {
+                if (Number(percent) === 100) {
+                  window.clearInterval(interval);
+                  resolve(uploadId);
+                }
+              })
+              .catch(e => reject(e));
+          }, 200);
+        });
+      },
+      getIllustrationFile (src) {
+        return fetch(src, {
+          'method': 'GET',
+          'credentials': 'include',
+        })
+          .then(resp => resp.ok && resp.blob());
+      },
+    },
+  };
 </script>

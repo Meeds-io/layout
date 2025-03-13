@@ -18,20 +18,20 @@
 -->
 <template>
   <exo-drawer
-    ref="siteNavigationAddElementDrawer"
     id="siteNavigationAddElementDrawer"
+    ref="siteNavigationAddElementDrawer"
     v-model="drawer"
+    allow-expand
+    eager
     :loading="loading"
     right
-    eager
-    allow-expand
     @closed="close"
     @expand-updated="$root.$emit('toggle-expand',$event)">
     <template #title>
       <div class="d-flex">
         <v-icon
-          size="16"
           class="clickable"
+          size="16"
           @click="back">
           fas fa-arrow-left
         </v-icon>
@@ -47,18 +47,18 @@
         </v-form>
       </v-card>
     </template>
-    <template slot="footer">
+    <template #footer>
       <div class="d-flex justify-end">
         <v-btn
-          :disabled="loading"
           class="btn ms-2"
+          :disabled="loading"
           @click="close">
           {{ $t('siteNavigation.label.btn.cancel') }}
         </v-btn>
         <v-btn
-          :loading="loading"
-          :disabled="disabled"
           class="btn btn-primary ms-2"
+          :disabled="disabled"
+          :loading="loading"
           @click="createElement">
           {{ $t('siteNavigation.label.btn.save') }}
         </v-btn>
@@ -67,101 +67,101 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  data() {
-    return {
-      elementType: 'PAGE',
-      target: 'SAME_TAB',
-      drawer: false,
-      loading: false,
-      navigationNode: null,
-      elementName: null,
-      elementTitle: null,
-      pageTempalateId: null,
-      selectedPage: null,
-      resetDrawer: true,
-      isValidForm: true,
-      pageTemplates: null,
-    };
-  },
-  computed: {
-    drawerTitle() {
-      return this.$t('siteNavigation.addElementDrawer.title');
+  export default {
+    data () {
+      return {
+        elementType: 'PAGE',
+        target: 'SAME_TAB',
+        drawer: false,
+        loading: false,
+        navigationNode: null,
+        elementName: null,
+        elementTitle: null,
+        pageTempalateId: null,
+        selectedPage: null,
+        resetDrawer: true,
+        isValidForm: true,
+        pageTemplates: null,
+      };
     },
-    disabled() {
-      return !this.isValidForm || !this.pageTemplate || false;
+    computed: {
+      drawerTitle () {
+        return this.$t('siteNavigation.addElementDrawer.title');
+      },
+      disabled () {
+        return !this.isValidForm || !this.pageTemplate || false;
+      },
+      pageTemplate () {
+        return this.pageTemplates?.find?.(item => item.id === this.pageTempalateId);
+      },
     },
-    pageTemplate() {
-      return this.pageTemplates?.find?.(item => item.id === this.pageTempalateId);
+    created () {
+      this.$root.$on('open-add-element-drawer', this.open);
+      this.$root.$on('close-add-element-drawer', this.close);
+      this.$root.$on('existing-page-selected', this.changeSelectedPage);
+      this.$root.$on('page-templates-loaded', this.updatePageTemplates);
+      this.pageTemplates = this.$root.pageTemplates;
     },
-  },
-  created() {
-    this.$root.$on('open-add-element-drawer', this.open);
-    this.$root.$on('close-add-element-drawer', this.close);
-    this.$root.$on('existing-page-selected', this.changeSelectedPage);
-    this.$root.$on('page-templates-loaded', this.updatePageTemplates);
-    this.pageTemplates = this.$root.pageTemplates;
-  },
-  beforeDestroy() {
-    this.$root.$off('open-add-element-drawer', this.open);
-    this.$root.$off('close-add-element-drawer', this.close);
-    this.$root.$off('existing-page-selected', this.changeSelectedPage);
-    this.$root.$off('page-templates-loaded', this.updatePageTemplates);
-  },
-  methods: {
-    open(elementName, elementTitle, navigationNode) {
-      this.resetDrawer = true;
-      this.elementName = elementName;
-      this.elementTitle = elementTitle;
-      this.navigationNode = navigationNode;
-      this.$refs.siteNavigationAddElementDrawer.open();
+    beforeUnmount () {
+      this.$root.$off('open-add-element-drawer', this.open);
+      this.$root.$off('close-add-element-drawer', this.close);
+      this.$root.$off('existing-page-selected', this.changeSelectedPage);
+      this.$root.$off('page-templates-loaded', this.updatePageTemplates);
     },
-    close() {
-      if (this.resetDrawer) {
-        this.reset();
-      }
-      this.$refs.siteNavigationAddElementDrawer.close();
+    methods: {
+      open (elementName, elementTitle, navigationNode) {
+        this.resetDrawer = true;
+        this.elementName = elementName;
+        this.elementTitle = elementTitle;
+        this.navigationNode = navigationNode;
+        this.$refs.siteNavigationAddElementDrawer.open();
+      },
+      close () {
+        if (this.resetDrawer) {
+          this.reset();
+        }
+        this.$refs.siteNavigationAddElementDrawer.close();
+      },
+      back () {
+        this.resetDrawer = false;
+        this.$refs.siteNavigationAddElementDrawer.close();
+      },
+      reset () {
+        this.selectedPage = null;
+        this.$root.$emit('reset-element-drawer');
+      },
+      changeSelectedPage (selectedPage) {
+        this.selectedPage = selectedPage;
+      },
+      updatePageTemplates (pageTemplates) {
+        this.pageTemplates = pageTemplates;
+      },
+      createElement () {
+        this.loading = true;
+        eXo.$pageLayoutService.createPage( 
+          this.elementName, 
+          this.elementTitle, 
+          this.navigationNode.siteKey.name, 
+          this.navigationNode.siteKey.type, 
+          this.elementType, 
+          '', 
+          this.pageTemplate?.id || null
+        ).then(createdPage => {
+          const pageRef = createdPage?.key?.ref || `${createdPage?.key.site.typeName}::${createdPage?.key.site.name}::${createdPage?.pageContext?.key.name}`;
+          this.$root.$emit('save-node-with-page', {
+            pageRef,
+            'nodeTarget': this.target,
+            'pageType': this.elementType,
+            createdPage,
+            'openEditLayout': this.elementType === 'PAGE',
+          });
+          return createdPage;
+        }).then(page => {
+          this.$root.$emit('page-layout-created', page, this.pageTemplate);
+        }).catch(() => {
+          this.$root.$emit('alert-message', this.$t('siteNavigation.label.pageCreation.error'), 'error');
+        }).finally(() => this.loading = false);
+      },
     },
-    back() {
-      this.resetDrawer = false;
-      this.$refs.siteNavigationAddElementDrawer.close();
-    },
-    reset() {
-      this.selectedPage = null;
-      this.$root.$emit('reset-element-drawer');
-    },
-    changeSelectedPage(selectedPage) {
-      this.selectedPage = selectedPage;
-    },
-    updatePageTemplates(pageTemplates) {
-      this.pageTemplates = pageTemplates;
-    },
-    createElement() {
-      this.loading = true;
-      this.$pageLayoutService.createPage( 
-        this.elementName, 
-        this.elementTitle, 
-        this.navigationNode.siteKey.name, 
-        this.navigationNode.siteKey.type, 
-        this.elementType, 
-        '', 
-        this.pageTemplate?.id || null
-      ).then((createdPage) => {
-        const pageRef = createdPage?.key?.ref || `${createdPage?.key.site.typeName}::${createdPage?.key.site.name}::${createdPage?.pageContext?.key.name}`;
-        this.$root.$emit('save-node-with-page', {
-          'pageRef': pageRef,
-          'nodeTarget': this.target,
-          'pageType': this.elementType,
-          'createdPage': createdPage,
-          'openEditLayout': this.elementType === 'PAGE',
-        });
-        return createdPage;
-      }).then(page => {
-        this.$root.$emit('page-layout-created', page, this.pageTemplate);
-      }).catch(() => {
-        this.$root.$emit('alert-message', this.$t('siteNavigation.label.pageCreation.error'), 'error');
-      }).finally(() => this.loading = false);
-    },
-  }
-};
+  };
 </script>

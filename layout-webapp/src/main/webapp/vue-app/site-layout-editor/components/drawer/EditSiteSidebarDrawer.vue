@@ -21,8 +21,8 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="editSiteSectionsDrawer"
+    ref="drawer"
     v-model="drawer"
     right>
     <template #title>
@@ -30,9 +30,9 @@
     </template>
     <template v-if="drawer" #content>
       <v-card
-        max-width="100%"
         class="ma-4 d-flex flex-column"
-        flat>
+        flat
+        max-width="100%">
         <div class="text-header mb-2">
           {{ $t('layout.editSiteSidebarSection.label.setDisplay') }}
         </div>
@@ -42,19 +42,19 @@
           </div>
           <number-input
             v-model="width"
-            :min="50"
-            :max="1000"
-            :step="10"
             class="ms-auto my-n2"
-            editable />
+            editable
+            :max="1000"
+            :min="50"
+            :step="10" />
         </div>
         <div class="d-flex align-center ms-n1 mb-4">
           <v-checkbox
             v-model="hiddenOnMobile"
+            class="my-0 ml-n2px"
             :label="$t('layout.sectionHiddenOnMobile')"
-            on-icon="fa-check-square"
             off-icon="far fa-square"
-            class="my-0 ml-n2px" />
+            on-icon="fa-check-square" />
         </div>
         <div class="text-header mb-4">
           {{ $t('layout.editSiteSidebarSection.label.updateStyle') }}
@@ -70,8 +70,8 @@
         <layout-editor-background-input
           ref="backgroundInput"
           v-model="container"
-          :scroll-color="stickySection"
           class="mb-4"
+          :scroll-color="stickySection"
           text-bold />
         <layout-editor-text-input
           ref="textInput"
@@ -81,36 +81,36 @@
         <layout-editor-section-margin-input
           ref="marginInput"
           v-model="container"
-          :max="60"
-          :min="-60"
-          :top="false"
           :bottom="false"
           class="mb-2"
-          text-bold
+          left
+          :max="60"
+          :min="-60"
           right
-          left />
+          text-bold
+          :top="false" />
       </v-card>
     </template>
     <template #footer>
       <div class="d-flex">
         <v-btn
-          :disabled="saving"
-          :title="$t('layout.deleteSection')"
           color="error"
+          :disabled="saving"
           outlined
+          :title="$t('layout.deleteSection')"
           @click="removeSection">
           {{ $t('layout.delete') }}
         </v-btn>
         <v-spacer />
         <v-btn
-          :disabled="saving"
           class="btn"
+          :disabled="saving"
           @click="close">
           <span class="text-none">{{ $t('layout.cancel') }}</span>
         </v-btn>
         <v-btn
-          :loading="saving"
           class="btn btn-primary ms-4"
+          :loading="saving"
           @click="apply">
           <span class="text-none">{{ $t('layout.apply') }}</span>
         </v-btn>
@@ -119,71 +119,71 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    drawer: false,
-    stickySection: false,
-    hiddenOnMobile: false,
-    saving: false,
-    width: null,
-    container: null,
-    parentId: null,
-  }),
-  computed: {
-    sidebarContainer() {
-      return this.parentId && this.$layoutUtils.getContainerById(this.$root.layout, this.parentId);
+  export default {
+    data: () => ({
+      drawer: false,
+      stickySection: false,
+      hiddenOnMobile: false,
+      saving: false,
+      width: null,
+      container: null,
+      parentId: null,
+    }),
+    computed: {
+      sidebarContainer () {
+        return this.parentId && eXo.$layoutUtils.getContainerById(this.$root.layout, this.parentId);
+      },
     },
-  },
-  created() {
-    this.$root.$on('layout-site-sidebar-section-open', this.open);
-  },
-  beforeDestroy() {
-    this.$root.$off('layout-site-sidebar-section-open', this.open);
-  },
-  methods: {
-    open(container, parentId) {
-      this.container = JSON.parse(JSON.stringify(container));
-      this.parentId = parentId;
-      this.width = this.container.width || 310;
-      this.hiddenOnMobile = this.container.cssClass?.includes?.('hidden-sm-and-down');
-      this.stickySection = this.sidebarContainer?.cssClass?.includes?.('layout-sticky-section');
-      this.$refs.drawer.open();
+    created () {
+      this.$root.$on('layout-site-sidebar-section-open', this.open);
     },
-    removeSection() {
-      this.$root.$emit('layout-section-history-add');
-      this.sidebarContainer.cssClass = null;
-      this.sidebarContainer.children = [];
-      this.close();
+    beforeUnmount () {
+      this.$root.$off('layout-site-sidebar-section-open', this.open);
     },
-    async apply() {
-      this.saving = true;
-      try {
+    methods: {
+      open (container, parentId) {
+        this.container = JSON.parse(JSON.stringify(container));
+        this.parentId = parentId;
+        this.width = this.container.width || 310;
+        this.hiddenOnMobile = this.container.cssClass?.includes?.('hidden-sm-and-down');
+        this.stickySection = this.sidebarContainer?.cssClass?.includes?.('layout-sticky-section');
+        this.$refs.drawer.open();
+      },
+      removeSection () {
         this.$root.$emit('layout-section-history-add');
-        this.$set(this.container, 'width', this.width);
-        await this.$refs.backgroundInput.apply();
-        const container = this.$layoutUtils.getContainerById(this.$root.layout, this.container.storageId);
-        Object.assign(container, this.container);
-        this.container.hiddenOnMobile = this.hiddenOnMobile;
-        this.$layoutUtils.applyContainerStyle(container, this.container);
-        this.$set(this.container, 'cssClass', this.container?.cssClass?.trim() || '');
-        if (this.hiddenOnMobile && !this.container.cssClass?.includes?.('hidden-sm-and-down')) {
-          this.$set(this.container, 'cssClass', this.container.cssClass ? `${this.container.cssClass} hidden-sm-and-down` : 'hidden-sm-and-down');
-        } else if (!this.hiddenOnMobile && this.container.cssClass?.includes?.('hidden-sm-and-down')) {
-          this.$set(this.container, 'cssClass', this.container.cssClass.replace('hidden-sm-and-down', ''));
-        }
-        if (this.stickySection && !this.sidebarContainer.cssClass?.includes?.('layout-sticky-section')) {
-          this.sidebarContainer.cssClass = this.sidebarContainer.cssClass ? `${this.sidebarContainer.cssClass} layout-sticky-section` : 'layout-sticky-section';
-        } else if (!this.stickySection && this.sidebarContainer.cssClass?.includes?.('layout-sticky-section')) {
-          this.sidebarContainer.cssClass = this.sidebarContainer.cssClass.replace('layout-sticky-section', '');
-        }
+        this.sidebarContainer.cssClass = null;
+        this.sidebarContainer.children = [];
         this.close();
-      } finally {
-        this.saving = false;
-      }
+      },
+      async apply () {
+        this.saving = true;
+        try {
+          this.$root.$emit('layout-section-history-add');
+          this.$set(this.container, 'width', this.width);
+          await this.$refs.backgroundInput.apply();
+          const container = eXo.$layoutUtils.getContainerById(this.$root.layout, this.container.storageId);
+          Object.assign(container, this.container);
+          this.container.hiddenOnMobile = this.hiddenOnMobile;
+          eXo.$layoutUtils.applyContainerStyle(container, this.container);
+          this.$set(this.container, 'cssClass', this.container?.cssClass?.trim() || '');
+          if (this.hiddenOnMobile && !this.container.cssClass?.includes?.('hidden-sm-and-down')) {
+            this.$set(this.container, 'cssClass', this.container.cssClass ? `${this.container.cssClass} hidden-sm-and-down` : 'hidden-sm-and-down');
+          } else if (!this.hiddenOnMobile && this.container.cssClass?.includes?.('hidden-sm-and-down')) {
+            this.$set(this.container, 'cssClass', this.container.cssClass.replace('hidden-sm-and-down', ''));
+          }
+          if (this.stickySection && !this.sidebarContainer.cssClass?.includes?.('layout-sticky-section')) {
+            this.sidebarContainer.cssClass = this.sidebarContainer.cssClass ? `${this.sidebarContainer.cssClass} layout-sticky-section` : 'layout-sticky-section';
+          } else if (!this.stickySection && this.sidebarContainer.cssClass?.includes?.('layout-sticky-section')) {
+            this.sidebarContainer.cssClass = this.sidebarContainer.cssClass.replace('layout-sticky-section', '');
+          }
+          this.close();
+        } finally {
+          this.saving = false;
+        }
+      },
+      close () {
+        this.$refs.drawer.close();
+      },
     },
-    close() {
-      this.$refs.drawer.close();
-    },
-  },
-};
+  };
 </script>

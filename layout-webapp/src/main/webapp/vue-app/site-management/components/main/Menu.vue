@@ -21,42 +21,42 @@
   <v-menu
     v-if="canEditSite"
     v-model="displayActionMenu"
-    transition="slide-x-reverse-transition"
-    :right="!$vuetify.rtl"
+    class="px-0 pt-0 mx-2 overflow-visible"
     offset-x
     offset-y
-    class="px-0 pt-0 mx-2 overflow-visible">
+    :right="!$vuetify.rtl"
+    transition="slide-x-reverse-transition">
     <template #activator="{ on, attrs }">
       <v-btn
         :aria-label="$t('sites.menu.open')"
-        :loading="loading"
-        icon
-        small
         class="mx-auto"
+        icon
+        :loading="loading"
+        small
         v-bind="attrs"
         v-on="on">
-        <v-icon size="16" class="icon-default-color">fas fa-ellipsis-v</v-icon>
+        <v-icon class="icon-default-color" size="16">fas fa-ellipsis-v</v-icon>
       </v-btn>
     </template>
     <v-list class="pa-0" dense>
       <v-tooltip
         v-if="canEditSite"
-        :disabled="canEditSiteLayout"
-        bottom>
+        bottom
+        :disabled="canEditSiteLayout">
         <template #activator="{ on, attrs }">
           <div
-            v-on="on"
-            v-bind="attrs">
+            v-bind="attrs"
+            v-on="on">
             <v-list-item
               :aria-label="$t('siteManagement.label.editLayout')"
+              class="px-3"
               :disabled="!canEditSiteLayout"
               :href="editSiteLayoutLink"
-              target="_blank"
-              class="px-3">
+              target="_blank">
               <v-card
                 color="transparent"
-                min-width="15"
-                flat>
+                flat
+                min-width="15">
                 <v-icon
                   :class="!canEditSiteLayout && 'disabled--text'"
                   size="13">
@@ -77,10 +77,10 @@
         class="px-3"
         @click="handelAction(extension)">
         <v-card
-          color="transparent"
-          min-width="15"
           class="me-2"
-          flat>
+          color="transparent"
+          flat
+          min-width="15">
           <v-icon size="13">
             {{ extension?.icon }}
           </v-icon>
@@ -93,13 +93,13 @@
       <v-list-item
         v-if="isPortalSite && !isGlobalSite"
         :aria-label="$t('siteManagement.label.properties')"
-        role="button"
         class="px-3"
+        role="button"
         @click="openSitePropertiesDrawer">
         <v-card
           color="transparent"
-          min-width="15"
-          flat>
+          flat
+          min-width="15">
           <v-icon size="13">
             fa fa-cog
           </v-icon>
@@ -110,13 +110,13 @@
       </v-list-item>
       <v-list-item
         :aria-label="$t('siteManagement.label.navigation')"
-        role="button"
         class="px-3"
+        role="button"
         @click="openSiteNavigationDrawer">
         <v-card
           color="transparent"
-          min-width="15"
-          flat>
+          flat
+          min-width="15">
           <v-icon size="13">
             fas fa-project-diagram
           </v-icon>
@@ -128,14 +128,14 @@
       <v-list-item
         v-if="!isGlobalSite"
         :aria-label="$t('siteManagement.label.manageAccess')"
-        role="button"
         class="px-3"
+        role="button"
         @click="$root.$emit('open-manage-permissions-drawer', site, true, true)">
         <v-card
           class="d-flex align-center justify-center"
           color="transparent"
-          min-width="15"
-          flat>
+          flat
+          min-width="15">
           <v-icon size="13">
             fas fa-shield-alt
           </v-icon>
@@ -150,8 +150,8 @@
         <v-card
           class="d-flex align-center justify-center"
           color="transparent"
-          min-width="15"
-          flat>
+          flat
+          min-width="15">
           <v-icon size="13">
             fa-copy
           </v-icon>
@@ -166,8 +166,8 @@
         <v-card
           class="d-flex align-center justify-center"
           color="transparent"
-          min-width="15"
-          flat>
+          flat
+          min-width="15">
           <v-icon size="13">
             fa-columns
           </v-icon>
@@ -183,8 +183,8 @@
         <v-card
           class="d-flex align-center justify-center"
           color="transparent"
-          min-width="15"
-          flat>
+          flat
+          min-width="15">
           <v-icon size="13">
             fa-undo
           </v-icon>
@@ -200,8 +200,8 @@
         <v-card
           class="d-flex align-center justify-center"
           color="transparent"
-          min-width="15"
-          flat>
+          flat
+          min-width="15">
           <v-icon size="13">
             fa-undo
           </v-icon>
@@ -212,21 +212,21 @@
       </v-list-item>
       <v-tooltip
         v-if="canEditSite"
-        :disabled="canDelete"
-        bottom>
+        bottom
+        :disabled="canDelete">
         <template #activator="{ on, attrs }">
           <div
-            v-on="on"
-            v-bind="attrs">
+            v-bind="attrs"
+            v-on="on">
             <v-list-item
-              :disabled="!canDelete"
               class="px-3"
+              :disabled="!canDelete"
               @click="$root.$emit('delete-site', site)">
               <v-card
                 class="d-flex align-center justify-center"
                 color="transparent"
-                min-width="15"
-                flat>
+                flat
+                min-width="15">
                 <v-icon
                   :class="canDelete && 'error--text' || 'disabled--text'"
                   size="13">
@@ -245,133 +245,133 @@
   </v-menu>
 </template>
 <script>
-export default {
-  props: {
-    site: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      site: {
+        type: Object,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    displayActionMenu: false,
-    loading: false,
-  }),
-  computed: {
-    isGlobalSite() {
-      return this.site.name === 'global';
+    data: () => ({
+      displayActionMenu: false,
+      loading: false,
+    }),
+    computed: {
+      isGlobalSite () {
+        return this.site.name === 'global';
+      },
+      isPortalSite () {
+        return this.site.siteType === 'PORTAL';
+      },
+      canEditSite () {
+        return this.site.canEdit;
+      },
+      siteId () {
+        return this.site.siteId;
+      },
+      canRestore () {
+        return this.site.canRestore;
+      },
+      canDelete () {
+        return this.canEditSite && this.site?.properties?.removable !== 'false';
+      },
+      editSiteLayoutLink () {
+        return this.canEditSite && `${eXo.env.portal.context}/${eXo.env.portal.portalName}/site-layout-editor?siteId=${this.siteId}`;
+      },
+      canEditSiteLayout () {
+        return this.canEditSite
+          && !this.isMetaSite
+          && !this.isGlobalSite
+          && !this.site.displayed;
+      },
+      noLayoutEditTooltip () {
+        return (this.isMetaSite || this.isGlobalSite)
+          ? this.$t('sites.label.system.noLayoutEdit')
+          : this.$t('sites.label.meta.noLayoutEdit');
+      },
+      extensions () {
+        return this.$root.siteActionExtensions || [];
+      },
     },
-    isPortalSite() {
-      return this.site.siteType === 'PORTAL';
+    watch: {
+      displayActionMenu () {
+        if (this.displayActionMenu) {
+          document.addEventListener('mousedown', this.closeMenu);
+        } else {
+          document.removeEventListener('mousedown', this.closeMenu);
+        }
+      },
     },
-    canEditSite() {
-      return this.site.canEdit;
+    beforeUnmount () {
+      document.removeEventListener('mousedown', this.closeMenu);
     },
-    siteId() {
-      return this.site.siteId;
-    },
-    canRestore() {
-      return this.site.canRestore;
-    },
-    canDelete() {
-      return this.canEditSite && this.site?.properties?.removable !== 'false';
-    },
-    editSiteLayoutLink() {
-      return this.canEditSite && `${eXo.env.portal.context}/${eXo.env.portal.portalName}/site-layout-editor?siteId=${this.siteId}`;
-    },
-    canEditSiteLayout() {
-      return this.canEditSite
-        && !this.isMetaSite
-        && !this.isGlobalSite
-        && !this.site.displayed;
-    },
-    noLayoutEditTooltip() {
-      return (this.isMetaSite || this.isGlobalSite)
-        ? this.$t('sites.label.system.noLayoutEdit')
-        : this.$t('sites.label.meta.noLayoutEdit');
-    },
-    extensions() {
-      return this.$root.siteActionExtensions || [];
-    },
-  },
-  watch: {
-    displayActionMenu() {
-      if (this.displayActionMenu) {
-        document.addEventListener('mousedown', this.closeMenu);
-      } else {
-        document.removeEventListener('mousedown', this.closeMenu);
-      }
-    },
-  },
-  beforeDestroy() {
-    document.removeEventListener('mousedown', this.closeMenu);
-  },
-  methods: {
-    closeMenu() {
-      window.setTimeout(() => {
-        this.displayActionMenu = false;
-      },200);
-    },
-    openSiteNavigationDrawer() {
-      this.$root.$emit('open-site-navigation-drawer', {
-        siteName: this.site.name,
-        siteType: this.site.siteType,
-        siteId: this.site.siteId,
-        siteLabel: this.site.displayName,
-        includeGlobal: this.site.name.toLowerCase() === eXo.env.portal.globalPortalName.toLowerCase()
-      });
-    },
-    openSitePropertiesDrawer() {
-      this.$root.$emit('open-site-properties-drawer', this.site);
-    },
-    saveAsTemplate() {
-      this.$root.$emit('site-template-add', null, this.site.siteId);
-    },
-    duplicate() {
-      this.$root.$emit('open-site-properties-drawer', {
-        ...this.site,
-        siteId: null,
-        name: null,
-      }, this.site.siteId);
-    },
-    async restoreSitePages() {
-      this.loading = true;
-      try {
-        await this.$siteLayoutService.restoreSite({
+    methods: {
+      closeMenu () {
+        window.setTimeout(() => {
+          this.displayActionMenu = false;
+        },200);
+      },
+      openSiteNavigationDrawer () {
+        this.$root.$emit('open-site-navigation-drawer', {
           siteName: this.site.name,
           siteType: this.site.siteType,
-          importMode: 'MERGE',
-          siteLayout: false,
-          sitePages: true,
-          siteNavigation: true,
+          siteId: this.site.siteId,
+          siteLabel: this.site.displayName,
+          includeGlobal: this.site.name.toLowerCase() === eXo.env.portal.globalPortalName.toLowerCase(),
         });
-        this.$root.$emit('alert-message', this.$t('siteManagement.label.restoreSitePages.success'), 'success');
-      } catch (e) {
-        this.$root.$emit('alert-message', this.$t('siteManagement.label.restoreSitePages.error'), 'error');
-      } finally {
-        this.loading = false;
-      }
+      },
+      openSitePropertiesDrawer () {
+        this.$root.$emit('open-site-properties-drawer', this.site);
+      },
+      saveAsTemplate () {
+        this.$root.$emit('site-template-add', null, this.site.siteId);
+      },
+      duplicate () {
+        this.$root.$emit('open-site-properties-drawer', {
+          ...this.site,
+          siteId: null,
+          name: null,
+        }, this.site.siteId);
+      },
+      async restoreSitePages () {
+        this.loading = true;
+        try {
+          await eXo.$siteLayoutService.restoreSite({
+            siteName: this.site.name,
+            siteType: this.site.siteType,
+            importMode: 'MERGE',
+            siteLayout: false,
+            sitePages: true,
+            siteNavigation: true,
+          });
+          this.$root.$emit('alert-message', this.$t('siteManagement.label.restoreSitePages.success'), 'success');
+        } catch (e) {
+          this.$root.$emit('alert-message', this.$t('siteManagement.label.restoreSitePages.error'), 'error');
+        } finally {
+          this.loading = false;
+        }
+      },
+      async restoreSiteLayout () {
+        this.loading = true;
+        try {
+          await eXo.$siteLayoutService.restoreSite({
+            siteName: this.site.name,
+            siteType: this.site.siteType,
+            importMode: 'MERGE',
+            siteLayout: true,
+            sitePages: false,
+            siteNavigation: false,
+          });
+          this.$root.$emit('alert-message', this.$t('siteManagement.label.restoreSiteLayout.success'), 'success');
+        } catch (e) {
+          this.$root.$emit('alert-message', this.$t('siteManagement.label.restoreSiteLayout.error'), 'error');
+        } finally {
+          this.loading = false;
+        }
+      },
+      handelAction (extension) {
+        return extension?.action(this, this.site);
+      },
     },
-    async restoreSiteLayout() {
-      this.loading = true;
-      try {
-        await this.$siteLayoutService.restoreSite({
-          siteName: this.site.name,
-          siteType: this.site.siteType,
-          importMode: 'MERGE',
-          siteLayout: true,
-          sitePages: false,
-          siteNavigation: false,
-        });
-        this.$root.$emit('alert-message', this.$t('siteManagement.label.restoreSiteLayout.success'), 'success');
-      } catch (e) {
-        this.$root.$emit('alert-message', this.$t('siteManagement.label.restoreSiteLayout.error'), 'error');
-      } finally {
-        this.loading = false;
-      }
-    },
-    handelAction(extension) {
-      return extension?.action(this, this.site);
-    }
-  }
-};
+  };
 </script>

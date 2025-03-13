@@ -27,43 +27,43 @@
   </div>
 </template>
 <script>
-export default {
-  created() {
-    document.addEventListener('open-site-navigation-drawer', this.openSiteNavigationDrawerByEvent);
-    this.$root.$on('site-template-created', this.openCreatedSiteNavigationDrawer);
-    this.$root.$on('site-template-navigation-open', this.openSiteNavigationDrawer);
-  },
-  beforeDestroy() {
-    document.removeEventListener('open-site-navigation-drawer', this.openSiteNavigationDrawerByEvent);
-    this.$root.$off('site-template-created', this.openCreatedSiteNavigationDrawer);
-    this.$root.$off('site-template-navigation-open', this.openSiteNavigationDrawer);
-  },
-  methods: {
-    openSiteNavigationDrawerByEvent(event) {
-      this.openSiteNavigationDrawer(event?.detail);
+  export default {
+    created () {
+      document.addEventListener('open-site-navigation-drawer', this.openSiteNavigationDrawerByEvent);
+      this.$root.$on('site-template-created', this.openCreatedSiteNavigationDrawer);
+      this.$root.$on('site-template-navigation-open', this.openSiteNavigationDrawer);
     },
-    openCreatedSiteNavigationDrawer(siteTemplate) {
-      this.openSiteNavigationDrawer(siteTemplate, 'siteTemplate.label.editCreatedNavigation.information', true);
+    beforeUnmount () {
+      document.removeEventListener('open-site-navigation-drawer', this.openSiteNavigationDrawerByEvent);
+      this.$root.$off('site-template-created', this.openCreatedSiteNavigationDrawer);
+      this.$root.$off('site-template-navigation-open', this.openSiteNavigationDrawer);
     },
-    async openSiteNavigationDrawer(siteTemplate, information, displayEditLayout) {
-      try {
-        const site = await this.$siteService.getSite('portal_template', siteTemplate?.layout, {
-          expandNavigations: false,
-        });
-        this.$root.$emit('open-site-navigation-drawer', {
-          siteName: site.name,
-          siteType: site.siteType,
-          siteId: site.siteId,
-          siteLabel: siteTemplate?.name,
-          information: information || 'siteTemplate.label.editNavigation.information',
-          displayEditLayout,
-          displayCloseFooter: true,
-          includeGlobal: false,
-        });
-      } finally {
-        this.$emit('loading', false);
-      }
+    methods: {
+      openSiteNavigationDrawerByEvent (event) {
+        this.openSiteNavigationDrawer(event?.detail);
+      },
+      openCreatedSiteNavigationDrawer (siteTemplate) {
+        this.openSiteNavigationDrawer(siteTemplate, 'siteTemplate.label.editCreatedNavigation.information', true);
+      },
+      async openSiteNavigationDrawer (siteTemplate, information, displayEditLayout) {
+        try {
+          const site = await eXo.$siteService.getSite('portal_template', siteTemplate?.layout, {
+            expandNavigations: false,
+          });
+          this.$root.$emit('open-site-navigation-drawer', {
+            siteName: site.name,
+            siteType: site.siteType,
+            siteId: site.siteId,
+            siteLabel: siteTemplate?.name,
+            information: information || 'siteTemplate.label.editNavigation.information',
+            displayEditLayout,
+            displayCloseFooter: true,
+            includeGlobal: false,
+          });
+        } finally {
+          this.$emit('loading', false);
+        }
+      },
     },
-  },
-};
+  };
 </script>

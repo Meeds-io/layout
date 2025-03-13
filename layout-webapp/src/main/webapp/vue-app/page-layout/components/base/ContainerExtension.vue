@@ -20,38 +20,38 @@
 -->
 <template>
   <component
-    v-if="containerType && container"
     :is="containerType"
+    v-if="containerType && container"
     :container="container"
     :parent-id="parentId" />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    computed: {
+      storageId () {
+        return this.container?.storageId;
+      },
+      containerType () {
+        const extension = this.container
+          && this.$root.containerTypes?.find?.(ext => ext?.isValid?.(this.container))
+          || this.$root.defaultContainer;
+        return extension?.containerType;
+      },
+      params () {
+        return {
+          container: this.container,
+        };
+      },
     },
-  },
-  computed: {
-    storageId() {
-      return this.container?.storageId;
-    },
-    containerType() {
-      const extension = this.container
-        && this.$root.containerTypes?.find?.(ext => ext?.isValid?.(this.container))
-        || this.$root.defaultContainer;
-      return extension?.containerType;
-    },
-    params() {
-      return {
-        container: this.container,
-      };
-    },
-  },
-};
+  };
 </script>

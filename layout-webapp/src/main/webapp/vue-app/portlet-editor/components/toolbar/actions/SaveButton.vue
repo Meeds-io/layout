@@ -20,85 +20,85 @@
 -->
 <template>
   <v-btn
-    :disabled="disabled"
-    :loading="loading"
     :aria-label="$t('layout.save')"
     class="btn btn-primary d-flex align-center"
+    :disabled="disabled"
     elevation="0"
+    :loading="loading"
     @click="save">
     <span class="text-none">{{ $t('layout.save') }}</span>
   </v-btn>
 </template>
 <script>
-export default {
-  props: {
-    disabled: {
-      type: Boolean,
-      default: false,
+  export default {
+    props: {
+      disabled: {
+        type: Boolean,
+        default: false,
+      },
     },
-  },
-  data: () => ({
-    loading: false,
-  }),
-  methods: {
-    async save() {
-      this.loading = true;
-      try {
-        const instance = await this.$portletInstanceService.getPortletInstance(this.$root.portletInstanceId);
-        instance.preferences = await this.$portletInstanceService.getPortletInstancePreferences(this.$root.portletInstanceId);
+    data: () => ({
+      loading: false,
+    }),
+    methods: {
+      async save () {
+        this.loading = true;
+        try {
+          const instance = await eXo.$portletInstanceService.getPortletInstance(this.$root.portletInstanceId);
+          instance.preferences = await eXo.$portletInstanceService.getPortletInstancePreferences(this.$root.portletInstanceId);
 
-        await this.$portletInstanceService.updatePortletInstance(instance);
-        if (!this.$root.portletInstanceEmpty) {
-          await this.savePreview();
-        }
+          await eXo.$portletInstanceService.updatePortletInstance(instance);
+          if (!this.$root.portletInstanceEmpty) {
+            await this.savePreview();
+          }
 
-        if (window?.opener) {
-          window?.opener?.dispatchEvent?.(new CustomEvent('portlet-instance-layout-updated', {
-            detail: instance,
-          }));
-          window.close();
-        } else {
+          if (window?.opener) {
+            window?.opener?.dispatchEvent?.(new CustomEvent('portlet-instance-layout-updated', {
+              detail: instance,
+            }));
+            window.close();
+          } else {
+            this.$root.$emit('alert-message', this.$t('layout.portletInstanceLayoutUpdatedSuccessfully'), 'success');
+          }
+        } catch (e) {
+          console.debug('Error saving portlet instance', e); // eslint-disable-line no-console
           this.$root.$emit('alert-message', this.$t('layout.portletInstanceLayoutUpdatedSuccessfully'), 'success');
+        } finally {
+          window.setTimeout(() => this.loading = false, 50);
         }
-      } catch (e) {
-        console.debug('Error saving portlet instance', e); // eslint-disable-line no-console
-        this.$root.$emit('alert-message', this.$t('layout.portletInstanceLayoutUpdatedSuccessfully'), 'success');
-      } finally {
-        window.setTimeout(() => this.loading = false, 50);
-      }
+      },
+      async savePreview () {
+        const previewCanvas = await window.html2canvas(this.$root.portletInstanceElement);
+        const previewImage = previewCanvas.toDataURL('image/png');
+        const previewBlob = this.convertPreviewToFile(previewImage);
+        const uploadId =  await eXo.$uploadService.upload(previewBlob);
+        await new Promise((resolve, reject) => {
+          const interval = window.setInterval(() => {
+            eXo.$uploadService.getUploadProgress(uploadId)
+              .then(percent => {
+                if (Number(percent) === 100) {
+                  window.clearInterval(interval);
+                  resolve();
+                }
+              })
+              .catch(e => reject(e));
+          }, 200);
+        });
+        return await eXo.$fileAttachmentService.saveAttachments({
+          objectType: 'portletInstance',
+          objectId: this.$root.portletInstanceId,
+          uploadedFiles: [{ uploadId }],
+          attachedFiles: [],
+        });
+      },
+      convertPreviewToFile (previewImage) {
+        const imgString = window.atob(previewImage.replace(/^data:image\/\w+;base64,/, ''));
+        const bytes = new Uint8Array(imgString.length);
+        for (let i = 0; i < imgString.length; i++) {
+          bytes[i] = imgString.charCodeAt(i);
+        }
+        return new Blob([bytes], { type: 'image/png' });
+      },
     },
-    async savePreview() {
-      const previewCanvas = await window.html2canvas(this.$root.portletInstanceElement);
-      const previewImage = previewCanvas.toDataURL('image/png');
-      const previewBlob = this.convertPreviewToFile(previewImage);
-      const uploadId =  await this.$uploadService.upload(previewBlob);
-      await new Promise((resolve, reject) => {
-        const interval = window.setInterval(() => {
-          this.$uploadService.getUploadProgress(uploadId)
-            .then(percent => {
-              if (Number(percent) === 100) {
-                window.clearInterval(interval);
-                resolve();
-              }
-            })
-            .catch(e => reject(e));
-        }, 200);
-      });
-      return await this.$fileAttachmentService.saveAttachments({
-        objectType: 'portletInstance',
-        objectId: this.$root.portletInstanceId,
-        uploadedFiles: [{uploadId}],
-        attachedFiles: [],
-      });
-    },
-    convertPreviewToFile(previewImage) {
-      const imgString = window.atob(previewImage.replace(/^data:image\/\w+;base64,/, ''));
-      const bytes = new Uint8Array(imgString.length);
-      for (let i = 0; i < imgString.length; i++) {
-        bytes[i] = imgString.charCodeAt(i);
-      }
-      return new Blob([bytes], {type: 'image/png'});
-    },
-  },
-};
+  };
 </script>

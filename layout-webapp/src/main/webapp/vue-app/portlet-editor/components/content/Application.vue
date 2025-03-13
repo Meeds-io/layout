@@ -20,107 +20,107 @@
 -->
 <template>
   <div
-    ref="content"
     :id="id"
-    :style="cssStyle"
+    ref="content"
+    class="layout-application no-applications-spacing full-width"
     :class="$root.portletMode === 'view' && 'light-grey-background-color pa-5 ma-n5' || 'pa-5 border-box-sizing application-body'"
-    class="layout-application no-applications-spacing full-width"></div>
+    :style="cssStyle"></div>
 </template>
 <script>
-export default {
-  data: () => ({
-    applicationInstalled: false,
-    applicationContent: null,
-    contentRetrieved: 0,
-  }),
-  computed: {
-    id() {
-      return this.$root.portletMode === 'view' ? `UIPortlet-${this.$root?.portletInstance?.applicationId}` : this.$root?.portletInstance?.applicationId;
-    },
-    portletMode() {
-      return this.$root.portletMode;
-    },
-    portletInstanceId() {
-      return this.$root.portletInstanceId;
-    },
-    isEmpty() {
-      return this.contentRetrieved
+  export default {
+    data: () => ({
+      applicationInstalled: false,
+      applicationContent: null,
+      contentRetrieved: 0,
+    }),
+    computed: {
+      id () {
+        return this.$root.portletMode === 'view' ? `UIPortlet-${this.$root?.portletInstance?.applicationId}` : this.$root?.portletInstance?.applicationId;
+      },
+      portletMode () {
+        return this.$root.portletMode;
+      },
+      portletInstanceId () {
+        return this.$root.portletInstanceId;
+      },
+      isEmpty () {
+        return this.contentRetrieved
           && !this.applicationContent
           && !this.$el?.querySelector?.('.PORTLET-FRAGMENT')?.offsetHeight;
-    },
-    cssStyle() {
-      return this.isEmpty && {
-        'min-height': '100px',
-        'display': 'block !important',
-      } || null;
-    },
-  },
-  watch: {
-    applicationContent() {
-      if (this.applicationContent) {
-        this.installApplication();
-      }
-    },
-    portletMode() {
-      this.retrieveData();
-    },
-    isEmpty: {
-      immediate: true,
-      handler() {
-        this.$emit('empty', this.isEmpty);
+      },
+      cssStyle () {
+        return this.isEmpty && {
+          'min-height': '100px',
+          'display': 'block !important',
+        } || null;
       },
     },
-    applicationInstalled() {
-      this.$emit('initialized');
+    watch: {
+      applicationContent () {
+        if (this.applicationContent) {
+          this.installApplication();
+        }
+      },
+      portletMode () {
+        this.retrieveData();
+      },
+      isEmpty: {
+        immediate: true,
+        handler () {
+          this.$emit('empty', this.isEmpty);
+        },
+      },
+      applicationInstalled () {
+        this.$emit('initialized');
+      },
     },
-  },
-  created() {
-    document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
-    this.retrieveData();
-  },
-  mounted() {
-    this.installApplication();
-    this.$root.portletInstanceElement = this.$el;
-  },
-  methods: {
-    installApplication() {
-      if (this.$refs.content && this.applicationContent) {
-        this.$applicationUtils.handleApplicationContent(this.applicationContent, this.$refs.content);
-        // Cleanup JS memory
-        this.applicationContent = null;
-        // Wait for some seconds for application to be displayed
-        this.contentRetrieved++;
-        const interval = window.setInterval(() => {
-          if (this.contentRetrieved >= 100 || !this.isEmpty) {
-            document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
-            this.applicationInstalled = true;
-            window.clearInterval(interval);
-          } else if (this.isEmpty) {
-            this.contentRetrieved++;
-            if (this.contentRetrieved === 30) {
+    created () {
+      document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
+      this.retrieveData();
+    },
+    mounted () {
+      this.installApplication();
+      this.$root.portletInstanceElement = this.$el;
+    },
+    methods: {
+      installApplication () {
+        if (this.$refs.content && this.applicationContent) {
+          eXo.$applicationUtils.handleApplicationContent(this.applicationContent, this.$refs.content);
+          // Cleanup JS memory
+          this.applicationContent = null;
+          // Wait for some seconds for application to be displayed
+          this.contentRetrieved++;
+          const interval = window.setInterval(() => {
+            if (this.contentRetrieved >= 100 || !this.isEmpty) {
               document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
-              this.$emit('empty-message');
+              this.applicationInstalled = true;
+              window.clearInterval(interval);
+            } else if (this.isEmpty) {
+              this.contentRetrieved++;
+              if (this.contentRetrieved === 30) {
+                document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+                this.$emit('empty-message');
+              }
             }
-          }
-        }, 50);
-      }
-    },
-    retrieveData() {
-      this.contentRetrieved = 0;
-      fetch(`/portal/${eXo.env.portal.portalName}/portlet-viewer?portletInstanceId=${this.portletInstanceId}&noCache=true&maximizedPortletMode=${this.portletMode}&fullRender=true`, {
-        credentials: 'include',
-        method: 'GET',
-        redirect: 'manual'
-      })
-        .then(resp => {
-          if (resp?.status === 200) {
-            return resp.text();
-          } else {
-            throw new Error('The retrieved page is not a portal page');
-          }
+          }, 50);
+        }
+      },
+      retrieveData () {
+        this.contentRetrieved = 0;
+        fetch(`/portal/${eXo.env.portal.portalName}/portlet-viewer?portletInstanceId=${this.portletInstanceId}&noCache=true&maximizedPortletMode=${this.portletMode}&fullRender=true`, {
+          credentials: 'include',
+          method: 'GET',
+          redirect: 'manual',
         })
-        .then(applicationContent => this.applicationContent = applicationContent);
+          .then(resp => {
+            if (resp?.status === 200) {
+              return resp.text();
+            } else {
+              throw new Error('The retrieved page is not a portal page');
+            }
+          })
+          .then(applicationContent => this.applicationContent = applicationContent);
+      },
     },
-  }
-};
+  };
 </script>

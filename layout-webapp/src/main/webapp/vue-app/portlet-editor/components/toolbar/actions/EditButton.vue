@@ -20,29 +20,29 @@
 -->
 <template>
   <v-btn
-    :loading="loading"
     :aria-label="label"
     class="btn d-flex align-center"
     elevation="0"
+    :loading="loading"
     outlined
     @click="switchMode">
     <span class="text-none">{{ label }}</span>
   </v-btn>
 </template>
 <script>
-export default {
-  data: () => ({
-    loading: false,
-  }),
-  computed: {
-    label() {
-      return this.$root.portletMode === 'view' ? this.$t('portlets.switchToEditMode') : this.$t('portlets.switchToViewMode');
+  export default {
+    data: () => ({
+      loading: false,
+    }),
+    computed: {
+      label () {
+        return this.$root.portletMode === 'view' ? this.$t('portlets.switchToEditMode') : this.$t('portlets.switchToViewMode');
+      },
     },
-  },
-  methods: {
-    switchMode() {
-      this.$root.portletMode = this.$root.portletMode === 'view' ? 'edit' : 'view';
+    methods: {
+      switchMode () {
+        this.$root.portletMode = this.$root.portletMode === 'view' ? 'edit' : 'view';
+      },
     },
-  },
-};
+  };
 </script>

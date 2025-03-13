@@ -21,30 +21,30 @@
 -->
 <template>
   <page-layout-container-base
+    class="layout-banner-section layout-section-content flex-grow-1 flex-shrink-1 display-flex flex-row"
     :container="containerToDisplay"
     :parent-id="parentId"
-    class="layout-banner-section layout-section-content flex-grow-1 flex-shrink-1 display-flex flex-row"
     section-style />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    computed: {
+      containerToDisplay () {
+        return this.container.height ? this.container : {
+          ...this.container,
+          height: '57px',
+        };
+      },
     },
-  },
-  computed: {
-    containerToDisplay() {
-      return this.container.height ? this.container : {
-        ...this.container,
-        height: '57px',
-      };
-    },
-  },
-};
+  };
 </script>

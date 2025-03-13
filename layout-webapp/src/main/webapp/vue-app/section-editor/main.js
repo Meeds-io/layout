@@ -45,17 +45,17 @@ const lang = eXo?.env.portal.language || 'en';
 //should expose the locale ressources as REST API
 const url = `/layout/i18n/locale.portlet.LayoutEditor?lang=${lang}`;
 
-export function init() {
+export function init () {
   exoi18n.loadLanguageAsync(lang, url)
     .then(i18n => {
       // init Vue app when locale ressources are ready
       Vue.createApp({
         template: `<section-editor v-if="nodeId" id="${appId}"/>`,
-        vuetify: Vue.prototype.vuetifyOptions,
+        vuetify: eXo.vuetify,
         i18n,
         data: () => ({
           containerTypes: extensionRegistry.loadExtensions('layout-editor', 'container'),
-          collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
+          collator: new Intl.Collator(eXo.env.portal.language, { numeric: true, sensitivity: 'base' }),
           hoveredParentId: null,
           hoveredSectionId: null,
           hoveredSection: null,
@@ -101,73 +101,73 @@ export function init() {
           originalHref: window.location.href,
         }),
         computed: {
-          sectionTemplateId() {
-            return this.$layoutUtils.getQueryParam('id');
+          sectionTemplateId () {
+            return eXo.$layoutUtils.getQueryParam('id');
           },
-          sectionTemplateContainer() {
+          sectionTemplateContainer () {
             return this.sectionTemplate?.content && JSON.parse(this.sectionTemplate.content);
           },
-          parentAppX() {
+          parentAppX () {
             return this.parentAppDimensions?.x || 0;
           },
-          parentAppY() {
+          parentAppY () {
             return this.parentAppDimensions?.y || 0;
           },
-          defaultContainer() {
+          defaultContainer () {
             return this.containerTypes.find(extension => extension.type === 'default');
           },
-          isResize() {
+          isResize () {
             return this.moveType === 'resize';
           },
-          isMove() {
+          isMove () {
             return this.moveType === 'drag';
           },
-          isMultiSelect() {
+          isMultiSelect () {
             return this.moveType === 'multiSelect';
           },
-          selectedFirstRowIndex() {
+          selectedFirstRowIndex () {
             return Math.min(...this.selectedCellCoordinates.map(c => c.rowIndex));
           },
-          selectedFirstColIndex() {
+          selectedFirstColIndex () {
             return Math.min(...this.selectedCellCoordinates.map(c => c.colIndex));
           },
-          mobileDisplayMode() {
+          mobileDisplayMode () {
             return this.$root.displayMode === 'mobile';
           },
-          desktopDisplayMode() {
+          desktopDisplayMode () {
             return this.$root.displayMode === 'desktop';
           },
-          pageId() {
+          pageId () {
             return this.$root.page?.state?.storageId?.replace?.('page_', '');
           },
-          isSpaceSiteTemplate() {
+          isSpaceSiteTemplate () {
             return this.pageRef?.toLowerCase?.()?.indexOf('group_template::') === 0;
           },
         },
         watch: {
-          movingParentId() {
+          movingParentId () {
             if (this.movingParentId) {
               this.$root.$emit('layout-editor-moving-start', this.movingParentId);
             } else {
               this.$root.$emit('layout-editor-moving-end', this.movingParentId);
             }
           },
-          nodeUri() {
+          nodeUri () {
             if (window.opener) {
               eXo.env.portal.webPageUrl = window.opener.location.pathname;
             } else {
               eXo.env.portal.webPageUrl = `/portal${this.nodeUri}`;
             }
           },
-          layout(newVal, oldVal) {
+          layout (newVal, oldVal) {
             if (!oldVal) {
               window.setTimeout(() => document.dispatchEvent(new CustomEvent('hideTopBarLoading')), 200);
             }
           },
         },
-        async created() {
-          this.sectionTemplate = await this.$sectionTemplateService.getSectionTemplate(this.sectionTemplateId);
-          this.nodeId = await this.$sectionTemplateService.generateSectionTemplateNodeId(this.sectionTemplateId);
+        async created () {
+          this.sectionTemplate = await eXo.$sectionTemplateService.getSectionTemplate(this.sectionTemplateId);
+          this.nodeId = await eXo.$sectionTemplateService.generateSectionTemplateNodeId(this.sectionTemplateId);
           // Some applications will change the window location state when displayed
           // This will ensure to preserve the original Page location URI
           new MutationObserver(this.setOriginalUri).observe(document, { subtree: true, childList: true });
@@ -176,57 +176,57 @@ export function init() {
           document.addEventListener('drawerOpened', this.setDrawerOpened);
           document.addEventListener('drawerClosed', this.setDrawerClosed);
           this.refreshPortletInstances();
-          this.branding = await this.$brandingService.getBrandingInformation();
+          this.branding = await eXo.$brandingService.getBrandingInformation();
         },
-        mounted() {
+        mounted () {
           this.$el?.closest?.('.PORTLET-FRAGMENT')?.classList?.remove?.('PORTLET-FRAGMENT');
           this.$root.$applicationLoaded();
         },
         methods: {
-          setOriginalUri() {
+          setOriginalUri () {
             if (window.location.href !== this.originalHref) {
               window.history.replaceState('', window.document.title, this.originalUri);
             }
           },
-          setDrawerOpened() {
+          setDrawerOpened () {
             this.drawerOpened++;
           },
-          setDrawerClosed() {
+          setDrawerClosed () {
             this.drawerOpened--;
           },
-          refreshPortletInstances() {
+          refreshPortletInstances () {
             this.loadingPortletInstances = true;
-            return this.$portletInstanceCategoryService.getPortletInstanceCategories()
+            return eXo.$portletInstanceCategoryService.getPortletInstanceCategories()
               .then(categories => this.portletInstanceCategories = categories)
-              .then(()  => this.$portletInstanceService.getPortletInstances())
+              .then(()  => eXo.$portletInstanceService.getPortletInstances())
               .then(applications => this.portletInstances = applications.filter(a => !a.disabled))
               .finally(() => this.loadingPortletInstances = false);
           },
-          refreshContainerTypes() {
+          refreshContainerTypes () {
             this.containerTypes = extensionRegistry.loadExtensions('layout-editor', 'container');
           },
-          updateParentAppDimensions() {
+          updateParentAppDimensions () {
             this.parentAppDimensions = document.querySelector(`#${appId}`).getBoundingClientRect();
           },
-          initScrollPosition() {
+          initScrollPosition () {
             this.updateParentAppDimensions();
             this.startScrollX = this.parentAppDimensions.x;
             this.startScrollY = this.parentAppDimensions.y;
             this.diffScrollX = 0;
             this.diffScrollY = 0;
           },
-          updateScrollPosition() {
+          updateScrollPosition () {
             this.updateParentAppDimensions();
             this.diffScrollX = this.parentAppDimensions.x - this.startScrollX;
             this.diffScrollY = this.parentAppDimensions.y - this.startScrollY;
           },
-          initCellsSelection() {
+          initCellsSelection () {
             this.selectedSectionId = null;
             this.moveType = null;
             this.selectedCells = [];
             this.selectedCellCoordinates = [];
           },
-          resetMoving() {
+          resetMoving () {
             this.parentAppDimensions = null;
             this.moveType = null;
             this.multiCellsSelect = false;
@@ -235,7 +235,7 @@ export function init() {
       }, `#${appId}`, 'Section Editor');
     })
     .finally(() => {
-      Vue.prototype.$utils.includeExtensions('LayoutEditorExtension');
+      eXo.$utils.includeExtensions('LayoutEditorExtension');
       document.dispatchEvent(new CustomEvent('displayTopBarLoading'));
     });
 }

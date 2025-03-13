@@ -25,8 +25,8 @@
       <div :class="tabName !== 'instances' && 'application-layout-style'">
         <portlets-toolbar
           ref="toolbar"
-          :tab-name="tabName"
           :class="tabName === 'instances' && 'application-layout-style'"
+          :tab-name="tabName"
           @portlet-instance-filter="keyword = $event"
           @select-tab="selectTab" />
         <portlets-instance-main
@@ -45,44 +45,44 @@
   </v-app>
 </template>
 <script>
-export default {
-  data: () => ({
-    keyword: null,
-    tabName: null,
-    switching: false,
-  }),
-  watch: {
-    tabName() {
-      if (this.tabName && this.switching) {
-        window.location.hash = `#${this.tabName}`;
-      } else if (!this.tabName) {
-        this.switching = true;
-      }
+  export default {
+    data: () => ({
+      keyword: null,
+      tabName: null,
+      switching: false,
+    }),
+    watch: {
+      tabName () {
+        if (this.tabName && this.switching) {
+          window.location.hash = `#${this.tabName}`;
+        } else if (!this.tabName) {
+          this.switching = true;
+        }
+      },
     },
-  },
-  created() {
-    this.$root.$on('portlet-instance-created', this.handleInstanceCreated);
-    this.$root.$on('portlet-instance-layout-updated', this.handleLayoutUpdated);
-    this.tabName = window.location.hash === '#portlets' && 'portlets' || 'instances';
-  },
-  beforeDestroy() {
-    this.$root.$off('portlet-instance-created', this.handleInstanceCreated);
-    this.$root.$off('portlet-instance-layout-updated', this.handleLayoutUpdated);
-  },
-  methods: {
-    selectTab(tabName) {
-      this.tabName = null;
-      this.$nextTick(() => window.setTimeout(() => this.tabName = tabName, 10));
+    created () {
+      this.$root.$on('portlet-instance-created', this.handleInstanceCreated);
+      this.$root.$on('portlet-instance-layout-updated', this.handleLayoutUpdated);
+      this.tabName = window.location.hash === '#portlets' && 'portlets' || 'instances';
     },
-    handleInstanceCreated(instance) {
-      const hasEditMode = instance?.supportedModes?.find?.(mode => mode === 'edit');
-      const instanceEditorLink = `/portal/${eXo.env.portal.portalName}/portlet-editor?id=${instance.id}&portletMode=${hasEditMode && 'edit' || 'view'}`;
-      window.open(instanceEditorLink, '_blank');
+    beforeUnmount () {
+      this.$root.$off('portlet-instance-created', this.handleInstanceCreated);
+      this.$root.$off('portlet-instance-layout-updated', this.handleLayoutUpdated);
     },
-    handleLayoutUpdated(instance) {
-      this.$root.$emit('portlet-instance-saved', instance);
-      this.$root.$emit('alert-message', this.$t('layout.portletInstanceLayoutUpdatedSuccessfully'), 'success');
+    methods: {
+      selectTab (tabName) {
+        this.tabName = null;
+        this.$nextTick(() => window.setTimeout(() => this.tabName = tabName, 10));
+      },
+      handleInstanceCreated (instance) {
+        const hasEditMode = instance?.supportedModes?.find?.(mode => mode === 'edit');
+        const instanceEditorLink = `/portal/${eXo.env.portal.portalName}/portlet-editor?id=${instance.id}&portletMode=${hasEditMode && 'edit' || 'view'}`;
+        window.open(instanceEditorLink, '_blank');
+      },
+      handleLayoutUpdated (instance) {
+        this.$root.$emit('portlet-instance-saved', instance);
+        this.$root.$emit('alert-message', this.$t('layout.portletInstanceLayoutUpdatedSuccessfully'), 'success');
+      },
     },
-  },
-};
+  };
 </script>

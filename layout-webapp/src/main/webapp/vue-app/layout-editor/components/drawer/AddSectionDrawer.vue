@@ -21,13 +21,13 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="addSectionDrawer"
+    ref="drawer"
     v-model="drawer"
-    :loading="loading"
     allow-expand
-    right
-    disable-pull-to-refresh>
+    disable-pull-to-refresh
+    :loading="loading"
+    right>
     <template #title>
       {{ $t('layout.addSectionTitle') }}
     </template>
@@ -44,9 +44,9 @@
             <layout-editor-section-template
               v-for="t in blankSectionTemplates"
               :key="t.id"
+              class="col-auto ps-0 pe-4"
               :section-template="t"
               :selected="t.id === selectedSectionTemplate?.id"
-              class="col-auto ps-0 pe-4"
               @select="selectedSectionTemplate = t" />
           </div>
         </template>
@@ -58,9 +58,9 @@
             <layout-editor-section-template
               v-for="t in defaultSectionTemplates"
               :key="t.id"
+              class="col-auto ps-0 pe-4"
               :section-template="t"
               :selected="t.id === selectedSectionTemplate?.id"
-              class="col-auto ps-0 pe-4"
               @select="selectedSectionTemplate = t" />
           </div>
         </template>
@@ -72,9 +72,9 @@
             <layout-editor-section-template
               v-for="t in customSectionTemplates"
               :key="t.id"
+              class="col-auto ps-0 pe-4"
               :section-template="t"
               :selected="t.id === selectedSectionTemplate?.id"
-              class="col-auto ps-0 pe-4"
               @select="selectedSectionTemplate = t" />
           </div>
         </template>
@@ -89,8 +89,8 @@
           <span class="text-none">{{ $t('layout.cancel') }}</span>
         </v-btn>
         <v-btn
-          :disabled="!selectedSectionTemplate"
           class="btn btn-primary ms-4"
+          :disabled="!selectedSectionTemplate"
           @click="apply">
           <span class="text-none">{{ $t('layout.create') }}</span>
         </v-btn>
@@ -99,48 +99,48 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    selectedSectionTemplate: null,
-    parentContainer: null,
-    sectionTemplates: null,
-    loading: false,
-    drawer: false,
-    index: null,
-  }),
-  computed: {
-    blankSectionTemplates() {
-      return this.sectionTemplates?.filter?.(t => t.category === 'blank' && t.name && !t.disabled);
+  export default {
+    data: () => ({
+      selectedSectionTemplate: null,
+      parentContainer: null,
+      sectionTemplates: null,
+      loading: false,
+      drawer: false,
+      index: null,
+    }),
+    computed: {
+      blankSectionTemplates () {
+        return this.sectionTemplates?.filter?.(t => t.category === 'blank' && t.name && !t.disabled);
+      },
+      defaultSectionTemplates () {
+        return this.sectionTemplates?.filter?.(t => t.category === 'default' && t.name && !t.disabled);
+      },
+      customSectionTemplates () {
+        return this.sectionTemplates?.filter?.(t => t.category === 'custom' && t.name && !t.disabled);
+      },
     },
-    defaultSectionTemplates() {
-      return this.sectionTemplates?.filter?.(t => t.category === 'default' && t.name && !t.disabled);
+    methods: {
+      async open (parentContainer, index) {
+        this.parentContainer = parentContainer;
+        this.index = index;
+        this.selectedSectionTemplate = null;
+        this.$nextTick().then(() => this.$refs.drawer.open());
+        this.loading = true;
+        try {
+          this.sectionTemplates = await eXo.$sectionTemplateService.getSectionTemplates();
+        } finally {
+          this.loading = false;
+        }
+      },
+      apply () {
+        this.section = JSON.parse(this.selectedSectionTemplate.content);
+        this.$root.$emit('layout-add-section', this.section, this.index);
+        this.close();
+      },
+      close () {
+        this.$refs.drawer.close();
+        this.section = null;
+      },
     },
-    customSectionTemplates() {
-      return this.sectionTemplates?.filter?.(t => t.category === 'custom' && t.name && !t.disabled);
-    },
-  },
-  methods: {
-    async open(parentContainer, index) {
-      this.parentContainer = parentContainer;
-      this.index = index;
-      this.selectedSectionTemplate = null;
-      this.$nextTick().then(() => this.$refs.drawer.open());
-      this.loading = true;
-      try {
-        this.sectionTemplates = await this.$sectionTemplateService.getSectionTemplates();
-      } finally {
-        this.loading = false;
-      }
-    },
-    apply() {
-      this.section = JSON.parse(this.selectedSectionTemplate.content);
-      this.$root.$emit('layout-add-section', this.section, this.index);
-      this.close();
-    },
-    close() {
-      this.$refs.drawer.close();
-      this.section = null;
-    },
-  },
-};
+  };
 </script>

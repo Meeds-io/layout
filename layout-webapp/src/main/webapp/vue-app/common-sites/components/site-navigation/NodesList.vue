@@ -20,18 +20,18 @@
   <div>
     <template>
       <v-data-table
-        :headers="expanded && headers || []"
-        :items="navigationNodes"
-        :loading="loading"
         disable-pagination
-        hide-default-footer>
-        <template slot="item" slot-scope="props">
+        :headers="expanded && headers || []"
+        hide-default-footer
+        :items="navigationNodes"
+        :loading="loading">
+        <template #item="props">
           <site-navigation-node-item
-            :navigation-node="props.item"
-            :can-move-up="canMoveUpNode(props.item)"
             :can-move-down="canMoveDownNode(props.item)"
-            :hide-children="hideChildren"
+            :can-move-up="canMoveUpNode(props.item)"
             :expanded="expanded"
+            :hide-children="hideChildren"
+            :navigation-node="props.item"
             :root-node-id="rootNodeId" />
         </template>
       </v-data-table>
@@ -40,111 +40,111 @@
 </template>
 
 <script>
-export default {
-  props: {
-    navigationNodes: {
-      type: Object,
-      default: null
+  export default {
+    props: {
+      navigationNodes: {
+        type: Object,
+        default: null,
+      },
+      expanded: {
+        type: Boolean,
+        default: false,
+      },
+      loading: {
+        type: Boolean,
+        default: false,
+      },
+      hideChildren: {
+        type: Boolean,
+        default: false,
+      },
     },
-    expanded: {
-      type: Boolean,
-      default: false
+    computed: {
+      rootNodeId () {
+        return this.navigationNodes?.length === 1 && this.navigationNodes[0].id;
+      },
+      headers () {
+        return [
+          {
+            text: this.$t('siteNavigation.label.node'),
+            value: 'node',
+            width: this.expanded && '300' || '100',
+            sortable: false,
+          },
+          {
+            text: this.$t('siteNavigation.label.nodeType'),
+            align: 'center',
+            value: 'nodeType',
+            width: '120',
+            sortable: false,
+          },
+          {
+            text: this.$t('siteNavigation.label.lastUpdated'),
+            align: 'center',
+            value: 'lastUpdated',
+            width: '120',
+            sortable: false,
+          },
+          {
+            text: this.$t('siteNavigation.label.visibility'),
+            align: 'center',
+            value: 'visibility',
+            width: '120',
+            sortable: false,
+          },
+          {
+            text: this.$t('siteNavigation.label.access'),
+            align: 'center',
+            value: 'access',
+            width: '120',
+            sortable: false,
+          },
+        ];
+      },
     },
-    loading: {
-      type: Boolean,
-      default: false
+    created () {
+      this.$root.$on('delete-node', this.deleteNode);
+      this.$root.$on('moveup-node', this.moveUpNode);
+      this.$root.$on('movedown-node', this.moveDownNode);
     },
-    hideChildren: {
-      type: Boolean,
-      default: false
-    },
-  },
-  computed: {
-    rootNodeId() {
-      return this.navigationNodes?.length === 1 && this.navigationNodes[0].id;
-    },
-    headers() {
-      return [
-        {
-          text: this.$t('siteNavigation.label.node'),
-          value: 'node',
-          width: this.expanded && '300' || '100',
-          sortable: false
-        },
-        {
-          text: this.$t('siteNavigation.label.nodeType'),
-          align: 'center',
-          value: 'nodeType',
-          width: '120',
-          sortable: false
-        },
-        {
-          text: this.$t('siteNavigation.label.lastUpdated'),
-          align: 'center',
-          value: 'lastUpdated',
-          width: '120',
-          sortable: false
-        },
-        {
-          text: this.$t('siteNavigation.label.visibility'),
-          align: 'center',
-          value: 'visibility',
-          width: '120',
-          sortable: false
-        },
-        {
-          text: this.$t('siteNavigation.label.access'),
-          align: 'center',
-          value: 'access',
-          width: '120',
-          sortable: false
-        }
-      ];
-    },
-  },
-  created() {
-    this.$root.$on('delete-node', this.deleteNode);
-    this.$root.$on('moveup-node', this.moveUpNode);
-    this.$root.$on('movedown-node', this.moveDownNode);
-  },
-  methods: {
-    canMoveUpNode(navigationNode) {
-      return this.navigationNodes.indexOf(navigationNode) > 0;
-    },
-    canMoveDownNode(navigationNode) {
-      return this.navigationNodes.indexOf(navigationNode) < this.navigationNodes.length - 1;
-    }, 
-    moveUpNode(navigationNodeId) {
-      if (this.navigationNodes.length) {
-        const index = this.navigationNodes.findIndex(navigationNode => navigationNode.id === navigationNodeId);
-        if (index !== -1) {
-          const previousNodeId = index >1 ? this.navigationNodes[index - 2].id : null;
-          this.$navigationLayoutService.moveNode(navigationNodeId, null, previousNodeId).then(() => {
-            this.$root.$emit('refresh-navigation-nodes');
-          });
-        }
+    methods: {
+      canMoveUpNode (navigationNode) {
+        return this.navigationNodes.indexOf(navigationNode) > 0;
+      },
+      canMoveDownNode (navigationNode) {
+        return this.navigationNodes.indexOf(navigationNode) < this.navigationNodes.length - 1;
+      }, 
+      moveUpNode (navigationNodeId) {
+        if (this.navigationNodes.length) {
+          const index = this.navigationNodes.findIndex(navigationNode => navigationNode.id === navigationNodeId);
+          if (index !== -1) {
+            const previousNodeId = index >1 ? this.navigationNodes[index - 2].id : null;
+            eXo.$navigationLayoutService.moveNode(navigationNodeId, null, previousNodeId).then(() => {
+              this.$root.$emit('refresh-navigation-nodes');
+            });
+          }
         
-      }
-    },
-    moveDownNode(navigationNodeId) {
-      if (this.navigationNodes.length) {
-        const index = this.navigationNodes.findIndex(navigationNode => navigationNode.id === navigationNodeId);
-        if (index !== -1) {
-          const previousNodeId = this.navigationNodes[index + 1].id;
-          this.$navigationLayoutService.moveNode(navigationNodeId, null, previousNodeId).then(() => {
-            this.$root.$emit('refresh-navigation-nodes');
-          });
         }
-      }
-    },
-    deleteNode(navigationNodeId) {
-      if (this.navigationNodes.length) {
-        const index = this.navigationNodes.findIndex(navigationNode => navigationNode.id === navigationNodeId);
-        if (index >= 0) {
-          this.navigationNodes.splice(index, 1);
+      },
+      moveDownNode (navigationNodeId) {
+        if (this.navigationNodes.length) {
+          const index = this.navigationNodes.findIndex(navigationNode => navigationNode.id === navigationNodeId);
+          if (index !== -1) {
+            const previousNodeId = this.navigationNodes[index + 1].id;
+            eXo.$navigationLayoutService.moveNode(navigationNodeId, null, previousNodeId).then(() => {
+              this.$root.$emit('refresh-navigation-nodes');
+            });
+          }
         }
-      }
-    }
-  }
-};
+      },
+      deleteNode (navigationNodeId) {
+        if (this.navigationNodes.length) {
+          const index = this.navigationNodes.findIndex(navigationNode => navigationNode.id === navigationNodeId);
+          if (index >= 0) {
+            this.navigationNodes.splice(index, 1);
+          }
+        }
+      },
+    },
+  };
 </script>

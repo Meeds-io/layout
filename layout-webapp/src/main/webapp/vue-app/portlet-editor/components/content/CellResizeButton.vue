@@ -21,37 +21,37 @@
 <template>
   <v-card
     ref="resizeButton"
-    :title="$t('layout.updateWidth')"
+    class="position-absolute col-resize-cursor linear-gradient-grey-background grid-gap-width me-n5 z-index-two"
     :class="{
       'l-0': $vuetify.rtl,
       'r-0': !$vuetify.rtl,
       'layout-column-resize': hoverSeparator,
     }"
-    height="100%"
-    width="20"
-    class="position-absolute col-resize-cursor linear-gradient-grey-background grid-gap-width me-n5 z-index-two"
     flat
-    @mousedown.prevent.stop="resizeStart"
-    @mouseover="hoverSeparator = true"
+    height="100%"
+    :title="$t('layout.updateWidth')"
+    width="20"
     @focusin="hoverSeparator = true"
+    @focusout="hoverSeparator = false"
+    @mousedown.prevent.stop="resizeStart"
     @mouseout="hoverSeparator = false"
-    @focusout="hoverSeparator = false" />
+    @mouseover="hoverSeparator = true" />
 </template>
 <script>
-export default {
-  props: {
-    moving: {
-      type: Boolean,
-      default: null,
+  export default {
+    props: {
+      moving: {
+        type: Boolean,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    hoverSeparator: false,
-  }),
-  methods: {
-    resizeStart(event) {
-      this.$emit('move-start', event);
+    data: () => ({
+      hoverSeparator: false,
+    }),
+    methods: {
+      resizeStart (event) {
+        this.$emit('move-start', event);
+      },
     },
-  },
-};
+  };
 </script>

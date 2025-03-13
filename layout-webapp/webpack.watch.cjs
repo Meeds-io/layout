@@ -1,8 +1,7 @@
 const path = require('path');
 const { merge } = require('webpack-merge');
-const webpackProductionConfig = require('./webpack.prod.js');
+const webpackProductionConfig = require('./webpack.prod.cjs');
 module.exports = merge(webpackProductionConfig, {
-  mode: 'development',
   output: {
     path: '/exo-server/webapps/layout/',
     filename: 'js/[name].bundle.js'

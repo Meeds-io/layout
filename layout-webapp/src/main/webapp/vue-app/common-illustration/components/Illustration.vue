@@ -34,66 +34,66 @@
         </v-card>
       </v-expand-transition>
       <v-img
-        :src="illustrationSrc"
+        contain
         :max-height="maxHeight"
         :max-width="maxWidth"
-        contain />
+        :src="illustrationSrc" />
     </div>
   </v-hover>
 </template>
 <script>
-export default {
-  props: {
-    value: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      value: {
+        type: Object,
+        default: null,
+      },
+      objectType: {
+        type: String,
+        default: null,
+      },
+      defaultSrc: {
+        type: String,
+        default: null,
+      },
+      noHover: {
+        type: Boolean,
+        default: false,
+      },
+      maxHeight: {
+        type: String,
+        default: () => '30',
+      },
+      maxWidth: {
+        type: String,
+        default: () => '60',
+      },
+      previewAction: {
+        type: String,
+        default: null,
+      },
     },
-    objectType: {
-      type: String,
-      default: null,
+    data: () => ({
+      hover: false,
+    }),
+    computed: {
+      id () {
+        return this.value?.id;
+      },
+      name () {
+        return this.$te(this.value?.name) ? this.$t(this.value?.name) : this.value?.name;
+      },
+      illustrationId () {
+        return this.value?.illustrationId;
+      },
+      illustrationSrc () {
+        return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/${this.objectType}/${this.id}/${this.illustrationId}` || this.defaultSrc;
+      },
     },
-    defaultSrc: {
-      type: String,
-      default: null,
+    methods: {
+      openIllustration () {
+        this.$root.$emit('layout-illustration-preview', this.illustrationSrc, this.previewAction);
+      },
     },
-    noHover: {
-      type: Boolean,
-      default: false,
-    },
-    maxHeight: {
-      type: String,
-      default: () => '30',
-    },
-    maxWidth: {
-      type: String,
-      default: () => '60',
-    },
-    previewAction: {
-      type: String,
-      default: null,
-    },
-  },
-  data: () => ({
-    hover: false,
-  }),
-  computed: {
-    id() {
-      return this.value?.id;
-    },
-    name() {
-      return this.$te(this.value?.name) ? this.$t(this.value?.name) : this.value?.name;
-    },
-    illustrationId() {
-      return this.value?.illustrationId;
-    },
-    illustrationSrc() {
-      return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/${this.objectType}/${this.id}/${this.illustrationId}` || this.defaultSrc;
-    },
-  },
-  methods: {
-    openIllustration() {
-      this.$root.$emit('layout-illustration-preview', this.illustrationSrc, this.previewAction);
-    },
-  },
-};
+  };
 </script>

@@ -20,40 +20,40 @@
 -->
 <template>
   <v-list
-    :loading="loading"
-    :role="null"
     class="application-layout-style"
+    dense
+    :loading="loading"
     min-width="225"
     nav
-    dense>
-    <v-list-item :role="null" class="pe-0">
+    :role="null">
+    <v-list-item class="pe-0" :role="null">
       <v-list-item-content>
         <v-list-item-title class="text-header pb-2">{{ $t('layout.portletInstance.category') }}</v-list-item-title>
       </v-list-item-content>
       <v-list-item-action class="my-auto ms-4">
         <v-btn
-          :title="$t('layout.add')"
           class="mb-2"
           icon
           small
+          :title="$t('layout.add')"
           @click="$root.$emit('portlet-instance-category-add')">
-          <v-icon size="16" class="primary--text">fa-plus</v-icon>
+          <v-icon class="primary--text" size="16">fa-plus</v-icon>
         </v-btn>
       </v-list-item-action>
     </v-list-item>
     <v-list-item-group
       v-model="selectedCategory"
-      role="list"
       color="primary"
-      mandatory>
+      mandatory
+      role="list">
       <v-list-item
         :aria-label="$t('layout.portletInstance.category.all.name')"
         :value="0">
         <v-list-item-icon class="my-auto me-4">
           <v-card
-            width="30"
             class="transparent d-flex align-center justify-center"
-            flat>
+            flat
+            width="30">
             <v-icon class="icon-default-color">fa-braille</v-icon>
           </v-card>
         </v-list-item-icon>
@@ -68,62 +68,62 @@
     </v-list-item-group>
     <exo-confirm-dialog
       ref="deleteConfirmDialog"
-      :title="$t('portlets.label.confirmDeleteCategoryTitle')"
+      :cancel-label="$t('portlets.label.cancel')"
       :message="$t('portlets.label.confirmDeleteCategoryMessage', {0: `<br><strong>${nameToDelete}</strong>`})"
       :ok-label="$t('portlets.label.confirm')"
-      :cancel-label="$t('portlets.label.cancel')"
-      @ok="deletePortletInstanceCategory(portletInstanceCategoryToDelete)"
-      @closed="portletInstanceCategoryToDelete = null" />
+      :title="$t('portlets.label.confirmDeleteCategoryTitle')"
+      @closed="portletInstanceCategoryToDelete = null"
+      @ok="deletePortletInstanceCategory(portletInstanceCategoryToDelete)" />
   </v-list>
 </template>
 <script>
-export default {
-  data: () => ({
-    loading: false,
-    selectedCategory: null,
-    portletInstanceCategoryToDelete: null,
-  }),
-  computed: {
-    nameToDelete() {
-      return this.portletInstanceCategoryToDelete?.name;
+  export default {
+    data: () => ({
+      loading: false,
+      selectedCategory: null,
+      portletInstanceCategoryToDelete: null,
+    }),
+    computed: {
+      nameToDelete () {
+        return this.portletInstanceCategoryToDelete?.name;
+      },
+      categories () {
+        return this.$root.portletInstanceCategories;
+      },
+      filteredCategories () {
+        const categories = this.categories?.filter?.(c => c.name) || [];
+        categories.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+        return categories;
+      },
     },
-    categories() {
-      return this.$root.portletInstanceCategories;
+    watch: {
+      selectedCategory () {
+        this.$root.$emit('portlet-instance-category-selected', this.selectedCategory);
+      },
     },
-    filteredCategories() {
-      const categories = this.categories?.filter?.(c => c.name) || [];
-      categories.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
-      return categories;
+    created () {
+      this.$root.$on('portlet-instance-category-delete', this.deletePortletInstanceCategoryConfirm);
     },
-  },
-  created() {
-    this.$root.$on('portlet-instance-category-delete', this.deletePortletInstanceCategoryConfirm);
-  },
-  beforeDestroy() {
-    this.$root.$off('portlet-instance-category-delete', this.deletePortletInstanceCategoryConfirm);
-  },
-  watch: {
-    selectedCategory() {
-      this.$root.$emit('portlet-instance-category-selected', this.selectedCategory);
+    beforeUnmount () {
+      this.$root.$off('portlet-instance-category-delete', this.deletePortletInstanceCategoryConfirm);
     },
-  },
-  methods: {
-    deletePortletInstanceCategoryConfirm(portletInstanceCatgory) {
-      this.portletInstanceCategoryToDelete = portletInstanceCatgory;
-      if (this.portletInstanceCategoryToDelete) {
-        this.$refs.deleteConfirmDialog.open();
-      }
+    methods: {
+      deletePortletInstanceCategoryConfirm (portletInstanceCatgory) {
+        this.portletInstanceCategoryToDelete = portletInstanceCatgory;
+        if (this.portletInstanceCategoryToDelete) {
+          this.$refs.deleteConfirmDialog.open();
+        }
+      },
+      deletePortletInstanceCategory (portletInstanceCategory) {
+        this.loading = true;
+        eXo.$portletInstanceCategoryService.deletePortletInstanceCategory(portletInstanceCategory.id)
+          .then(() => {
+            this.$root.$emit('portlet-instance-category-deleted', portletInstanceCategory);
+            this.$root.$emit('alert-message', this.$t('portlets.category.delete.success'), 'success');
+          })
+          .catch(() => this.$root.$emit('alert-message', this.$t('portlets.category.delete.error'), 'error'))
+          .finally(() => this.loading = false);
+      },
     },
-    deletePortletInstanceCategory(portletInstanceCategory) {
-      this.loading = true;
-      this.$portletInstanceCategoryService.deletePortletInstanceCategory(portletInstanceCategory.id)
-        .then(() => {
-          this.$root.$emit('portlet-instance-category-deleted', portletInstanceCategory);
-          this.$root.$emit('alert-message', this.$t('portlets.category.delete.success'), 'success');
-        })
-        .catch(() => this.$root.$emit('alert-message', this.$t('portlets.category.delete.error'), 'error'))
-        .finally(() => this.loading = false);
-    },
-  },
-};
+  };
 </script>

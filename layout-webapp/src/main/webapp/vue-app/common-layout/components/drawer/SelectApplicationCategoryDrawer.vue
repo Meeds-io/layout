@@ -20,11 +20,11 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="selectApplicationCategoryDrawer"
+    ref="drawer"
     v-model="drawer"
-    :loading="$root.loadingPortletInstances"
     allow-expand
+    :loading="$root.loadingPortletInstances"
     right
     @closed="$root.$emit('layout-application-category-drawer-closed')">
     <template #title>
@@ -32,54 +32,54 @@
     </template>
     <template v-if="drawer" #content>
       <v-card
-        max-width="100%"
         class="d-flex flex-wrap mb-4 ms-4 me-2 overflow-hidden"
-        flat>
+        flat
+        max-width="100%">
         <layout-editor-application-category-card
           v-for="category in sortedCategories"
           :key="category.id"
-          :category="category"
           :applications="applications"
+          :category="category"
           class="me-2" />
       </v-card>
     </template>
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    drawer: false,
-    portletInstances: [],
-  }),
-  computed: {
-    portletInstanceCategories() {
-      const portletInstanceCategories = this.$root.portletInstanceCategories.slice();
-      portletInstanceCategories.forEach(c => c.label = this.$te(`layout.${c.name}`) ? this.$t(`layout.${c.name}`) : c.name);
-      return portletInstanceCategories;
+  export default {
+    data: () => ({
+      drawer: false,
+      portletInstances: [],
+    }),
+    computed: {
+      portletInstanceCategories () {
+        const portletInstanceCategories = this.$root.portletInstanceCategories.slice();
+        portletInstanceCategories.forEach(c => c.label = this.$te(`layout.${c.name}`) ? this.$t(`layout.${c.name}`) : c.name);
+        return portletInstanceCategories;
+      },
+      applications () {
+        return this.$root.portletInstances;
+      },
+      sortedCategories () {
+        const categories = this.portletInstanceCategories?.filter?.(c => c.name) || [];
+        categories.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+        return categories;
+      },
     },
-    applications() {
-      return this.$root.portletInstances;
+    created () {
+      this.$root.$on('layout-add-application', this.close);
     },
-    sortedCategories() {
-      const categories = this.portletInstanceCategories?.filter?.(c => c.name) || [];
-      categories.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
-      return categories;
+    beforeUnmount () {
+      this.$root.$off('layout-add-application', this.close);
     },
-  },
-  created() {
-    this.$root.$on('layout-add-application', this.close);
-  },
-  beforeDestroy() {
-    this.$root.$off('layout-add-application', this.close);
-  },
-  methods: {
-    open() {
-      this.$root.$emit('layout-editor-portlet-instances-refresh');
-      this.$refs.drawer.open();
+    methods: {
+      open () {
+        this.$root.$emit('layout-editor-portlet-instances-refresh');
+        this.$refs.drawer.open();
+      },
+      close () {
+        this.$refs.drawer.close();
+      },
     },
-    close() {
-      this.$refs.drawer.close();
-    },
-  },
-};
+  };
 </script>

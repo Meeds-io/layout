@@ -24,15 +24,15 @@
     <!-- Illustration -->
     <!-- name -->
     <td
-      colspan="2"
       align="left"
-      class="pe-0">
+      class="pe-0"
+      colspan="2">
       <div class="d-flex align-center text-start">
         <v-card
-          color="transparent"
-          min-width="35"
           class="me-4 d-flex align-center"
-          flat>
+          color="transparent"
+          flat
+          min-width="35">
           <v-icon size="28">{{ siteTemplate.icon || 'fa-globe' }}</v-icon>
         </v-card>
         <div v-sanitized-html="name" class="text-break"></div>
@@ -40,7 +40,7 @@
     </td>
     <!-- description -->
     <td
-      v-if="!$vuetify.breakpoint.lgAndDown"
+      v-if="!$vuetify.display.lgAndDown.value"
       align="left"
       width="50%">
       <div v-sanitized-html="description" class="text-break"></div>
@@ -50,10 +50,10 @@
       align="center">
       <v-switch
         v-model="enabled"
-        :loading="loading"
         :aria-label="enabled && $t('siteTemplates.label.disableInstance') || $t('siteTemplates.label.enableInstance')"
         class="ma-auto pa-0 width-fit-content"
         hide-details
+        :loading="loading"
         @click="changeStatus" />
     </td>
     <td align="center">
@@ -62,66 +62,66 @@
   </tr>
 </template>
 <script>
-export default {
-  props: {
-    siteTemplate: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      siteTemplate: {
+        type: Object,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    menu: false,
-    hoverMenu: false,
-  }),
-  computed: {
-    siteTemplateId() {
-      return this.siteTemplate?.id;
+    data: () => ({
+      menu: false,
+      hoverMenu: false,
+    }),
+    computed: {
+      siteTemplateId () {
+        return this.siteTemplate?.id;
+      },
+      enabled () {
+        return !this.siteTemplate?.disabled;
+      },
+      name () {
+        return this.$te(this.siteTemplate?.name) ? this.$t(this.siteTemplate?.name) : this.siteTemplate?.name;
+      },
+      description () {
+        return this.$te(this.siteTemplate?.description) ? this.$t(this.siteTemplate?.description) : this.siteTemplate?.description;
+      },
+      illustrationId () {
+        return this.siteTemplate?.illustrationId;
+      },
+      illustrationSrc () {
+        return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/siteTemplate/${this.siteTemplateId}/${this.illustrationId}`;
+      },
     },
-    enabled() {
-      return !this.siteTemplate?.disabled;
+    watch: {
+      hoverMenu () {
+        if (!this.hoverMenu) {
+          window.setTimeout(() => {
+            if (!this.hoverMenu) {
+              this.menu = false;
+            }
+          }, 200);
+        }
+      },
     },
-    name() {
-      return this.$te(this.siteTemplate?.name) ? this.$t(this.siteTemplate?.name) : this.siteTemplate?.name;
+    methods: {
+      changeStatus () {
+        this.$root.$emit('close-alert-message');
+        this.loading = true;
+        eXo.$siteTemplateService.getSiteTemplate(this.siteTemplate.id)
+          .then(siteTemplate => {
+            siteTemplate.disabled = this.enabled;
+            return eXo.$siteTemplateService.updateSiteTemplate(siteTemplate)
+              .then(() => {
+                this.$root.$emit(`site-template-${this.enabled && 'disabled' || 'enabled'}`, siteTemplate);
+              });
+          })
+          .then(() => {
+            this.$root.$emit('alert-message', this.enabled && this.$t('siteTemplates.status.disabled.success') || this.$t('siteTemplates.status.enabled.success'), 'success');
+          })
+          .catch(() => this.$root.$emit('alert-message', this.$t('siteTemplates.status.update.error'), 'error'))
+          .finally(() => this.loading = false);
+      },
     },
-    description() {
-      return this.$te(this.siteTemplate?.description) ? this.$t(this.siteTemplate?.description) : this.siteTemplate?.description;
-    },
-    illustrationId() {
-      return this.siteTemplate?.illustrationId;
-    },
-    illustrationSrc() {
-      return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/siteTemplate/${this.siteTemplateId}/${this.illustrationId}`;
-    },
-  },
-  watch: {
-    hoverMenu() {
-      if (!this.hoverMenu) {
-        window.setTimeout(() => {
-          if (!this.hoverMenu) {
-            this.menu = false;
-          }
-        }, 200);
-      }
-    },
-  },
-  methods: {
-    changeStatus() {
-      this.$root.$emit('close-alert-message');
-      this.loading = true;
-      this.$siteTemplateService.getSiteTemplate(this.siteTemplate.id)
-        .then(siteTemplate => {
-          siteTemplate.disabled = this.enabled;
-          return this.$siteTemplateService.updateSiteTemplate(siteTemplate)
-            .then(() => {
-              this.$root.$emit(`site-template-${this.enabled && 'disabled' || 'enabled'}`, siteTemplate);
-            });
-        })
-        .then(() => {
-          this.$root.$emit('alert-message', this.enabled && this.$t('siteTemplates.status.disabled.success') || this.$t('siteTemplates.status.enabled.success'), 'success');
-        })
-        .catch(() => this.$root.$emit('alert-message', this.$t('siteTemplates.status.update.error'), 'error'))
-        .finally(() => this.loading = false);
-    },
-  },
-};
+  };
 </script>

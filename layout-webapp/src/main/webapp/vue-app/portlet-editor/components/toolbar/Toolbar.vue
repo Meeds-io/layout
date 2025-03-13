@@ -21,12 +21,12 @@
 <template>
   <v-card
     class="d-flex align-center no-border-radius border-box-sizing px-4 layout-sticky-top-bar"
+    flat
     height="57"
     min-width="100vw"
-    width="100vw"
-    flat>
+    width="100vw">
     <v-icon class="icon-default-color">fa-pager</v-icon>
-    <span class="px-2" v-sanitized-html="title"></span>
+    <span v-sanitized-html="title" class="px-2"></span>
     <v-spacer />
     <portlet-editor-toolbar-edit-button
       v-if="canSwitchToEditMode"
@@ -40,41 +40,41 @@
   </v-card>
 </template>
 <script>
-export default {
-  data: () => ({
-    saveButtonExtension: null,
-  }),
-  computed: {
-    title() {
-      return this.$t('layout.editPortletInstance', {0: `<strong>${this.$root?.portletInstance?.name}</strong>`});
-    },
-    canSwitchToEditMode() {
-      return this.$root.portletInstance?.supportedModes?.find?.(mode => mode === 'edit');
-    },
-    extendedComponentOptions() {
-      return this.saveButtonExtension
-        && (!this.saveButtonExtension.portletMode
+  export default {
+    data: () => ({
+      saveButtonExtension: null,
+    }),
+    computed: {
+      title () {
+        return this.$t('layout.editPortletInstance', { 0: `<strong>${this.$root?.portletInstance?.name}</strong>` });
+      },
+      canSwitchToEditMode () {
+        return this.$root.portletInstance?.supportedModes?.find?.(mode => mode === 'edit');
+      },
+      extendedComponentOptions () {
+        return this.saveButtonExtension
+          && (!this.saveButtonExtension.portletMode
             || this.saveButtonExtension.portletMode === this.$root.portletMode)
-        && {
-          componentName: this.saveButtonExtension.id,
-          componentOptions: {
-            vueComponent: this.saveButtonExtension.component,
-          },
-        };
+          && {
+            componentName: this.saveButtonExtension.id,
+            componentOptions: {
+              vueComponent: this.saveButtonExtension.component,
+            },
+          };
+      },
     },
-  },
-  created() {
-    document.addEventListener('extension-Layout-PortletEditorSaveButton-updated', this.refreshSaveButtonExtension);
-    this.refreshSaveButtonExtension();
-  },
-  mounted() {
-    document.querySelector('#vuetify-apps').append(this.$el);
-  },
-  methods: {
-    refreshSaveButtonExtension() {
-      const extensions = extensionRegistry.loadExtensions('Layout', 'PortletEditorSaveButton');
-      this.saveButtonExtension = extensions?.[0];
+    created () {
+      document.addEventListener('extension-Layout-PortletEditorSaveButton-updated', this.refreshSaveButtonExtension);
+      this.refreshSaveButtonExtension();
     },
-  },
-};
+    mounted () {
+      document.querySelector('#vuetify-apps').append(this.$el);
+    },
+    methods: {
+      refreshSaveButtonExtension () {
+        const extensions = extensionRegistry.loadExtensions('Layout', 'PortletEditorSaveButton');
+        this.saveButtonExtension = extensions?.[0];
+      },
+    },
+  };
 </script>

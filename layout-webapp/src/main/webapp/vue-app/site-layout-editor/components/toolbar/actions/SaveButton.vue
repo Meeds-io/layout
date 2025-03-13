@@ -23,14 +23,14 @@
   <v-tooltip v-if="canSave" bottom>
     <template #activator="{on, attrs}">
       <div
-        v-on="on"
-        v-bind="attrs">
+        v-bind="attrs"
+        v-on="on">
         <v-btn
-          :disabled="disabled"
-          :loading="loading"
           :aria-label="$t('layout.publish')"
           class="btn btn-primary d-flex align-center"
+          :disabled="disabled"
           elevation="0"
+          :loading="loading"
           @click="savePage">
           <span class="text-none">{{ $t('layout.publish') }}</span>
         </v-btn>
@@ -40,33 +40,33 @@
   </v-tooltip>
 </template>
 <script>
-export default {
-  props: {
-    disabled: {
-      type: Boolean,
-      default: false,
+  export default {
+    props: {
+      disabled: {
+        type: Boolean,
+        default: false,
+      },
     },
-  },
-  data: () => ({
-    loading: false,
-  }),
-  computed: {
-    canSave() {
-      return eXo.env.portal.selectedNodeId !== this.$root.nodeId;
+    data: () => ({
+      loading: false,
+    }),
+    computed: {
+      canSave () {
+        return eXo.env.portal.selectedNodeId !== this.$root.nodeId;
+      },
     },
-  },
-  methods: {
-    savePage() {
-      if (!this.canSave) {
-        return;
-      }
-      this.loading = true;
-      const layoutToUpdate = this.$layoutUtils.cleanAttributes(this.$root.layout, false, true);
-      return this.$siteLayoutService.updateSiteLayout(this.$root.siteType, this.$root.siteName, layoutToUpdate, 'contentId', true)
-        .then(() => this.$root.$emit('layout-site-saved'))
-        .catch(e => this.$root.$emit('alert-message', this.$te(e.message) ? this.$t(e.message) : this.$t('layout.siteSavingError'), 'error'))
-        .finally(() => window.setTimeout(() => this.loading = false));
+    methods: {
+      savePage () {
+        if (!this.canSave) {
+          return;
+        }
+        this.loading = true;
+        const layoutToUpdate = eXo.$layoutUtils.cleanAttributes(this.$root.layout, false, true);
+        return eXo.$siteLayoutService.updateSiteLayout(this.$root.siteType, this.$root.siteName, layoutToUpdate, 'contentId', true)
+          .then(() => this.$root.$emit('layout-site-saved'))
+          .catch(e => this.$root.$emit('alert-message', this.$te(e.message) ? this.$t(e.message) : this.$t('layout.siteSavingError'), 'error'))
+          .finally(() => window.setTimeout(() => this.loading = false));
+      },
     },
-  },
-};
+  };
 </script>

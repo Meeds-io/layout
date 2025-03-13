@@ -35,12 +35,12 @@ const lang = eXo?.env.portal.language || 'en';
 const url = `/layout/i18n/locale.portlet.LayoutEditor?lang=${lang}`;
 
 const appId = 'portletsManagement';
-export function init() {
+export function init () {
   exoi18n.loadLanguageAsync(lang, url)
     .then(i18n =>
       Vue.createApp({
         template: `<portlets-management id="${appId}"/>`,
-        vuetify: Vue.prototype.vuetifyOptions,
+        vuetify: eXo.vuetify,
         i18n,
         data: () => ({
           portlets: [],
@@ -48,26 +48,26 @@ export function init() {
           portletInstanceCategories: [],
           selectedCategoryId: null,
           loading: 0,
-          collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
+          collator: new Intl.Collator(eXo.env.portal.language, { numeric: true, sensitivity: 'base' }),
         }),
         computed: {
-          isMobile() {
-            return this.$vuetify.breakpoint.smAndDown;
+          isMobile () {
+            return eXo.vuetify.display.smAndDown.value;
           },
-          categoriesById() {
+          categoriesById () {
             return this.portletInstanceCategories.reduce((a, v) => {
               a[v.id] = v;
               return a;
             }, {});
           },
-          portletsById() {
+          portletsById () {
             return this.portlets.reduce((a, v) => {
               a[v.contentId] = v;
               return a;
             }, {});
           },
         },
-        created() {
+        created () {
           this.$root.$on('portlet-instance-enabled', this.refreshPortletInstances);
           this.$root.$on('portlet-instance-disabled', this.refreshPortletInstances);
           this.$root.$on('portlet-instance-saved', this.refreshPortletInstances);
@@ -83,30 +83,30 @@ export function init() {
           this.refreshPortletInstanceCategories();
         },
         methods: {
-          propagateEventListenerLocally(event) {
+          propagateEventListenerLocally (event) {
             this.$root.$emit(event.type, event.detail);
           },
-          selectCategory(categoryId) {
+          selectCategory (categoryId) {
             this.selectedCategoryId = categoryId;
           },
-          refreshPortlets() {
+          refreshPortlets () {
             this.loading++;
-            return this.$portletService.getPortlets()
-              .then(data => this.portlets = data.map(p => ({...p,
+            return eXo.$portletService.getPortlets()
+              .then(data => this.portlets = data.map(p => ({ ...p,
                 name: this.$te(`layout.portletInstance.${p?.portletName}.name`) ? this.$t(`layout.portletInstance.${p?.portletName}.name`) : p?.name,
                 description: this.$te(`layout.portletInstance.${p?.portletName}.description`) ? this.$t(`layout.portletInstance.${p?.portletName}.description`) : p?.description,
               })) || [])
               .finally(() => this.loading--);
           },
-          refreshPortletInstances() {
+          refreshPortletInstances () {
             this.loading++;
-            return this.$portletInstanceService.getPortletInstances()
+            return eXo.$portletInstanceService.getPortletInstances()
               .then(data => this.portletInstances = data || [])
               .finally(() => this.loading--);
           },
-          refreshPortletInstanceCategories() {
+          refreshPortletInstanceCategories () {
             this.loading++;
-            return this.$portletInstanceCategoryService.getPortletInstanceCategories()
+            return eXo.$portletInstanceCategoryService.getPortletInstanceCategories()
               .then(data => this.portletInstanceCategories = data || [])
               .finally(() => this.loading--);
           },

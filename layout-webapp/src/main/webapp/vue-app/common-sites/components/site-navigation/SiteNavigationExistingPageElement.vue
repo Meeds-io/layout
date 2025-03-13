@@ -33,39 +33,39 @@
       :all-sites="allSites"
       :class="!allSites && 'mb-8'" />
     <site-navigation-page-suggester
-      :page="selectedPage"
       :all-sites="allSites"
-      :site-type="selectedSiteNavigation?.siteType"
-      :site-name="selectedSiteNavigation?.name" />
+      :page="selectedPage"
+      :site-name="selectedSiteNavigation?.name"
+      :site-type="selectedSiteNavigation?.siteType" />
   </div>
 </template>
 
 <script>
-export default {
-  props: {
-    selectedPage: {
-      type: Object,
-      default: null
-    }
-  },
-  data() {
-    return {
-      allSites: true,
-      selectedSiteNavigation: null,
-    };
-  },
-  computed: {
-    allSitesChipClass() {
-      return this.allSites && 'primary' || '';
+  export default {
+    props: {
+      selectedPage: {
+        type: Object,
+        default: null,
+      },
     },
-    selectSiteChipClass() {
-      return !this.allSites &&'primary' || '';
+    data () {
+      return {
+        allSites: true,
+        selectedSiteNavigation: null,
+      };
     },
-  },
-  watch: {
-    allSites(){
-      this.selectedSiteNavigation = null;
+    computed: {
+      allSitesChipClass () {
+        return this.allSites && 'primary' || '';
+      },
+      selectSiteChipClass () {
+        return !this.allSites &&'primary' || '';
+      },
     },
-  },
-};
+    watch: {
+      allSites (){
+        this.selectedSiteNavigation = null;
+      },
+    },
+  };
 </script>

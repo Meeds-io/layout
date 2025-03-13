@@ -28,8 +28,8 @@
     </div>
     <v-radio-group v-model="isAdministrationPermissions" class="mt-0">
       <v-radio
-        :value="true"
-        class="mt-0 ms-n1">
+        class="mt-0 ms-n1"
+        :value="true">
         <template #label>
           <div class="text-body">
             {{ $t('sites.permission.administrators') }}
@@ -37,8 +37,8 @@
         </template>
       </v-radio>
       <v-radio
-        :value="false"
-        class="mt-0 ms-n1">
+        class="mt-0 ms-n1"
+        :value="false">
         <template #label>
           <div class="text-body">
             {{ $t('sites.permission.groupMembers') }}
@@ -50,111 +50,111 @@
       v-if="!isAdministrationPermissions"
       ref="targetPermissions"
       v-model="specificGroupEntry"
-      :labels="suggesterLabels"
-      :search-options="{filterType: 'all'}"
-      name="specificGroupPermission"
-      class="mb-n3 mt-n3"
-      include-spaces
-      include-groups
       all-groups-for-admin
-      required />
+      class="mb-n3 mt-n3"
+      include-groups
+      include-spaces
+      :labels="suggesterLabels"
+      name="specificGroupPermission"
+      required
+      :search-options="{filterType: 'all'}" />
   </div>
 </template>
 <script>
-export default {
-  props: {
-    value: {
-      type: String,
-      default: null,
+  export default {
+    props: {
+      value: {
+        type: String,
+        default: null,
+      },
+      isSite: {
+        type: Boolean,
+        default: false,
+      },
     },
-    isSite: {
-      type: Boolean,
-      default: false,
+    data: () => ({
+      administratorsPermission: '/platform/administrators',
+      isAdministrationPermissions: true,
+      specificGroupEntry: null,
+    }),
+    computed: {
+      isSpecificGroup () {
+        return this.specificGroupEntry;
+      },
+      permission () {
+        if (!this.isAdministrationPermissions && this.specificGroupEntry?.groupId) {
+          return `*:${this.specificGroupEntry.groupId}`;
+        } else {
+          return `*:${this.administratorsPermission}`;
+        }
+      },
+      suggesterLabels () {
+        return {
+          placeholder: this.$t('sites.permissionSuggester.placeholder'),
+          noDataLabel: this.$t('sites.permissionSuggester.noData'),
+        };
+      },
     },
-  },
-  data: () => ({
-    administratorsPermission: '/platform/administrators',
-    isAdministrationPermissions: true,
-    specificGroupEntry: null,
-  }),
-  computed: {
-    isSpecificGroup() {
-      return this.specificGroupEntry;
+    watch: {
+      permission () {
+        this.$emit('input', this.permission);
+      },
+      isAdministrationPermissions () {
+        if (this.isAdministrationPermissions) {
+          this.specificGroupEntry = null;
+        }
+      },
     },
-    permission() {
-      if (!this.isAdministrationPermissions && this.specificGroupEntry?.groupId) {
-        return `*:${this.specificGroupEntry.groupId}`;
-      } else {
-        return `*:${this.administratorsPermission}`;
-      }
-    },
-    suggesterLabels() {
-      return {
-        placeholder: this.$t('sites.permissionSuggester.placeholder'),
-        noDataLabel: this.$t('sites.permissionSuggester.noData')
-      };
-    },
-  },
-  watch: {
-    permission() {
-      this.$emit('input', this.permission);
-    },
-    isAdministrationPermissions() {
+    async created () {
+      const permission = this.value?.includes?.(':') ? this.value?.split?.(':')?.[1] : this.value;
+      this.isAdministrationPermissions = permission === this.administratorsPermission;
       if (this.isAdministrationPermissions) {
+        this.specificGroupEntry = null;
+      } else if (permission) {
+        await this.retrieveObject(permission);
+      } else {
+        this.isAdministrationPermissions = true;
         this.specificGroupEntry = null;
       }
     },
-  },
-  async created() {
-    const permission = this.value?.includes?.(':') ? this.value?.split?.(':')?.[1] : this.value;
-    this.isAdministrationPermissions = permission === this.administratorsPermission;
-    if (this.isAdministrationPermissions) {
-      this.specificGroupEntry = null;
-    } else if (permission) {
-      await this.retrieveObject(permission);
-    } else {
-      this.isAdministrationPermissions = true;
-      this.specificGroupEntry = null;
-    }
-  },
-  methods: {
-    async retrieveObject(groupId) {
-      groupId = groupId.includes(':') ? groupId.split(':')[1] : groupId;
-      if (groupId.indexOf('/spaces/') === 0) {
-        const space = await this.$spaceService.getSpaceByGroupId(groupId);
-        if (space) {
-          this.specificGroupEntry = {
-            id: `space:${space.prettyName}`,
-            remoteId: space.prettyName,
-            spaceId: space.id,
-            groupId: space.groupId,
-            providerId: 'space',
-            displayName: space.displayName,
-            profile: {
-              fullName: space.displayName,
-              originalName: space.shortName,
-              avatarUrl: space.avatarUrl ? space.avatarUrl : `/portal/rest/v1/social/spaces/${space.prettyName}/avatar`,
-            },
-          };
+    methods: {
+      async retrieveObject (groupId) {
+        groupId = groupId.includes(':') ? groupId.split(':')[1] : groupId;
+        if (groupId.indexOf('/spaces/') === 0) {
+          const space = await eXo.$spaceService.getSpaceByGroupId(groupId);
+          if (space) {
+            this.specificGroupEntry = {
+              id: `space:${space.prettyName}`,
+              remoteId: space.prettyName,
+              spaceId: space.id,
+              groupId: space.groupId,
+              providerId: 'space',
+              displayName: space.displayName,
+              profile: {
+                fullName: space.displayName,
+                originalName: space.shortName,
+                avatarUrl: space.avatarUrl ? space.avatarUrl : `/portal/rest/v1/social/spaces/${space.prettyName}/avatar`,
+              },
+            };
+          }
+        } else {
+          const group = await eXo.$identityService.getIdentityByProviderIdAndRemoteId('group', groupId);
+          if (group) {
+            this.specificGroupEntry = {
+              id: `group:${group.remoteId}`,
+              remoteId: group.remoteId,
+              spaceId: groupId,
+              groupId,
+              providerId: 'group',
+              displayName: group.profile?.fullname,
+              profile: {
+                fullName: group.profile?.fullname,
+                originalName: group.profile?.fullname,
+              },
+            };
+          }
         }
-      } else {
-        const group = await this.$identityService.getIdentityByProviderIdAndRemoteId('group', groupId);
-        if (group) {
-          this.specificGroupEntry = {
-            id: `group:${group.remoteId}`,
-            remoteId: group.remoteId,
-            spaceId: groupId,
-            groupId: groupId,
-            providerId: 'group',
-            displayName: group.profile?.fullname,
-            profile: {
-              fullName: group.profile?.fullname,
-              originalName: group.profile?.fullname,
-            },
-          };
-        }
-      }
+      },
     },
-  },
-};
+  };
 </script>

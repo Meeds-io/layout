@@ -27,21 +27,21 @@
       <div
         ref="menu"
         class="layout-no-multi-select absolute-horizontal-center z-index-drawer t-0 mt-n4">
-        <v-chip color="white" class="elevation-2 no-border">
+        <v-chip class="elevation-2 no-border" color="white">
           <v-tooltip bottom>
             <template #activator="{on, attrs}">
               <v-btn
                 v-show="$root.desktopDisplayMode"
-                v-on="on"
                 v-bind="attrs"
                 :aria-label="$t('layout.moveCell')"
-                :width="iconSize"
-                :height="iconSize"
                 class="draggable-cell ms-2"
+                :height="iconSize"
                 icon
+                :width="iconSize"
+                v-on="on"
                 @mousedown="dragStart"
                 @mouseup="dragEnd">
-                <v-icon :size="iconSize" class="icon-default-color">fa-arrows-alt</v-icon>
+                <v-icon class="icon-default-color" :size="iconSize">fa-arrows-alt</v-icon>
               </v-btn>
             </template>
             {{ $t('layout.moveCell') }}
@@ -49,15 +49,15 @@
           <v-tooltip bottom>
             <template #activator="{on, attrs}">
               <v-btn
-                v-on="on"
                 v-bind="attrs"
                 :aria-label="$t('layout.editApplication')"
-                :width="iconSize"
-                :height="iconSize"
                 class="mx-4"
+                :height="iconSize"
                 icon
+                :width="iconSize"
+                v-on="on"
                 @click.prevent.stop="$root.$emit('layout-edit-application', sectionId, container, applicationCategoryTitle, applicationTitle)">
-                <v-icon :size="iconSize" class="icon-default-color">fa-edit</v-icon>
+                <v-icon class="icon-default-color" :size="iconSize">fa-edit</v-icon>
               </v-btn>
             </template>
             {{ $t('layout.editApplication') }}
@@ -65,15 +65,15 @@
           <v-tooltip bottom>
             <template #activator="{on, attrs}">
               <v-btn
-                v-on="on"
                 v-bind="attrs"
                 :aria-label="$t('layout.deleteApplication')"
-                :width="iconSize"
-                :height="iconSize"
                 class="me-2"
+                :height="iconSize"
                 icon
+                :width="iconSize"
+                v-on="on"
                 @click.prevent.stop="$root.$emit('layout-delete-application', sectionId, container)">
-                <v-icon :size="iconSize" class="icon-default-color">fa-trash</v-icon>
+                <v-icon class="icon-default-color" :size="iconSize">fa-trash</v-icon>
               </v-btn>
             </template>
             {{ $t('layout.deleteApplication') }}
@@ -84,87 +84,87 @@
   </v-fade-transition>
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      section: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
+      applicationTitle: {
+        type: String,
+        default: null,
+      },
+      applicationCategoryTitle: {
+        type: String,
+        default: null,
+      },
     },
-    section: {
-      type: Object,
-      default: null,
+    data: () => ({
+      iconSize: 20,
+      menu: false,
+    }),
+    computed: {
+      sectionId () {
+        return this.section?.storageId;
+      },
+      isDynamicSection () {
+        return this.section?.template === eXo.$layoutUtils.flexTemplate
+          || this.section?.template === eXo.$layoutUtils.bannerCellTemplate
+          || this.section?.template === eXo.$layoutUtils.sidebarCellTemplate;
+      },
+      drawerOpened () {
+        return this.$root.drawerOpened;
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    watch: {
+      drawerOpened () {
+        if (this.drawerOpened) {
+          this.hideMenu();
+        }
+      },
     },
-    applicationTitle: {
-      type: String,
-      default: null,
+    methods: {
+      displayMenu () {
+        if (this.$root.movingParentId) {
+          return;
+        }
+        this.$root.hoveredSection = this.section;
+        this.$root.hoveredApplication = this.container;
+        this.$root.hoveredParentId = this.parentId;
+        this.menu = true;
+      },
+      hideMenu () {
+        if (this.$root.movingParentId) {
+          return;
+        }
+        this.$root.hoveredSection = null;
+        this.$root.hoveredApplication = null;
+        this.$root.hoveredParentId = null;
+        this.menu = false;
+      },
+      dragEnd () {
+        if (this.isDynamicSection) {
+          this.$emit('move-end');
+        }
+      },
+      dragStart (event) {
+        if (event.button !== 0) {
+          return;
+        }
+        if (!this.isDynamicSection) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        this.$emit('move-start', event, 'drag', this.container);
+      },
     },
-    applicationCategoryTitle: {
-      type: String,
-      default: null,
-    },
-  },
-  data: () => ({
-    iconSize: 20,
-    menu: false,
-  }),
-  computed: {
-    sectionId() {
-      return this.section?.storageId;
-    },
-    isDynamicSection() {
-      return this.section?.template === this.$layoutUtils.flexTemplate
-        || this.section?.template === this.$layoutUtils.bannerCellTemplate
-        || this.section?.template === this.$layoutUtils.sidebarCellTemplate;
-    },
-    drawerOpened() {
-      return this.$root.drawerOpened;
-    },
-  },
-  watch: {
-    drawerOpened() {
-      if (this.drawerOpened) {
-        this.hideMenu();
-      }
-    },
-  },
-  methods: {
-    displayMenu() {
-      if (this.$root.movingParentId) {
-        return;
-      }
-      this.$root.hoveredSection = this.section;
-      this.$root.hoveredApplication = this.container;
-      this.$root.hoveredParentId = this.parentId;
-      this.menu = true;
-    },
-    hideMenu() {
-      if (this.$root.movingParentId) {
-        return;
-      }
-      this.$root.hoveredSection = null;
-      this.$root.hoveredApplication = null;
-      this.$root.hoveredParentId = null;
-      this.menu = false;
-    },
-    dragEnd() {
-      if (this.isDynamicSection) {
-        this.$emit('move-end');
-      }
-    },
-    dragStart(event) {
-      if (event.button !== 0) {
-        return;
-      }
-      if (!this.isDynamicSection) {
-        event.preventDefault();
-        event.stopPropagation();
-      }
-      this.$emit('move-start', event, 'drag', this.container);
-    },
-  },
-};
+  };
 </script>

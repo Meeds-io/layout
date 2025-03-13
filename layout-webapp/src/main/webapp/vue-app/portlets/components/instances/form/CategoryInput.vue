@@ -24,60 +24,60 @@
     <v-autocomplete
       ref="autocomplete"
       v-model="categoryId"
-      :items="sortedCategories"
-      :placeholder="$t('layout.category.placeholder')"
+      chips
       class="portlet-instance-category-autocomplete ma-0 pa-0"
-      item-value="id"
-      item-text="name"
-      outlined
       dense
-      chips />
+      item-text="name"
+      item-value="id"
+      :items="sortedCategories"
+      outlined
+      :placeholder="$t('layout.category.placeholder')" />
   </div>
 </template>
 <script>
-export default {
-  props: {
-    value: {
-      type: Number,
-      default: () => 0,
-    },
-  },
-  data: () => ({
-    categoryId: null,
-  }),
-  computed: {
-    sortedCategories() {
-      const categories = this.$root.portletInstanceCategories?.filter?.(c => c.name) || [];
-      categories.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
-      return categories;
-    },
-  },
-  watch: {
-    value: {
-      immediate: true,
-      handler() {
-        this.categoryId = this.value;
+  export default {
+    props: {
+      value: {
+        type: Number,
+        default: () => 0,
       },
     },
-    categoryId() {
-      if (this.categoryId !== this.value) {
-        this.$emit('input', this.categoryId);
-      }
+    data: () => ({
+      categoryId: null,
+    }),
+    computed: {
+      sortedCategories () {
+        const categories = this.$root.portletInstanceCategories?.filter?.(c => c.name) || [];
+        categories.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+        return categories;
+      },
     },
-  },
-  created() {
-    document.addEventListener('click', this.closeMenu);
-  },
-  beforeDestroy() {
-    document.removeEventListener('click', this.closeMenu);
-  },
-  methods: {
-    closeMenu(event) {
-      if (this?.$refs?.autocomplete
+    watch: {
+      value: {
+        immediate: true,
+        handler () {
+          this.categoryId = this.value;
+        },
+      },
+      categoryId () {
+        if (this.categoryId !== this.value) {
+          this.$emit('input', this.categoryId);
+        }
+      },
+    },
+    created () {
+      document.addEventListener('click', this.closeMenu);
+    },
+    beforeUnmount () {
+      document.removeEventListener('click', this.closeMenu);
+    },
+    methods: {
+      closeMenu (event) {
+        if (this?.$refs?.autocomplete
           && !event?.target?.closest?.('.portlet-instance-category-autocomplete')) {
-        this.$refs.autocomplete.blur();
-      }
+          this.$refs.autocomplete.blur();
+        }
+      },
     },
-  }
-};
+  };
 </script>

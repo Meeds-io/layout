@@ -22,22 +22,22 @@
     <v-hover
       v-model="hover">
       <div
-        :style="containerStyle"
+        class="d-flex flex-column rounded pa-2 hover-elevation card-selection position-relative"
         :class="selected && 'selected'"
-        class="d-flex flex-column rounded pa-2 hover-elevation card-selection position-relative">
+        :style="containerStyle">
         <p
           v-if="title"
           v-sanitized-html="title"
           class="mb-0 font-weight-regular text-truncate-2"></p>
         <div class="d-flex flex-grow-1 align-center">
           <div
-            :style="imageContainerStyle"
-            class="overflow-hidden">
+            class="overflow-hidden"
+            :style="imageContainerStyle">
             <img
-              :src="illustrationSrc"
               :alt="title"
-              :style="imageStyle"
-              class="align-center mx-auto object-fit-cover">
+              class="align-center mx-auto object-fit-cover"
+              :src="illustrationSrc"
+              :style="imageStyle">
           </div>
         </div>
         <div
@@ -54,15 +54,15 @@
             class="white--text mb-0 text-subtitle text-truncate-3"></p>
           <div class="d-flex flex-grow-1 align-end justify-end">
             <v-btn
-              small
               class="btn btn-primary me-2"
+              small
               @click.prevent.stop="$emit('select')">
               {{ $t('siteNavigation.label.use') }}
             </v-btn>
             <v-btn
-              small
               class="btn"
               color="white"
+              small
               @click="$root.$emit('layout-illustration-preview', illustrationSrc, illustrationAction)">
               {{ $t('siteNavigation.label.templatePreview') }}
             </v-btn>
@@ -73,74 +73,74 @@
   </div>
 </template>
 <script>
-export default {
-  props: {
-    expand: {
-      type: Boolean,
-      default: false
+  export default {
+    props: {
+      expand: {
+        type: Boolean,
+        default: false,
+      },
+      pageTemplate: {
+        type: Object,
+        default: null,
+      },
+      selected: {
+        type: Boolean,
+        default: false,
+      },
     },
-    pageTemplate: {
-      type: Object,
-      default: null
+    data: () => ({
+      hover: false,
+    }),
+    computed: {
+      title () {
+        return this.pageTemplate?.name;
+      },
+      description () {
+        return this.pageTemplate?.description;
+      },
+      illustrationId () {
+        return this.pageTemplate?.illustrationId;
+      },
+      pageTemplateId () {
+        return this.pageTemplate?.id;
+      },
+      illustrationSrc () {
+        return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/pageTemplate/${this.pageTemplateId}/${this.illustrationId}` ||  '/layout/images/page-templates/DefaultPreview.webp';
+      },
+      imageStyle () {
+        return {
+          'max-width': '100%',
+          'min-width': '100%',
+          'min-height': '100%',
+        };
+      },
+      imageContainerStyle () {
+        return {
+          'max-width': '100%',
+          'min-width': '100%',
+          'min-height': '80px',
+          'max-height': '80px',
+          'height': '80px',
+        };
+      },
+      containerStyle () {
+        return {
+          'max-width': '100%',
+          'min-width': '100%',
+          'min-height': '150px',
+          'max-height': '150px',
+          'height': '150px',
+        };
+      },
+      illustrationAction () {
+        return {
+          label: this.$t('siteNavigation.label.templateAdd'),
+          closeOnClick: true,
+          click: () => this.$emit('select'),
+        };
+      },
     },
-    selected: {
-      type: Boolean,
-      default: false
-    }
-  },
-  data: () => ({
-    hover: false,
-  }),
-  computed: {
-    title() {
-      return this.pageTemplate?.name;
-    },
-    description() {
-      return this.pageTemplate?.description;
-    },
-    illustrationId() {
-      return this.pageTemplate?.illustrationId;
-    },
-    pageTemplateId() {
-      return this.pageTemplate?.id;
-    },
-    illustrationSrc() {
-      return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/pageTemplate/${this.pageTemplateId}/${this.illustrationId}` ||  '/layout/images/page-templates/DefaultPreview.webp';
-    },
-    imageStyle() {
-      return {
-        'max-width': '100%',
-        'min-width': '100%',
-        'min-height': '100%'
-      };
-    },
-    imageContainerStyle() {
-      return {
-        'max-width': '100%',
-        'min-width': '100%',
-        'min-height': '80px',
-        'max-height': '80px',
-        'height': '80px'
-      };
-    },
-    containerStyle() {
-      return {
-        'max-width': '100%',
-        'min-width': '100%',
-        'min-height': '150px',
-        'max-height': '150px',
-        'height': '150px'
-      };
-    },
-    illustrationAction() {
-      return {
-        label: this.$t('siteNavigation.label.templateAdd'),
-        closeOnClick: true,
-        click: () => this.$emit('select'),
-      };
-    },
-  },
-};
+  };
 
 
 </script>

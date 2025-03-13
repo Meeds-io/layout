@@ -33,20 +33,20 @@
         icon: 'fa-grip-horizontal',
       }]
     }"
+    class="border-box-sizing px-1"
     :right-text-filter="{
       minCharacters: 1,
       placeholder: $t('portlets.filter.placeholder'),
       tooltip: $t('portlets.filter.placeholder'),
     }"
-    class="border-box-sizing px-1"
-    @toggle-select="$emit('select-tab', $event)"
-    @filter-text-input="$emit('portlet-instance-filter', $event)">
+    @filter-text-input="$emit('portlet-instance-filter', $event)"
+    @toggle-select="$emit('select-tab', $event)">
     <template v-if="!$root.isMobile && tabName === 'instances'" #left>
       <v-btn
         id="applicationToolbarLeftButton"
         :aria-label="$t('layout.portletInstance.add')"
-        :class="$root.isMobile && 'px-0'"
         class="btn btn-primary text-truncate"
+        :class="$root.isMobile && 'px-0'"
         @click="$root.$emit('portlet-instance-add')">
         <v-icon
           size="18">
@@ -62,12 +62,12 @@
   </application-toolbar>
 </template>
 <script>
-export default {
-  props: {
-    tabName: {
-      type: String,
-      default: null,
-    }
-  },
-};
+  export default {
+    props: {
+      tabName: {
+        type: String,
+        default: null,
+      },
+    },
+  };
 </script>

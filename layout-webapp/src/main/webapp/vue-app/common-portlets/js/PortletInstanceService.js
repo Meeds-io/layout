@@ -17,7 +17,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-export function getPortletInstances(categoryId) {
+export function getPortletInstances (categoryId) {
   return fetch(`/layout/rest/portlet/instances${categoryId && `?categoryId=${categoryId}` || ''}`, {
     method: 'GET',
     credentials: 'include',
@@ -30,7 +30,7 @@ export function getPortletInstances(categoryId) {
   });
 }
 
-export function getPortletInstance(id) {
+export function getPortletInstance (id) {
   return fetch(`/layout/rest/portlet/instances/${id}`, {
     method: 'GET',
     credentials: 'include',
@@ -43,7 +43,7 @@ export function getPortletInstance(id) {
   });
 }
 
-export function getPortletInstancePreferences(id) {
+export function getPortletInstancePreferences (id) {
   return fetch(`/layout/rest/portlet/instances/${id}/preferences`, {
     method: 'GET',
     credentials: 'include',
@@ -56,7 +56,7 @@ export function getPortletInstancePreferences(id) {
   });
 }
 
-export function createPortletInstance(portletInstance) {
+export function createPortletInstance (portletInstance) {
   return fetch('/layout/rest/portlet/instances', {
     credentials: 'include',
     method: 'POST',
@@ -64,7 +64,7 @@ export function createPortletInstance(portletInstance) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(portletInstance),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -73,7 +73,7 @@ export function createPortletInstance(portletInstance) {
   });
 }
 
-export function updatePortletInstance(portletInstance) {
+export function updatePortletInstance (portletInstance) {
   return fetch(`/layout/rest/portlet/instances/${portletInstance.id}`, {
     credentials: 'include',
     method: 'PUT',
@@ -81,18 +81,18 @@ export function updatePortletInstance(portletInstance) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(portletInstance),
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when updating portlet instance');
     }
   });
 }
 
-export function deletePortletInstance(id) {
+export function deletePortletInstance (id) {
   return fetch(`/layout/rest/portlet/instances/${id}`, {
     credentials: 'include',
     method: 'DELETE',
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when deleting portlet instance');
     }

@@ -22,19 +22,19 @@
 <template>
   <application-toolbar
     id="siteTemplatesToolbar"
+    class="border-box-sizing px-1"
     :right-text-filter="{
       minCharacters: 1,
       placeholder: $t('siteTemplates.filter.placeholder'),
       tooltip: $t('siteTemplates.filter.placeholder'),
     }"
-    class="border-box-sizing px-1"
     @filter-text-input="$emit('site-template-filter', $event)">
     <template v-if="!$root.isMobile" #left>
       <v-btn
         id="applicationToolbarLeftButton"
         :aria-label="$t('layout.siteTemplates.add')"
-        :class="$root.isMobile && 'px-0'"
         class="btn btn-primary text-truncate"
+        :class="$root.isMobile && 'px-0'"
         @click="$root.$emit('site-template-add')">
         <v-icon
           size="18">

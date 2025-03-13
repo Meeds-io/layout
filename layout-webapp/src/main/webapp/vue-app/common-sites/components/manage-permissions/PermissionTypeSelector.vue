@@ -21,11 +21,11 @@
     <span class="text-capitalize clickable" @click="showMenu = true"> {{ getMembershipTypeLabel(membershipType) }}</span>
     <v-menu
       v-model="showMenu"
-      transition="slide-x-reverse-transition"
       bottom
-      offset-y
+      :close-on-content-click="false"
       left
-      :close-on-content-click="false">
+      offset-y
+      transition="slide-x-reverse-transition">
       <template #activator="{ on, attrs }">
         <v-btn
           icon
@@ -41,10 +41,10 @@
       <v-list
         class="pa-0">
         <v-list-item
-          class="custom-list-item-min-height"
           v-for="(membershipTypeItem, index) in membershipTypes"
-          :key="index">
-          <v-list-item-title @click="membershipType = membershipTypeItem.name" class="clickable text-capitalize">
+          :key="index"
+          class="custom-list-item-min-height">
+          <v-list-item-title class="clickable text-capitalize" @click="membershipType = membershipTypeItem.name">
             <span class="text-font-size clickable">
               {{ getMembershipTypeLabel(membershipTypeItem.name) }}
             </span>
@@ -56,52 +56,52 @@
 </template>
 
 <script>
-export default {
-  props: {
-    membershipType: {
-      type: String,
-      default: '*',
+  export default {
+    props: {
+      membershipType: {
+        type: String,
+        default: '*',
+      },
     },
-  },
-  data: () => ({
-    membershipTypes: [],
-    showMenu: false,
-  }),
-  watch: {
-    membershipType() {
-      this.$emit('membership-type-changed', this.membershipType);
+    data: () => ({
+      membershipTypes: [],
+      showMenu: false,
+    }),
+    watch: {
+      membershipType () {
+        this.$emit('membership-type-changed', this.membershipType);
+      },
+      showMenu () {
+        if (this.showMenu) {
+          document.addEventListener('mousedown', this.closeMenu);
+        } else {
+          document.removeEventListener('mousedown', this.closeMenu);
+        }
+      },
     },
-    showMenu() {
-      if (this.showMenu) {
-        document.addEventListener('mousedown', this.closeMenu);
-      } else {
-        document.removeEventListener('mousedown', this.closeMenu);
-      }
+    created () {
+      this.getMembershipTypes();
     },
-  },
-  created() {
-    this.getMembershipTypes();
-  },
-  beforeDestroy() {
-    document.removeEventListener('mousedown', this.closeMenu);
-  },
-  methods: {
-    closeMenu() {
-      window.setTimeout(() => {
-        this.showMenu = false;
-      },200);
+    beforeUnmount () {
+      document.removeEventListener('mousedown', this.closeMenu);
     },
-    getMembershipTypes() {
-      return this.$siteLayoutService.getMembershipTypes()
-        .then(membershipTypes => this.membershipTypes = membershipTypes || []);
+    methods: {
+      closeMenu () {
+        window.setTimeout(() => {
+          this.showMenu = false;
+        },200);
+      },
+      getMembershipTypes () {
+        return eXo.$siteLayoutService.getMembershipTypes()
+          .then(membershipTypes => this.membershipTypes = membershipTypes || []);
+      },
+      getMembershipTypeLabel (membershipType){
+        if (!this.$t(`siteNavigation.label.membershipType.${membershipType}`).includes('siteNavigation.label')) {
+          return  this.$t(`siteNavigation.label.membershipType.${membershipType}`);
+        } else {
+          return membershipType;
+        }
+      },
     },
-    getMembershipTypeLabel(membershipType){
-      if (!this.$t(`siteNavigation.label.membershipType.${membershipType}`).includes('siteNavigation.label')) {
-        return  this.$t(`siteNavigation.label.membershipType.${membershipType}`);
-      } else {
-        return membershipType;
-      }
-    }
-  }
-};
+  };
 </script>

@@ -18,42 +18,42 @@
 -->
 <template>
   <exo-drawer
-    ref="siteTemplateDrawer"
     id="siteManagementSiteTemplateDrawer"
-    :right="!$vuetify.rtl"
+    ref="siteTemplateDrawer"
     eager
+    :right="!$vuetify.rtl"
     @closed="close">
-    <template slot="title">
+    <template #title>
       <div class="d-flex">
         <v-icon
-          size="16"
           class="clickable"
+          size="16"
           @click="close">
           fas fa-arrow-left
         </v-icon>
         <span class="ms-2"> {{ $t('siteManagement.label.siteTemplate.drawer.title') }} </span>
       </div>
     </template>
-    <template slot="content">
+    <template #content>
       <v-card class="mx-4 my-4 px-2 py-2 elevation-0">
         <span class="font-weight-bold text-start text-color body-2">{{ $t('siteManagement.label.siteTemplate') }}</span>
         <v-select
           v-model="template"
-          :items="templates"
+          class="caption pt-1 mb-5"
+          dense
           item-text="text"
           item-value="value"
-          dense
-          class="caption pt-1 mb-5"
+          :items="templates"
           outlined />
 
         <v-img
-          :src="siteTemplateSkeleton"
           class="align-center mx-auto"
           max-height="350"
-          max-width="500" />
+          max-width="500"
+          :src="siteTemplateSkeleton" />
       </v-card>
     </template>
-    <template slot="footer">
+    <template #footer>
       <div class="d-flex justify-end">
         <v-btn
           class="btn ms-2"
@@ -61,8 +61,8 @@
           {{ $t('siteManagement.label.btn.cancel') }}
         </v-btn>
         <v-btn
-          :loading="loading"
           class="btn btn-primary ms-2"
+          :loading="loading"
           @click="saveSite">
           {{ $t('siteManagement.label.btn.save') }}
         </v-btn>
@@ -71,45 +71,45 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  data() {
-    return {
-      template: 'navigationWebsite',
-      loading: false,
-      isValidForm: true,
-    };
-  },
-  computed: {
-    templates() {
-      return [
-        {
-          text: this.$t('siteManagement.label.navigationWebsite'),
-          value: 'navigationWebsite',
-        }
-      ];
+  export default {
+    data () {
+      return {
+        template: 'navigationWebsite',
+        loading: false,
+        isValidForm: true,
+      };
     },
-    siteTemplateSkeleton() {
-      return `/layout/images/site-templates/${this.template}.png`;
-    }
-  },
-  created() {
-    this.$root.$on('open-site-template-drawer', this.open);
-    this.$root.$on('close-site-template-drawer', this.close);
-  },
-  methods: {
-    open() {
-      this.$refs.siteTemplateDrawer.open();
+    computed: {
+      templates () {
+        return [
+          {
+            text: this.$t('siteManagement.label.navigationWebsite'),
+            value: 'navigationWebsite',
+          },
+        ];
+      },
+      siteTemplateSkeleton () {
+        return `/layout/images/site-templates/${this.template}.png`;
+      },
     },
-    close() {
-      this.loading = false;
-      this.$refs.siteTemplateDrawer.close();
-      this.$refs.siteTemplateDrawer.endLoading();
+    created () {
+      this.$root.$on('open-site-template-drawer', this.open);
+      this.$root.$on('close-site-template-drawer', this.close);
     },
-    saveSite() {
-      this.loading = true;
-      this.$refs.siteTemplateDrawer.startLoading();
-      this.$root.$emit('create-site', this.template);
-    }
-  }
-};
+    methods: {
+      open () {
+        this.$refs.siteTemplateDrawer.open();
+      },
+      close () {
+        this.loading = false;
+        this.$refs.siteTemplateDrawer.close();
+        this.$refs.siteTemplateDrawer.endLoading();
+      },
+      saveSite () {
+        this.loading = true;
+        this.$refs.siteTemplateDrawer.startLoading();
+        this.$root.$emit('create-site', this.template);
+      },
+    },
+  };
 </script>

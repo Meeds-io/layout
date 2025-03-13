@@ -19,8 +19,8 @@
 
 import * as sectionTemplateService from './js/SectionTemplateService.js';
 
-if (!Vue.prototype.$sectionTemplateService) {
-  window.Object.defineProperty(Vue.prototype, '$sectionTemplateService', {
+if (!eXo.$sectionTemplateService) {
+  window.Object.defineProperty(eXo, '$sectionTemplateService', {
     value: sectionTemplateService,
   });
 }

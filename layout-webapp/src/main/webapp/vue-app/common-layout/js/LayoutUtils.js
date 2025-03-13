@@ -181,17 +181,17 @@ export const pageJSContextIds = [
   'sitesHeadScripts',
 ];
 
-export function getQueryParam(paramName) {
+export function getQueryParam (paramName) {
   const uri = window.location.search.substring(1);
   const params = new URLSearchParams(uri);
   return params.get(paramName);
 }
 
-export function initPageContext(navUri) {
+export function initPageContext (navUri) {
   return fetch(`/portal${navUri}?showMaxWindow=true&hideSharedLayout=true`, {
     credentials: 'include',
     method: 'GET',
-    redirect: 'manual'
+    redirect: 'manual',
   })
     .then(resp => {
       if (resp?.status === 200) {
@@ -207,7 +207,7 @@ export function initPageContext(navUri) {
     .catch(e => console.error('Error navigating to ', navUri, '.', e));
 }
 
-export function getParentContainer(layout) {
+export function getParentContainer (layout) {
   if (!layout) {
     return null;
   }
@@ -221,11 +221,11 @@ export function getParentContainer(layout) {
   }
 }
 
-export function newParentContainer(layout) {
+export function newParentContainer (layout) {
   return newContainer(sectionsParentTemplate, '', layout, 0);
 }
 
-export function getApplications(container, applications) {
+export function getApplications (container, applications) {
   if (!container) {
     return;
   }
@@ -240,7 +240,7 @@ export function getApplications(container, applications) {
   return applications;
 }
 
-export function applyMobileStyle(container) {
+export function applyMobileStyle (container) {
   if (container.template === gridTemplate || container.template === flexTemplate) {
     container.children?.forEach(applyMobileStyle);
     cleanBreakpointClasses(container, container.template === gridTemplate && 'grid-rows' || null, 'grid-cols');
@@ -251,11 +251,11 @@ export function applyMobileStyle(container) {
   }
 }
 
-export function applyDesktopStyle(container) {
+export function applyDesktopStyle (container) {
   applyGridStyle(container);
 }
 
-export function applyGridStyle(container) {
+export function applyGridStyle (container) {
   if (container.template === gridTemplate || container.template === flexTemplate) {
     container.children?.forEach(c => applyGridStyle(c, container.template));
     applyBreakpointClasses(container, container.template === gridTemplate && 'grid-rows' || null, 'grid-cols');
@@ -266,7 +266,7 @@ export function applyGridStyle(container) {
   }
 }
 
-export function applyContainerStyle(container, containerStyle) {
+export function applyContainerStyle (container, containerStyle) {
   if (!container.cssClass) {
     container.cssClass = '';
   }
@@ -365,7 +365,7 @@ export function applyContainerStyle(container, containerStyle) {
   Vue.set(container, 'textSubtitleFontStyle', containerStyle.textSubtitleFontStyle || null);
 }
 
-export function parseSite(layout) {
+export function parseSite (layout) {
   const compatible = isSiteLayoutCompatible(layout);
   if (compatible) {
     parseContainer(layout);
@@ -388,7 +388,7 @@ export function parseSite(layout) {
   }
 }
 
-export function newSite(layout) {
+export function newSite (layout) {
   if (!layout) {
     layout = {};
   }
@@ -400,8 +400,8 @@ export function newSite(layout) {
       children: [{
         ...newContainer(sidebarCellTemplate),
         children: applications || [],
-        width: 310
-      }]
+        width: 310,
+      }],
     },
     { // Middle
       ...newContainer(siteBodyMiddleTemplate),
@@ -412,7 +412,7 @@ export function newSite(layout) {
             newContainer(bannerCellTemplate),
             newContainer(bannerCellTemplate),
             newContainer(bannerCellTemplate),
-          ]
+          ],
         },
         { // Middle - Center
           ...newContainer(siteBodyMiddleCenterTemplate),
@@ -421,8 +421,8 @@ export function newSite(layout) {
               ...newContainer(sidebarTemplate),
               children: [{
                 ...newContainer(sidebarCellTemplate),
-                width: 310
-              }]
+                width: 310,
+              }],
             },
             // Page Body
             newContainer(pageBodyTemplate),
@@ -430,31 +430,31 @@ export function newSite(layout) {
               ...newContainer(sidebarTemplate),
               children: [{
                 ...newContainer(sidebarCellTemplate),
-                width: 310
-              }]
+                width: 310,
+              }],
             },
-          ]
+          ],
         },
         { // Bottom Banner
           ...newContainer(bannerTemplate),
           children: [
             newContainer(bannerCellTemplate),
-          ]
-        }
-      ]
+          ],
+        },
+      ],
     },
     { // Right
       ...newContainer(sidebarTemplate),
       children: [{
         ...newContainer(sidebarCellTemplate),
-        width: 310
-      }]
-    }
+        width: 310,
+      }],
+    },
   ];
   return !applications?.length;
 }
 
-export function isSiteLayoutCompatible(layout) {
+export function isSiteLayoutCompatible (layout) {
   return layout.template === siteTemplate
     && layout.children?.length
     && layout.children.length > 0
@@ -467,7 +467,7 @@ export function isSiteLayoutCompatible(layout) {
     && layout.children.find(c => c.template === siteBodyMiddleTemplate).children.find(c => c.template === siteBodyMiddleCenterTemplate).children.length <= 3;
 }
 
-export function parseSections(layout) {
+export function parseSections (layout) {
   const parentContainer = getParentContainer(layout);
   if (parentContainer) {
     if (!parentContainer.children) {
@@ -475,7 +475,7 @@ export function parseSections(layout) {
     }
     const compatible = parentContainer.children.every(c => c.template === gridTemplate || c.template === flexTemplate);
     if (compatible) {
-      Object.assign(parentContainer, Object.assign({...containerModel}, parentContainer));
+      Object.assign(parentContainer, Object.assign({ ...containerModel }, parentContainer));
       try {
         parentContainer.children.forEach(parseSection);
       } catch (e) {
@@ -489,12 +489,12 @@ export function parseSections(layout) {
   }
 }
 
-export function getSection(layout, id) {
+export function getSection (layout, id) {
   const parentContainer = getParentContainer(layout);
   return parentContainer?.children?.find?.(c => c?.storageId === id);
 }
 
-export function getSectionByContainer(layout, id, isSiteLayout) {
+export function getSectionByContainer (layout, id, isSiteLayout) {
   if (isSiteLayout) {
     return getContainerById(layout, id);
   } else {
@@ -503,7 +503,7 @@ export function getSectionByContainer(layout, id, isSiteLayout) {
   }
 }
 
-export function getContainerById(container, id) {
+export function getContainerById (container, id) {
   if (container?.storageId === id) {
     return container;
   } else if (container?.children?.length) {
@@ -513,7 +513,7 @@ export function getContainerById(container, id) {
   }
 }
 
-export function hasChild(container, id) {
+export function hasChild (container, id) {
   if (container?.storageId === id) {
     return true;
   } else {
@@ -521,7 +521,7 @@ export function hasChild(container, id) {
   }
 }
 
-export function getCell(container, storageId) {
+export function getCell (container, storageId) {
   if (container.storageId === storageId) {
     return container;
   } else {
@@ -529,7 +529,7 @@ export function getCell(container, storageId) {
   }
 }
 
-export function newSection(parentContainer, index, rows, cols, sectionType) {
+export function newSection (parentContainer, index, rows, cols, sectionType) {
   const defaultSectionStyle = sectionType === flexTemplate ? 'd-flex flex-column d-md-grid layout-sticky-application' : 'd-flex flex-column d-md-grid';
   const section = newContainer(
     sectionType,
@@ -560,7 +560,7 @@ export function newSection(parentContainer, index, rows, cols, sectionType) {
   return section;
 }
 
-export function editGridSection(section, rows, cols) {
+export function editGridSection (section, rows, cols) {
   const diffRows = rows - section.rowsCount;
   const diffCols = cols - section.colsCount;
   if (diffCols > 0) {
@@ -575,7 +575,7 @@ export function editGridSection(section, rows, cols) {
   }
 }
 
-export function editDynamicSection(section, cols) {
+export function editDynamicSection (section, cols) {
   const colSpan = parseInt(section.colsCount / cols);
   section.children.forEach(c => applyBreakpointValues(c, 1, colSpan));
 
@@ -592,7 +592,7 @@ export function editDynamicSection(section, cols) {
   applyGridStyle(section);
 }
 
-export function newApplication(parentContainer, appFromRegistry, append) {
+export function newApplication (parentContainer, appFromRegistry, append) {
   const application = JSON.parse(JSON.stringify(applicationModel));
   application.contentId = appFromRegistry.contentId;
   application.title = appFromRegistry.displayName;
@@ -605,7 +605,7 @@ export function newApplication(parentContainer, appFromRegistry, append) {
   }
 }
 
-export function addRows(section, diffRows) {
+export function addRows (section, diffRows) {
   if (!diffRows) {
     return;
   }
@@ -618,7 +618,7 @@ export function addRows(section, diffRows) {
   applyGridStyle(section);
 }
 
-export function addColumns(section, diffCols) {
+export function addColumns (section, diffCols) {
   if (!diffCols) {
     return;
   }
@@ -632,7 +632,7 @@ export function addColumns(section, diffCols) {
   applyGridStyle(section);
 }
 
-export function removeRows(section, diffRows) {
+export function removeRows (section, diffRows) {
   if (!diffRows) {
     return;
   }
@@ -645,7 +645,7 @@ export function removeRows(section, diffRows) {
   applyGridStyle(section);
 }
 
-export function removeColumns(section, diffCols) {
+export function removeColumns (section, diffCols) {
   diffCols = Math.abs(diffCols);
   if (!diffCols) {
     return;
@@ -661,13 +661,13 @@ export function removeColumns(section, diffCols) {
   applyGridStyle(section);
 }
 
-export function refreshCellIndexes(section) {
+export function refreshCellIndexes (section) {
   parseSectionMatrix(section, parseMatrix(section));
   applyBreakpointValues(section, section.rowsCount, section.colsCount);
   applyGridStyle(section);
 }
 
-export function moveCell(section, sourceCell, targetRowIndex, targetColIndex) {
+export function moveCell (section, sourceCell, targetRowIndex, targetColIndex) {
   const sourceRowIndex = sourceCell.rowIndex;
   const sourceColIndex = sourceCell.colIndex;
   if ((sourceRowIndex === targetRowIndex && sourceColIndex === targetColIndex)
@@ -717,7 +717,7 @@ export function moveCell(section, sourceCell, targetRowIndex, targetColIndex) {
   applyGridStyle(section);
 }
 
-export function deleteCell(section, application) {
+export function deleteCell (section, application) {
   const cell = section?.children?.find?.(c => hasChild(c, application.storageId));
   if (section.template === flexTemplate) {
     const index = cell.children.findIndex(c => hasChild(c, application.storageId));
@@ -737,7 +737,7 @@ export function deleteCell(section, application) {
   applyGridStyle(section);
 }
 
-export function resizeCell(section, cell, rowIndex, colIndex) {
+export function resizeCell (section, cell, rowIndex, colIndex) {
   if (section.template === flexTemplate) {
     cell = section.children.find(c => c?.storageId === cell.storageId);
     const cellIndex = section.children.findIndex(c => c?.storageId === cell.storageId);
@@ -765,7 +765,7 @@ export function resizeCell(section, cell, rowIndex, colIndex) {
   applyGridStyle(section);
 }
 
-export function isValidTargetMovingCell(section, movingCell, targetRowIndex, targetColIndex) {
+export function isValidTargetMovingCell (section, movingCell, targetRowIndex, targetColIndex) {
   if (!section || !movingCell || targetRowIndex < 0 || targetColIndex < 0) {
     return false;
   }
@@ -789,11 +789,11 @@ export function isValidTargetMovingCell(section, movingCell, targetRowIndex, tar
         ));
 }
 
-export function isBetween(value, b0, b1) {
+export function isBetween (value, b0, b1) {
   return value >= b0 && value <= b1;
 }
 
-export function cleanAttributes(container, cleanStorage, cleanStyle) {
+export function cleanAttributes (container, cleanStorage, cleanStyle) {
   container = JSON.parse(JSON.stringify(container));
   if (cleanStyle) {
     applyDesktopStyle(container);
@@ -816,7 +816,7 @@ export function cleanAttributes(container, cleanStorage, cleanStyle) {
   return container;
 }
 
-export function parseContainer(container) {
+export function parseContainer (container) {
   if (container.template) {
     containerModelAttributes.forEach(key => {
       if (!Object.hasOwn(container, key)) {
@@ -834,7 +834,7 @@ export function parseContainer(container) {
   return container;
 }
 
-export function newCell(section, index, rows, cols) {
+export function newCell (section, index, rows, cols) {
   const container = newContainer(cellTemplate,
     section.template === flexTemplate ? 'flex-cell' : 'grid-cell',
     (index === 0 || index) && section || null,
@@ -844,7 +844,7 @@ export function newCell(section, index, rows, cols) {
   return container;
 }
 
-export function newContainer(template, cssClass, parentContainer, index) {
+export function newContainer (template, cssClass, parentContainer, index) {
   const container = JSON.parse(JSON.stringify(containerModel));
   container.template = template;
   container.cssClass = cssClass || '';
@@ -862,12 +862,12 @@ export function newContainer(template, cssClass, parentContainer, index) {
   return container;
 }
 
-function parseSection(section) {
+function parseSection (section) {
   if ((section.template !== gridTemplate && section.template !== flexTemplate)
     || !section.children.length) {
     return;
   }
-  Object.assign(section, Object.assign({...containerModel}, section));
+  Object.assign(section, Object.assign({ ...containerModel }, section));
   if (section.children) {
     section.children.forEach(parseCell);
   } else {
@@ -885,7 +885,7 @@ function parseSection(section) {
   }
 }
 
-export function parseContainerStyle(container) {
+export function parseContainerStyle (container) {
   if (container.template !== siteTemplate
     && container.template !== flexTemplate
     && container.template !== gridTemplate
@@ -916,7 +916,7 @@ export function parseContainerStyle(container) {
   }
 }
 
-function parseCell(colContainer) {
+function parseCell (colContainer) {
   if (colContainer.template !== cellTemplate) {
     throw Error(`Container template '${colContainer.template}' not compatible. Fallback to old editor.`);
   }
@@ -928,7 +928,7 @@ function parseCell(colContainer) {
   parseContainerStyle(colContainer);
 }
 
-function applyBreakpointClasses(container, rowClassPrefix, colClassPrefix) {
+function applyBreakpointClasses (container, rowClassPrefix, colClassPrefix) {
   if (!container.cssClass) {
     container.cssClass = '';
   }
@@ -951,7 +951,7 @@ function applyBreakpointClasses(container, rowClassPrefix, colClassPrefix) {
   container.cssClass = cssClasses;
 }
 
-function cleanBreakpointClasses(container, rowClassPrefix, colClassPrefix) {
+function cleanBreakpointClasses (container, rowClassPrefix, colClassPrefix) {
   let cssClasses = container.cssClass || '';
 
   const colClasses = cssClasses.match(new RegExp(`(^| )${colClassPrefix}-((md|lg|xl)-)?[0-9]{1,2}`, 'g'));
@@ -972,7 +972,7 @@ function cleanBreakpointClasses(container, rowClassPrefix, colClassPrefix) {
   container.cssClass = cssClasses.replace(/  +/g, ' ');
 }
 
-function parseBreakpointClasses(container, classPrefix) {
+function parseBreakpointClasses (container, classPrefix) {
   const classes = !container.cssClass && [] || container.cssClass.match(new RegExp(`(^| )${classPrefix}-((md|lg|xl)-)?[0-9]{1,2}`, 'g'));
   const bp = {
     md: 0,
@@ -1000,7 +1000,7 @@ function parseBreakpointClasses(container, classPrefix) {
   }
 }
 
-function parseGapClasses() {
+function parseGapClasses () {
   return {
     h: 20,
     v: 20,
@@ -1011,7 +1011,7 @@ function parseGapClasses() {
   };
 }
 
-export function applyBreakpointValues(container, rows, cols) {
+export function applyBreakpointValues (container, rows, cols) {
   if (!container.colBreakpoints) {
     container.colBreakpoints = {};
   }
@@ -1026,7 +1026,7 @@ export function applyBreakpointValues(container, rows, cols) {
   container.rowsCount = container.rowBreakpoints[currentBreakpoint];
 }
 
-function moveCol(matrix, sourceCell, targetColIndex) {
+function moveCol (matrix, sourceCell, targetColIndex) {
   for (let i = 0; i < sourceCell.rowsCount; i++) {
     let colIndex = 0;
     for (let j = 0; j < sourceCell.colsCount; j++) {
@@ -1048,7 +1048,7 @@ function moveCol(matrix, sourceCell, targetColIndex) {
   }
 }
 
-function moveRow(matrix, sourceCell, targetRowIndex) {
+function moveRow (matrix, sourceCell, targetRowIndex) {
   for (let j = 0; j < sourceCell.colsCount; j++) {
     let rowIndex = 0;
     for (let i = 0; i < sourceCell.rowsCount; i++) {
@@ -1070,7 +1070,7 @@ function moveRow(matrix, sourceCell, targetRowIndex) {
   }
 }
 
-function filterChildren(section) {
+function filterChildren (section) {
   section.children = section.children.filter(c => {
     const colSpan = breakpoints.reduce((sum, b) => sum += c.colBreakpoints[b], 0);
     const rowSpan = breakpoints.reduce((sum, b) => sum += c.rowBreakpoints[b], 0);
@@ -1078,7 +1078,7 @@ function filterChildren(section) {
   });
 }
 
-function parseMatrix(section) {
+function parseMatrix (section) {
   const matrix = {};
   for (let i = 0; i < section.rowsCount; i++) {
     matrix[i] = {};
@@ -1119,7 +1119,7 @@ function parseMatrix(section) {
   return matrix;
 }
 
-function parseSectionMatrix(section, matrix) {
+function parseSectionMatrix (section, matrix) {
   const children = [];
   for (let row = 0; row < section.rowsCount; row++) {
     if (!matrix[row]) {
@@ -1168,10 +1168,10 @@ function parseSectionMatrix(section, matrix) {
       cell.colBreakpoints[b] = cell.colsCount;
     });
   });
-  Object.assign(section, {children});
+  Object.assign(section, { children });
 }
 
-function installPageContext(pageHeadContent) {
+function installPageContext (pageHeadContent) {
   const replacableScriptsIterator = pageHeadContent.matchAll(/<script[^>]*id="[^>]*"[^>]*>/g);
   let scriptIteratorElement = replacableScriptsIterator.next().value;
   while (scriptIteratorElement) {
@@ -1191,7 +1191,7 @@ function installPageContext(pageHeadContent) {
   }
 }
 
-function replaceScriptElements(node) {
+function replaceScriptElements (node) {
   if (node.tagName === 'SCRIPT') {
     node.parentNode.replaceChild(cloneScriptElement(node), node);
   } else {
@@ -1202,7 +1202,7 @@ function replaceScriptElements(node) {
   return node;
 }
 
-function cloneScriptElement(node) {
+function cloneScriptElement (node) {
   const scriptElement  = document.createElement('script');
   scriptElement.innerText = node.innerHTML;
   const scriptAttrs = node.attributes;

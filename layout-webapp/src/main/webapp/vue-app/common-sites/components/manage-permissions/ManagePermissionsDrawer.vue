@@ -18,14 +18,14 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="managePermissionsDrawer"
+    ref="drawer"
     v-model="drawer"
-    :right="!$vuetify.rtl"
-    :loading="loading"
     :allow-expand="isSite"
-    :go-back-button="goBackButton"
     eager
+    :go-back-button="goBackButton"
+    :loading="loading"
+    :right="!$vuetify.rtl"
     @closed="close">
     <template #title>
       {{ drawerTitle }}
@@ -49,10 +49,10 @@
           {{ $t('siteNavigation.label.btn.cancel') }}
         </v-btn>
         <v-btn
-          :loading="loading"
+          class="btn btn-primary ms-2"
           :disabled="!enableSave"
-          @click="save"
-          class="btn btn-primary ms-2">
+          :loading="loading"
+          @click="save">
           {{ $t('siteNavigation.label.btn.save') }}
         </v-btn>
       </div>
@@ -60,85 +60,85 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    drawer: false,
-    loading: false,
-    navigationNode: null,
-    editPermission: null,
-    accessPermissions: [],
-    site: null,
-    isSite: false,
-    accessPermissionChanged: false,
-    editPermissionChanged: false,
-    goBackButton: false,
-  }),
-  computed: {
-    drawerTitle() {
-      return this.isSite && this.$t('siteManagement.label.managePermissions') || this.$t('siteNavigation.managePermissionsDrawer.title');
+  export default {
+    data: () => ({
+      drawer: false,
+      loading: false,
+      navigationNode: null,
+      editPermission: null,
+      accessPermissions: [],
+      site: null,
+      isSite: false,
+      accessPermissionChanged: false,
+      editPermissionChanged: false,
+      goBackButton: false,
+    }),
+    computed: {
+      drawerTitle () {
+        return this.isSite && this.$t('siteManagement.label.managePermissions') || this.$t('siteNavigation.managePermissionsDrawer.title');
+      },
+      enableSave () {
+        return this.accessPermissions?.length && this.editPermission;
+      },
     },
-    enableSave() {
-      return this.accessPermissions?.length && this.editPermission;
+    created () {
+      this.$root.$on('open-manage-permissions-drawer', this.open);
     },
-  },
-  created() {
-    this.$root.$on('open-manage-permissions-drawer', this.open);
-  },
-  beforeDestroy() {
-    this.$root.$off('open-manage-permissions-drawer', this.open);
-  },
-  methods: {
-    open(object, isSite, noGoBackButton) {
-      this.isSite = isSite || false;
-      this.goBackButton = !noGoBackButton;
-      if (this.isSite) {
-        this.site = JSON.parse(JSON.stringify(object));
-        this.editPermission = this.site?.editPermission;
-        this.accessPermissions = this.site?.accessPermissions || [];
-      } else {
-        this.navigationNode = JSON.parse(JSON.stringify(object));
-        this.editPermission = this.navigationNode?.pageEditPermission;
-        this.accessPermissions = this.navigationNode?.pageAccessPermissions || [];
-      }
-      this.$refs.drawer.open();
+    beforeUnmount () {
+      this.$root.$off('open-manage-permissions-drawer', this.open);
     },
-    close() {
-      this.$refs.drawer.close();
+    methods: {
+      open (object, isSite, noGoBackButton) {
+        this.isSite = isSite || false;
+        this.goBackButton = !noGoBackButton;
+        if (this.isSite) {
+          this.site = JSON.parse(JSON.stringify(object));
+          this.editPermission = this.site?.editPermission;
+          this.accessPermissions = this.site?.accessPermissions || [];
+        } else {
+          this.navigationNode = JSON.parse(JSON.stringify(object));
+          this.editPermission = this.navigationNode?.pageEditPermission;
+          this.accessPermissions = this.navigationNode?.pageAccessPermissions || [];
+        }
+        this.$refs.drawer.open();
+      },
+      close () {
+        this.$refs.drawer.close();
+      },
+      async save () {
+        if (this.isSite) {
+          await this.saveSitePermission();
+        } else {
+          await this.saveNavigationNodePermission();
+        }
+      },
+      saveNavigationNodePermission () {
+        this.loading = true;
+        const pageRef = this.navigationNode.pageKey.ref ||`${ this.navigationNode.pageKey.site.typeName}::${ this.navigationNode.pageKey.site.name}::${this.navigationNode.pageKey.name}`;
+        return eXo.$pageLayoutService.updatePagePermissions(pageRef, this.editPermission, this.accessPermissions)
+          .then(() => {
+            this.$root.$emit('alert-message', this.$t('siteNavigation.label.updatePermission.success'), 'success');
+            this.$root.$emit('refresh-navigation-nodes');
+            this.close();
+          }).catch(e => {
+            const message = e.message ==='401' &&  this.$t('siteNavigation.label.updatePermission.unauthorized') || this.$t('siteNavigation.label.updatePermission.error');
+            this.$root.$emit('alert-message', message, 'error');
+          })
+          .finally(() => this.loading = false);
+      },
+      saveSitePermission () {
+        this.loading = true;
+        return eXo.$siteLayoutService.updateSitePermissions(this.site.siteType, this.site.name, this.editPermission, this.accessPermissions)
+          .then(() => {
+            this.$root.$emit('alert-message', this.$t('siteManagement.label.updatePermission.success'), 'success');
+            this.$root.$emit('site-updated');
+            this.close();
+          }).catch(e => {
+            const message = e.message ==='401' &&  this.$t('siteManagement.label.updatePermission.unauthorized') || this.$t('siteManagement.label.updatePermission.error');
+            this.$root.$emit('alert-message', message, 'error');
+          })
+          .finally(() => this.loading = false);
+      },
     },
-    async save() {
-      if (this.isSite) {
-        await this.saveSitePermission();
-      } else {
-        await this.saveNavigationNodePermission();
-      }
-    },
-    saveNavigationNodePermission() {
-      this.loading = true;
-      const pageRef = this.navigationNode.pageKey.ref ||`${ this.navigationNode.pageKey.site.typeName}::${ this.navigationNode.pageKey.site.name}::${this.navigationNode.pageKey.name}`;
-      return this.$pageLayoutService.updatePagePermissions(pageRef, this.editPermission, this.accessPermissions)
-        .then(() => {
-          this.$root.$emit('alert-message', this.$t('siteNavigation.label.updatePermission.success'), 'success');
-          this.$root.$emit('refresh-navigation-nodes');
-          this.close();
-        }).catch((e) => {
-          const message = e.message ==='401' &&  this.$t('siteNavigation.label.updatePermission.unauthorized') || this.$t('siteNavigation.label.updatePermission.error');
-          this.$root.$emit('alert-message', message, 'error');
-        })
-        .finally(() => this.loading = false);
-    },
-    saveSitePermission() {
-      this.loading = true;
-      return this.$siteLayoutService.updateSitePermissions(this.site.siteType, this.site.name, this.editPermission, this.accessPermissions)
-        .then(() => {
-          this.$root.$emit('alert-message', this.$t('siteManagement.label.updatePermission.success'), 'success');
-          this.$root.$emit('site-updated');
-          this.close();
-        }).catch((e) => {
-          const message = e.message ==='401' &&  this.$t('siteManagement.label.updatePermission.unauthorized') || this.$t('siteManagement.label.updatePermission.error');
-          this.$root.$emit('alert-message', message, 'error');
-        })
-        .finally(() => this.loading = false);
-    },
-  }
-};
+  };
 </script>

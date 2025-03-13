@@ -20,77 +20,77 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="addApplicationDrawer"
+    ref="drawer"
     v-model="drawer"
     allow-expand
     go-back-button
     right
-    @expand-updated="expanded = $event"
-    @closed="$root.$emit('layout-application-drawer-closed')">
-    <template slot="title">
+    @closed="$root.$emit('layout-application-drawer-closed')"
+    @expand-updated="expanded = $event">
+    <template #title>
       <span class="text-truncate">{{ $t('layout.addApplicationFromCategoryTitle', {0: categoryName}) }}</span>
     </template>
     <template v-if="drawer" #content>
       <v-card
-        :class="expanded && 'flex-wrap' || 'flex-column'"
-        max-width="100%"
         class="d-flex justify-center ma-4 overflow-hidden"
-        flat>
+        :class="expanded && 'flex-wrap' || 'flex-column'"
+        flat
+        max-width="100%">
         <layout-editor-application-card
           v-for="application in sortedPortletInstances"
           :key="application.id"
           :application="application"
-          :width="expanded && '388px' || '100%'"
+          class="flex-grow-1 mb-4"
+          :class="expanded && 'mx-2 content-box-sizing'"
           :height="expanded && '210px' || 'auto'"
           :max-image-height="expanded && '100%' || '110px'"
           max-image-width="100%"
-          :class="expanded && 'mx-2 content-box-sizing'"
-          class="flex-grow-1 mb-4"
+          :width="expanded && '388px' || '100%'"
           @add="addApplication(application)" />
       </v-card>
     </template>
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    drawer: false,
-    expanded: false,
-    portletInstances: [],
-    category: null,
-  }),
-  computed: {
-    categoryName() {
-      return this.category?.name;
+  export default {
+    data: () => ({
+      drawer: false,
+      expanded: false,
+      portletInstances: [],
+      category: null,
+    }),
+    computed: {
+      categoryName () {
+        return this.category?.name;
+      },
+      sortedPortletInstances () {
+        const categories = this.portletInstances?.filter?.(c => c.name) || [];
+        categories.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+        return categories;
+      },
     },
-    sortedPortletInstances() {
-      const categories = this.portletInstances?.filter?.(c => c.name) || [];
-      categories.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
-      return categories;
+    created () {
+      this.$root.$on('layout-add-application-drawer', this.open);
     },
-  },
-  created() {
-    this.$root.$on('layout-add-application-drawer', this.open);
-  },
-  methods: {
-    open(portletInstances, category) {
-      this.portletInstances = portletInstances;
-      this.category = category;
-      this.$refs.drawer.endLoading();
-      this.$refs.drawer.open();
+    methods: {
+      open (portletInstances, category) {
+        this.portletInstances = portletInstances;
+        this.category = category;
+        this.$refs.drawer.endLoading();
+        this.$refs.drawer.open();
+      },
+      addApplication (application) {
+        this.$refs.drawer.startLoading();
+        this.$root.$emit('layout-add-application', application);
+        window.setTimeout(() => {
+          this.close();
+        }, 200);
+      },
+      close () {
+        this.$refs.drawer.endLoading();
+        this.$refs.drawer.close();
+      },
     },
-    addApplication(application) {
-      this.$refs.drawer.startLoading();
-      this.$root.$emit('layout-add-application', application);
-      window.setTimeout(() => {
-        this.close();
-      }, 200);
-    },
-    close() {
-      this.$refs.drawer.endLoading();
-      this.$refs.drawer.close();
-    },
-  },
-};
+  };
 </script>

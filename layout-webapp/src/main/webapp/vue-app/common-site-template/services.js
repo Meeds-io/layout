@@ -19,8 +19,8 @@
 
 import * as siteTemplateService from './js/SiteTemplateService.js';
 
-if (!Vue.prototype.$siteTemplateService) {
-  window.Object.defineProperty(Vue.prototype, '$siteTemplateService', {
+if (!eXo.$siteTemplateService) {
+  window.Object.defineProperty(eXo, '$siteTemplateService', {
     value: siteTemplateService,
   });
 }

@@ -29,7 +29,7 @@
             :disabled="!canUndo"
             icon
             @click="undo">
-            <v-icon size="20" class="icon-default-color">fa-undo</v-icon>
+            <v-icon class="icon-default-color" size="20">fa-undo</v-icon>
           </v-btn>
         </div>
       </template>
@@ -43,7 +43,7 @@
             :disabled="!canRedo"
             icon
             @click="redo">
-            <v-icon size="20" class="icon-default-color">fa-redo</v-icon>
+            <v-icon class="icon-default-color" size="20">fa-redo</v-icon>
           </v-btn>
         </div>
       </template>
@@ -52,37 +52,37 @@
   </div>
 </template>
 <script>
-export default {
-  data: () => ({
-    loading: false,
-  }),
-  computed: {
-    canUndo() {
-      return !!this.$root.sectionHistory?.length;
+  export default {
+    data: () => ({
+      loading: false,
+    }),
+    computed: {
+      canUndo () {
+        return !!this.$root.sectionHistory?.length;
+      },
+      canRedo () {
+        return !!this.$root.sectionRedo?.length;
+      },
     },
-    canRedo() {
-      return !!this.$root.sectionRedo?.length;
+    methods: {
+      undo () {
+        const section = this.$root.sectionHistory.pop();
+        const parentContainer = eXo.$layoutUtils.getParentContainer(this.$root.layout);
+        const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
+        if (index >= 0) {
+          this.$root.sectionRedo.push(parentContainer.children[index]);
+          parentContainer.children.splice(index, 1, section);
+        }
+      },
+      redo () {
+        const section = this.$root.sectionRedo.pop();
+        const parentContainer = eXo.$layoutUtils.getParentContainer(this.$root.layout);
+        const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
+        if (index >= 0) {
+          this.$root.sectionHistory.push(parentContainer.children[index]);
+          parentContainer.children.splice(index, 1, section);
+        }
+      },
     },
-  },
-  methods: {
-    undo() {
-      const section = this.$root.sectionHistory.pop();
-      const parentContainer = this.$layoutUtils.getParentContainer(this.$root.layout);
-      const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
-      if (index >= 0) {
-        this.$root.sectionRedo.push(parentContainer.children[index]);
-        parentContainer.children.splice(index, 1, section);
-      }
-    },
-    redo() {
-      const section = this.$root.sectionRedo.pop();
-      const parentContainer = this.$layoutUtils.getParentContainer(this.$root.layout);
-      const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
-      if (index >= 0) {
-        this.$root.sectionHistory.push(parentContainer.children[index]);
-        parentContainer.children.splice(index, 1, section);
-      }
-    },
-  },
-};
+  };
 </script>

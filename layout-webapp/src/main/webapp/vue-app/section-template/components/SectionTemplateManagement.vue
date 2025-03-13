@@ -40,27 +40,27 @@
   </v-app>
 </template>
 <script>
-export default {
-  data: () => ({
-    keyword: null,
-  }),
-  created() {
-    this.$root.$on('section-template-created', this.handleInstanceCreated);
-    this.$root.$on('section-template-layout-updated', this.handleLayoutUpdated);
-  },
-  beforeDestroy() {
-    this.$root.$off('section-template-created', this.handleInstanceCreated);
-    this.$root.$off('section-template-layout-updated', this.handleLayoutUpdated);
-  },
-  methods: {
-    handleInstanceCreated(instance) {
-      const instanceEditorLink = `/portal/${eXo.env.portal.portalName}/section-editor?id=${instance.id}`;
-      window.open(instanceEditorLink, '_blank');
+  export default {
+    data: () => ({
+      keyword: null,
+    }),
+    created () {
+      this.$root.$on('section-template-created', this.handleInstanceCreated);
+      this.$root.$on('section-template-layout-updated', this.handleLayoutUpdated);
     },
-    handleLayoutUpdated(instance) {
-      this.$root.$emit('section-template-saved', instance);
-      this.$root.$emit('alert-message', this.$t('layout.sectionTemplateLayoutUpdatedSuccessfully'), 'success');
+    beforeUnmount () {
+      this.$root.$off('section-template-created', this.handleInstanceCreated);
+      this.$root.$off('section-template-layout-updated', this.handleLayoutUpdated);
     },
-  },
-};
+    methods: {
+      handleInstanceCreated (instance) {
+        const instanceEditorLink = `/portal/${eXo.env.portal.portalName}/section-editor?id=${instance.id}`;
+        window.open(instanceEditorLink, '_blank');
+      },
+      handleLayoutUpdated (instance) {
+        this.$root.$emit('section-template-saved', instance);
+        this.$root.$emit('alert-message', this.$t('layout.sectionTemplateLayoutUpdatedSuccessfully'), 'success');
+      },
+    },
+  };
 </script>

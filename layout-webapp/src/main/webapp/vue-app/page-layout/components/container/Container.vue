@@ -25,21 +25,21 @@
     :parent-id="parentId" />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    computed: {
+      hasChildren () {
+        return this.container?.children?.length;
+      },
     },
-  },
-  computed: {
-    hasChildren() {
-      return this.container?.children?.length;
-    },
-  },
-};
+  };
 </script>

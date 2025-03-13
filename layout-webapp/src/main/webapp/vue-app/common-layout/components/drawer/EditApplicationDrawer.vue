@@ -20,14 +20,14 @@
 -->
 <template>
   <exo-drawer
-    ref="drawer"
     id="editApplicationDrawer"
+    ref="drawer"
     v-model="drawer"
     allow-expand
     right
     @closed="reset">
     <template #title>
-      <span :title="drawerTitle" class="text-truncate">
+      <span class="text-truncate" :title="drawerTitle">
         {{ drawerTitle }}
       </span>
     </template>
@@ -40,9 +40,9 @@
     </template>
     <template v-if="drawer" #content>
       <v-card
-        max-width="100%"
         class="ma-4"
-        flat>
+        flat
+        max-width="100%">
         <div class="d-flex align-center">
           <div class="text-title mb-2">
             {{ $t('layout.applicationStyling') }}
@@ -70,8 +70,8 @@
           v-if="initialized"
           ref="backgroundInput"
           v-model="backgroundProperties"
-          immediate-save
           class="mt-4"
+          immediate-save
           @refresh="refresh++" />
         <layout-editor-text-input
           v-if="initialized"
@@ -88,10 +88,10 @@
           <div class="d-flex align-center ms-n1">
             <v-checkbox
               v-model="fixedHeight"
+              class="my-0 ml-n2px"
               :label="$t('layout.fixedHeight')"
-              on-icon="fa-check-square"
               off-icon="far fa-square"
-              class="my-0 ml-n2px" />
+              on-icon="fa-check-square" />
           </div>
           <div v-if="fixedHeight" class="d-flex flex-column justify-center">
             <v-radio-group
@@ -99,41 +99,41 @@
               class="my-auto text-no-wrap ms-7"
               mandatory>
               <v-radio
-                value="150px"
-                class="mx-0">
+                class="mx-0"
+                value="150px">
                 <template #label>
                   <span class="text-font-size">{{ $t('layout.fixedHeight150') }}</span>
                 </template>
               </v-radio>
               <v-radio
-                value="300px"
-                class="mx-0">
+                class="mx-0"
+                value="300px">
                 <template #label>
                   <span class="text-font-size">{{ $t('layout.fixedHeight300') }}</span>
                 </template>
               </v-radio>
               <v-radio
-                value="500px"
-                class="mx-0">
+                class="mx-0"
+                value="500px">
                 <template #label>
                   <span class="text-font-size">{{ $t('layout.fixedHeight500') }}</span>
                 </template>
               </v-radio>
               <v-radio
-                :value="customHeight"
-                class="mx-0">
+                class="mx-0"
+                :value="customHeight">
                 <template #label>
                   <div class="d-flex full-width align-center">
                     <span class="text-font-size">{{ $t('layout.fixedHeightCustom') }}</span>
                     <number-input
-                      v-model="height"
                       v-if="height === customHeight"
-                      :label="$t('layout.fixedHeight')"
-                      :min="minHeight"
-                      :max="maxHeight"
-                      :step="10"
+                      v-model="height"
                       class="ms-auto my-n2"
                       editable
+                      :label="$t('layout.fixedHeight')"
+                      :max="maxHeight"
+                      :min="minHeight"
+                      :step="10"
                       @valid="invalidCustomHeight = !$event" />
                   </div>
                 </template>
@@ -148,197 +148,197 @@
         <div class="d-flex align-center ms-n1">
           <v-checkbox
             v-model="hiddenOnMobile"
+            class="my-0 ml-n2px"
             :label="$t('layout.hiddenOnMobile')"
-            on-icon="fa-check-square"
             off-icon="far fa-square"
-            class="my-0 ml-n2px" />
+            on-icon="fa-check-square" />
         </div>
       </v-card>
     </template>
   </exo-drawer>
 </template>
 <script>
-export default {
-  data: () => ({
-    drawer: false,
-    initialized: false,
-    fixedHeight: false,
-    customHeightValue: false,
-    height: null,
-    minHeight: 100,
-    maxHeight: 1000,
-    invalidCustomHeight: false,
-    hiddenOnMobile: false,
-    section: null,
-    container: null,
-    backgroundProperties: null,
-    applicationCategoryTitle: null,
-    applicationTitle: null,
-    refresh: 1,
-  }),
-  computed: {
-    applicationId() {
-      return this.container?.children?.[0]?.storageId || this.container?.storageId;
-    },
-    applicationContentId() {
-      return this.container?.children?.[0]?.contentId || this.container?.contentId;
-    },
-    application() {
-      return this.$root.portletInstances?.find?.(a => a?.contentId === this.applicationContentId);
-    },
-    applicationCategory() {
-      return this.applicationTitle && this.$root.portletInstanceCategories?.find?.(c => c?.applications?.find?.(a => a?.name === this.applicationTitle));
-    },
-    supportedModes() {
-      return this.application?.supportedModes || [];
-    },
-    canEditPortletProperties() {
-      return this.supportedModes.find(m => m === 'edit');
-    },
-    sectionId() {
-      return this.section?.storageId;
-    },
-    isDynamicSection() {
-      return this.section?.template === this.$layoutUtils.flexTemplate;
-    },
-    customHeight() {
-      return (!this.height || this.height === '150px' || this.height === '300px' || this.height === '500px') ? 400 : this.height;
-    },
-    drawerTitle() {
-      return this.applicationCategoryTitle?.length && this.$t('layout.editApplicationTitle', {
-        0: this.applicationTitle,
-        1: this.applicationCategoryTitle,
-      }) || this.$t('layout.editApplicationTitleNoCategory', {
-        0: this.applicationTitle,
-      });
-    },
-    minHeightFormatted() {
-      if (this.minHeight === 0 || this.minHeight) {
+  export default {
+    data: () => ({
+      drawer: false,
+      initialized: false,
+      fixedHeight: false,
+      customHeightValue: false,
+      height: null,
+      minHeight: 100,
+      maxHeight: 1000,
+      invalidCustomHeight: false,
+      hiddenOnMobile: false,
+      section: null,
+      container: null,
+      backgroundProperties: null,
+      applicationCategoryTitle: null,
+      applicationTitle: null,
+      refresh: 1,
+    }),
+    computed: {
+      applicationId () {
+        return this.container?.children?.[0]?.storageId || this.container?.storageId;
+      },
+      applicationContentId () {
+        return this.container?.children?.[0]?.contentId || this.container?.contentId;
+      },
+      application () {
+        return this.$root.portletInstances?.find?.(a => a?.contentId === this.applicationContentId);
+      },
+      applicationCategory () {
+        return this.applicationTitle && this.$root.portletInstanceCategories?.find?.(c => c?.applications?.find?.(a => a?.name === this.applicationTitle));
+      },
+      supportedModes () {
+        return this.application?.supportedModes || [];
+      },
+      canEditPortletProperties () {
+        return this.supportedModes.find(m => m === 'edit');
+      },
+      sectionId () {
+        return this.section?.storageId;
+      },
+      isDynamicSection () {
+        return this.section?.template === eXo.$layoutUtils.flexTemplate;
+      },
+      customHeight () {
+        return (!this.height || this.height === '150px' || this.height === '300px' || this.height === '500px') ? 400 : this.height;
+      },
+      drawerTitle () {
+        return this.applicationCategoryTitle?.length && this.$t('layout.editApplicationTitle', {
+          0: this.applicationTitle,
+          1: this.applicationCategoryTitle,
+        }) || this.$t('layout.editApplicationTitleNoCategory', {
+          0: this.applicationTitle,
+        });
+      },
+      minHeightFormatted () {
+        if (this.minHeight === 0 || this.minHeight) {
+          return new Intl.NumberFormat(eXo.env.portal.language, {
+            style: 'decimal',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+          }).format(this.minHeight);
+        }
+        return null;
+      },
+      maxHeightFormatted () {
         return new Intl.NumberFormat(eXo.env.portal.language, {
           style: 'decimal',
           minimumFractionDigits: 0,
           maximumFractionDigits: 0,
-        }).format(this.minHeight);
-      }
-      return null;
+        }).format(this.maxHeight);
+      },
+      styleClasses () {
+        return this.drawer && this.refresh > 0 && this.sectionId && {
+          marginTop: this.container?.marginTop,
+          marginRight: this.container?.marginRight,
+          marginBottom: this.container?.marginBottom,
+          marginLeft: this.container?.marginLeft,
+          radiusTopRight: this.container?.radiusTopRight,
+          radiusTopLeft: this.container?.radiusTopLeft,
+          radiusBottomRight: this.container?.radiusBottomRight,
+          radiusBottomLeft: this.container?.radiusBottomLeft,
+          borderColor: this.container?.borderColor,
+          borderSize: this.container?.borderColor && this.container?.borderSize || null,
+          boxShadow: this.container?.boxShadow && 'true' || null,
+          textTitleColor: this.container?.textTitleColor || null,
+          textTitleFontSize: this.container?.textTitleFontSize || null,
+          textTitleFontWeight: this.container?.textTitleFontWeight || null,
+          textTitleFontStyle: this.container?.textTitleFontStyle || null,
+          textHeaderColor: this.container?.textHeaderColor || null,
+          textHeaderFontSize: this.container?.textHeaderFontSize || null,
+          textHeaderFontWeight: this.container?.textHeaderFontWeight || null,
+          textHeaderFontStyle: this.container?.textHeaderFontStyle || null,
+          textColor: this.container?.textColor || null,
+          textFontSize: this.container?.textFontSize || null,
+          textFontWeight: this.container?.textFontWeight || null,
+          textFontStyle: this.container?.textFontStyle || null,
+          textSubtitleColor: this.container?.textSubtitleColor || null,
+          textSubtitleFontSize: this.container?.textSubtitleFontSize || null,
+          textSubtitleFontWeight: this.container?.textSubtitleFontWeight || null,
+          textSubtitleFontStyle: this.container?.textSubtitleFontStyle || null,
+          height: this.container?.height || null,
+          ...this.backgroundProperties,
+          hiddenOnMobile: this.hiddenOnMobile,
+        } || null;
+      },
     },
-    maxHeightFormatted() {
-      return new Intl.NumberFormat(eXo.env.portal.language, {
-        style: 'decimal',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(this.maxHeight);
+    watch: {
+      drawer (value, oldVal) {
+        if (value && !oldVal && this.styleClasses) {
+          eXo.$layoutUtils.applyContainerStyle(this.container, this.styleClasses);
+        }
+      },
+      styleClasses (value, oldVal) {
+        if (value && oldVal) {
+          this.$root.$emit('layout-section-history-add', this.sectionId);
+          eXo.$layoutUtils.applyContainerStyle(this.container, this.styleClasses);
+          this.$root.$emit('layout-section-application-update-style', this.container);
+        } else if (value && !oldVal) {
+          this.initialized = true;
+        }
+      },
+      fixedHeight (value) {
+        if (value) {
+          this.height = this.height || '150px';
+        } else {
+          this.height = null;
+        }
+      },
+      height (value) {
+        if (this.initialized) {
+          this.container.height = value;
+          this.refresh++;
+        }
+      },
     },
-    styleClasses() {
-      return this.drawer && this.refresh > 0 && this.sectionId && {
-        marginTop: this.container?.marginTop,
-        marginRight: this.container?.marginRight,
-        marginBottom: this.container?.marginBottom,
-        marginLeft: this.container?.marginLeft,
-        radiusTopRight: this.container?.radiusTopRight,
-        radiusTopLeft: this.container?.radiusTopLeft,
-        radiusBottomRight: this.container?.radiusBottomRight,
-        radiusBottomLeft: this.container?.radiusBottomLeft,
-        borderColor: this.container?.borderColor,
-        borderSize: this.container?.borderColor && this.container?.borderSize || null,
-        boxShadow: this.container?.boxShadow && 'true' || null,
-        textTitleColor: this.container?.textTitleColor || null,
-        textTitleFontSize: this.container?.textTitleFontSize || null,
-        textTitleFontWeight: this.container?.textTitleFontWeight || null,
-        textTitleFontStyle: this.container?.textTitleFontStyle || null,
-        textHeaderColor: this.container?.textHeaderColor || null,
-        textHeaderFontSize: this.container?.textHeaderFontSize || null,
-        textHeaderFontWeight: this.container?.textHeaderFontWeight || null,
-        textHeaderFontStyle: this.container?.textHeaderFontStyle || null,
-        textColor: this.container?.textColor || null,
-        textFontSize: this.container?.textFontSize || null,
-        textFontWeight: this.container?.textFontWeight || null,
-        textFontStyle: this.container?.textFontStyle || null,
-        textSubtitleColor: this.container?.textSubtitleColor || null,
-        textSubtitleFontSize: this.container?.textSubtitleFontSize || null,
-        textSubtitleFontWeight: this.container?.textSubtitleFontWeight || null,
-        textSubtitleFontStyle: this.container?.textSubtitleFontStyle || null,
-        height: this.container?.height || null,
-        ...this.backgroundProperties,
-        hiddenOnMobile: this.hiddenOnMobile,
-      } || null;
-    },
-  },
-  watch: {
-    drawer(value, oldVal) {
-      if (value && !oldVal && this.styleClasses) {
-        this.$layoutUtils.applyContainerStyle(this.container, this.styleClasses);
-      }
-    },
-    styleClasses(value, oldVal) {
-      if (value && oldVal) {
-        this.$root.$emit('layout-section-history-add', this.sectionId);
-        this.$layoutUtils.applyContainerStyle(this.container, this.styleClasses);
-        this.$root.$emit('layout-section-application-update-style', this.container);
-      } else if (value && !oldVal) {
-        this.initialized = true;
-      }
-    },
-    fixedHeight(value) {
-      if (value) {
-        this.height = this.height || '150px';
-      } else {
-        this.height = null;
-      }
-    },
-    height(value) {
-      if (this.initialized) {
-        this.container.height = value;
-        this.refresh++;
-      }
-    },
-  },
-  methods: {
-    open(section, container, applicationCategoryTitle, applicationTitle) {
-      this.initialized = false;
-      Object.assign(container, Object.assign({...this.$layoutUtils.applicationModel}, container));
-      this.section = section;
-      this.container = container;
-      this.section = section;
-      this.height = container.height;
-      this.hiddenOnMobile = container.cssClass?.includes?.('hidden-sm-and-down') || false;
-      this.fixedHeight = !!this.height;
-      this.applicationCategoryTitle = applicationCategoryTitle;
-      this.applicationTitle = applicationTitle;
-      this.$layoutUtils.parseContainerStyle(this.container);
-
-      this.backgroundProperties = {
-        storageId: this.container.storageId,
-        backgroundColor: this.container.backgroundColor || null,
-        backgroundImage: this.container.backgroundImage || null,
-        backgroundEffect: this.container.backgroundEffect || null,
-        backgroundRepeat: this.container.backgroundRepeat || null,
-        backgroundSize: this.container.backgroundSize || null,
-      };
-
-      this.$nextTick(() => this.$refs.drawer.open());
-    },
-    reset() {
-      window.setTimeout(() => {
+    methods: {
+      open (section, container, applicationCategoryTitle, applicationTitle) {
         this.initialized = false;
-        this.fixedHeight = false;
-        this.customHeightValue = false;
-        this.height = null;
-        this.minHeight = 100;
-        this.maxHeight = 1000;
-        this.invalidCustomHeight = false;
-        this.hiddenOnMobile = false;
-        this.section = null;
-        this.container = null;
-        this.backgroundProperties = null;
-        this.applicationCategoryTitle = null;
-        this.applicationTitle = null;
-        this.refresh = 1;
-      }, 200);
+        Object.assign(container, Object.assign({ ...eXo.$layoutUtils.applicationModel }, container));
+        this.section = section;
+        this.container = container;
+        this.section = section;
+        this.height = container.height;
+        this.hiddenOnMobile = container.cssClass?.includes?.('hidden-sm-and-down') || false;
+        this.fixedHeight = !!this.height;
+        this.applicationCategoryTitle = applicationCategoryTitle;
+        this.applicationTitle = applicationTitle;
+        eXo.$layoutUtils.parseContainerStyle(this.container);
+
+        this.backgroundProperties = {
+          storageId: this.container.storageId,
+          backgroundColor: this.container.backgroundColor || null,
+          backgroundImage: this.container.backgroundImage || null,
+          backgroundEffect: this.container.backgroundEffect || null,
+          backgroundRepeat: this.container.backgroundRepeat || null,
+          backgroundSize: this.container.backgroundSize || null,
+        };
+
+        this.$nextTick(() => this.$refs.drawer.open());
+      },
+      reset () {
+        window.setTimeout(() => {
+          this.initialized = false;
+          this.fixedHeight = false;
+          this.customHeightValue = false;
+          this.height = null;
+          this.minHeight = 100;
+          this.maxHeight = 1000;
+          this.invalidCustomHeight = false;
+          this.hiddenOnMobile = false;
+          this.section = null;
+          this.container = null;
+          this.backgroundProperties = null;
+          this.applicationCategoryTitle = null;
+          this.applicationTitle = null;
+          this.refresh = 1;
+        }, 200);
+      },
+      close () {
+        this.$refs.drawer.close();
+      },
     },
-    close() {
-      this.$refs.drawer.close();
-    },
-  },
-};
+  };
 </script>

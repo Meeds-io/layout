@@ -18,7 +18,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-export function getSiteTemplates() {
+export function getSiteTemplates () {
   return fetch('/layout/rest/site/templates', {
     method: 'GET',
     credentials: 'include',
@@ -31,7 +31,7 @@ export function getSiteTemplates() {
   });
 }
 
-export function getSiteTemplate(id) {
+export function getSiteTemplate (id) {
   return fetch(`/layout/rest/site/templates/${id}`, {
     method: 'GET',
     credentials: 'include',
@@ -44,7 +44,7 @@ export function getSiteTemplate(id) {
   });
 }
 
-export function createSiteTemplate(siteTemplate) {
+export function createSiteTemplate (siteTemplate) {
   return fetch('/layout/rest/site/templates', {
     credentials: 'include',
     method: 'POST',
@@ -52,7 +52,7 @@ export function createSiteTemplate(siteTemplate) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(siteTemplate),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -61,7 +61,7 @@ export function createSiteTemplate(siteTemplate) {
   });
 }
 
-export function updateSiteTemplate(siteTemplate) {
+export function updateSiteTemplate (siteTemplate) {
   return fetch(`/layout/rest/site/templates/${siteTemplate.id}`, {
     credentials: 'include',
     method: 'PUT',
@@ -69,7 +69,7 @@ export function updateSiteTemplate(siteTemplate) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(siteTemplate),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -78,18 +78,18 @@ export function updateSiteTemplate(siteTemplate) {
   });
 }
 
-export function deleteSiteTemplate(id) {
+export function deleteSiteTemplate (id) {
   return fetch(`/layout/rest/site/templates/${id}`, {
     credentials: 'include',
     method: 'DELETE',
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when deleting site template');
     }
   });
 }
 
-export function saveAsSiteTemplate(siteTemplate, siteId) {
+export function saveAsSiteTemplate (siteTemplate, siteId) {
   return fetch(`/layout/rest/site/templates/${siteId}`, {
     credentials: 'include',
     method: 'POST',
@@ -97,7 +97,7 @@ export function saveAsSiteTemplate(siteTemplate, siteId) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(siteTemplate),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {

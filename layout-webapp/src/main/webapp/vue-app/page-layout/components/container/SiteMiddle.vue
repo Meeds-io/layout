@@ -21,26 +21,26 @@
 -->
 <template>
   <page-layout-container-base
+    class="d-flex flex-column flex-grow-1 flex-shrink-1 layout-site-middle-container"
     :container="container"
-    :parent-id="parentId"
-    class="d-flex flex-column flex-grow-1 flex-shrink-1 layout-site-middle-container" />
+    :parent-id="parentId" />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    computed: {
+      storageId () {
+        return this.container?.storageId;
+      },
     },
-  },
-  computed: {
-    storageId() {
-      return this.container?.storageId;
-    },
-  },
-};
+  };
 </script>

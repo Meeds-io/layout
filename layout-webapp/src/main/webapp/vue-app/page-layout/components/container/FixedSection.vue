@@ -20,34 +20,34 @@
 -->
 <template>
   <div
-    :style="cssStyle"
-    class="layout-section">
+    class="layout-section"
+    :style="cssStyle">
     <page-layout-container-base
+      class="layout-section-content"
       :container="container"
-      :parent-id="parentId"
       no-background-style
-      class="layout-section-content" />
+      :parent-id="parentId" />
   </div>
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    computed: {
+      cssStyle () {
+        return eXo.$applicationUtils.getStyle(this.container, {
+          onlyBackgroundStyle: true,
+          sectionStyle: true,
+        });
+      },
     },
-  },
-  computed: {
-    cssStyle() {
-      return this.$applicationUtils.getStyle(this.container, {
-        onlyBackgroundStyle: true,
-        sectionStyle: true,
-      });
-    },
-  },
-};
+  };
 </script>

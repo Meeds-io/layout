@@ -22,33 +22,33 @@
 <template>
   <v-menu
     v-model="menu"
-    :left="!$vuetify.rtl"
-    :right="$vuetify.rtl"
     :content-class="menuId"
-    offset-y>
+    :left="!$vuetify.rtl"
+    offset-y
+    :right="$vuetify.rtl">
     <template #activator="{ on, attrs }">
       <v-btn
         :aria-label="$t('siteTemplates.menu.open')"
-        :loading="loading"
-        icon
-        small
         class="mx-auto"
+        icon
+        :loading="loading"
+        small
         v-bind="attrs"
         v-on="on">
-        <v-icon size="16" class="icon-default-color">fas fa-ellipsis-v</v-icon>
+        <v-icon class="icon-default-color" size="16">fas fa-ellipsis-v</v-icon>
       </v-btn>
     </template>
     <v-hover v-if="menu" @input="hoverMenu = $event">
       <v-list
         class="pa-0"
         dense
-        @mouseout="menu = false"
-        @focusout="menu = false">
+        @focusout="menu = false"
+        @mouseout="menu = false">
         <v-list-item-group v-model="listItem">
           <v-list-item
+            dense
             :href="editSiteLayoutLink"
-            target="_blank"
-            dense>
+            target="_blank">
             <v-icon size="13">
               fa-window-maximize
             </v-icon>
@@ -71,8 +71,8 @@
             @click="$root.$emit('site-template-edit', siteTemplate)">
             <v-card
               color="transparent"
-              min-width="15"
-              flat>
+              flat
+              min-width="15">
               <v-icon size="13">
                 fa-edit
               </v-icon>
@@ -86,8 +86,8 @@
             @click="duplicate">
             <v-card
               color="transparent"
-              min-width="15"
-              flat>
+              flat
+              min-width="15">
               <v-icon size="13">
                 fa-copy
               </v-icon>
@@ -96,19 +96,19 @@
               {{ $t('siteTemplates.label.duplicate') }}
             </v-list-item-title>
           </v-list-item>
-          <v-tooltip :disabled="!siteTemplate.system" bottom>
+          <v-tooltip bottom :disabled="!siteTemplate.system">
             <template #activator="{ on, attrs }">
               <div
-                v-on="on"
-                v-bind="attrs">
+                v-bind="attrs"
+                v-on="on">
                 <v-list-item
-                  :disabled="siteTemplate.system"
                   dense
+                  :disabled="siteTemplate.system"
                   @click="$root.$emit('site-template-delete', siteTemplate)">
                   <v-card
                     color="transparent"
-                    min-width="15"
-                    flat>
+                    flat
+                    min-width="15">
                     <v-icon
                       :class="!siteTemplate.system && 'error--text' || 'disabled--text'"
                       size="13">
@@ -129,103 +129,103 @@
   </v-menu>
 </template>
 <script>
-export default {
-  props: {
-    siteTemplate: {
-      type: Object,
-      default: null,
-    },
-  },
-  data: () => ({
-    menu: false,
-    loading: false,
-    hoverMenu: false,
-    listItem: null,
-    menuId: `siteTemplateMenu${parseInt(Math.random() * 10000)}`,
-  }),
-  computed: {
-    siteTemplateId() {
-      return this.siteTemplate?.id;
-    },
-    name() {
-      return this.$te(this.siteTemplate?.name) ? this.$t(this.siteTemplate?.name) : this.siteTemplate?.name;
-    },
-    hasEditMode() {
-      return this.siteTemplate?.supportedModes?.find?.(mode => mode === 'edit');
-    },
-    editSiteLayoutLink() {
-      return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/site-layout-editor?siteId=${this.siteTemplateId}`;
-    },
-  },
-  watch: {
-    listItem() {
-      if (this.menu) {
-        this.menu = false;
-        this.listItem = null;
-      }
-    },
-    menu() {
-      if (this.menu) {
-        this.$root.$emit('site-template-menu-opened', this.siteTemplateId);
-      } else {
-        this.$root.$emit('site-template-menu-closed', this.siteTemplateId);
-      }
-    },
-    hoverMenu() {
-      if (!this.hoverMenu) {
-        window.setTimeout(() => {
-          if (!this.hoverMenu) {
-            this.menu = false;
-          }
-        }, 200);
-      }
-    },
-  },
-  created() {
-    this.$root.$on('site-template-menu-opened', this.checkMenuStatus);
-    document.addEventListener('click', this.closeMenuOnClick);
-  },
-  beforeDestroy() {
-    this.$root.$off('site-template-menu-opened', this.checkMenuStatus);
-    document.removeEventListener('click', this.closeMenuOnClick);
-  },
-  methods: {
-    closeMenuOnClick(e) {
-      if (e.target && !e.target.closest(`.${this.menuId}`)) {
-        this.menu = false;
-      }
-    },
-    checkMenuStatus(siteTemplateId) {
-      if (this.menu && siteTemplateId !== this.siteTemplate.id) {
-        this.menu = false;
-      }
-    },
-    async duplicate() {
-      const nameTranslations = await this.$translationService.getTranslations('siteTemplate', this.siteTemplate.id, 'title');
-      const descriptionTranslations = await this.$translationService.getTranslations('siteTemplate', this.siteTemplate.id, 'description');
-
-      const bannerBlob = !this.siteTemplate.illustrationId ? null : await fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/siteTemplate/${this.siteTemplate.id}/${this.siteTemplate.illustrationId}`, {
-        credentials: 'include',
-        method: 'GET',
-      }).then(resp => resp?.ok && resp.blob());
-      const bannerData = bannerBlob && await this.$utils.blobToBase64(bannerBlob);
-      const bannerUploadId = bannerBlob && await this.$uploadService.upload(bannerBlob);
-
-      this.$root.$emit('site-template-add', {
-        ...this.siteTemplate,
-        id: null,
-        layout: null,
-        illustrationId: null,
-        system: false,
+  export default {
+    props: {
+      siteTemplate: {
+        type: Object,
+        default: null,
       },
-      this.siteTemplate.id,
-      nameTranslations?.[eXo.env.portal.defaultLanguage],
-      nameTranslations,
-      descriptionTranslations?.[eXo.env.portal.defaultLanguage],
-      descriptionTranslations,
-      bannerUploadId,
-      bannerData);
     },
-  },
-};
+    data: () => ({
+      menu: false,
+      loading: false,
+      hoverMenu: false,
+      listItem: null,
+      menuId: `siteTemplateMenu${parseInt(Math.random() * 10000)}`,
+    }),
+    computed: {
+      siteTemplateId () {
+        return this.siteTemplate?.id;
+      },
+      name () {
+        return this.$te(this.siteTemplate?.name) ? this.$t(this.siteTemplate?.name) : this.siteTemplate?.name;
+      },
+      hasEditMode () {
+        return this.siteTemplate?.supportedModes?.find?.(mode => mode === 'edit');
+      },
+      editSiteLayoutLink () {
+        return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/site-layout-editor?siteId=${this.siteTemplateId}`;
+      },
+    },
+    watch: {
+      listItem () {
+        if (this.menu) {
+          this.menu = false;
+          this.listItem = null;
+        }
+      },
+      menu () {
+        if (this.menu) {
+          this.$root.$emit('site-template-menu-opened', this.siteTemplateId);
+        } else {
+          this.$root.$emit('site-template-menu-closed', this.siteTemplateId);
+        }
+      },
+      hoverMenu () {
+        if (!this.hoverMenu) {
+          window.setTimeout(() => {
+            if (!this.hoverMenu) {
+              this.menu = false;
+            }
+          }, 200);
+        }
+      },
+    },
+    created () {
+      this.$root.$on('site-template-menu-opened', this.checkMenuStatus);
+      document.addEventListener('click', this.closeMenuOnClick);
+    },
+    beforeUnmount () {
+      this.$root.$off('site-template-menu-opened', this.checkMenuStatus);
+      document.removeEventListener('click', this.closeMenuOnClick);
+    },
+    methods: {
+      closeMenuOnClick (e) {
+        if (e.target && !e.target.closest(`.${this.menuId}`)) {
+          this.menu = false;
+        }
+      },
+      checkMenuStatus (siteTemplateId) {
+        if (this.menu && siteTemplateId !== this.siteTemplate.id) {
+          this.menu = false;
+        }
+      },
+      async duplicate () {
+        const nameTranslations = await eXo.$translationService.getTranslations('siteTemplate', this.siteTemplate.id, 'title');
+        const descriptionTranslations = await eXo.$translationService.getTranslations('siteTemplate', this.siteTemplate.id, 'description');
+
+        const bannerBlob = !this.siteTemplate.illustrationId ? null : await fetch(`${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/siteTemplate/${this.siteTemplate.id}/${this.siteTemplate.illustrationId}`, {
+          credentials: 'include',
+          method: 'GET',
+        }).then(resp => resp?.ok && resp.blob());
+        const bannerData = bannerBlob && await eXo.$utils.blobToBase64(bannerBlob);
+        const bannerUploadId = bannerBlob && await eXo.$uploadService.upload(bannerBlob);
+
+        this.$root.$emit('site-template-add', {
+                           ...this.siteTemplate,
+                           id: null,
+                           layout: null,
+                           illustrationId: null,
+                           system: false,
+                         },
+                         this.siteTemplate.id,
+                         nameTranslations?.[eXo.env.portal.defaultLanguage],
+                         nameTranslations,
+                         descriptionTranslations?.[eXo.env.portal.defaultLanguage],
+                         descriptionTranslations,
+                         bannerUploadId,
+                         bannerData);
+      },
+    },
+  };
 </script>

@@ -26,10 +26,10 @@
         <div v-bind="attrs" v-on="on">
           <v-btn
             :aria-label="$t('layout.editSiteSections')"
-            target="_blank"
             icon
+            target="_blank"
             @click="$root.$emit('layout-site-sections-open')">
-            <v-icon size="20" class="icon-default-color">fa-edit</v-icon>
+            <v-icon class="icon-default-color" size="20">fa-edit</v-icon>
           </v-btn>
         </div>
       </template>

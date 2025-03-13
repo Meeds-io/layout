@@ -22,66 +22,66 @@
 <template>
   <layout-editor-container-base
     ref="container"
+    class="d-flex flex-column flex-grow-1 flex-shrink-1 layout-site-middle-container"
     :container="container"
-    :parent-id="parentId"
+    draggable
     :index="index"
     :length="length"
-    class="d-flex flex-column flex-grow-1 flex-shrink-1 layout-site-middle-container"
-    type="site-middle-container"
     no-background-style
-    draggable />
+    :parent-id="parentId"
+    type="site-middle-container" />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
+      index: {
+        type: Number,
+        default: null,
+      },
+      length: {
+        type: Number,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
-    },
-    index: {
-      type: Number,
-      default: null,
-    },
-    length: {
-      type: Number,
-      default: null,
-    },
-  },
-  computed: {
-    storageId() {
-      return this.container?.storageId;
-    },
-    sidebarsContainerMinWidth() {
-      return this.$root.layout?.children
-        ?.filter?.(c => c.template === this.$layoutUtils.sidebarTemplate
-          && c.children?.length
-          && (
-            !this.$root.mobileDisplayMode
-            || !c?.children?.[0].cssClass?.includes?.('hidden-sm-and-down')
+    computed: {
+      storageId () {
+        return this.container?.storageId;
+      },
+      sidebarsContainerMinWidth () {
+        return this.$root.layout?.children
+          ?.filter?.(c => c.template === eXo.$layoutUtils.sidebarTemplate
+            && c.children?.length
+            && (
+              !this.$root.mobileDisplayMode
+              || !c?.children?.[0].cssClass?.includes?.('hidden-sm-and-down')
+            )
           )
-        )
-        ?.map?.(c => c.width
-          && Number(c.width)
-          || 310
-        )
-        ?.reduce?.((acc, v) => acc + v, 0) || 0;
+          ?.map?.(c => c.width
+            && Number(c.width)
+            || 310
+          )
+          ?.reduce?.((acc, v) => acc + v, 0) || 0;
+      },
+      width () {
+        return `max(100vw - ${this.sidebarsContainerMinWidth}px, 100%)`;
+      },
+      maxWidth () {
+        return `min(100vw - ${this.sidebarsContainerMinWidth}px, 100%)`;
+      },
+      cssStyle () {
+        return {
+          'width': this.width,
+          'max-width': this.maxWidth,
+        };
+      },
     },
-    width() {
-      return `max(100vw - ${this.sidebarsContainerMinWidth}px, 100%)`;
-    },
-    maxWidth() {
-      return `min(100vw - ${this.sidebarsContainerMinWidth}px, 100%)`;
-    },
-    cssStyle() {
-      return {
-        'width': this.width,
-        'max-width': this.maxWidth,
-      };
-    },
-  },
-};
+  };
 </script>

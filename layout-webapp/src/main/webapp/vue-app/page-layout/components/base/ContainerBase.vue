@@ -35,87 +35,87 @@
   </div>
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
+      noBackgroundStyle: {
+        type: Boolean,
+        default: false,
+      },
+      noApplicationStyle: {
+        type: Boolean,
+        default: false,
+      },
+      siteStyle: {
+        type: Boolean,
+        default: false,
+      },
+      pageStyle: {
+        type: Boolean,
+        default: false,
+      },
+      sectionStyle: {
+        type: Boolean,
+        default: false,
+      },
+      noSectionMargins: {
+        type: Boolean,
+        default: false,
+      },
+      dynamicWidth: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    computed: {
+      id () {
+        return this.container?.id || `Container${this.storageId}`;
+      },
+      storageId () {
+        return this.container?.storageId;
+      },
+      children () {
+        return this.container?.children;
+      },
+      hasChildren () {
+        return !!this.children?.length;
+      },
+      height () {
+        return this.container?.height;
+      },
+      width () {
+        return this.container?.width;
+      },
+      borderColor () {
+        return this.container?.borderColor;
+      },
+      cssStyle () {
+        return eXo.$applicationUtils.getStyle(this.container, {
+          isApplicationBackground: this.container.template === 'BannerCell',
+          noSectionMargins: this.noSectionMargins,
+          noBackgroundStyle: this.noBackgroundStyle,
+          siteStyle: this.siteStyle,
+          pageStyle: this.pageStyle,
+          sectionStyle: this.sectionStyle,
+          appStyle: !this.noApplicationStyle,
+          dynamicWidth: this.dynamicWidth,
+        });
+      },
+      cssClass () {
+        return this.container?.cssClass || '';
+      },
     },
-    noBackgroundStyle: {
-      type: Boolean,
-      default: false,
+    methods: {
+      hasUnit (length) {
+        return Number.isNaN(Number(length));
+      },
     },
-    noApplicationStyle: {
-      type: Boolean,
-      default: false,
-    },
-    siteStyle: {
-      type: Boolean,
-      default: false,
-    },
-    pageStyle: {
-      type: Boolean,
-      default: false,
-    },
-    sectionStyle: {
-      type: Boolean,
-      default: false,
-    },
-    noSectionMargins: {
-      type: Boolean,
-      default: false,
-    },
-    dynamicWidth: {
-      type: String,
-      default: null,
-    },
-  },
-  computed: {
-    id() {
-      return this.container?.id || `Container${this.storageId}`;
-    },
-    storageId() {
-      return this.container?.storageId;
-    },
-    children() {
-      return this.container?.children;
-    },
-    hasChildren() {
-      return !!this.children?.length;
-    },
-    height() {
-      return this.container?.height;
-    },
-    width() {
-      return this.container?.width;
-    },
-    borderColor() {
-      return this.container?.borderColor;
-    },
-    cssStyle() {
-      return this.$applicationUtils.getStyle(this.container, {
-        isApplicationBackground: this.container.template === 'BannerCell',
-        noSectionMargins: this.noSectionMargins,
-        noBackgroundStyle: this.noBackgroundStyle,
-        siteStyle: this.siteStyle,
-        pageStyle: this.pageStyle,
-        sectionStyle: this.sectionStyle,
-        appStyle: !this.noApplicationStyle,
-        dynamicWidth: this.dynamicWidth,
-      });
-    },
-    cssClass() {
-      return this.container?.cssClass || '';
-    },
-  },
-  methods: {
-    hasUnit(length) {
-      return Number.isNaN(Number(length));
-    },
-  },
-};
+  };
 </script>

@@ -19,8 +19,8 @@
 
 import * as layoutUtils from './js/LayoutUtils.js';
 
-if (!Vue.prototype.$layoutUtils) {
-  window.Object.defineProperty(Vue.prototype, '$layoutUtils', {
+if (!eXo.$layoutUtils) {
+  window.Object.defineProperty(eXo, '$layoutUtils', {
     value: layoutUtils,
   });
 }

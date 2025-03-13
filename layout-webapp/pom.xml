@@ -32,6 +32,10 @@
   <artifactId>layout-webapp</artifactId>
   <packaging>war</packaging>
   <name>Meeds - Layout Addon - Webapp</name>
+  <properties>
+    <node.version>v22.14.0</node.version>
+    <npm.version>10.9.2</npm.version>
+  </properties>
   <dependencies>
     <dependency>
       <groupId>io.meeds.layout</groupId>

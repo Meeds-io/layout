@@ -21,13 +21,13 @@
 <template>
   <v-dialog
     v-model="dialog"
-    :persistent="false"
+    content-class="overflow-y-initial overflow-x-hidden full-height full-width pa-5"
     height="100%"
     max-height="100%"
-    width="100%"
     max-width="100%"
     overlay-opacity="0.9"
-    content-class="overflow-y-initial overflow-x-hidden full-height full-width pa-5">
+    :persistent="false"
+    width="100%">
     <template v-if="dialog">
       <div class="d-flex justify-end">
         <v-btn
@@ -48,32 +48,32 @@
       </div>
       <div class="full-width d-flex align-center justify-center">
         <v-card
+          class="d-flex flex-column"
           :class="title && 'aspect-ratio-1 px-4 pt-4'"
           :color="!title && 'transparent'"
-          class="d-flex flex-column"
+          flat
+          max-height="80vh"
+          max-width="100%"
           :min-width="title && 420"
           :width="title && '80%'"
-          max-width="100%"
-          max-height="80vh"
-          flat
           @click="dialog = false">
           <div
             v-if="title"
-            class="text-start text-title"
-            v-sanitized-html="title"></div>
+            v-sanitized-html="title"
+            class="text-start text-title"></div>
           <div
             v-if="title && description"
-            class="text-start"
-            v-sanitized-html="description"></div>
+            v-sanitized-html="description"
+            class="text-start"></div>
           <div
-            :class="title && 'py-4'"
-            class="d-flex flex-grow-1 flex-shrink-1 align-center justify-center overflow-hidden">
+            class="d-flex flex-grow-1 flex-shrink-1 align-center justify-center overflow-hidden"
+            :class="title && 'py-4'">
             <img
-              :src="illustrationSrc"
               :alt="title || ''"
-              :class="title && 'elevation-2'"
               class="full-height width-auto"
+              :class="title && 'elevation-2'"
               height="100%"
+              :src="illustrationSrc"
               width="100%">
           </div>
         </v-card>
@@ -82,46 +82,46 @@
   </v-dialog>
 </template>
 <script>
-export default {
-  data: () => ({
-    dialog: false,
-    illustrationSrc: null,
-    actionLabel: null,
-    actionIcon: null,
-    actionClick: null,
-    actionCloseOnClick: null,
-  }),
-  watch: {
-    dialog() {
-      if (this.dialog) {
-        document.dispatchEvent(new CustomEvent('modalOpened'));
-      } else {
-        document.dispatchEvent(new CustomEvent('modalClosed'));
-      }
-    }
-  },
-  created() {
-    this.$root.$on('layout-illustration-preview', this.open);
-  },
-  methods: {
-    open(illustrationSrc, action, title, description) {
-      this.illustrationSrc = illustrationSrc;
-      this.actionIcon = action?.icon;
-      this.actionLabel = action?.label;
-      this.actionClick = action?.click;
-      this.actionCloseOnClick = action?.closeOnClick;
-      this.title = title;
-      this.description = description;
-      this.dialog = true;
+  export default {
+    data: () => ({
+      dialog: false,
+      illustrationSrc: null,
+      actionLabel: null,
+      actionIcon: null,
+      actionClick: null,
+      actionCloseOnClick: null,
+    }),
+    watch: {
+      dialog () {
+        if (this.dialog) {
+          document.dispatchEvent(new CustomEvent('modalOpened'));
+        } else {
+          document.dispatchEvent(new CustomEvent('modalClosed'));
+        }
+      },
     },
-    clickOnAction() {
-      if (this.actionCloseOnClick) {
-        this.dialog = false;
-      }
-      if (this.actionClick) {
-        this.actionClick();
-      }
+    created () {
+      this.$root.$on('layout-illustration-preview', this.open);
     },
-  }
-};
+    methods: {
+      open (illustrationSrc, action, title, description) {
+        this.illustrationSrc = illustrationSrc;
+        this.actionIcon = action?.icon;
+        this.actionLabel = action?.label;
+        this.actionClick = action?.click;
+        this.actionCloseOnClick = action?.closeOnClick;
+        this.title = title;
+        this.description = description;
+        this.dialog = true;
+      },
+      clickOnAction () {
+        if (this.actionCloseOnClick) {
+          this.dialog = false;
+        }
+        if (this.actionClick) {
+          this.actionClick();
+        }
+      },
+    },
+  };
 </script>

@@ -20,15 +20,15 @@
 -->
 <template>
   <component
-    v-if="show"
-    ref="resizeButton"
     v-bind="!dynamicSection && {
       width: iconSize,
       height: iconSize,
       icon: true,
     }"
     :is="dynamicSection && 'div' || 'v-btn'"
-    :title="dynamicSection && $t('layout.updateWidth') || $t('layout.resizeCell')"
+    v-if="show"
+    ref="resizeButton"
+    class="position-absolute z-index-two"
     :class="[{
       'l-0': $vuetify.rtl,
       'r-0': !$vuetify.rtl,
@@ -38,64 +38,64 @@
       'col-resize-cursor grid-gap-width': dynamicSection,
       'layout-column-resize': dynamicSection && hoverSeparator,
     }, spacingClass]"
-    class="position-absolute z-index-two"
-    @mousedown.prevent.stop="resizeStart"
-    @mouseover="hoverSeparator = true"
+    :title="dynamicSection && $t('layout.updateWidth') || $t('layout.resizeCell')"
     @focusin="hoverSeparator = true"
+    @focusout="hoverSeparator = false"
+    @mousedown.prevent.stop="resizeStart"
     @mouseout="hoverSeparator = false"
-    @focusout="hoverSeparator = false">
+    @mouseover="hoverSeparator = true">
     <v-icon
       v-if="!dynamicSection"
-      :size="iconSize"
-      class="icon-default-color">
+      class="icon-default-color"
+      :size="iconSize">
       {{ dynamicSection && 'fa-arrows-alt-h' || 'fa-expand-alt' }}
     </v-icon>
   </component>
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
+      dynamicSection: {
+        type: Boolean,
+        default: false,
+      },
+      hover: {
+        type: Boolean,
+        default: null,
+      },
+      moving: {
+        type: Boolean,
+        default: null,
+      },
+      spacingClass: {
+        type: String,
+        default: () => 'me-n5',
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    data: () => ({
+      iconSize: 20,
+      hoverSeparator: false,
+    }),
+    computed: {
+      sectionHovered () {
+        return this.$root.hoveredSectionId === this.parentId;
+      },
+      show () {
+        return ((!this.dynamicSection && this.hover) || (this.dynamicSection && this.sectionHovered)) && !this.moving && !this.$root.drawerOpened;
+      },
     },
-    dynamicSection: {
-      type: Boolean,
-      default: false,
+    methods: {
+      resizeStart (event) {
+        this.$emit('move-start', event, 'resize');
+      },
     },
-    hover: {
-      type: Boolean,
-      default: null,
-    },
-    moving: {
-      type: Boolean,
-      default: null,
-    },
-    spacingClass: {
-      type: String,
-      default: () => 'me-n5',
-    },
-  },
-  data: () => ({
-    iconSize: 20,
-    hoverSeparator: false,
-  }),
-  computed: {
-    sectionHovered() {
-      return this.$root.hoveredSectionId === this.parentId;
-    },
-    show() {
-      return ((!this.dynamicSection && this.hover) || (this.dynamicSection && this.sectionHovered)) && !this.moving && !this.$root.drawerOpened;
-    },
-  },
-  methods: {
-    resizeStart(event) {
-      this.$emit('move-start', event, 'resize');
-    },
-  },
-};
+  };
 </script>

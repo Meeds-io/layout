@@ -24,41 +24,41 @@
   </div>
 </template>
 <script>
-export default {
-  props: {
-    value: {
-      type: String,
-      default: null
-    }
-  },
-  data: () => ({
-    pageTemplates: null,
-  }),
-  computed: {
-    templatesCount() {
-      return this.pageTemplates?.length || 0;
+  export default {
+    props: {
+      value: {
+        type: String,
+        default: null,
+      },
     },
-    hasMoreThanOneTemplate() {
-      return this.templatesCount > 1;
+    data: () => ({
+      pageTemplates: null,
+    }),
+    computed: {
+      templatesCount () {
+        return this.pageTemplates?.length || 0;
+      },
+      hasMoreThanOneTemplate () {
+        return this.templatesCount > 1;
+      },
     },
-  },
-  created() {
-    if (this.$root.pageTemplates?.length) {
-      this.pageTemplates = this.$root.pageTemplates;
-    } else {
-      this.$root.pageTemplates = [];
-      this.getPageTemplates();
-    }
-  },
-  methods: {
-    getPageTemplates() {
-      return this.$pageTemplateService.getPageTemplates()
-        .then(pageTemplates => {
-          this.$root.pageTemplates = pageTemplates?.filter?.(t => !t.disabled && t.name) || [];
-          this.pageTemplates = this.$root.pageTemplates;
-          this.$root.$emit('page-templates-loaded', this.pageTemplates);
-        });
+    created () {
+      if (this.$root.pageTemplates?.length) {
+        this.pageTemplates = this.$root.pageTemplates;
+      } else {
+        this.$root.pageTemplates = [];
+        this.getPageTemplates();
+      }
     },
-  },
-};
+    methods: {
+      getPageTemplates () {
+        return eXo.$pageTemplateService.getPageTemplates()
+          .then(pageTemplates => {
+            this.$root.pageTemplates = pageTemplates?.filter?.(t => !t.disabled && t.name) || [];
+            this.pageTemplates = this.$root.pageTemplates;
+            this.$root.$emit('page-templates-loaded', this.pageTemplates);
+          });
+      },
+    },
+  };
 </script>

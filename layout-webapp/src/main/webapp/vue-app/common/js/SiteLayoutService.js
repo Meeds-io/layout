@@ -17,16 +17,16 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-export function createSite(siteName, siteId, siteLabel, siteDescription, displayed, displayOrder, bannerUploadId, icon, accessPermissions, editPermission) {
+export function createSite (siteName, siteId, siteLabel, siteDescription, displayed, displayOrder, bannerUploadId, icon, accessPermissions, editPermission) {
   const createModel = {
     siteId,
     portalConfig: {
       name: siteName,
       label: siteLabel,
       description: siteDescription,
-      displayed: displayed,
-      displayOrder: displayOrder,
-      bannerUploadId: bannerUploadId,
+      displayed,
+      displayOrder,
+      bannerUploadId,
       accessPermissions,
       editPermission,
       properties: {
@@ -38,10 +38,10 @@ export function createSite(siteName, siteId, siteLabel, siteDescription, display
     credentials: 'include',
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify(createModel),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -50,7 +50,7 @@ export function createSite(siteName, siteId, siteLabel, siteDescription, display
   });
 }
 
-export function createDraftSite(siteType, siteName) {
+export function createDraftSite (siteType, siteName) {
   const formData = new FormData();
   if (siteType) {
     formData.append('siteType', siteType);
@@ -62,7 +62,7 @@ export function createDraftSite(siteType, siteName) {
   return fetch(`/layout/rest/sites/draft?${params}`, {
     credentials: 'include',
     method: 'POST',
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -71,7 +71,7 @@ export function createDraftSite(siteType, siteName) {
   });
 }
 
-export function getSiteLayout(siteType, siteName, expand) {
+export function getSiteLayout (siteType, siteName, expand) {
   const formData = new FormData();
   if (siteType) {
     formData.append('siteType', siteType);
@@ -86,7 +86,7 @@ export function getSiteLayout(siteType, siteName, expand) {
   return fetch(`/layout/rest/sites/layout?${params}`, {
     credentials: 'include',
     method: 'GET',
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -95,7 +95,7 @@ export function getSiteLayout(siteType, siteName, expand) {
   });
 }
 
-export function getSiteById(siteId, lang) {
+export function getSiteById (siteId, lang) {
   const formData = new FormData();
   if (lang) {
     formData.append('lang', lang);
@@ -113,7 +113,7 @@ export function getSiteById(siteId, lang) {
   });
 }
 
-export function getSite(siteType, siteName, lang) {
+export function getSite (siteType, siteName, lang) {
   const formData = new FormData();
   formData.append('siteName', siteName);
   formData.append('siteType', siteType || 'portal');
@@ -133,13 +133,13 @@ export function getSite(siteType, siteName, lang) {
   });
 }
 
-export function getSiteLabels(siteId) {
+export function getSiteLabels (siteId) {
   if (!siteId) {
-    return Promise.resolve({en: null});
+    return Promise.resolve({ en: null });
   }
   return fetch(`/layout/rest/sites/${siteId}/labels`, {
     credentials: 'include',
-    method: 'GET'
+    method: 'GET',
   }).then(resp => {
     if (resp?.ok) {
       return resp.json();
@@ -149,13 +149,13 @@ export function getSiteLabels(siteId) {
   });
 }
 
-export function getSiteDescriptions(siteId) {
+export function getSiteDescriptions (siteId) {
   if (!siteId) {
-    return Promise.resolve({en: null});
+    return Promise.resolve({ en: null });
   }
   return fetch(`/layout/rest/sites/${siteId}/descriptions`, {
     credentials: 'include',
-    method: 'GET'
+    method: 'GET',
   }).then(resp => {
     if (resp?.ok) {
       return resp.json();
@@ -165,7 +165,7 @@ export function getSiteDescriptions(siteId) {
   });
 }
 
-export function updateSite(siteName, siteType, siteLabel, siteDescription, displayed, displayOrder, bannerUploadId, bannerRemoved, siteIcon) {
+export function updateSite (siteName, siteType, siteLabel, siteDescription, displayed, displayOrder, bannerUploadId, bannerRemoved, siteIcon) {
   const updateModel = {
     siteType,
     siteName,
@@ -183,17 +183,17 @@ export function updateSite(siteName, siteType, siteLabel, siteDescription, displ
     credentials: 'include',
     method: 'PUT',
     headers: {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
     },
     body: JSON.stringify(updateModel),
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when updating site');
     }
   });
 }
 
-export function updateSiteLayout(siteType, siteName, layout, expand, publish) {
+export function updateSiteLayout (siteType, siteName, layout, expand, publish) {
   return fetch(`/layout/rest/sites/layout?siteType=${siteType}&siteName=${siteName}&expand=${expand || ''}&publish=${publish || false}`, {
     method: 'PUT',
     credentials: 'include',
@@ -201,7 +201,7 @@ export function updateSiteLayout(siteType, siteName, layout, expand, publish) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(layout),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else if (resp.status === 400) {
@@ -215,13 +215,13 @@ export function updateSiteLayout(siteType, siteName, layout, expand, publish) {
   });
 }
 
-export function restoreSite({
+export function restoreSite ({
   siteName,
   siteType,
   importMode,
   siteLayout,
   sitePages,
-  siteNavigation
+  siteNavigation,
 }) {
   const formData = new FormData();
   if (siteName) {
@@ -249,15 +249,15 @@ export function restoreSite({
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: params
-  }).then((resp) => {
+    body: params,
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when updating site');
     }
   });
 }
 
-export function deleteSite(siteType, siteName) {
+export function deleteSite (siteType, siteName) {
   const formData = new FormData();
   formData.append('siteName', siteName);
   formData.append('siteType', siteType || 'portal');
@@ -272,7 +272,7 @@ export function deleteSite(siteType, siteName) {
   });
 }
 
-export function updateSitePermissions(siteType, siteName, editPermission, accessPermissions) {
+export function updateSitePermissions (siteType, siteName, editPermission, accessPermissions) {
   return fetch('/layout/rest/sites/permissions', {
     method: 'PATCH',
     credentials: 'include',
@@ -285,14 +285,14 @@ export function updateSitePermissions(siteType, siteName, editPermission, access
       editPermission: editPermission || null,
       accessPermissions: accessPermissions || null,
     }),
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when updating site permissions');
     }
   });
 }
 
-export function getMembershipTypes() {
+export function getMembershipTypes () {
   return fetch(`/${eXo.env.portal.rest}/v1/membershipTypes`, {
     method: 'GET',
     credentials: 'include',

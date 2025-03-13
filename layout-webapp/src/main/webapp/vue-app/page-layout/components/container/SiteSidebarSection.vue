@@ -22,27 +22,27 @@
 <template>
   <page-layout-container-base
     v-if="childrenSize"
+    class="flex-grow-0 flex-shrink-0 layout-sidebar-section layout-section-content"
     :container="container"
     :parent-id="parentId"
-    class="flex-grow-0 flex-shrink-0 layout-sidebar-section layout-section-content"
     section-style />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    computed: {
+      childrenSize () {
+        return this.container?.children?.length;
+      },
     },
-  },
-  computed: {
-    childrenSize() {
-      return this.container?.children?.length;
-    },
-  },
-};
+  };
 </script>

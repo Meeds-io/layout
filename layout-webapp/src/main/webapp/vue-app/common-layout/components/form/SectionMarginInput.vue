@@ -23,8 +23,8 @@
     <slot name="title"></slot>
     <div v-if="!$slots.title" class="d-flex align-center mb-2">
       <div
-        :class="textBold && 'font-weight-bold' || 'text-header'"
-        class="me-auto">
+        class="me-auto"
+        :class="textBold && 'font-weight-bold' || 'text-header'">
         {{ $t('layout.margins') }}
       </div>
       <v-switch
@@ -43,10 +43,10 @@
         </v-list-item-content>
         <number-input
           v-model="marginTop"
-          :max="max"
-          :min="min"
           class="my-auto"
-          editable />
+          editable
+          :max="max"
+          :min="min" />
       </v-list-item>
       <v-list-item
         v-if="right"
@@ -57,10 +57,10 @@
         </v-list-item-content>
         <number-input
           v-model="marginRight"
-          :max="max"
-          :min="min"
           class="my-auto"
-          editable />
+          editable
+          :max="max"
+          :min="min" />
       </v-list-item>
       <v-list-item
         v-if="bottom"
@@ -71,10 +71,10 @@
         </v-list-item-content>
         <number-input
           v-model="marginBottom"
-          :max="max"
-          :min="min"
           class="my-auto"
-          editable />
+          editable
+          :max="max"
+          :min="min" />
       </v-list-item>
       <v-list-item
         v-if="left"
@@ -85,114 +85,114 @@
         </v-list-item-content>
         <number-input
           v-model="marginLeft"
-          :max="max"
-          :min="min"
           class="my-auto"
-          editable />
+          editable
+          :max="max"
+          :min="min" />
       </v-list-item>
     </div>
   </div>
 </template>
 <script>
-export default {
-  props: {
-    value: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      value: {
+        type: Object,
+        default: null,
+      },
+      max: {
+        type: Number,
+        default: () => 60,
+      },
+      min: {
+        type: Number,
+        default: () => -60,
+      },
+      top: {
+        type: Boolean,
+        default: true,
+      },
+      right: {
+        type: Boolean,
+        default: false,
+      },
+      bottom: {
+        type: Boolean,
+        default: true,
+      },
+      left: {
+        type: Boolean,
+        default: false,
+      },
+      textBold: {
+        type: Boolean,
+        default: false,
+      },
     },
-    max: {
-      type: Number,
-      default: () => 60,
+    data: () => ({
+      container: null,
+      initialized: false,
+      enabled: true,
+      marginTop: null,
+      marginRight: null,
+      marginBottom: null,
+      marginLeft: null,
+    }),
+    computed: {
+      canUpdateValue () {
+        return this.enabled || this.$slots.title;
+      },
     },
-    min: {
-      type: Number,
-      default: () => -60,
+    watch: {
+      value () {
+        if (!this.container) {
+          this.container = this.value;
+        }
+      },
+      marginTop () {
+        if (this.initialized) {
+          this.$set(this.container, 'marginTop', this.canUpdateValue ? this.marginTop || 0 : null);
+          this.$emit('refresh');
+        }
+      },
+      marginRight () {
+        if (this.initialized && this.right) {
+          this.$set(this.container, 'marginRight', this.canUpdateValue ? this.marginRight || 0 : null);
+          this.$emit('refresh');
+        }
+      },
+      marginBottom () {
+        if (this.initialized) {
+          this.$set(this.container, 'marginBottom', this.canUpdateValue ? this.marginBottom || 0 : null);
+          this.$emit('refresh');
+        }
+      },
+      marginLeft () {
+        if (this.initialized && this.left) {
+          this.$set(this.container, 'marginLeft', this.canUpdateValue ? this.marginLeft || 0 : null);
+          this.$emit('refresh');
+        }
+      },
+      canUpdateValue () {
+        if (this.initialized) {
+          this.marginTop = this.canUpdateValue ? 0 : null;
+          this.marginRight = this.canUpdateValue ? 0 : null;
+          this.marginBottom = this.canUpdateValue ? 0 : null;
+          this.marginLeft = this.canUpdateValue ? 0 : null;
+        }
+      },
     },
-    top: {
-      type: Boolean,
-      default: true,
+    created () {
+      this.container = this.value;
+      this.marginTop = this.container.marginTop;
+      this.marginRight = this.right && this.container.marginRight || 0;
+      this.marginBottom = this.container.marginBottom;
+      this.marginLeft = this.left && this.container.marginLeft || 0;
+      this.enabled = (this.marginTop || this.container.marginTop === 0)
+        || (this.marginBottom || this.container.marginBottom === 0)
+        || (this.marginLeft || this.container.marginLeft === 0)
+        || (this.marginRight || this.container.marginRight === 0) ? true : false;
+      this.$nextTick().then(() => this.initialized = true);
     },
-    right: {
-      type: Boolean,
-      default: false,
-    },
-    bottom: {
-      type: Boolean,
-      default: true,
-    },
-    left: {
-      type: Boolean,
-      default: false,
-    },
-    textBold: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  data: () => ({
-    container: null,
-    initialized: false,
-    enabled: true,
-    marginTop: null,
-    marginRight: null,
-    marginBottom: null,
-    marginLeft: null,
-  }),
-  computed: {
-    canUpdateValue() {
-      return this.enabled || this.$slots.title;
-    },
-  },
-  watch: {
-    value() {
-      if (!this.container) {
-        this.container = this.value;
-      }
-    },
-    marginTop() {
-      if (this.initialized) {
-        this.$set(this.container, 'marginTop', this.canUpdateValue ? this.marginTop || 0 : null);
-        this.$emit('refresh');
-      }
-    },
-    marginRight() {
-      if (this.initialized && this.right) {
-        this.$set(this.container, 'marginRight', this.canUpdateValue ? this.marginRight || 0 : null);
-        this.$emit('refresh');
-      }
-    },
-    marginBottom() {
-      if (this.initialized) {
-        this.$set(this.container, 'marginBottom', this.canUpdateValue ? this.marginBottom || 0 : null);
-        this.$emit('refresh');
-      }
-    },
-    marginLeft() {
-      if (this.initialized && this.left) {
-        this.$set(this.container, 'marginLeft', this.canUpdateValue ? this.marginLeft || 0 : null);
-        this.$emit('refresh');
-      }
-    },
-    canUpdateValue() {
-      if (this.initialized) {
-        this.marginTop = this.canUpdateValue ? 0 : null;
-        this.marginRight = this.canUpdateValue ? 0 : null;
-        this.marginBottom = this.canUpdateValue ? 0 : null;
-        this.marginLeft = this.canUpdateValue ? 0 : null;
-      }
-    },
-  },
-  created() {
-    this.container = this.value;
-    this.marginTop = this.container.marginTop;
-    this.marginRight = this.right && this.container.marginRight || 0;
-    this.marginBottom = this.container.marginBottom;
-    this.marginLeft = this.left && this.container.marginLeft || 0;
-    this.enabled = (this.marginTop || this.container.marginTop === 0)
-      || (this.marginBottom || this.container.marginBottom === 0)
-      || (this.marginLeft || this.container.marginLeft === 0)
-      || (this.marginRight || this.container.marginRight === 0) ? true : false;
-    this.$nextTick().then(() => this.initialized = true);
-  },
-};
+  };
 </script>

@@ -17,7 +17,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-export function getPortlets() {
+export function getPortlets () {
   return fetch('/layout/rest/portlets', {
     method: 'GET',
     credentials: 'include',

@@ -21,31 +21,31 @@
 -->
 <template>
   <page-layout-container-base
-    :container="containerToDisplay"
-    :parent-id="parentId"
     class="display-flex flex-column border-box-sizing layout-sidebar-cell fill-height"
+    :container="containerToDisplay"
     dynamic-width="20vw"
+    :parent-id="parentId"
     section-style />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    computed: {
+      containerToDisplay () {
+        return this.container.width ? this.container : {
+          ...this.container,
+          width: '310px',
+        };
+      },
     },
-  },
-  computed: {
-    containerToDisplay() {
-      return this.container.width ? this.container : {
-        ...this.container,
-        width: '310px',
-      };
-    },
-  },
-};
+  };
 </script>

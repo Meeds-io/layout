@@ -17,7 +17,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-export function getPageTemplates(expandContent) {
+export function getPageTemplates (expandContent) {
   return fetch(`/layout/rest/page/templates?expandContent=${expandContent || false}`, {
     method: 'GET',
     credentials: 'include',
@@ -30,7 +30,7 @@ export function getPageTemplates(expandContent) {
   });
 }
 
-export function getPageTemplate(id, expandContent) {
+export function getPageTemplate (id, expandContent) {
   return fetch(`/layout/rest/page/templates/${id}?expandContent=${expandContent || false}`, {
     method: 'GET',
     credentials: 'include',
@@ -43,7 +43,7 @@ export function getPageTemplate(id, expandContent) {
   });
 }
 
-export function createPageTemplate(pageContent, disabled) {
+export function createPageTemplate (pageContent, disabled) {
   return fetch('/layout/rest/page/templates', {
     credentials: 'include',
     method: 'POST',
@@ -54,7 +54,7 @@ export function createPageTemplate(pageContent, disabled) {
       content: pageContent,
       disabled: disabled || false,
     }),
-  }).then((resp) => {
+  }).then(resp => {
     if (resp?.ok) {
       return resp.json();
     } else {
@@ -63,7 +63,7 @@ export function createPageTemplate(pageContent, disabled) {
   });
 }
 
-export function updatePageTemplate(pageTemplate) {
+export function updatePageTemplate (pageTemplate) {
   return fetch(`/layout/rest/page/templates/${pageTemplate.id}`, {
     credentials: 'include',
     method: 'PUT',
@@ -71,18 +71,18 @@ export function updatePageTemplate(pageTemplate) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(pageTemplate),
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when updating page template');
     }
   });
 }
 
-export function deletePageTemplate(id) {
+export function deletePageTemplate (id) {
   return fetch(`/layout/rest/page/templates/${id}`, {
     credentials: 'include',
     method: 'DELETE',
-  }).then((resp) => {
+  }).then(resp => {
     if (!resp?.ok) {
       throw new Error('Error when deleting page template');
     }

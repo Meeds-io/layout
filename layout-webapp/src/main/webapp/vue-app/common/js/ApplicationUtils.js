@@ -17,12 +17,12 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-export function installApplication(navUri, applicationStorageId, applicationElement, applicationMode, showSite, fullRender) {
+export function installApplication (navUri, applicationStorageId, applicationElement, applicationMode, showSite, fullRender) {
   return getApplicationContent(navUri, applicationStorageId, applicationMode, showSite, fullRender)
     .then(applicationContent => handleApplicationContent(applicationContent, applicationElement, applicationMode));
 }
 
-export function getStyle(container, options) {
+export function getStyle (container, options) {
   const style = {};
   if (container.marginTop === 0
     || container.marginTop
@@ -338,13 +338,13 @@ export function getStyle(container, options) {
   return style;
 }
 
-export function getApplicationContent(navUri, applicationStorageId, applicationMode, showSite, fullRender) {
+export function getApplicationContent (navUri, applicationStorageId, applicationMode, showSite, fullRender) {
   const spaceOption = eXo.env.portal.previewSpaceId && `&previewSpaceId=${eXo.env.portal.previewSpaceId}` || '';
   const fullRenderOption = fullRender && '&fullRender=true' || '';
   return fetch(`/portal${navUri}?maximizedPortletId=${applicationStorageId}&showMaxWindow=${!showSite}&hideSharedLayout=true&maximizedPortletMode=${applicationMode || 'VIEW'}${spaceOption}${fullRenderOption}`, {
     credentials: 'include',
     method: 'GET',
-    redirect: 'manual'
+    redirect: 'manual',
   })
     .then(resp => {
       if (resp?.status === 200) {
@@ -355,7 +355,7 @@ export function getApplicationContent(navUri, applicationStorageId, applicationM
     });
 }
 
-export function handleApplicationContent(applicationContent, applicationElement) {
+export function handleApplicationContent (applicationContent, applicationElement) {
   const newHeadContent = applicationContent.search('<head') > -1 && applicationContent.substring(applicationContent.search('<head') + applicationContent.match(/<head.*>/g)[0].length, applicationContent.search('</head>')) || '';
   let newBodyContent = applicationContent.substring(applicationContent.search('<body') + applicationContent.match(/<body.*>/g)[0].length, applicationContent.lastIndexOf('</body>'));
   newBodyContent = installNewCSS(newHeadContent, newBodyContent);
@@ -383,7 +383,7 @@ export function handleApplicationContent(applicationContent, applicationElement)
   }, 10);
 }
 
-function installNewCSS(newHeadContent, newBodyContent) {
+function installNewCSS (newHeadContent, newBodyContent) {
   const headCSSLinks = newHeadContent.match(/<link.*id=".*".*>/g);
   if (headCSSLinks?.length) {
     headCSSLinks.forEach(link => {
@@ -424,7 +424,7 @@ function installNewCSS(newHeadContent, newBodyContent) {
   return newBodyContent;
 }
 
-function installNewJS(scriptsContent, specificId, forceReload) {
+function installNewJS (scriptsContent, specificId, forceReload) {
   const replacableScriptsIterator = scriptsContent.matchAll(/<script[^>]*id="[^>]*"[^>]*>/g);
   let scriptIteratorElement = replacableScriptsIterator.next().value;
   while (scriptIteratorElement) {
@@ -444,7 +444,7 @@ function installNewJS(scriptsContent, specificId, forceReload) {
   }
 }
 
-function replaceScriptElements(node) {
+function replaceScriptElements (node) {
   if (node.tagName === 'SCRIPT') {
     node.parentNode.replaceChild(cloneScriptElement(node), node);
   } else {
@@ -455,7 +455,7 @@ function replaceScriptElements(node) {
   return node;
 }
 
-function cloneScriptElement(node) {
+function cloneScriptElement (node) {
   const scriptElement  = document.createElement('script');
   scriptElement.innerText = node.innerHTML.replace(/<br>/g, '');
   const scriptAttrs = node.attributes;
@@ -465,6 +465,6 @@ function cloneScriptElement(node) {
   return scriptElement;
 }
 
-function hasUnit(length) {
+function hasUnit (length) {
   return Number.isNaN(Number(length));
 }

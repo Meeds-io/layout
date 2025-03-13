@@ -20,54 +20,54 @@
 -->
 <template>
   <div
+    class="layout-section"
     :class="{
       'layout-section-mobile-pages': isMobileColumns,
       'hidden-sm-and-down': isHiddenOnMobile,
     }"
-    :style="cssStyle"
-    class="layout-section">
+    :style="cssStyle">
     <layout-section-mobile-column-menu-drawer
       v-if="isMobileColumns"
       v-model="mobileSectionColumnClass"
       :container="container" />
     <page-layout-container-base
-      :container="container"
-      :parent-id="parentId"
+      class="layout-section-content"
       :class="isMobileColumns && mobileSectionColumnClass || ''"
+      :container="container"
       no-background-style
-      class="layout-section-content" />
+      :parent-id="parentId" />
   </div>
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
+    data: () => ({
+      mobileSectionColumnClass: null,
+    }),
+    computed: {
+      isMobileColumns () {
+        return eXo.vuetify.display.smAndDown.value
+          && this.container?.cssClass?.includes?.('layout-mobile-columns');
+      },
+      isHiddenOnMobile () {
+        return eXo.vuetify.display.smAndDown.value
+          && !this.container?.children?.find(c => !c?.children?.length || !c?.children?.[0]?.cssClass?.includes?.('hidden-sm-and-down'));
+      },
+      cssStyle () {
+        return eXo.$applicationUtils.getStyle(this.container, {
+          onlyBackgroundStyle: true,
+          sectionStyle: true,
+        });
+      },
     },
-  },
-  data: () => ({
-    mobileSectionColumnClass: null,
-  }),
-  computed: {
-    isMobileColumns() {
-      return this.$vuetify.breakpoint.smAndDown
-        && this.container?.cssClass?.includes?.('layout-mobile-columns');
-    },
-    isHiddenOnMobile() {
-      return this.$vuetify.breakpoint.smAndDown
-        && !this.container?.children?.find(c => !c?.children?.length || !c?.children?.[0]?.cssClass?.includes?.('hidden-sm-and-down'));
-    },
-    cssStyle() {
-      return this.$applicationUtils.getStyle(this.container, {
-        onlyBackgroundStyle: true,
-        sectionStyle: true,
-      });
-    },
-  },
-};
+  };
 </script>

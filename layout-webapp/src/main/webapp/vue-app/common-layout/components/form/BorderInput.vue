@@ -52,10 +52,10 @@
       <v-list-item-action class="my-auto me-0 ms-auto">
         <number-input
           v-model="borderSize"
-          :step="1"
-          :min="0"
+          class="me-n3"
           :max="8"
-          class="me-n3" />
+          :min="0"
+          :step="1" />
       </v-list-item-action>
     </v-list-item>
     <v-list-item
@@ -72,64 +72,64 @@
   </div>
 </template>
 <script>
-export default {
-  props: {
-    value: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      value: {
+        type: Object,
+        default: null,
+      },
+      pageStyle: {
+        type: Boolean,
+        default: false,
+      },
     },
-    pageStyle: {
-      type: Boolean,
-      default: false,
-    },
-  },
-  data: () => ({
-    container: null,
-    initialized: false,
-    enabled: true,
-    borderColor: '#FFFFFF',
-    borderSize: 1,
-    boxShadow: false,
-  }),
-  watch: {
-    borderColor() {
-      if (this.initialized) {
-        this.$set(this.container, 'borderColor', this.borderColor);
-        this.$emit('refresh');
-      }
-    },
-    borderSize() {
-      if (this.initialized) {
-        this.$set(this.container, 'borderSize', this.borderSize);
-        this.$emit('refresh');
-      }
-    },
-    boxShadow() {
-      if (this.initialized) {
-        this.$set(this.container, 'boxShadow', this.boxShadow);
-        this.$emit('refresh');
-      }
-    },
-    enabled(val) {
-      if (val) {
-        if (!this.borderColor) {
-          this.borderColor = '#FFFFFF';
-          this.borderSize = 1;
+    data: () => ({
+      container: null,
+      initialized: false,
+      enabled: true,
+      borderColor: '#FFFFFF',
+      borderSize: 1,
+      boxShadow: false,
+    }),
+    watch: {
+      borderColor () {
+        if (this.initialized) {
+          this.$set(this.container, 'borderColor', this.borderColor);
+          this.$emit('refresh');
         }
-      } else {
-        this.boxShadow = null;
-        this.borderColor = null;
-        this.borderSize = 0;
-      }
+      },
+      borderSize () {
+        if (this.initialized) {
+          this.$set(this.container, 'borderSize', this.borderSize);
+          this.$emit('refresh');
+        }
+      },
+      boxShadow () {
+        if (this.initialized) {
+          this.$set(this.container, 'boxShadow', this.boxShadow);
+          this.$emit('refresh');
+        }
+      },
+      enabled (val) {
+        if (val) {
+          if (!this.borderColor) {
+            this.borderColor = '#FFFFFF';
+            this.borderSize = 1;
+          }
+        } else {
+          this.boxShadow = null;
+          this.borderColor = null;
+          this.borderSize = 0;
+        }
+      },
     },
-  },
-  created() {
-    this.container = this.value;
-    this.borderColor = this.container.borderColor;
-    this.borderSize = this.container.borderSize || 0;
-    this.boxShadow = this.container.boxShadow === 'true';
-    this.enabled = !!this.borderColor;
-    this.$nextTick().then(() => this.initialized = true);
-  },
-};
+    created () {
+      this.container = this.value;
+      this.borderColor = this.container.borderColor;
+      this.borderSize = this.container.borderSize || 0;
+      this.boxShadow = this.container.boxShadow === 'true';
+      this.enabled = !!this.borderColor;
+      this.$nextTick().then(() => this.initialized = true);
+    },
+  };
 </script>

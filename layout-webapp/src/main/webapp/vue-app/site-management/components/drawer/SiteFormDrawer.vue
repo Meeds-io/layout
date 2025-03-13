@@ -21,12 +21,12 @@
     id="sitePropertiesDrawer"
     ref="drawer"
     v-model="drawer"
-    :loading="loading"
-    :right="!$vuetify.rtl"
     :allow-expand="!$root.isMobile"
     :go-back-button="isNew && step && !initialStep"
-    @expand-updated="expanded = $event"
+    :loading="loading"
+    :right="!$vuetify.rtl"
     @closed="close"
+    @expand-updated="expanded = $event"
     @go-back="step = 0">
     <template #title>
       <span>{{ isNew && $t('siteManagement.drawer.addSite.title') || $t('siteManagement.drawer.properties.title') }}</span>
@@ -41,15 +41,15 @@
             <site-management-template
               v-for="t in sortedTemplates"
               :key="t.id"
-              :site-template="t"
-              :selected="t.id === templateId"
               class="col-auto ps-0 pe-4"
+              :selected="t.id === templateId"
+              :site-template="t"
               @select="templateId = t.id" />
           </div>
           <div class="d-flex justify-center my-4">
             <v-btn
-              :disabled="!templateId"
               class="btn btn-primary"
+              :disabled="!templateId"
               @click="step = 1">
               {{ $t('sites.stepper.start') }}
             </v-btn>
@@ -59,21 +59,21 @@
         <v-stepper
           v-else
           v-model="step"
+          class="ma-0 py-0"
           :class="{
             'pe-3' : $root.isMobile,
             'mt-5' : !isNew,
           }"
-          class="ma-0 py-0"
-          vertical
-          flat>
+          flat
+          vertical>
           <v-stepper-step
             v-if="isNew"
-            :step="1"
             class="ma-4 pa-0"
-            editable>
+            editable
+            :step="1">
             {{ $t('sites.stepper.properties') }}
           </v-stepper-step>
-          <v-stepper-content :step="1" class="pa-0 ma-0 no-border">
+          <v-stepper-content class="pa-0 ma-0 no-border" :step="1">
             <form
               v-if="step === 1"
               ref="form1"
@@ -85,20 +85,20 @@
                 v-bind="{
                   autofocus: true,
                 }"
-                :placeholder="$t('siteManagement.label.siteLabel.placeholder')"
-                :field-value.sync="siteLabel"
-                :maxlength="maxTitleLength"
-                :no-expand-icon="!expanded"
-                :supported-languages="supportedLanguages"
-                :default-language="defaultLanguage"
-                :object-id="siteId"
-                drawer-title="siteManagement.label.translateTitle"
-                object-type="site"
-                field-name="label"
-                name="siteTitle"
-                class="width-auto flex-grow-1"
+                v-model:field-value="siteLabel"
                 back-icon
-                required>
+                class="width-auto flex-grow-1"
+                :default-language="defaultLanguage"
+                drawer-title="siteManagement.label.translateTitle"
+                field-name="label"
+                :maxlength="maxTitleLength"
+                name="siteTitle"
+                :no-expand-icon="!expanded"
+                :object-id="siteId"
+                object-type="site"
+                :placeholder="$t('siteManagement.label.siteLabel.placeholder')"
+                required
+                :supported-languages="supportedLanguages">
                 <template #title>
                   {{ $t('siteManagement.label.siteName.title') }}
                 </template>
@@ -117,32 +117,32 @@
                 <v-text-field
                   v-model="siteName"
                   :aria-label="$t('sites.urlSlug.label')"
-                  :placeholder="$t('sites.urlSlug.placeholder')"
-                  :disabled="!isNew"
-                  :rules="isNew && rules"
                   class="pt-0"
-                  type="text"
-                  required="required"
-                  outlined
                   dense
+                  :disabled="!isNew"
+                  outlined
+                  :placeholder="$t('sites.urlSlug.placeholder')"
+                  required="required"
+                  :rules="isNew && rules"
+                  type="text"
                   @keyup="customSiteName = true" />
               </div>
               <translation-text-field
                 ref="siteDescriptionTranslation"
                 v-model="siteDescriptionTranslations"
-                :placeholder="$t('siteManagement.label.siteDescription.placeholder')"
-                :field-value.sync="siteDescription"
-                :object-id="siteId"
-                :max-length="maxDescriptionLength"
-                :no-expand-icon="!expanded"
-                :supported-languages="supportedLanguages"
+                v-model:field-value="siteDescription"
+                back-icon
+                class="width-auto flex-grow-1 pt-4"
                 :default-language="defaultLanguage"
                 drawer-title="siteManagement.label.translateDescription"
-                object-type="site"
                 field-name="description"
-                class="width-auto flex-grow-1 pt-4"
-                back-icon
-                rich-editor>
+                :max-length="maxDescriptionLength"
+                :no-expand-icon="!expanded"
+                :object-id="siteId"
+                object-type="site"
+                :placeholder="$t('siteManagement.label.siteDescription.placeholder')"
+                rich-editor
+                :supported-languages="supportedLanguages">
                 <template #title>
                   <span>
                     {{ $t('siteManagement.label.siteDescription.title') }}           
@@ -152,11 +152,11 @@
                   id="siteDescription"
                   ref="siteDescriptionEditor"
                   v-model="siteDescription"
-                  :placeholder="$t('siteManagement.label.siteDescription.placeholder')"
-                  :max-length="maxDescriptionLength"
-                  :tag-enabled="false"
+                  ck-editor-type="site"
                   disable-suggester
-                  ck-editor-type="site" />
+                  :max-length="maxDescriptionLength"
+                  :placeholder="$t('siteManagement.label.siteDescription.placeholder')"
+                  :tag-enabled="false" />
               </translation-text-field>
               <font-icon-input
                 v-model="siteIcon"
@@ -164,18 +164,18 @@
               <site-management-banner
                 ref="siteBanner"
                 v-model="bannerUploadId"
-                :banner-url="siteBannerUrl"
-                :banner-data="bannerData" />
+                :banner-data="bannerData"
+                :banner-url="siteBannerUrl" />
             </form>
           </v-stepper-content>
           <template v-if="isNew">
             <v-stepper-step
-              :step="2"
+              class="ma-4 pa-0"
               :editable="!saveDisabled"
-              class="ma-4 pa-0">
+              :step="2">
               {{ $t('sites.stepper.permissions') }}
             </v-stepper-step>
-            <v-stepper-content :step="2" class="pa-0 ma-0 no-border">
+            <v-stepper-content class="pa-0 ma-0 no-border" :step="2">
               <form
                 v-if="step === 2"
                 class="px-4"
@@ -193,7 +193,7 @@
         </v-stepper>
       </v-expand-transition>
     </template>
-    <template v-if="step > 0" slot="footer">
+    <template v-if="step > 0" #footer>
       <div class="d-flex">
         <v-btn
           v-if="isNew && step > initialStep"
@@ -209,18 +209,18 @@
         </v-btn>
         <v-btn
           v-if="isNew && step < 2"
+          class="btn btn-primary ms-2"
           :disabled="saveDisabled"
           :loading="loading"
-          @click="step++"
-          class="btn btn-primary ms-2">
+          @click="step++">
           {{ $t('siteManagement.label.btn.next') }}
         </v-btn>
         <v-btn
           v-else
+          class="btn btn-primary ms-2"
           :disabled="saveDisabled"
           :loading="loading"
-          @click="saveSite"
-          class="btn btn-primary ms-2">
+          @click="saveSite">
           {{ $t('siteManagement.label.btn.save') }}
         </v-btn>
       </div>
@@ -228,192 +228,192 @@
   </exo-drawer>
 </template>
 <script>
-export default {
-  props: {
-    sites: {
-      type: Array,
-      default: null,
+  export default {
+    props: {
+      sites: {
+        type: Array,
+        default: null,
+      },
     },
-  },
-  data: () => ({
-    drawer: false,
-    loading: false,
-    templates: null,
-    templateId: null,
-    step: 0,
-    initialStep: 0,
-    site: null,
-    siteId: null,
-    siteName: '',
-    siteLabel: '',
-    siteDescription: '',
-    siteIcon: '',
-    bannerId: null,
-    maxTitleLength: 200,
-    maxDescriptionLength: 1300,
-    siteTitleTranslations: {},
-    siteDescriptionTranslations: {},
-    defaultLanguage: eXo.env.portal.defaultLanguage,
-    supportedLanguages: null,
-    isNew: false,
-    customSiteName: false,
-    expanded: false,
-    siteBannerUrl: null,
-    bannerData: null,
-    bannerUploadId: null,
-    accessPermissions: null,
-    editPermission: null,
-  }),
-  computed: {
-    rules() {
-      return [
-        (v) => !this.sites?.find?.(s => s.name === v) || this.$t('sites.urlSlug.alreadyExists'),
-        (v) => (/^[a-zA-Z0-9_-]*$/).test(v) || this.$t('sites.urlSlug.badFormat'),
-      ];
+    data: () => ({
+      drawer: false,
+      loading: false,
+      templates: null,
+      templateId: null,
+      step: 0,
+      initialStep: 0,
+      site: null,
+      siteId: null,
+      siteName: '',
+      siteLabel: '',
+      siteDescription: '',
+      siteIcon: '',
+      bannerId: null,
+      maxTitleLength: 200,
+      maxDescriptionLength: 1300,
+      siteTitleTranslations: {},
+      siteDescriptionTranslations: {},
+      defaultLanguage: eXo.env.portal.defaultLanguage,
+      supportedLanguages: null,
+      isNew: false,
+      customSiteName: false,
+      expanded: false,
+      siteBannerUrl: null,
+      bannerData: null,
+      bannerUploadId: null,
+      accessPermissions: null,
+      editPermission: null,
+    }),
+    computed: {
+      rules () {
+        return [
+          v => !this.sites?.find?.(s => s.name === v) || this.$t('sites.urlSlug.alreadyExists'),
+          v => (/^[a-zA-Z0-9_-]*$/).test(v) || this.$t('sites.urlSlug.badFormat'),
+        ];
+      },
+      saveDisabled () {
+        return !this.siteLabel
+          || !this.siteName
+          || (this.isNew && this.sites?.find?.(s => s.name === this.siteName))
+          || !(/^[a-zA-Z0-9_-]*$/).test(this.siteName);
+      },
+      sortedTemplates () {
+        const siteTemplates = this.templates?.filter?.(t => t.name) || [];
+        siteTemplates.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+        return siteTemplates;
+      },
+      siteTemplate () {
+        return this.templates?.find?.(t => t.id === this.templateId);
+      },
     },
-    saveDisabled() {
-      return !this.siteLabel
-        || !this.siteName
-        || (this.isNew && this.sites?.find?.(s => s.name === this.siteName))
-        || !(/^[a-zA-Z0-9_-]*$/).test(this.siteName);
-    },
-    sortedTemplates() {
-      const siteTemplates = this.templates?.filter?.(t => t.name) || [];
-      siteTemplates.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
-      return siteTemplates;
-    },
-    siteTemplate() {
-      return this.templates?.find?.(t => t.id === this.templateId);
-    },
-  },
-  watch: {
-    siteDescription() {
-      if (this.$refs.siteDescriptionTranslation && this.drawer && this.step) {
-        this.$refs.siteDescriptionTranslation.setValue(this.siteDescription);
-      }
-    },
-    siteLabel() {
-      if (this.isNew && !this.customSiteName) {
-        this.siteName = this.normalizeText(this.siteLabel);
-      }
-    },
-  },
-  created() {
-    this.$root.$on('open-site-properties-drawer', this.open);
-  },
-  beforeDestroy() {
-    this.$root.$off('open-site-properties-drawer', this.open);
-  },
-  methods: {
-    async open(site, templateId) {
-      this.isNew = !site?.siteId;
-      this.templateId = templateId;
-      this.site = site || null;
-      this.siteName = !this.isNew && site?.name || null;
-      this.siteId = site?.siteId;
-      this.siteIcon = site?.icon || 'fa-globe';
-      this.siteLabel = site?.displayName || site?.name ;
-      this.siteDescription = site?.description || '';
-      this.siteBannerUrl = !this.isNew && site?.bannerUrl || null;
-      this.accessPermissions = site?.accessPermissions;
-      this.editPermission = site?.editPermission;
-      this.step = (!this.isNew || templateId) ? 1 : 0;
-      this.initialStep = this.step;
-      this.customSiteName = !this.isNew;
-      await this.getSiteLabels(site?.siteId || templateId);
-      await this.getSiteDescriptions(site?.siteId || templateId);
-      if (this.isNew && !this.templates?.length) {
-        this.templates = await this.$siteTemplateService.getSiteTemplates();
-      }
-      this.bannerUploadId = null;
-      this.bannerData = null;
-      if (this.isNew && site?.bannerUrl) {
-        const bannerBlob = await fetch(site.bannerUrl, {
-          credentials: 'include',
-          method: 'GET',
-        }).then(resp => resp?.ok && resp.blob()).catch();
-        if (bannerBlob) {
-          this.bannerData = bannerBlob && await this.$utils.blobToBase64(bannerBlob);
-          this.bannerUploadId = bannerBlob && await this.$uploadService.upload(bannerBlob);
+    watch: {
+      siteDescription () {
+        if (this.$refs.siteDescriptionTranslation && this.drawer && this.step) {
+          this.$refs.siteDescriptionTranslation.setValue(this.siteDescription);
         }
-      }
-      if (!this.supportedLanguages) {
-        const translationConfiguration = await this.$translationService.getTranslationConfiguration();
-        this.supportedLanguages = translationConfiguration?.supportedLanguages;
-      }
-      this.$refs.drawer.open();
+      },
+      siteLabel () {
+        if (this.isNew && !this.customSiteName) {
+          this.siteName = this.normalizeText(this.siteLabel);
+        }
+      },
     },
-    getSiteLabels(siteId) {
-      return this.$siteLayoutService.getSiteLabels(siteId)
-        .then(data => this.siteTitleTranslations = data?.labels || {'en': null})
-        .catch(() => this.siteTitleTranslations = {en: null});
+    created () {
+      this.$root.$on('open-site-properties-drawer', this.open);
     },
-    getSiteDescriptions(siteId) {
-      return this.$siteLayoutService.getSiteDescriptions(siteId)
-        .then(data => this.siteDescriptionTranslations = data?.labels || {'en': null})
-        .catch(() => this.siteDescriptionTranslations = {en: null});
+    beforeUnmount () {
+      this.$root.$off('open-site-properties-drawer', this.open);
     },
-    close() {
-      this.site = null;
-      this.reset();
-      this.$refs.drawer.close();
+    methods: {
+      async open (site, templateId) {
+        this.isNew = !site?.siteId;
+        this.templateId = templateId;
+        this.site = site || null;
+        this.siteName = !this.isNew && site?.name || null;
+        this.siteId = site?.siteId;
+        this.siteIcon = site?.icon || 'fa-globe';
+        this.siteLabel = site?.displayName || site?.name ;
+        this.siteDescription = site?.description || '';
+        this.siteBannerUrl = !this.isNew && site?.bannerUrl || null;
+        this.accessPermissions = site?.accessPermissions;
+        this.editPermission = site?.editPermission;
+        this.step = (!this.isNew || templateId) ? 1 : 0;
+        this.initialStep = this.step;
+        this.customSiteName = !this.isNew;
+        await this.getSiteLabels(site?.siteId || templateId);
+        await this.getSiteDescriptions(site?.siteId || templateId);
+        if (this.isNew && !this.templates?.length) {
+          this.templates = await eXo.$siteTemplateService.getSiteTemplates();
+        }
+        this.bannerUploadId = null;
+        this.bannerData = null;
+        if (this.isNew && site?.bannerUrl) {
+          const bannerBlob = await fetch(site.bannerUrl, {
+            credentials: 'include',
+            method: 'GET',
+          }).then(resp => resp?.ok && resp.blob()).catch();
+          if (bannerBlob) {
+            this.bannerData = bannerBlob && await eXo.$utils.blobToBase64(bannerBlob);
+            this.bannerUploadId = bannerBlob && await eXo.$uploadService.upload(bannerBlob);
+          }
+        }
+        if (!this.supportedLanguages) {
+          const translationConfiguration = await eXo.$translationService.getTranslationConfiguration();
+          this.supportedLanguages = translationConfiguration?.supportedLanguages;
+        }
+        this.$refs.drawer.open();
+      },
+      getSiteLabels (siteId) {
+        return eXo.$siteLayoutService.getSiteLabels(siteId)
+          .then(data => this.siteTitleTranslations = data?.labels || { 'en': null })
+          .catch(() => this.siteTitleTranslations = { en: null });
+      },
+      getSiteDescriptions (siteId) {
+        return eXo.$siteLayoutService.getSiteDescriptions(siteId)
+          .then(data => this.siteDescriptionTranslations = data?.labels || { 'en': null })
+          .catch(() => this.siteDescriptionTranslations = { en: null });
+      },
+      close () {
+        this.site = null;
+        this.reset();
+        this.$refs.drawer.close();
+      },
+      updateBannerUploadId (bannerUploadId) {
+        this.bannerUploadId = bannerUploadId;
+      },
+      reset () {
+        this.siteId = null;
+        this.siteName = '';
+        this.siteLabel = '';
+        this.siteDescription = '';
+        this.siteTitleTranslations = {};
+        this.siteDescriptionTranslations = {};
+        this.drawer = false;
+        this.siteBannerUrl = null;
+        this.$refs.siteBannerSelector?.reset?.();
+      },
+      async saveSite () {
+        if (this.isNew) {
+          await this.createSite();
+        } else {
+          await this.updateSite();
+        }
+      },
+      async createSite () {
+        this.siteName = this.normalizeText(this.siteName);
+        this.loading = true;
+        try {
+          const site = await eXo.$siteLayoutService.createSite(this.siteName, this.templateId, this.siteLabel, this.siteDescription, false, 0, this.bannerUploadId !== '0' && this.bannerUploadId || null, this.siteIcon, this.accessPermissions, this.editPermission);
+          await eXo.$translationService.saveTranslations('site',  site.siteId, 'label', this.siteTitleTranslations);
+          await eXo.$translationService.saveTranslations('site', site.siteId, 'description', this.siteDescriptionTranslations);
+          this.$root.$emit('alert-message', this.$t('siteManagement.label.createSite.success'), 'success');
+          this.$root.$emit('site-created', site);
+          this.close();
+        } catch (e) {
+          this.$root.$emit('alert-message', this.$t('siteManagement.label.createSite.error'), 'error');
+        } finally {
+          this.loading = false;
+        }
+      },
+      async updateSite () {
+        this.loading = true;
+        try {
+          await eXo.$siteLayoutService.updateSite(this.site.name, this.site.siteType, this.siteLabel, this.siteDescription, this.site.metaSite || this.site.displayed, this.site.displayed && this.site.displayOrder || 0, this.bannerUploadId !== '0' && this.bannerUploadId || null, this.bannerUploadId === '0', this.siteIcon);
+          await eXo.$translationService.saveTranslations('site', this.siteId, 'label', this.siteTitleTranslations);
+          await eXo.$translationService.saveTranslations('site', this.siteId, 'description', this.siteDescriptionTranslations);
+          this.$root.$emit('alert-message', this.$t('siteManagement.label.updateSite.success'), 'success');
+          this.$root.$emit('site-updated', this.site);
+          this.close();
+        } catch (e) {
+          const message = e.message ==='401' &&  this.$t('siteManagement.label.updateSite.unauthorized') || this.$t('siteManagement.label.updateSite.error');
+          this.$root.$emit('alert-message', message, 'error');
+        } finally {
+          this.loading = false;
+        }
+      },
+      normalizeText (text) {
+        return text && text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]/g, '').replace(/\s+/g, '').toLowerCase() || '';
+      },
     },
-    updateBannerUploadId(bannerUploadId) {
-      this.bannerUploadId = bannerUploadId;
-    },
-    reset() {
-      this.siteId = null;
-      this.siteName = '';
-      this.siteLabel = '';
-      this.siteDescription = '';
-      this.siteTitleTranslations = {};
-      this.siteDescriptionTranslations = {};
-      this.drawer = false;
-      this.siteBannerUrl = null;
-      this.$refs.siteBannerSelector?.reset?.();
-    },
-    async saveSite() {
-      if (this.isNew) {
-        await this.createSite();
-      } else {
-        await this.updateSite();
-      }
-    },
-    async createSite() {
-      this.siteName = this.normalizeText(this.siteName);
-      this.loading = true;
-      try {
-        const site = await this.$siteLayoutService.createSite(this.siteName, this.templateId, this.siteLabel, this.siteDescription, false, 0, this.bannerUploadId !== '0' && this.bannerUploadId || null, this.siteIcon, this.accessPermissions, this.editPermission);
-        await this.$translationService.saveTranslations('site',  site.siteId, 'label', this.siteTitleTranslations);
-        await this.$translationService.saveTranslations('site', site.siteId, 'description', this.siteDescriptionTranslations);
-        this.$root.$emit('alert-message', this.$t('siteManagement.label.createSite.success'), 'success');
-        this.$root.$emit('site-created', site);
-        this.close();
-      } catch (e) {
-        this.$root.$emit('alert-message', this.$t('siteManagement.label.createSite.error'), 'error');
-      } finally {
-        this.loading = false;
-      }
-    },
-    async updateSite() {
-      this.loading = true;
-      try {
-        await this.$siteLayoutService.updateSite(this.site.name, this.site.siteType, this.siteLabel, this.siteDescription, this.site.metaSite || this.site.displayed, this.site.displayed && this.site.displayOrder || 0, this.bannerUploadId !== '0' && this.bannerUploadId || null, this.bannerUploadId === '0', this.siteIcon);
-        await this.$translationService.saveTranslations('site', this.siteId, 'label', this.siteTitleTranslations);
-        await this.$translationService.saveTranslations('site', this.siteId, 'description', this.siteDescriptionTranslations);
-        this.$root.$emit('alert-message', this.$t('siteManagement.label.updateSite.success'), 'success');
-        this.$root.$emit('site-updated', this.site);
-        this.close();
-      } catch (e) {
-        const message = e.message ==='401' &&  this.$t('siteManagement.label.updateSite.unauthorized') || this.$t('siteManagement.label.updateSite.error');
-        this.$root.$emit('alert-message', message, 'error');
-      } finally {
-        this.loading = false;
-      }
-    },
-    normalizeText(text) {
-      return text && text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]/g, '').replace(/\s+/g, '').toLowerCase() || '';
-    },
-  }
-};
+  };
 </script>

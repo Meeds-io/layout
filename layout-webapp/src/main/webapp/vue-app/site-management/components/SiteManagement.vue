@@ -26,16 +26,16 @@
         ref="toolbar"
         @site-filter="keyword = $event" />
       <site-management-list
-        :sites="sites"
+        :keyword="keyword"
         :loading="loading > 0"
-        :keyword="keyword" />
+        :sites="sites" />
     </v-main>
     <exo-confirm-dialog
       ref="deleteSiteConfirmDialog"
-      :message="deleteConfirmMessage"
-      :title="$t('siteManagement.label.confirmDelete')"
-      :ok-label="$t('siteManagement.label.confirm')"
       :cancel-label="$t('siteManagement.label.cancel')"
+      :message="deleteConfirmMessage"
+      :ok-label="$t('siteManagement.label.confirm')"
+      :title="$t('siteManagement.label.confirmDelete')"
       @ok="deleteSite" />
     <site-form-drawer
       :sites="sites" />
@@ -52,71 +52,71 @@
 </template>
 
 <script>
-export default {
-  data() {
-    return {
-      sites: [],
-      loading: 0,
-      siteToDelete: null,
-      keyword: null,
-      deleteConfirmMessage: '',
-      extensionApp: 'site-management',
-      extensionActionType: 'action',
-      extensionDrawerType: 'site-management-drawers'
-    };
-  },
-  created() {
-    this.$root.$on('site-created', this.handleSiteCreation);
-    this.$root.$on('site-updated', this.refreshSites);
-    this.$root.$on('delete-site', this.confirmDelete);
-    document.addEventListener(`component-${this.extensionApp}-${this.extensionDrawerType}-updated`, this.refreshActionExtensions);
-    document.addEventListener(`extension-${this.extensionApp}-${this.extensionActionType}-updated`, this.refreshActionExtensions);
-    this.refreshSites();
-    this.refreshActionExtensions();
-  },
-  beforeDestroy() {
-    this.$root.$off('site-created', this.handleSiteCreation);
-    this.$root.$off('site-updated', this.refreshSites);
-    this.$root.$on('delete-site', this.confirmDelete);
-    document.removeEventListener(`component-${this.extensionApp}-${this.extensionDrawerType}-updated`, this.refreshActionExtensions);
-    document.removeEventListener(`component-${this.extensionApp}-${this.extensionActionType}-updated`, this.refreshActionExtensions);
-  },
-  methods: {
-    handleSiteCreation(site) {
+  export default {
+    data () {
+      return {
+        sites: [],
+        loading: 0,
+        siteToDelete: null,
+        keyword: null,
+        deleteConfirmMessage: '',
+        extensionApp: 'site-management',
+        extensionActionType: 'action',
+        extensionDrawerType: 'site-management-drawers',
+      };
+    },
+    created () {
+      this.$root.$on('site-created', this.handleSiteCreation);
+      this.$root.$on('site-updated', this.refreshSites);
+      this.$root.$on('delete-site', this.confirmDelete);
+      document.addEventListener(`component-${this.extensionApp}-${this.extensionDrawerType}-updated`, this.refreshActionExtensions);
+      document.addEventListener(`extension-${this.extensionApp}-${this.extensionActionType}-updated`, this.refreshActionExtensions);
       this.refreshSites();
-      this.$root.$emit('open-site-navigation-drawer', {
-        siteName: site.name,
-        siteType: site.siteType,
-        siteId: site.siteId,
-        siteLabel: site.displayName,
-        information: 'sites.created.information',
-      });
+      this.refreshActionExtensions();
     },
-    refreshSites() {
-      this.loading++;
-      return this.$siteService.getSitesByFilter({
-        siteType: 'PORTAL',
-        excludeSpaceSites: true,
-        filterByPermissions: true,
-        expand: 'canRestore',
-      })
-        .then(sites => this.sites = sites?.filter(s => !s?.properties?.IS_SPACE_PUBLIC_SITE) || [])
-        .finally(() => this.loading--);
+    beforeUnmount () {
+      this.$root.$off('site-created', this.handleSiteCreation);
+      this.$root.$off('site-updated', this.refreshSites);
+      this.$root.$on('delete-site', this.confirmDelete);
+      document.removeEventListener(`component-${this.extensionApp}-${this.extensionDrawerType}-updated`, this.refreshActionExtensions);
+      document.removeEventListener(`component-${this.extensionApp}-${this.extensionActionType}-updated`, this.refreshActionExtensions);
     },
-    refreshActionExtensions() {
-      this.$root.siteActionExtensions = extensionRegistry.loadExtensions(this.extensionApp, this.extensionActionType) || [];
+    methods: {
+      handleSiteCreation (site) {
+        this.refreshSites();
+        this.$root.$emit('open-site-navigation-drawer', {
+          siteName: site.name,
+          siteType: site.siteType,
+          siteId: site.siteId,
+          siteLabel: site.displayName,
+          information: 'sites.created.information',
+        });
+      },
+      refreshSites () {
+        this.loading++;
+        return eXo.$siteService.getSitesByFilter({
+          siteType: 'PORTAL',
+          excludeSpaceSites: true,
+          filterByPermissions: true,
+          expand: 'canRestore',
+        })
+          .then(sites => this.sites = sites?.filter(s => !s?.properties?.IS_SPACE_PUBLIC_SITE) || [])
+          .finally(() => this.loading--);
+      },
+      refreshActionExtensions () {
+        this.$root.siteActionExtensions = extensionRegistry.loadExtensions(this.extensionApp, this.extensionActionType) || [];
+      },
+      confirmDelete (siteToDelete) {
+        this.siteToDelete = siteToDelete;
+        this.deleteConfirmMessage = this.$t('siteManagement.label.confirmDelete.message', { 0: this.siteToDelete.name });
+        this.$refs.deleteSiteConfirmDialog.open();
+      },
+      deleteSite () {
+        this.loading++;
+        return eXo.$siteLayoutService.deleteSite(this.siteToDelete.siteType, this.siteToDelete.name)
+          .then(() => this.refreshSites())
+          .finally(() => this.loading--);
+      },
     },
-    confirmDelete(siteToDelete) {
-      this.siteToDelete = siteToDelete;
-      this.deleteConfirmMessage = this.$t('siteManagement.label.confirmDelete.message', {0: this.siteToDelete.name});
-      this.$refs.deleteSiteConfirmDialog.open();
-    },
-    deleteSite() {
-      this.loading++;
-      return this.$siteLayoutService.deleteSite(this.siteToDelete.siteType, this.siteToDelete.name)
-        .then(() => this.refreshSites())
-        .finally(() => this.loading--);
-    },
-  }
-};
+  };
 </script>

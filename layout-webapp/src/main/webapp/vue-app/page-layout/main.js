@@ -32,11 +32,11 @@ if (extensionRegistry) {
 }
 
 const appId = 'PageLayout';
-export function init(pageRef, siteId) {
+export function init (pageRef, siteId) {
   const containerTypes = extensionRegistry.loadExtensions('page-layout', 'container');
   Vue.createApp({
     template: `<page-layout id="${appId}"/>`,
-    vuetify: Vue.prototype.vuetifyOptions,
+    vuetify: eXo.vuetify,
     data: () => ({
       pageRef,
       siteId,
@@ -45,10 +45,10 @@ export function init(pageRef, siteId) {
       page: null,
     }),
     computed: {
-      defaultContainer() {
+      defaultContainer () {
         return this.containerTypes.find(extension => extension.type === 'default');
       },
-      layout() {
+      layout () {
         if (this.page?.template === 'system:/groovy/portal/webui/container/UISiteLayout.gtmpl') {
           return this.page;
         } else if (this.page?.children?.[0]?.children?.[0]?.template === 'system:/groovy/portal/webui/container/UIPageLayout.gtmpl') {
@@ -57,25 +57,25 @@ export function init(pageRef, siteId) {
           return this.page?.children?.[0];
         }
       },
-      isMobile() {
-        return this.$vuetify.breakpoint.smAndDown;
+      isMobile () {
+        return eXo.vuetify.display.smAndDown.value;
       },
     },
-    async created() {
+    async created () {
       document.addEventListener('extension-page-layout-container-updated', this.refreshContainerTypes);
-      this.$root.page = await this.$pageLayoutService.getPageLayout({
+      this.$root.page = await eXo.$pageLayoutService.getPageLayout({
         pageRef: this.$root.pageRef,
         siteId: this.$root.siteId,
       });
     },
-    mounted() {
+    mounted () {
       this.$el?.closest?.('.PORTLET-FRAGMENT')?.classList?.remove?.('PORTLET-FRAGMENT');
     },
     methods: {
-      refreshContainerTypes() {
+      refreshContainerTypes () {
         this.containerTypes = extensionRegistry.loadExtensions('page-layout', 'container');
       },
     },
   }, `#${appId}`, 'Page Layout');
-  Vue.prototype.$utils.includeExtensions('PageLayoutExtension');
+  eXo.$utils.includeExtensions('PageLayoutExtension');
 }

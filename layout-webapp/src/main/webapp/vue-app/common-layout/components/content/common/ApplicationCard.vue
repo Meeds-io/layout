@@ -22,14 +22,14 @@
   <v-hover v-model="hover">
     <v-card
       :id="`PortletInstance_${application.id}`"
-      :title="$t('layout.preview')"
-      :elevation="hover && 2 || 0"
       :aria-label="$t('layout.preview')"
+      class="border-color card-border-radius overflow-hidden position-relative"
+      :elevation="hover && 2 || 0"
       :height="height"
       :max-height="height"
-      :width="width"
       :max-width="width"
-      class="border-color card-border-radius overflow-hidden position-relative"
+      :title="$t('layout.preview')"
+      :width="width"
       v-on="illustrationId && {
         click: () => preview()
       }"
@@ -37,94 +37,94 @@
       <v-btn
         v-show="hover"
         :aria-label="$t('layout.add')"
-        :class="$vuetify.rtl && 'l-0' || 'r-0'"
         class="position-absolute t-0 mt-4 me-4"
+        :class="$vuetify.rtl && 'l-0' || 'r-0'"
         icon
         @click.stop="$emit('add')">
-        <v-icon size="24" color="primary">fa-plus</v-icon>
+        <v-icon color="primary" size="24">fa-plus</v-icon>
       </v-btn>
       <div class="d-flex flex-column border-box-sizing full-height full-width pa-5">
         <div
-          :title="name"
-          class="flex-grow-0 flex-shrink-0 subtitle-1 text-truncate-2 text-color">
+          class="flex-grow-0 flex-shrink-0 subtitle-1 text-truncate-2 text-color"
+          :title="name">
           {{ name }}
         </div>
         <div
           v-if="description"
           v-sanitized-html="description"
-          :title="$utils.htmlToText(description)"
-          class="flex-grow-0 flex-shrink-0 text-truncate-2 pt-0 text-subtitle"></div>
+          class="flex-grow-0 flex-shrink-0 text-truncate-2 pt-0 text-subtitle"
+          :title="$utils.htmlToText(description)"></div>
         <div class="d-flex flex-grow-1 flex-shrink-1 justify-center mt-2 overflow-hidden">
           <layout-image-illustration
             ref="illustration"
-            :value="application"
-            :preview-action="illustrationAction"
             :max-height="maxImageHeight"
             :max-width="maxImageWidth"
+            no-hover
             object-type="portletInstance"
-            no-hover />
+            :preview-action="illustrationAction"
+            :value="application" />
         </div>
       </div>
     </v-card>
   </v-hover>
 </template>
 <script>
-export default {
-  props: {
-    application: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      application: {
+        type: Object,
+        default: null,
+      },
+      height: {
+        type: String,
+        default: () => 'auto',
+      },
+      maxImageHeight: {
+        type: String,
+        default: () => '100%',
+      },
+      width: {
+        type: String,
+        default: () => '100%',
+      },
+      maxImageWidth: {
+        type: String,
+        default: () => '100%',
+      },
     },
-    height: {
-      type: String,
-      default: () => 'auto',
+    data: () => ({
+      defaultImageSrc: '/sites/images/application/DefaultPortlet.png',
+      hover: false,
+    }),
+    computed: {
+      name () {
+        return this.application?.name;
+      },
+      description () {
+        return this.application?.description;
+      },
+      instanceId () {
+        return this.application?.id;
+      },
+      illustrationId () {
+        return this.application?.illustrationId;
+      },
+      illustrationSrc () {
+        return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/portletInstance/${this.instanceId}/${this.illustrationId}` || this.defaultImageSrc;
+      },
+      illustrationAction () {
+        return {
+          label: this.$t('layout.add'),
+          closeOnClick: true,
+          click: () => this.$emit('add'),
+        };
+      },
     },
-    maxImageHeight: {
-      type: String,
-      default: () => '100%',
+    methods: {
+      preview () {
+        this.$refs.illustration.openIllustration();
+      },
     },
-    width: {
-      type: String,
-      default: () => '100%',
-    },
-    maxImageWidth: {
-      type: String,
-      default: () => '100%',
-    },
-  },
-  data: () => ({
-    defaultImageSrc: '/sites/images/application/DefaultPortlet.png',
-    hover: false,
-  }),
-  computed: {
-    name() {
-      return this.application?.name;
-    },
-    description() {
-      return this.application?.description;
-    },
-    instanceId() {
-      return this.application?.id;
-    },
-    illustrationId() {
-      return this.application?.illustrationId;
-    },
-    illustrationSrc() {
-      return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/portletInstance/${this.instanceId}/${this.illustrationId}` || this.defaultImageSrc;
-    },
-    illustrationAction() {
-      return {
-        label: this.$t('layout.add'),
-        closeOnClick: true,
-        click: () => this.$emit('add'),
-      };
-    },
-  },
-  methods: {
-    preview() {
-      this.$refs.illustration.openIllustration();
-    },
-  },
-};
+  };
 </script>
 

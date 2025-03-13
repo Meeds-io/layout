@@ -22,81 +22,81 @@
   <KeepAlive v-if="containerType && storageId">
     <component
       :is="containerType"
-      :container="container"
-      :index="index"
-      :parent-id="parentId"
-      :length="length"
       :cell-height="cellHeight"
       :cell-width="cellWidth"
-      :rows-count="rowsCount"
       :cols-count="colsCount"
+      :container="container"
+      :index="index"
+      :length="length"
+      :parent-id="parentId"
+      :rows-count="rowsCount"
       @initialized="$emit('initialized', container)"
-      @move-start="moveStart"
-      @move-end="moveEnd" />
+      @move-end="moveEnd"
+      @move-start="moveStart" />
   </KeepAlive>
   <div v-else-if="!storageId && containerType === 'application'" class="d-flex align-center justify-center full-width full-height">
     <v-progress-circular color="primary" indeterminate />
   </div>
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      index: {
+        type: Number,
+        default: null,
+      },
+      length: {
+        type: Number,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
+      cellHeight: {
+        type: String,
+        default: null,
+      },
+      cellWidth: {
+        type: String,
+        default: null,
+      },
+      rowsCount: {
+        type: Number,
+        default: null,
+      },
+      colsCount: {
+        type: Number,
+        default: null,
+      },
     },
-    index: {
-      type: Number,
-      default: null,
+    computed: {
+      storageId () {
+        return this.container?.storageId;
+      },
+      containerType () {
+        const extension = this.container
+          && this.$root.containerTypes.find(ext => ext?.isValid?.(this.container))
+          || this.$root.defaultContainer;
+        return extension?.containerType;
+      },
+      params () {
+        return {
+          container: this.container,
+        };
+      },
     },
-    length: {
-      type: Number,
-      default: null,
+    methods: {
+      moveStart (event, moveType, container) {
+        this.$emit('move-start', event, moveType, container);
+      },
+      moveEnd () {
+        this.$emit('move-end');
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
-    },
-    cellHeight: {
-      type: String,
-      default: null,
-    },
-    cellWidth: {
-      type: String,
-      default: null,
-    },
-    rowsCount: {
-      type: Number,
-      default: null,
-    },
-    colsCount: {
-      type: Number,
-      default: null,
-    },
-  },
-  computed: {
-    storageId() {
-      return this.container?.storageId;
-    },
-    containerType() {
-      const extension = this.container
-        && this.$root.containerTypes.find(ext => ext?.isValid?.(this.container))
-        || this.$root.defaultContainer;
-      return extension?.containerType;
-    },
-    params() {
-      return {
-        container: this.container,
-      };
-    },
-  },
-  methods: {
-    moveStart(event, moveType, container) {
-      this.$emit('move-start', event, moveType, container);
-    },
-    moveEnd() {
-      this.$emit('move-end');
-    },
-  },
-};
+  };
 </script>

@@ -27,7 +27,7 @@
             :aria-label="label"
             icon
             @click="switchMode">
-            <v-icon size="20" class="icon-default-color">{{ mobileDisplayMode ? 'fa-desktop' :'fa-mobile-alt' }}</v-icon>
+            <v-icon class="icon-default-color" size="20">{{ mobileDisplayMode ? 'fa-desktop' :'fa-mobile-alt' }}</v-icon>
           </v-btn>
         </div>
       </template>
@@ -36,19 +36,19 @@
   </div>
 </template>
 <script>
-export default {
-  computed: {
-    mobileDisplayMode() {
-      return this.$root.displayMode === 'mobile';
+  export default {
+    computed: {
+      mobileDisplayMode () {
+        return this.$root.displayMode === 'mobile';
+      },
+      label () {
+        return this.mobileDisplayMode ? this.$t('layout.switchToDesktop') : this.$t('layout.switchToMobile');
+      },
     },
-    label() {
-      return this.mobileDisplayMode ? this.$t('layout.switchToDesktop') : this.$t('layout.switchToMobile');
+    methods: {
+      switchMode () {
+        this.$root.displayMode = this.mobileDisplayMode ? 'desktop' : 'mobile';
+      },
     },
-  },
-  methods: {
-    switchMode() {
-      this.$root.displayMode = this.mobileDisplayMode ? 'desktop' : 'mobile';
-    },
-  },
-};
+  };
 </script>

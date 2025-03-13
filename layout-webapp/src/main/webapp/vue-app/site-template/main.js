@@ -37,28 +37,28 @@ const lang = eXo?.env.portal.language || 'en';
 const urls = [
   `/layout/i18n/locale.portlet.SiteManagement?lang=${lang}`,
   `/layout/i18n/locale.portlet.SiteNavigation?lang=${lang}`,
-  `/layout/i18n/locale.portlet.LayoutEditor?lang=${lang}`
+  `/layout/i18n/locale.portlet.LayoutEditor?lang=${lang}`,
 ];
 
 const appId = 'siteTemplateManagement';
-export function init() {
+export function init () {
   exoi18n.loadLanguageAsync(lang, urls)
     .then(i18n =>
       Vue.createApp({
         template: `<site-template-management id="${appId}"/>`,
-        vuetify: Vue.prototype.vuetifyOptions,
+        vuetify: eXo.vuetify,
         i18n,
         data: () => ({
           siteTemplates: [],
           loading: 0,
-          collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
+          collator: new Intl.Collator(eXo.env.portal.language, { numeric: true, sensitivity: 'base' }),
         }),
         computed: {
-          isMobile() {
-            return this.$vuetify.breakpoint.smAndDown;
+          isMobile () {
+            return eXo.vuetify.display.smAndDown.value;
           },
         },
-        created() {
+        created () {
           this.$root.$on('site-template-enabled', this.refreshSiteTemplates);
           this.$root.$on('site-template-disabled', this.refreshSiteTemplates);
           this.$root.$on('site-template-created', this.refreshSiteTemplates);
@@ -68,9 +68,9 @@ export function init() {
           this.refreshSiteTemplates();
         },
         methods: {
-          refreshSiteTemplates() {
+          refreshSiteTemplates () {
             this.loading++;
-            return this.$siteTemplateService.getSiteTemplates()
+            return eXo.$siteTemplateService.getSiteTemplates()
               .then(data => this.siteTemplates = data || [])
               .finally(() => this.loading--);
           },

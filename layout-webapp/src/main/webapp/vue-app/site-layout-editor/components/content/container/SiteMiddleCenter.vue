@@ -22,73 +22,73 @@
 <template>
   <layout-editor-container-base
     ref="container"
+    class="d-flex flex-row z-index-one site-middle-center-container"
     :container="container"
     :index="index"
     :length="length"
+    page-style
     :style="cssStyle"
-    class="d-flex flex-row z-index-one site-middle-center-container"
-    type="site-middle-center-container"
-    page-style />
+    type="site-middle-center-container" />
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      parentId: {
+        type: String,
+        default: null,
+      },
+      index: {
+        type: Number,
+        default: null,
+      },
+      length: {
+        type: Number,
+        default: null,
+      },
     },
-    parentId: {
-      type: String,
-      default: null,
-    },
-    index: {
-      type: Number,
-      default: null,
-    },
-    length: {
-      type: Number,
-      default: null,
-    },
-  },
-  computed: {
-    id() {
-      return this.container.id || this.storageId;
-    },
-    storageId() {
-      return this.container?.storageId;
-    },
-    sidebarsContainerMinWidth() {
-      return this.$root.layout?.children
-        ?.filter?.(c => c.template === this.$layoutUtils.sidebarTemplate
-          && c.children?.length
-          && (
-            !this.$root.mobileDisplayMode
-            || !c?.children?.[0].cssClass?.includes?.('hidden-sm-and-down')
+    computed: {
+      id () {
+        return this.container.id || this.storageId;
+      },
+      storageId () {
+        return this.container?.storageId;
+      },
+      sidebarsContainerMinWidth () {
+        return this.$root.layout?.children
+          ?.filter?.(c => c.template === eXo.$layoutUtils.sidebarTemplate
+            && c.children?.length
+            && (
+              !this.$root.mobileDisplayMode
+              || !c?.children?.[0].cssClass?.includes?.('hidden-sm-and-down')
+            )
           )
-        )
-        ?.map?.(c => c.width
-          && Number(c.width)
-          || 310
-        )
-        ?.reduce?.((acc, v) => acc + v, 0) || 0;
+          ?.map?.(c => c.width
+            && Number(c.width)
+            || 310
+          )
+          ?.reduce?.((acc, v) => acc + v, 0) || 0;
+      },
+      width () {
+        return `max(100vw - ${this.sidebarsContainerMinWidth}px, 100%)`;
+      },
+      maxWidth () {
+        return `min(100vw - ${this.sidebarsContainerMinWidth}px, 100%)`;
+      },
+      cssStyle () {
+        return {
+          'height': this.$root.middleCenterContainersMinHeight,
+          'max-width': this.maxWidth,
+        };
+      },
     },
-    width() {
-      return `max(100vw - ${this.sidebarsContainerMinWidth}px, 100%)`;
+    mounted () {
+      if (!this.$root.middleCenterContainersMinHeight) {
+        this.$root.middleCenterContainersMinHeight = `${document.body.scrollHeight - this.$root.middleContainerBannersHeight + 2}px`;
+      }
     },
-    maxWidth() {
-      return `min(100vw - ${this.sidebarsContainerMinWidth}px, 100%)`;
-    },
-    cssStyle() {
-      return {
-        'height': this.$root.middleCenterContainersMinHeight,
-        'max-width': this.maxWidth,
-      };
-    },
-  },
-  mounted() {
-    if (!this.$root.middleCenterContainersMinHeight) {
-      this.$root.middleCenterContainersMinHeight = `${document.body.scrollHeight - this.$root.middleContainerBannersHeight + 2}px`;
-    }
-  },
-};
+  };
 </script>

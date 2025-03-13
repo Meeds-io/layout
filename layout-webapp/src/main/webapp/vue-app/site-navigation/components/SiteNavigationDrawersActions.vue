@@ -26,24 +26,24 @@
   </div>
 </template>
 <script>
-export default {
-  data () {
-    return {
-      siteNavigationDrawerOpened: false,
-    };
-  },
-  created() {
-    document.addEventListener('open-site-navigation-drawer', this.openSiteNavigationDrawer);
-  },
-  beforeDestroy() {
-    document.removeEventListener('open-site-navigation-drawer', this.openSiteNavigationDrawer);
-  },
-  methods: {
-    async openSiteNavigationDrawer(event) {
-      this.siteNavigationDrawerOpened = true;
-      await this.$nextTick();
-      this.$root.$emit('open-site-navigation-drawer', event?.detail);
-    }
-  }
-};
+  export default {
+    data () {
+      return {
+        siteNavigationDrawerOpened: false,
+      };
+    },
+    created () {
+      document.addEventListener('open-site-navigation-drawer', this.openSiteNavigationDrawer);
+    },
+    beforeUnmount () {
+      document.removeEventListener('open-site-navigation-drawer', this.openSiteNavigationDrawer);
+    },
+    methods: {
+      async openSiteNavigationDrawer (event) {
+        this.siteNavigationDrawerOpened = true;
+        await this.$nextTick();
+        this.$root.$emit('open-site-navigation-drawer', event?.detail);
+      },
+    },
+  };
 </script>

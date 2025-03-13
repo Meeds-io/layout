@@ -35,16 +35,16 @@ const lang = eXo?.env.portal.language || 'en';
 const url = `/layout/i18n/locale.portlet.LayoutEditor?lang=${lang}`;
 
 const appId = 'pageTemplatesManagement';
-export function init() {
+export function init () {
   exoi18n.loadLanguageAsync(lang, url)
     .then(i18n =>
       Vue.createApp({
         template: `<page-templates-management id="${appId}"/>`,
-        vuetify: Vue.prototype.vuetifyOptions,
+        vuetify: eXo.vuetify,
         i18n,
         computed: {
-          isMobile() {
-            return this.$vuetify.breakpoint.smAndDown;
+          isMobile () {
+            return eXo.vuetify.display.smAndDown.value;
           },
         },
       }, `#${appId}`, 'Page Layout')

@@ -24,13 +24,13 @@
       <template #activator="{on, attrs}">
         <div v-bind="attrs" v-on="on">
           <v-btn
-            :href="draftPageUrl"
-            :loading="saving"
             :aria-label="$t('layout.previewDraftPage')"
-            target="_blank"
+            :href="draftPageUrl"
             icon
+            :loading="saving"
+            target="_blank"
             @click.stop.prevent="previewPage">
-            <v-icon size="20" class="icon-default-color">fa-eye</v-icon>
+            <v-icon class="icon-default-color" size="20">fa-eye</v-icon>
           </v-btn>
         </div>
       </template>
@@ -39,30 +39,30 @@
   </div>
 </template>
 <script>
-export default {
-  data: () => ({
-    saving: false,
-  }),
-  computed: {
-    draftPageUrl() {
-      return `/portal${this.$root.draftNodeUri}`;
+  export default {
+    data: () => ({
+      saving: false,
+    }),
+    computed: {
+      draftPageUrl () {
+        return `/portal${this.$root.draftNodeUri}`;
+      },
     },
-  },
-  methods: {
-    previewPage() {
-      this.saving = true;
-      this.$root.$on('layout-draft-saved', this.openPreviewPage);
-      this.$root.$on('layout-draft-save-error', this.stopLoading);
-      this.$root.$emit('layout-save-draft');
+    methods: {
+      previewPage () {
+        this.saving = true;
+        this.$root.$on('layout-draft-saved', this.openPreviewPage);
+        this.$root.$on('layout-draft-save-error', this.stopLoading);
+        this.$root.$emit('layout-save-draft');
+      },
+      stopLoading () {
+        this.saving = false;
+      },
+      openPreviewPage () {
+        this.$root.$off('layout-draft-saved', this.openPreviewPage);
+        this.saving = false;
+        window.open(this.draftPageUrl, '_blank');
+      },
     },
-    stopLoading() {
-      this.saving = false;
-    },
-    openPreviewPage() {
-      this.$root.$off('layout-draft-saved', this.openPreviewPage);
-      this.saving = false;
-      window.open(this.draftPageUrl, '_blank');
-    },
-  },
-};
+  };
 </script>

@@ -22,62 +22,62 @@
     <site-navigation-new-page-element-item-list
       v-if="blankTemplates?.length"
       v-model="selectedTemplateId"
-      :template-items="blankTemplates"
       :category-name="$t('siteNavigation.label.blankTemplate')"
+      :template-items="blankTemplates"
       @input="selectTemplate($event)" />
     <site-navigation-new-page-element-item-list
       v-if="defaultTemplates?.length"
       v-model="selectedTemplateId"
-      :template-items="defaultTemplates"
       :category-name="$t('siteNavigation.label.defaultTemplate')"
+      :template-items="defaultTemplates"
       @input="selectTemplate($event)" />
     <site-navigation-new-page-element-item-list
       v-if="customizedTemplates?.length"
       v-model="selectedTemplateId"
-      :template-items="customizedTemplates"
       :category-name="$t('siteNavigation.label.customizedTemplate')"
+      :template-items="customizedTemplates"
       @input="selectTemplate($event)" />
   </div>
 </template>
 <script>
-export default {
-  props: {
-    pageTemplates: {
-      type: Array,
-      default: null,
+  export default {
+    props: {
+      pageTemplates: {
+        type: Array,
+        default: null,
+      },
     },
-  },
-  data() {
-    return {
-      collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
-      selectedTemplateId: null
-    };
-  },
-  computed: {
-    blankTemplates() {
-      const items = this.pageTemplates.filter(item => item.category === 'blank');
-      items.sort((a, b) => this.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
-      return items;
+    data () {
+      return {
+        collator: new Intl.Collator(eXo.env.portal.language, { numeric: true, sensitivity: 'base' }),
+        selectedTemplateId: null,
+      };
     },
-    defaultTemplates() {
-      const items = this.pageTemplates.filter(item => item.category === 'default');
-      items.sort((a, b) => this.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
-      return items;
+    computed: {
+      blankTemplates () {
+        const items = this.pageTemplates.filter(item => item.category === 'blank');
+        items.sort((a, b) => this.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+        return items;
+      },
+      defaultTemplates () {
+        const items = this.pageTemplates.filter(item => item.category === 'default');
+        items.sort((a, b) => this.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+        return items;
+      },
+      customizedTemplates () {
+        const items = this.pageTemplates.filter(item => item.category !== 'blank' && item.category !== 'default');
+        items.sort((a, b) => this.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+        return items;
+      },
     },
-    customizedTemplates() {
-      const items = this.pageTemplates.filter(item => item.category !== 'blank' && item.category !== 'default');
-      items.sort((a, b) => this.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
-      return items;
+    created () {
+      this.selectedTemplateId = this.value;
     },
-  },
-  created() {
-    this.selectedTemplateId = this.value;
-  },
-  methods: {
-    selectTemplate(value) {
-      this.selectedTemplateId = value;
-      this.$emit('input', this.selectedTemplateId);
+    methods: {
+      selectTemplate (value) {
+        this.selectedTemplateId = value;
+        this.$emit('input', this.selectedTemplateId);
+      },
     },
-  }
-};
+  };
 </script>

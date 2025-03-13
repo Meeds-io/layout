@@ -23,13 +23,13 @@
     <template #activator="{on, attrs}">
       <div
         v-bind="attrs"
-        v-on="on"
-        class="me-3">
+        class="me-3"
+        v-on="on">
         <v-btn
-          :loading="loading"
-          :disabled="disabled"
           :aria-label="$t('layout.saveAsTemplate')"
+          :disabled="disabled"
           icon
+          :loading="loading"
           @click="savePageTemplate">
           <v-icon>fa-columns</v-icon>
         </v-btn>
@@ -39,58 +39,58 @@
   </v-tooltip>
 </template>
 <script>
-export default {
-  props: {
-    disabled: {
-      type: Boolean,
-      default: false,
+  export default {
+    props: {
+      disabled: {
+        type: Boolean,
+        default: false,
+      },
     },
-  },
-  data: () => ({
-    loading: false,
-  }),
-  methods: {
-    savePageTemplate() {
-      this.loading = true;
-      window.setTimeout(() => this.openPageTemplateDrawer(), 10);
-    },
-    openPageTemplateDrawer() {
-      this.$root.$on('layout-draft-saved', this.handleDraftSavedSuccess);
-      this.$root.$on('layout-draft-save-error', this.handleDraftSavedError);
-      this.$root.$emit('layout-save-draft');
-    },
-    handleDraftSavedSuccess() {
-      this.handleDraftSaved(true);
-    },
-    handleDraftSavedError() {
-      this.handleDraftSaved();
-    },
-    async handleDraftSaved(success) {
-      this.$root.$off('layout-draft-saved', this.handleDraftSavedSuccess);
-      this.$root.$off('layout-draft-save-error', this.handleDraftSavedError);
-      if (success) {
-        try {
-          document.addEventListener('drawerOpened', this.endLoading);
-          const draftPageLayout = await this.$pageLayoutService.getPageLayout({
-            pageRef: this.$root.draftPageRef,
-            impersonate: true,
-          });
-          this.$layoutUtils.parseSections(draftPageLayout);
-          const pageLayout = this.$layoutUtils.cleanAttributes(draftPageLayout, true, true);
-          this.$root.$emit('layout-page-template-drawer-open', {
-            content: JSON.stringify(pageLayout),
-          }, false, true);
-        } finally {
-          window.setTimeout(() => this.loading = false, 2000);
+    data: () => ({
+      loading: false,
+    }),
+    methods: {
+      savePageTemplate () {
+        this.loading = true;
+        window.setTimeout(() => this.openPageTemplateDrawer(), 10);
+      },
+      openPageTemplateDrawer () {
+        this.$root.$on('layout-draft-saved', this.handleDraftSavedSuccess);
+        this.$root.$on('layout-draft-save-error', this.handleDraftSavedError);
+        this.$root.$emit('layout-save-draft');
+      },
+      handleDraftSavedSuccess () {
+        this.handleDraftSaved(true);
+      },
+      handleDraftSavedError () {
+        this.handleDraftSaved();
+      },
+      async handleDraftSaved (success) {
+        this.$root.$off('layout-draft-saved', this.handleDraftSavedSuccess);
+        this.$root.$off('layout-draft-save-error', this.handleDraftSavedError);
+        if (success) {
+          try {
+            document.addEventListener('drawerOpened', this.endLoading);
+            const draftPageLayout = await eXo.$pageLayoutService.getPageLayout({
+              pageRef: this.$root.draftPageRef,
+              impersonate: true,
+            });
+            eXo.$layoutUtils.parseSections(draftPageLayout);
+            const pageLayout = eXo.$layoutUtils.cleanAttributes(draftPageLayout, true, true);
+            this.$root.$emit('layout-page-template-drawer-open', {
+              content: JSON.stringify(pageLayout),
+            }, false, true);
+          } finally {
+            window.setTimeout(() => this.loading = false, 2000);
+          }
+        } else {
+          this.loading = false;
         }
-      } else {
-        this.loading = false;
-      }
+      },
+      endLoading () {
+        window.setTimeout(() => this.loading = false, 200);
+        document.removeEventListener('drawerOpened', this.endLoading);
+      },
     },
-    endLoading() {
-      window.setTimeout(() => this.loading = false, 200);
-      document.removeEventListener('drawerOpened', this.endLoading);
-    },
-  },
-};
+  };
 </script>

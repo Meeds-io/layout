@@ -27,26 +27,26 @@
       <div
         v-show="open"
         @focusin="hoverArea = true"
-        @mouseover="hoverArea = true"
         @focusout="hoverArea = false"
-        @mouseout="hoverArea = false">
+        @mouseout="hoverArea = false"
+        @mouseover="hoverArea = true">
         <v-hover v-if="index > 0" v-model="hoverButton1">
           <div
+            class="absolute-horizontal-center d-flex t-0 justify-center mb-auto mt-n4"
             :class="{
               'z-index-floating-button': !hoveredApplication,
-            }"
-            class="absolute-horizontal-center d-flex t-0 justify-center mb-auto mt-n4">
+            }">
             <v-tooltip bottom>
               <template #activator="{on, attrs}">
                 <div
-                  v-on="on"
-                  v-bind="attrs">
+                  v-bind="attrs"
+                  v-on="on">
                   <v-btn
                     v-if="!$root.noSectionAdd"
                     class="white text-color border-color elevation-2"
                     height="32"
-                    width="32"
                     icon
+                    width="32"
                     @click="addSectionBefore">
                     <v-icon class="icon-default-color" size="20">fa-plus</v-icon>
                   </v-btn>
@@ -63,34 +63,34 @@
       <div
         v-show="open"
         @focusin="hoverArea = true"
-        @mouseover="hoverArea = true"
         @focusout="hoverArea = false"
-        @mouseout="hoverArea = false">
+        @mouseout="hoverArea = false"
+        @mouseover="hoverArea = true">
         <v-hover
           v-if="displayMoveButton"
           v-model="hoverButton2">
           <div
+            class="position-absolute t-10 z-index-two"
             :class="{
               'r-0': $vuetify.rtl,
               'l-0': !$vuetify.rtl,
             }"
-            :style="leftButtonStyle"
-            class="position-absolute t-10 z-index-two">
-            <v-tooltip :disabled="moving" bottom>
+            :style="leftButtonStyle">
+            <v-tooltip bottom :disabled="moving">
               <template #activator="{on, attrs}">
                 <div
-                  v-on="on"
-                  v-bind="attrs">
+                  v-bind="attrs"
+                  v-on="on">
                   <v-btn
                     v-if="!$root.noSectionAdd"
                     class="white text-color border-color elevation-2 draggable"
                     height="32"
-                    width="32"
                     icon
+                    width="32"
+                    @focusout="$emit('move-end')"
                     @mousedown="$emit('move-start')"
-                    @mouseup="$emit('move-end')"
                     @mouseout="$emit('move-end')"
-                    @focusout="$emit('move-end')">
+                    @mouseup="$emit('move-end')">
                     <v-icon class="icon-default-color" size="20">fa-arrows-alt</v-icon>
                   </v-btn>
                 </div>
@@ -106,26 +106,26 @@
       <div
         v-show="open"
         @focusin="hoverArea = true"
-        @mouseover="hoverArea = true"
         @focusout="hoverArea = false"
-        @mouseout="hoverArea = false">
+        @mouseout="hoverArea = false"
+        @mouseover="hoverArea = true">
         <v-hover v-model="hoverButton3">
           <div
+            class="position-absolute t-10 z-index-two"
             :class="{
               'l-0': $vuetify.rtl,
               'r-0': !$vuetify.rtl,
-            }"
-            class="position-absolute t-10 z-index-two">
+            }">
             <v-tooltip bottom>
               <template #activator="{on, attrs}">
                 <div
-                  v-on="on"
-                  v-bind="attrs">
+                  v-bind="attrs"
+                  v-on="on">
                   <v-btn
                     class="white text-color border-color elevation-2"
                     height="32"
-                    width="32"
                     icon
+                    width="32"
                     @click="$root.$emit('layout-site-banner-section-open', container)">
                     <v-icon class="icon-default-color" size="20">fa-edit</v-icon>
                   </v-btn>
@@ -142,22 +142,22 @@
       <div
         v-show="open"
         @focusin="hoverArea = true"
-        @mouseover="hoverArea = true"
         @focusout="hoverArea = false"
-        @mouseout="hoverArea = false">
+        @mouseout="hoverArea = false"
+        @mouseover="hoverArea = true">
         <v-hover v-if="index < (length - 1)" v-model="hoverButton4">
           <div class="absolute-horizontal-center b-0 z-index-two d-flex justify-center mb-n4">
             <v-tooltip top>
               <template #activator="{on, attrs}">
                 <div
-                  v-on="on"
-                  v-bind="attrs">
+                  v-bind="attrs"
+                  v-on="on">
                   <v-btn
                     v-if="!$root.noSectionAdd"
                     class="white text-color border-color elevation-2"
                     height="32"
-                    width="32"
                     icon
+                    width="32"
                     @click="addSectionAfter">
                     <v-icon class="icon-default-color" size="20">fa-plus</v-icon>
                   </v-btn>
@@ -172,102 +172,102 @@
   </div>
 </template>
 <script>
-export default {
-  props: {
-    container: {
-      type: Object,
-      default: null,
+  export default {
+    props: {
+      container: {
+        type: Object,
+        default: null,
+      },
+      hover: {
+        type: Boolean,
+        default: false,
+      },
+      moving: {
+        type: Boolean,
+        default: false,
+      },
+      index: {
+        type: Number,
+        default: null,
+      },
+      length: {
+        type: Number,
+        default: null,
+      },
     },
-    hover: {
-      type: Boolean,
-      default: false,
+    data: () => ({
+      open: false,
+      savingAsTemplate: false,
+      hoverButton1: false,
+      hoverButton2: false,
+      hoverButton3: false,
+      hoverButton4: false,
+      hoverArea: false,
+    }),
+    computed: {
+      hoverButton () {
+        return this.hoverButton1 || this.hoverButton2 || this.hoverButton3 || this.hoverButton4;
+      },
+      displayMoveButton () {
+        return this.length > 1;
+      },
+      displayBorder () {
+        return this.open || this.hover || this.hoverButton;
+      },
+      hoveredSectionMenu () {
+        return this.hoverButton || (!this.hoverArea && !this.hoveredApplication);
+      },
+      hoveredApplication () {
+        return !!this.$root.hoveredApplication;
+      },
+      rightButtonStyle () {
+        return {
+          right: this.$root.pageFullWindow && '0' || '-20px',
+        };
+      },
     },
-    moving: {
-      type: Boolean,
-      default: false,
-    },
-    index: {
-      type: Number,
-      default: null,
-    },
-    length: {
-      type: Number,
-      default: null,
-    },
-  },
-  data: () => ({
-    open: false,
-    savingAsTemplate: false,
-    hoverButton1: false,
-    hoverButton2: false,
-    hoverButton3: false,
-    hoverButton4: false,
-    hoverArea: false,
-  }),
-  computed: {
-    hoverButton() {
-      return this.hoverButton1 || this.hoverButton2 || this.hoverButton3 || this.hoverButton4;
-    },
-    displayMoveButton() {
-      return this.length > 1;
-    },
-    displayBorder() {
-      return this.open || this.hover || this.hoverButton;
-    },
-    hoveredSectionMenu() {
-      return this.hoverButton || (!this.hoverArea && !this.hoveredApplication);
-    },
-    hoveredApplication() {
-      return !!this.$root.hoveredApplication;
-    },
-    rightButtonStyle() {
-      return {
-        right: this.$root.pageFullWindow && '0' || '-20px',
-      };
-    },
-  },
-  watch: {
-    hover() {
-      window.setTimeout(() => {
-        if (!this.moving) {
-          this.open = this.hover;
+    watch: {
+      hover () {
+        window.setTimeout(() => {
+          if (!this.moving) {
+            this.open = this.hover;
+          }
+        }, 200);
+      },
+      hoveredSectionMenu () {
+        this.$emit('hover-button', this.hoveredSectionMenu);
+      },
+      moving () {
+        window.setTimeout(() => {
+          if (!this.hover) {
+            this.open = false;
+          }
+        }, 200);
+      },
+      open (newVal, oldVal) {
+        if (!oldVal && newVal) {
+          this.$root.hoveredSectionId = this.container.storageId;
+        } else if (!newVal && this.$root.hoveredSectionId === this.container.storageId) {
+          this.$root.hoveredSectionId = null;
         }
-      }, 200);
+      },
     },
-    hoveredSectionMenu() {
-      this.$emit('hover-button', this.hoveredSectionMenu);
+    methods: {
+      addSectionAfter () {
+        this.addSection(this.index + 1);
+      },
+      addSectionBefore () {
+        this.addSection(this.index);
+      },
+      addSection (index) {
+        this.$root.$emit('layout-section-history-add');
+        this.$root.middleContainer.children.splice(index, 0, {
+          ...eXo.$layoutUtils.newContainer(eXo.$layoutUtils.bannerTemplate),
+          children: [
+            eXo.$layoutUtils.newContainer(eXo.$layoutUtils.bannerCellTemplate),
+          ],
+        });
+      },
     },
-    moving() {
-      window.setTimeout(() => {
-        if (!this.hover) {
-          this.open = false;
-        }
-      }, 200);
-    },
-    open(newVal, oldVal) {
-      if (!oldVal && newVal) {
-        this.$root.hoveredSectionId = this.container.storageId;
-      } else if (!newVal && this.$root.hoveredSectionId === this.container.storageId) {
-        this.$root.hoveredSectionId = null;
-      }
-    },
-  },
-  methods: {
-    addSectionAfter() {
-      this.addSection(this.index + 1);
-    },
-    addSectionBefore() {
-      this.addSection(this.index);
-    },
-    addSection(index) {
-      this.$root.$emit('layout-section-history-add');
-      this.$root.middleContainer.children.splice(index, 0, {
-        ...this.$layoutUtils.newContainer(this.$layoutUtils.bannerTemplate),
-        children: [
-          this.$layoutUtils.newContainer(this.$layoutUtils.bannerCellTemplate),
-        ]
-      });
-    },
-  },
-};
+  };
 </script>
