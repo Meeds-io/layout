@@ -35,7 +35,7 @@
           elevation="0"
           class="me-2"
           outlined
-          @click="$root.$emit('serialize-drawer-open', 'PortletInstance', selectedPageTemplatesIds)">
+          @click="$root.$emit('serialize-drawer-open', 'PageTemplate', selectedPageTemplatesIds)">
           <v-icon size="16" class="me-2">fa-download</v-icon>
           {{ $t('pageTemplate.label.export') }}
         </v-btn>
