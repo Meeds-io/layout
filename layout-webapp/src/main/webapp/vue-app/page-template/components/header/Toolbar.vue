@@ -29,7 +29,20 @@
     class="px-1"
     @filter-text-input="$emit('page-templates-filter', $event)">
     <template v-if="!$root.isMobile" #left>
+      <div v-if="$root.selectedPageTemplates?.length && !$root.isMobile" class="d-flex">
+        <v-btn
+          color="primary"
+          elevation="0"
+          class="me-2"
+          outlined
+          @click="$root.$emit('serialize-drawer-open', 'PortletInstance', selectedPageTemplatesIds)">
+          <v-icon size="16" class="me-2">fa-download</v-icon>
+          {{ $t('pageTemplate.label.export') }}
+        </v-btn>
+        <page-templates-bulk-delete />
+      </div>
       <v-btn
+        v-else
         id="applicationToolbarLeftButton"
         :aria-label="$t('pageTemplates.add')"
         :class="$root.isMobile && 'px-0'"
@@ -60,5 +73,10 @@ export default {
   data: () => ({
     pageTemplates: null,
   }),
+  computed: {
+    selectedPageTemplatesIds() {
+      return this.$root.selectedPageTemplates.map(item => item.id);
+    },
+  },
 };
 </script>
