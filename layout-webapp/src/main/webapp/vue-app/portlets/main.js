@@ -71,7 +71,7 @@ export function init() {
               return a;
             }, {});
           },
-          SystemSelectedPortletInstances() {
+          systemSelectedPortletInstances() {
             return this.selectedPortletInstances.every(portletInstance => portletInstance.system);
           }
         },
