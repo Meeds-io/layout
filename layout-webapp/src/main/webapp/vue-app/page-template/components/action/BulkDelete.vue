@@ -20,31 +20,31 @@
 -->
 <template>
   <div class="d-inline">
-    <v-tooltip :disabled="!$root.systemSelectedPortletInstances" bottom>
+    <v-tooltip :disabled="!$root.systemSelectedPageTemplates" bottom>
       <template #activator="{ on, attrs }">
         <div
           v-on="on"
           v-bind="attrs">
           <v-btn
-            :disabled="$root.isBulkProcessing || $root.systemSelectedPortletInstances"
+            :disabled="$root.isBulkProcessing || $root.systemSelectedPageTemplates"
             color="error"
             elevation="0"
             outlined
             @click="openConfirmDialog">
             <v-icon size="16" class="me-2">fa-trash</v-icon>
-            {{ $t('portlets.label.delete') }}
+            {{ $t('pageTemplate.label.delete') }}
           </v-btn>
         </div>
       </template>
-      <span>{{ $t('portlets.label.system.noDelete') }}</span>
+      <span>{{ $t('pageTemplate.label.system.noDelete') }}</span>
     </v-tooltip>
     <confirm-dialog
       ref="dialog"
-      :title="$t('portlets.label.bulk.deleteConfirmTitle')"
-      :message="$t('portlets.label.bulk.deleteConfirmMessage')"
-      :ok-label="$t('portlets.label.confirm')"
-      :cancel-label="$t('portlets.label.cancel')"
-      @ok="deletePortletsInstances"
+      :title="$t('pageTemplate.label.bulk.deleteConfirmTitle')"
+      :message="$t('pageTemplate.label.bulk.deleteConfirmMessage')"
+      :ok-label="$t('pageTemplate.label.confirm')"
+      :cancel-label="$t('pageTemplate.label.cancel')"
+      @ok="deletePageTemplates"
       @closed="close" />
   </div>
 </template>
@@ -54,18 +54,18 @@ export default {
     openConfirmDialog() {
       window.setTimeout(() => this.$refs.dialog.open(), 200);
     },
-    deletePortletsInstances() {
+    deletePageTemplates() {
       this.$root.applyOperationInBulk(
-        portletInstance => {
-          if (!portletInstance.system) {
-            return this.$portletInstanceService.deletePortletInstance(portletInstance.id);
+        pageTemplate => {
+          if (!pageTemplate.system) {
+            return this.$portletInstanceService.deletePortletInstance(pageTemplate.id);
           }
           return Promise.resolve();
         },
         null,
         () => {
-          this.$root.$emit('alert-message', this.$root.$t('portlets.label.bulk.delete.success'), 'success');
-          this.$root.$emit('portlets-instances-list-refresh');
+          this.$root.$emit('alert-message', this.$root.$t('pageTemplate.label.bulk.delete.success'), 'success');
+          this.$root.$emit('page-templates-list-refresh');
         });
     },
     close() {
