@@ -36,6 +36,15 @@
     <layout-editor-page-template-drawer />
     <layout-image-illustration-preview />
     <layout-analytics application-name="pageTemplateManagement" />
+    <serialize-drawer ref="serializeDrawer" @export-start="handleExportStart">
+      <template #title>{{ $t('pageTemplate.label.exportTemplate') }}</template>
+      <template #content>
+        <v-card-text class="pb-0">{{ $t('pageTemplate.label.exportTemplate.part1') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('pageTemplate.label.exportTemplate.part2') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('pageTemplate.label.exportTemplate.part3') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('pageTemplate.label.exportTemplate.part4') }}</v-card-text>
+      </template>
+    </serialize-drawer>
   </v-app>
 </template>
 <script>
@@ -44,5 +53,11 @@ export default {
     keyword: null,
     creating: false,
   }),
+  methods: {
+    handleExportStart() {
+      this.$refs.serializeDrawer.close();
+      this.$root.selectedPortletInstances = [];
+    }
+  },
 };
 </script>
