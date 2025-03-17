@@ -18,20 +18,30 @@
  */
 package io.meeds.layout.plugin;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import io.meeds.common.ContainerTransactional;
 import io.meeds.layout.model.*;
+import io.meeds.layout.plugin.attachment.PageTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.translation.PageTemplateTranslationPlugin;
 import io.meeds.layout.service.PageTemplateService;
+import io.meeds.layout.service.injection.LayoutTranslationImportService;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.social.attachment.model.UploadedAttachmentDetail;
+import org.exoplatform.upload.UploadResource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -55,28 +65,35 @@ import lombok.SneakyThrows;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class PageTemplateDatabindPlugin implements DatabindPlugin {
 
-  public static final String  OBJECT_TYPE = "PageTemplate";
+  private static final Random            RANDOM      = new Random();
+
+  public static final String             OBJECT_TYPE = "PageTemplate";
 
   @Autowired
-  private PageTemplateService pageTemplateService;
+  private PageTemplateService            pageTemplateService;
 
   @Autowired
-  private DatabindService     databindService;
+  private DatabindService                databindService;
 
   @Autowired
-  private FileService         fileService;
+  private FileService                    fileService;
 
   @Autowired
-  private TranslationService  translationService;
+  private LayoutTranslationImportService layoutTranslationService;
 
   @Autowired
-  private AttachmentService   attachmentService;
+  private TranslationService             translationService;
 
   @Autowired
-  private UserACL             userAcl;
+  private AttachmentService              attachmentService;
 
   @Autowired
-  private IdentityManager     identityManager;
+  private UserACL                        userAcl;
+
+  @Autowired
+  private IdentityManager                identityManager;
+
+  private long                           superUserIdentityId;
 
   @PostConstruct
   public void init() {
@@ -136,8 +153,127 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
   }
 
   public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
-    // TO DO
-    return null;
+    return CompletableFuture.supplyAsync(() -> importPageTemplates(zipFile))
+                            .thenCompose(processedInstances -> layoutTranslationService.postImport(PageTemplateTranslationPlugin.OBJECT_TYPE)
+                                                                                       .thenApply(v -> {
+                                                                                         DatabindReport report =
+                                                                                                               new DatabindReport();
+                                                                                         report.setSuccess(!processedInstances.isEmpty());
+                                                                                         report.setProcessedItems(processedInstances);
+                                                                                         return report;
+                                                                                       }));
+
+  }
+
+  @ContainerTransactional
+  public List<String> importPageTemplates(File zipFile) {
+    Map<String, PageTemplateDatabind> instances = extractTemplates(zipFile);
+    List<String> processedPageTemplates = new ArrayList<>();
+    for (Map.Entry<String, PageTemplateDatabind> entry : instances.entrySet()) {
+      PageTemplateDatabind pageTemplate = entry.getValue();
+      processPageTemplate(pageTemplate);
+      processedPageTemplates.add(pageTemplate.getContent());
+    }
+    return processedPageTemplates;
+  }
+
+  private Map<String, PageTemplateDatabind> extractTemplates(File zipFile) {
+    Map<String, PageTemplateDatabind> templateDatabindMap = new HashMap<>();
+
+    try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile), StandardCharsets.UTF_8)) {
+      ZipEntry entry;
+      while ((entry = zis.getNextEntry()) != null) {
+        if (!entry.isDirectory() && entry.getName().endsWith(".json")) {
+          ByteArrayOutputStream baos = new ByteArrayOutputStream();
+          byte[] buffer = new byte[1024];
+          int bytesRead;
+          while ((bytesRead = zis.read(buffer)) != -1) {
+            baos.write(buffer, 0, bytesRead);
+          }
+          String jsonContent = baos.toString(StandardCharsets.UTF_8);
+
+          // Deserialize JSON into a Page templates
+          PageTemplateDatabind databind = JsonUtils.fromJsonString(jsonContent, PageTemplateDatabind.class);
+          if (databind != null) {
+            templateDatabindMap.put(entry.getName(), databind);
+          }
+        }
+      }
+    } catch (IOException e) {
+      throw new IllegalStateException("Error reading zip file", e);
+    }
+    return templateDatabindMap;
+  }
+
+  private void saveIllustration(long pageTemplateId, byte[] illustrationBytes) {
+    File tempFile = null;
+    try {
+      tempFile = getIllustrationFile(illustrationBytes);
+      String uploadId = "PageTemplateIllustration" + RANDOM.nextLong();
+      UploadResource uploadResource = new UploadResource(uploadId);
+      uploadResource.setFileName(tempFile.getName());
+      uploadResource.setMimeType("image/png");
+      uploadResource.setStatus(UploadResource.UPLOADED_STATUS);
+      uploadResource.setStoreLocation(tempFile.getPath());
+      attachmentService.deleteAttachments(PageTemplateAttachmentPlugin.OBJECT_TYPE, String.valueOf(pageTemplateId));
+      UploadedAttachmentDetail uploadedAttachmentDetail = new UploadedAttachmentDetail(uploadResource);
+      attachmentService.saveAttachment(uploadedAttachmentDetail,
+                                       PageTemplateAttachmentPlugin.OBJECT_TYPE,
+                                       String.valueOf(pageTemplateId),
+                                       null,
+                                       getSuperUserIdentityId());
+    } catch (Exception e) {
+      throw new IllegalStateException(String.format("Error while saving illustration as attachment for page template '%s'",
+                                                    pageTemplateId),
+                                      e);
+    } finally {
+      if (tempFile != null) {
+        try {
+          Files.delete(tempFile.toPath());
+        } catch (IOException e) {
+          tempFile.deleteOnExit();
+        }
+      }
+    }
+  }
+
+  private void saveNames(PageTemplateDatabind pageTemplateDatabind, PageTemplate pageTemplate) {
+    layoutTranslationService.saveTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
+                                                   pageTemplate.getId(),
+                                                   PageTemplateTranslationPlugin.TITLE_FIELD_NAME,
+                                                   pageTemplateDatabind.getNames());
+  }
+
+  private void saveDescriptions(PageTemplateDatabind pageTemplateDatabind, PageTemplate pageTemplate) {
+    layoutTranslationService.saveTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
+                                                   pageTemplate.getId(),
+                                                   PageTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                                   pageTemplateDatabind.getDescriptions());
+  }
+
+  @SneakyThrows
+  private void processPageTemplate(PageTemplateDatabind pageTemplateDatabind) {
+    PageTemplate pageTemplate = new PageTemplate();
+    pageTemplate.setName(pageTemplateDatabind.getNames().get("en"));
+    pageTemplate.setDescription(pageTemplateDatabind.getDescriptions().get("en"));
+    pageTemplate.setContent(pageTemplateDatabind.getContent());
+    pageTemplate.setSystem(false);
+    PageTemplate createdPageTemplate = pageTemplateService.createPageTemplate(pageTemplate);
+    saveNames(pageTemplateDatabind, createdPageTemplate);
+    saveDescriptions(pageTemplateDatabind, createdPageTemplate);
+    if (pageTemplateDatabind.getIllustration() != null) {
+      saveIllustration(createdPageTemplate.getId(), Base64.decodeBase64(pageTemplateDatabind.getIllustration()));
+    }
+  }
+
+  @SneakyThrows
+  private File getIllustrationFile(byte[] data) {
+    if (data == null) {
+      throw new IllegalArgumentException("Illustration data is null");
+    }
+    File tempFile = File.createTempFile("temp", ".png");
+    FileUtils.writeByteArrayToFile(tempFile, data);
+    return tempFile;
   }
 
   private void writeContent(ZipOutputStream zipOutputStream, String objectId, String content) throws IOException {
@@ -145,5 +281,12 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
     zipOutputStream.putNextEntry(entry);
     zipOutputStream.write(content.getBytes(StandardCharsets.UTF_8));
     zipOutputStream.closeEntry();
+  }
+
+  private long getSuperUserIdentityId() {
+    if (superUserIdentityId == 0) {
+      superUserIdentityId = Long.parseLong(identityManager.getOrCreateUserIdentity(userAcl.getSuperUser()).getId());
+    }
+    return superUserIdentityId;
   }
 }

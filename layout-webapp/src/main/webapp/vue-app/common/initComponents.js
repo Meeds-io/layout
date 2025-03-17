@@ -18,9 +18,11 @@
  */
 
 import LayoutAnalytics from './components/LayoutAnalytics.vue';
+import FileInput from './components/FileInput.vue';
 
 const components = {
   'layout-analytics': LayoutAnalytics,
+  'layout-file-input': FileInput,
 };
 
 for (const key in components) {
