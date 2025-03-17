@@ -247,7 +247,7 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     portletInstanceService.updatePortletInstance(createdPortletInstance);
   }
 
-  protected void saveIllustration(long portletInstanceId, byte[] illustrationBytes) {
+  private void saveIllustration(long portletInstanceId, byte[] illustrationBytes) {
     File tempFile = null;
     try {
       tempFile = getIllustrationFile(illustrationBytes);
@@ -279,14 +279,14 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     }
   }
 
-  protected void saveNames(PortletInstanceDatabind portletInstanceDatabind, PortletInstance portletInstance) {
+  private void saveNames(PortletInstanceDatabind portletInstanceDatabind, PortletInstance portletInstance) {
     layoutTranslationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
                                                    portletInstance.getId(),
                                                    PortletInstanceTranslationPlugin.TITLE_FIELD_NAME,
                                                    portletInstanceDatabind.getNames());
   }
 
-  protected void saveDescriptions(PortletInstanceDatabind portletInstanceDatabind, PortletInstance portletInstance) {
+  private void saveDescriptions(PortletInstanceDatabind portletInstanceDatabind, PortletInstance portletInstance) {
     layoutTranslationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
                                                    portletInstance.getId(),
                                                    PortletInstanceTranslationPlugin.DESCRIPTION_FIELD_NAME,
