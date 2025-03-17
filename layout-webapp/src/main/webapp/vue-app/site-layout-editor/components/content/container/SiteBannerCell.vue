@@ -30,6 +30,9 @@
         'z-index-two': hoverContainer && !$root.drawerOpened,
         'elevation-2 border-color': $root.movingParentId,
       }"
+      :style="{
+        'min-height': hasApplication ? 'auto' : '25px !important',
+      }"
       class="full-height flex-grow-1 flex-shrink-1 layout-banner-cell"
       section-style>
       <template v-if="application" #header>
