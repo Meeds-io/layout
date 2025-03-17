@@ -33,6 +33,10 @@ import ContainerExtension from './components/content/base/ContainerExtension.vue
 import ContainerBase from './components/content/base/ContainerBase.vue';
 
 import SectionMenu from './components/content/common/SectionMenu.vue';
+import SectionMenuTop from './components/content/common/SectionMenuTop.vue';
+import SectionMenuBottom from './components/content/common/SectionMenuBottom.vue';
+import SectionMenuLeft from './components/content/common/SectionMenuLeft.vue';
+import SectionMenuRight from './components/content/common/SectionMenuRight.vue';
 import SectionSelectionGrid from './components/content/common/SectionSelectionGrid.vue';
 import SectionSelectionGridCell from './components/content/common/SectionSelectionGridCell.vue';
 import ApplicationCategoryCard from './components/content/common/ApplicationCategoryCard.vue';
@@ -68,6 +72,10 @@ const components = {
   'layout-editor-section-selection-grid': SectionSelectionGrid,
   'layout-editor-section-selection-grid-cell': SectionSelectionGridCell,
   'layout-editor-section-menu': SectionMenu,
+  'layout-editor-section-menu-top': SectionMenuTop,
+  'layout-editor-section-menu-bottom': SectionMenuBottom,
+  'layout-editor-section-menu-left': SectionMenuLeft,
+  'layout-editor-section-menu-right': SectionMenuRight,
   'layout-editor-application-category-select-drawer': SelectApplicationCategoryDrawer,
   'layout-editor-application-add-drawer': AddApplicationDrawer,
   'layout-editor-application-edit-drawer': EditApplicationDrawer,
