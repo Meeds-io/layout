@@ -147,7 +147,7 @@ export default {
           uploadId: this.uploadId,
         });
         this.importFinished = true;
-        this.$root.$emit('page-template-saved');
+        this.$root.$emit('page-templates-saved');
       } finally {
         this.loading = false;
       }
