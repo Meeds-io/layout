@@ -42,7 +42,6 @@
 	<properties>
 		<!-- 3rd party libraries versions -->
 		<io.meeds.social.version>7.1.x-exo-SNAPSHOT</io.meeds.social.version>
-
     <!-- Sonar properties -->
     <sonar.organization>meeds-io</sonar.organization>
     
