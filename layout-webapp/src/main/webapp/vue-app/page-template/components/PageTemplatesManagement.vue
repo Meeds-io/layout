@@ -45,6 +45,7 @@
         <v-card-text class="pb-0">{{ $t('pageTemplate.label.exportTemplate.part4') }}</v-card-text>
       </template>
     </serialize-drawer>
+    <page-templates-deserialize-drawer />
   </v-app>
 </template>
 <script>
