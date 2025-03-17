@@ -36,25 +36,47 @@
         <div class="text-header mb-2">
           {{ $t('layout.editSiteSidebarSection.label.setDisplay') }}
         </div>
-        <div class="d-flex align-center mb-2">
-          <div class="me-auto">
-            {{ $t('layout.editSiteSidebarSection.label.sectionHeight') }}
-          </div>
-          <number-input
-            v-model="height"
-            :min="0"
-            :max="1000"
-            :step="10"
-            class="ms-auto my-n2"
-            editable />
-        </div>
-        <div class="d-flex align-center ms-n1 mb-4">
+        <div class="d-flex align-center ms-n1 mb-2">
           <v-checkbox
             v-model="hiddenOnMobile"
             :label="$t('layout.sectionHiddenOnMobile')"
             on-icon="fa-check-square"
             off-icon="far fa-square"
             class="my-0 ml-n2px" />
+        </div>
+        <div class="d-flex flex-column justify-center mb-2">
+          <div class="font-weight-bold me-auto">
+            {{ $t('layout.editSiteSidebarSection.label.sectionHeight') }}
+          </div>
+          <v-radio-group
+            v-model="height"
+            class="my-auto text-no-wrap"
+            mandatory>
+            <v-radio
+              value="auto"
+              class="mx-0">
+              <template #label>
+                <span class="text-font-size">{{ $t('layout.dynamicHeight') }}</span>
+              </template>
+            </v-radio>
+            <v-radio
+              :value="customHeight"
+              class="mx-0">
+              <template #label>
+                <div class="d-flex full-width align-center">
+                  <span class="text-font-size">{{ $t('layout.fixedHeight') }}</span>
+                  <number-input
+                    v-model="height"
+                    v-if="height === customHeight"
+                    :min="0"
+                    :max="1000"
+                    :step="10"
+                    class="ms-auto my-n2"
+                    editable />
+                </div>
+              </template>
+            </v-radio>
+          </v-radio-group>
         </div>
         <div class="d-flex align-center">
           <div class="flex-grow-0 flex-shrink-0 align-start pb-3">
@@ -190,6 +212,9 @@ export default {
     },
     title() {
       return this.isTopContainer ? this.$t('layout.editSiteBannerSection.label.editSiteTopbarSection') : this.$t('layout.editSiteBannerSection.label.editSiteBottomSection');
+    },
+    customHeight() {
+      return (this.height === 'auto' || !this.height) ? this.defaultHeight : this.height;
     },
   },
   created() {
