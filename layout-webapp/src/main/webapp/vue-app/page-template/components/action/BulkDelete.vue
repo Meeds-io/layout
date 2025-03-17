@@ -58,7 +58,7 @@ export default {
       this.$root.applyOperationInBulk(
         pageTemplate => {
           if (!pageTemplate.system) {
-            return this.$portletInstanceService.deletePortletInstance(pageTemplate.id);
+            return this.$pageTemplateService.deletePageTemplate(pageTemplate.id);
           }
           return Promise.resolve();
         },
