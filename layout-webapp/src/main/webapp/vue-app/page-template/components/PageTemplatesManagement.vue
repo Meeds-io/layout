@@ -56,7 +56,7 @@ export default {
   methods: {
     handleExportStart() {
       this.$refs.serializeDrawer.close();
-      this.$root.selectedPortletInstances = [];
+      this.$root.selectedPageTemplates = [];
     }
   },
 };
