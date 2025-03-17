@@ -99,8 +99,9 @@
               <v-list-item-title>{{ $t('layout.portletInstance.import') }}</v-list-item-title>
             </v-list-item-content>
           </v-list-item>
-          <portlets-instance-file-input
-            ref="inputFile" />
+          <layout-file-input
+            ref="inputFile"
+            @uploaded="handelUpload" />
         </v-list>
       </v-menu>
     </template>
@@ -129,6 +130,9 @@ export default {
     openFileExplorer() {
       this.$refs.inputFile.openFileExplorer();
     },
+    handelUpload(uploadId, fileName) {
+      this.$root.$emit('deserialize-instance-drawer-open', uploadId, fileName);
+    }
   }
 };
 </script>
