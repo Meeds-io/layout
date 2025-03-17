@@ -118,11 +118,15 @@
   .layout-section-hover {
     border: thin solid @greyColorOpacity2 !important;
   }
-  &:first-of-type .layout-section-hover {
+  &:first-of-type .layout-section-border {
     margin-top: 12px;
+    height: ~"calc(100% - 12px)";
   }
   &:last-of-type {
     padding-bottom: var(--allPagesMarginBottom, 20px) !important;
+    .layout-section-border {
+      height: ~"calc(100% - var(--allPagesMarginBottom, 20px) / 2)";
+    }
   }
   &.layout-moving-chosen-container {
     > div {
