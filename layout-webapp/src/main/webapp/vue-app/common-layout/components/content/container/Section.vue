@@ -28,26 +28,32 @@
     v-on="!isDynamicSection && {
       'mousedown': startSelection,
     }">
+    <layout-editor-section-menu-top
+      v-model="hoverButton1"
+      :display="hoverSectionMenu"
+      :index="index"
+      :length="length" />
+    <layout-editor-section-menu-left
+      v-model="hoverButton2"
+      :display="hoverSectionMenu && displayMoveButton"
+      :index="index"
+      :length="length"
+      @mousedown="$emit('move-start')"
+      @mouseup="$emit('move-end')"
+      @mouseout="$emit('move-end')"
+      @focusout="$emit('move-end')" />
     <v-hover v-model="hover" :disabled="$root.mobileDisplayMode">
-      <div
+      <layout-editor-section-menu
+        :container="container"
+        :hover="hoverSectionMenu"
+        :index="index"
+        :length="length"
+        :moving="movingSection"
         :class="{
-          'z-index-two': hoverSectionMenuButton,
           'normal-page-width': !$root.pageFullWindow,
           'full-page-width': $root.pageFullWindow,
         }"
-        class="layout-section-border">
-        <div class="position-relative full-height full-width">
-          <layout-editor-section-menu
-            :container="container"
-            :hover="hoverSectionMenu"
-            :index="index"
-            :length="length"
-            :moving="movingSection"
-            @hover-button="hoverSectionMenuButton = $event"
-            @move-start="movingSection = true"
-            @move-end="movingSection = false" />
-        </div>
-      </div>
+        class="layout-section-border" />
     </v-hover>
     <layout-editor-container-base
       ref="container"
@@ -68,6 +74,18 @@
           @hide="$root.movingParentId = null" />
       </template>
     </layout-editor-container-base>
+    <layout-editor-section-menu-right
+      v-model="hoverButton3"
+      :display="hoverSectionMenu"
+      :container="container"
+      :index="index"
+      :length="length" />
+    <layout-editor-section-menu-bottom
+      v-model="hoverButton4"
+      :display="hoverSectionMenu"
+      :index="index"
+      :length="length" />
+
     <layout-section-mobile-column-menu-drawer
       v-if="mobileInColumns"
       v-model="mobileSectionColumnClass"
@@ -96,6 +114,10 @@ export default {
   },
   data: () => ({
     hover: false,
+    hoverButton1: false,
+    hoverButton2: false,
+    hoverButton3: false,
+    hoverButton4: false,
     hoverSection: false,
     hoverSectionMenuButton: false,
     movingSection: false,
@@ -115,8 +137,11 @@ export default {
     isDynamicSection() {
       return this.container.template === this.$layoutUtils.flexTemplate;
     },
+    hoverButton() {
+      return this.hoverButton1 || this.hoverButton2 || this.hoverButton3 || this.hoverButton4;
+    },
     hoverSectionMenu() {
-      return !this.drawerOpened && (this.hover || this.hoverSection || this.movingSection);
+      return !this.drawerOpened && (this.hover || this.hoverButton || this.hoverSection || this.movingSection);
     },
     cssStyle() {
       return this.$applicationUtils.getStyle(this.container, {
@@ -128,6 +153,9 @@ export default {
       return this.isDynamicSection
         && this.$root.mobileDisplayMode
         && this.container?.cssClass?.includes?.('layout-mobile-columns');
+    },
+    displayMoveButton() {
+      return this.length > 1;
     },
   },
   watch: {
