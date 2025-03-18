@@ -50,6 +50,11 @@ export function init() {
         i18n,
         data: () => ({
           siteTemplates: [],
+          allSiteTemplatesSelected: false,
+          selectedSiteTemplates: [],
+          siteTemplatesSize: 0,
+          processedSiteTemplates: 0,
+          isBulkProcessing: false,
           loading: 0,
           collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
         }),
@@ -57,8 +62,12 @@ export function init() {
           isMobile() {
             return this.$vuetify.breakpoint.smAndDown;
           },
+          systemSelectedSiteTemplates() {
+            return this.selectedSiteTemplates.every(template => template.system);
+          }
         },
         created() {
+          this.$root.$on('site-templates-list-refresh', this.refreshSiteTemplates);
           this.$root.$on('site-template-enabled', this.refreshSiteTemplates);
           this.$root.$on('site-template-disabled', this.refreshSiteTemplates);
           this.$root.$on('site-template-created', this.refreshSiteTemplates);
@@ -73,6 +82,64 @@ export function init() {
             return this.$siteTemplateService.getSiteTemplates()
               .then(data => this.siteTemplates = data || [])
               .finally(() => this.loading--);
+          },
+
+          async applyOperationInBulk(callback, params, onFinish, onCancel) {
+            this.processedSiteTemplates = 0;
+            this.isBulkProcessing = true;
+            this.$emit('site-templates-bulk-operation-status', null, 'disabled');
+            try {
+              if (this.allSiteTemplatesSelected) {
+                let index = 0;
+                do {
+                  while (index < this.siteTemplates.length && this.isBulkProcessing) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.applyOperationOnSiteTemplate(this.siteTemplates[index++], params, callback);
+                  }
+                  if (index >= this.siteTemplates.length && this.isBulkProcessing) {
+                    // eslint-disable-next-line no-await-in-loop
+                    this.selectedSiteTemplates = this.siteTemplates;
+                  }
+                } while (index < this.siteTemplates.length && this.isBulkProcessing);
+              } else {
+                for (const element of this.siteTemplates) {
+                  if (!this.isBulkProcessing) {
+                    break;
+                  }
+                  const siteTemplate = element;
+                  if (this.selectedSiteTemplates.find(s => s.id === siteTemplate.id)) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.applyOperationOnSiteTemplate(siteTemplate, params, callback);
+                  }
+                }
+              }
+            } finally {
+              this.allSiteTemplatesSelected = false;
+              this.selectedSiteTemplates = [];
+              this.$emit('site-templates-bulk-operation-status', null, null);
+              if (this.isBulkProcessing) {
+                this.isBulkProcessing = false;
+                await this.$nextTick();
+                if (onFinish) {
+                  onFinish(params);
+                }
+              } else if (onCancel) {
+                onCancel(params);
+              }
+            }
+          },
+          async applyOperationOnSiteTemplate(siteTemplate, params, callback) {
+            this.$emit('site-templates-bulk-operation-status', siteTemplate.id, 'processing');
+            try {
+              await callback(siteTemplate, params);
+              this.$emit('site-templates-bulk-operation-status', siteTemplate.id, 'done');
+            } catch (e) {
+              // eslint-disable-next-line no-console
+              console.error('Error processing site template ', siteTemplate.id, '. Error: ', e);
+              this.$emit('site-templates-bulk-operation-status', siteTemplate.id, 'error');
+            } finally {
+              this.processedSiteTemplates++;
+            }
           },
         },
       }, `#${appId}`, 'Section Template Management')
