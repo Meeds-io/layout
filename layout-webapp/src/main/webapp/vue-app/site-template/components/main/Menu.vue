@@ -96,6 +96,16 @@
               {{ $t('siteTemplates.label.duplicate') }}
             </v-list-item-title>
           </v-list-item>
+          <v-list-item
+            dense
+            @click="$root.$emit('serialize-drawer-open', 'SiteTemplate', siteTemplateId)">
+            <v-list-item-icon class="me-auto">
+              <v-icon size="13">fa-download</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>
+              {{ $t('siteTemplates.label.export') }}
+            </v-list-item-title>
+          </v-list-item>
           <v-tooltip :disabled="!siteTemplate.system" bottom>
             <template #activator="{ on, attrs }">
               <div
@@ -149,9 +159,6 @@ export default {
     },
     name() {
       return this.$te(this.siteTemplate?.name) ? this.$t(this.siteTemplate?.name) : this.siteTemplate?.name;
-    },
-    hasEditMode() {
-      return this.siteTemplate?.supportedModes?.find?.(mode => mode === 'edit');
     },
     editSiteLayoutLink() {
       return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/site-layout-editor?siteId=${this.siteTemplateId}`;
