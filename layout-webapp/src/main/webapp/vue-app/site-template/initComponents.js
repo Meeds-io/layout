@@ -25,6 +25,10 @@ import SiteTemplateList from './components/main/List.vue';
 import SiteTemplateItem from './components/main/Item.vue';
 import SiteTemplateMenu from './components/main/Menu.vue';
 
+import BulkDelete from './components/action/BulkDelete.vue';
+
+import SiteTemplateDeserializeDrawer from './components/drawer/SiteTemplateDeserializeDrawer.vue';
+
 const components = {
   'site-template-management': SiteTemplateManagement,
 
@@ -33,6 +37,10 @@ const components = {
   'site-template-list': SiteTemplateList,
   'site-template-item': SiteTemplateItem,
   'site-template-menu': SiteTemplateMenu,
+
+  'site-templates-bulk-delete': BulkDelete,
+
+  'site-templates-deserialize-drawer': SiteTemplateDeserializeDrawer,
 };
 
 for (const key in components) {
