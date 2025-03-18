@@ -157,7 +157,7 @@ export default {
     selectionLabel() {
       if (this.$root.allPageTemplatesSelected) {
         return this.$t('pageTemplate.label.allPageTemplatesSelected', {
-          0: `<strong>${this.$root.PageTemplatesSize}</strong>`,
+          0: `<strong>${this.$root.pageTemplatesSize}</strong>`,
         });
       } else {
         return this.$t('pageTemplate.label.selectedPageTemplatesCount', {
