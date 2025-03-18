@@ -35,6 +35,16 @@
     <site-template-navigation-handler />
     <layout-image-illustration-preview />
     <layout-analytics application-name="siteTemplateManagement" />
+    <serialize-drawer ref="serializeDrawer" @export-start="handleExportStart">
+      <template #title>{{ $t('siteTemplates.label.exportTemplate') }}</template>
+      <template #content>
+        <v-card-text class="pb-0">{{ $t('siteTemplates.label.exportTemplate.part1') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('siteTemplates.label.exportTemplate.part2') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('siteTemplates.label.exportTemplate.part3') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('siteTemplates.label.exportTemplate.part4') }}</v-card-text>
+      </template>
+    </serialize-drawer>
+    <site-templates-deserialize-drawer />
   </v-app>
 </template>
 <script>
@@ -42,5 +52,11 @@ export default {
   data: () => ({
     keyword: null,
   }),
+  methods: {
+    handleExportStart() {
+      this.$refs.serializeDrawer.close();
+      this.$root.selectedSiteTemplates = [];
+    }
+  },
 };
 </script>

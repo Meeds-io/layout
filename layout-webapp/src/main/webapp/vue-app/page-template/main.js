@@ -48,7 +48,7 @@ export function init() {
           collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
           allPageTemplatesSelected: false,
           selectedPageTemplates: [],
-          PageTemplatesSize: 0,
+          pageTemplatesSize: 0,
           processedPageTemplates: 0,
           isBulkProcessing: false,
           columnsTemplate: null
@@ -147,7 +147,7 @@ export function init() {
               this.$emit('page-templates-bulk-operation-status', pageTemplate.id, 'done');
             } catch (e) {
               // eslint-disable-next-line no-console
-              console.error('Error processing portlets instance ', pageTemplate.id, '. Error: ', e);
+              console.error('Error processing page template ', pageTemplate.id, '. Error: ', e);
               this.$emit('page-templates-bulk-operation-status', pageTemplate.id, 'error');
             } finally {
               this.processedPageTemplates++;
