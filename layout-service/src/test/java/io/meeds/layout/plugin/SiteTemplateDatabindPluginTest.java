@@ -33,6 +33,7 @@ import java.util.zip.ZipOutputStream;
 import io.meeds.layout.model.SiteTemplate;
 import io.meeds.layout.service.SiteTemplateService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.mop.SiteKey;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -113,7 +114,7 @@ class SiteTemplateDatabindPluginTest {
   void deserialize() throws Exception {
     File zipFile = createZipFileWithTwoJsonFiles();
 
-    when(siteTemplateService.createSiteTemplate(any())).thenReturn(new SiteTemplate());
+    when(siteTemplateService.createSiteTemplate(any(SiteTemplate.class), any(SiteKey.class), anyString(), anyBoolean())).thenReturn(new SiteTemplate());
 
     when(layoutTranslationService.postImport(any())).thenReturn(CompletableFuture.completedFuture(null));
 
@@ -129,7 +130,7 @@ class SiteTemplateDatabindPluginTest {
     assertTrue(report.getProcessedItems().contains("name1"));
     assertTrue(report.getProcessedItems().contains("name2"));
 
-    verify(siteTemplateService, times(2)).createSiteTemplate(any());
+    verify(siteTemplateService, times(2)).createSiteTemplate(any(SiteTemplate.class), any(SiteKey.class), anyString(), anyBoolean());
   }
 
   private File createZipFileWithTwoJsonFiles() throws IOException {
@@ -137,10 +138,10 @@ class SiteTemplateDatabindPluginTest {
     try (FileOutputStream fos = new FileOutputStream(tempFile); ZipOutputStream zos = new ZipOutputStream(fos)) {
       addJsonToZip(zos,
                    "SiteTemplate_1.json",
-                   "{\"name\":\"name1\",\"names\":{\"en\":\"Test Page 1\"},\"descriptions\":{\"en\":\"Desc 1\"}}");
+                   "{\"name\":\"name1\",\"names\":{\"en\":\"Test Page 1\"},\"descriptions\":{\"en\":\"Desc 1\"}, \"layout\":\"layout1\"}");
       addJsonToZip(zos,
                    "SiteTemplate_2.json",
-                   "{\"name\":\"name2\",\"names\":{\"en\":\"Test Page 2\"},\"descriptions\":{\"en\":\"Desc 2\"}}");
+                   "{\"name\":\"name2\",\"names\":{\"en\":\"Test Page 2\"},\"descriptions\":{\"en\":\"Desc 2\"}, \"layout\":\"layout2\"}");
     }
     return tempFile;
   }
