@@ -163,7 +163,7 @@ public class SiteTemplateService {
   }
 
   @SneakyThrows
-  private SiteTemplate createSiteTemplate(SiteTemplate siteTemplate,
+  public SiteTemplate createSiteTemplate(SiteTemplate siteTemplate,
                                           SiteKey sourceSiteKey,
                                           String username,
                                           boolean broadcast) {
