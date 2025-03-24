@@ -26,6 +26,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -42,6 +43,8 @@ import io.meeds.layout.service.injection.LayoutTranslationImportService;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.SiteType;
 import org.exoplatform.social.attachment.model.UploadedAttachmentDetail;
 import org.exoplatform.upload.UploadResource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -156,7 +159,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
   }
 
   public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
-    return CompletableFuture.supplyAsync(() -> importSiteTemplates(zipFile))
+    return CompletableFuture.supplyAsync(() -> importSiteTemplates(zipFile, username))
                             .thenCompose(processedTemplates -> layoutTranslationService.postImport(SiteTemplateTranslationPlugin.OBJECT_TYPE)
                                                                                        .thenApply(v -> {
                                                                                          DatabindReport report =
@@ -169,12 +172,12 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
   }
 
   @ContainerTransactional
-  public List<String> importSiteTemplates(File zipFile) {
+  public List<String> importSiteTemplates(File zipFile, String username) {
     Map<String, SiteTemplateDatabind> templates = extractTemplates(zipFile);
     List<String> processedPageTemplates = new ArrayList<>();
     for (Map.Entry<String, SiteTemplateDatabind> entry : templates.entrySet()) {
       SiteTemplateDatabind pageTemplate = entry.getValue();
-      processSiteTemplate(pageTemplate);
+      processSiteTemplate(pageTemplate, username);
       processedPageTemplates.add(pageTemplate.getName());
     }
     return processedPageTemplates;
@@ -255,14 +258,18 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
   }
 
   @SneakyThrows
-  private void processSiteTemplate(SiteTemplateDatabind siteTemplateDatabind) {
+  private void processSiteTemplate(SiteTemplateDatabind siteTemplateDatabind, String username) {
     SiteTemplate siteTemplate = new SiteTemplate();
     siteTemplate.setName(siteTemplateDatabind.getNames().get("en"));
     siteTemplate.setDescription(siteTemplateDatabind.getDescriptions().get("en"));
-    siteTemplate.setLayout(siteTemplateDatabind.getLayout());
+    siteTemplate.setLayout(generateLayoutName(siteTemplate.getName()));
     siteTemplate.setIcon(siteTemplateDatabind.getIcon());
     siteTemplate.setSystem(false);
-    SiteTemplate createdSiteTemplate = siteTemplateService.createSiteTemplate(siteTemplate);
+    SiteTemplate createdSiteTemplate = siteTemplateService.createSiteTemplate(siteTemplate,
+                                                                              new SiteKey(SiteType.PORTAL_TEMPLATE,
+                                                                                          siteTemplateDatabind.getLayout()),
+                                                                              username,
+                                                                              true);
     saveNames(siteTemplateDatabind, createdSiteTemplate);
     saveDescriptions(siteTemplateDatabind, createdSiteTemplate);
     if (siteTemplateDatabind.getIllustration() != null) {
@@ -293,4 +300,14 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     }
     return superUserIdentityId;
   }
+
+  public static String generateLayoutName(String name) {
+    String transformed = name.toLowerCase()
+                             .chars()
+                             .mapToObj(c -> String.valueOf((char) ((c % 25) + 97)))
+                             .collect(Collectors.joining());
+    int randomNumber = ThreadLocalRandom.current().nextInt(1000);
+    return transformed + randomNumber;
+  }
+
 }
