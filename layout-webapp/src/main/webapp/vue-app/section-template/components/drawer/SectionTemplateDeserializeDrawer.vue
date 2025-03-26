@@ -25,7 +25,7 @@
     allow-expand
     right>
     <template #title>
-      {{ $t('siteTemplates.label.templateToImport') }}
+      {{ $t('sectionTemplates.label.templateToImport') }}
     </template>
     <template #content>
       <div class="pa-4" flat>
@@ -62,7 +62,7 @@
               </v-icon>
             </v-list-item-avatar>
             <v-list-item-content>
-              <v-list-item-title>{{ $t('siteTemplates.label.characteristics') }}</v-list-item-title>
+              <v-list-item-title>{{ $t('sectionTemplates.label.characteristics') }}</v-list-item-title>
             </v-list-item-content>
           </v-list-item>
           <v-list-item
@@ -79,7 +79,7 @@
               </v-icon>
             </v-list-item-avatar>
             <v-list-item-content>
-              <v-list-item-title>{{ $t('siteTemplates.label.layoutAndPreferences') }}</v-list-item-title>
+              <v-list-item-title>{{ $t('sectionTemplates.label.layoutAndPreferences') }}</v-list-item-title>
             </v-list-item-content>
           </v-list-item>
         </template>
@@ -115,14 +115,14 @@ export default {
       return !this.fileName;
     },
     header() {
-      return this.importFinished ? this.$t('siteTemplates.label.importInProgress') : this.$t('siteTemplates.label.templateToImport');
+      return this.importFinished ? this.$t('sectionTemplates.label.importInProgress') : this.$t('sectionTemplates.label.templateToImport');
     },
     buttonLabel() {
-      return this.importFinished ? this.$t('siteTemplates.label.close') : this.$t('siteTemplates.label.import');
+      return this.importFinished ? this.$t('sectionTemplates.label.close') : this.$t('sectionTemplates.label.import');
     }
   },
   created() {
-    this.$root.$on('deserialize-site-template-drawer-open', this.open);
+    this.$root.$on('deserialize-section-template-drawer-open', this.open);
   },
   methods: {
     open(uploadId, fileName) {
@@ -136,34 +136,34 @@ export default {
       this.uploadId = '';
       this.$refs.deserializeDrawer.close();
     },
-    async deserializeSiteTemplates() {
+    async deserializeSectionTemplates() {
       if (!this.uploadId) {
         return;
       }
       this.loading = true;
       try {
         await this.$databindService.deserialize({
-          objectType: 'SiteTemplate',
+          objectType: 'SectionTemplate',
           uploadId: this.uploadId,
         });
         this.importFinished = true;
-        this.$root.$emit('site-template-created');
+        this.$root.$emit('section-template-saved');
       } catch (error) {
         if (error.message === 'databind.notMatchType') {
-          this.$root.$emit('alert-message', this.$t('siteTemplates.label.exception.notMatchType'), 'error');
+          this.$root.$emit('alert-message', this.$t('sectionTemplates.label.exception.notMatchType'), 'error');
         }
       } finally {
         this.loading = false;
       }
     },
     changeFile() {
-      this.$root.$emit('site-template-file-explorer');
+      this.$root.$emit('section-template-file-explorer');
     },
     handleButtonClick() {
       if (this.importFinished) {
         this.close();
       } else {
-        this.deserializeSiteTemplates();
+        this.deserializeSectionTemplates();
       }
     }
   }

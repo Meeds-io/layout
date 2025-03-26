@@ -22,20 +22,48 @@
 <template>
   <div class="application-layout-style">
     <v-data-table
+      v-model="$root.selectedSectionTemplates"
       :headers="headers"
       :items="filteredSectionTemplates"
       :loading="loading"
       :disable-sort="$root.isMobile"
       :hide-default-header="$root.isMobile"
       :custom-sort="applySortOnItems"
+      :show-select="!$root.isMobile"
       must-sort
       disable-pagination
       hide-default-footer
       class="application-body sectionTemplatesTable px-5">
+      <template slot="header.data-table-select" slot-scope="{on, props}">
+        <v-checkbox
+          v-on="on"
+          v-bind="props"
+          on-icon="fas fa-check-square fa-lg primary--text"
+          indeterminate-icon="fas fa-minus-square fa-lg"
+          off-icon="far fa-square fa-lg"
+          class="my-auto pt-2"
+          @change="on.input" />
+      </template>
+      <template v-if="$root.selectedSectionTemplates.length" slot="body.prepend">
+        <tr>
+          <td :colspan="headers.length + 1" class="px-0">
+            <v-alert
+              :icon="false"
+              class="ma-0 ps-5 no-border-radius"
+              border="left"
+              type="info"
+              colored-border>
+              <div v-html="selectionLabel"></div>
+            </v-alert>
+          </td>
+        </tr>
+      </template>
       <template slot="item" slot-scope="props">
         <section-template-item
           :key="props.item.id"
-          :section-template="props.item" />
+          :section-template="props.item"
+          :selected="props.isSelected"
+          :select="props.select" />
       </template>
     </v-data-table>
     <exo-confirm-dialog
@@ -175,6 +203,23 @@ export default {
     },
     nameToDelete() {
       return this.sectionTemplateToDelete && this.$te(this.sectionTemplateToDelete?.name) ? this.$t(this.sectionTemplateToDelete?.name) : this.sectionTemplateToDelete?.name;
+    },
+    selectionLabel() {
+      if (this.$root.allSectionTemplatesSelected) {
+        return this.$t('sectionTemplates.label.allSectionTemplatesSelected', {
+          0: `<strong>${this.$root.sectionTemplatesSize}</strong>`,
+        });
+      } else {
+        return this.$t('sectionTemplates.label.selectedSectionTemplatesCount', {
+          0: `<strong>${this.$root.selectedSectionTemplates.length}</strong>`,
+        });
+      }
+    },
+  },
+  watch: {
+    keyword() {
+      this.$root.allSectionTemplatesSelected = false;
+      this.$root.selectedSectionTemplates = [];
     },
   },
   created() {
