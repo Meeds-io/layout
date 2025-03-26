@@ -45,6 +45,11 @@ export function init() {
         i18n,
         data: () => ({
           sectionTemplates: [],
+          allSectionTemplatesSelected: false,
+          selectedSectionTemplates: [],
+          sectionTemplatesSize: 0,
+          processedSectionTemplates: 0,
+          isBulkProcessing: false,
           loading: 0,
           collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
         }),
@@ -52,8 +57,12 @@ export function init() {
           isMobile() {
             return this.$vuetify.breakpoint.smAndDown;
           },
+          systemSelectedSectionTemplates() {
+            return this.selectedSectionTemplates.every(template => template.system);
+          }
         },
         created() {
+          this.$root.$on('section-templates-list-refresh', this.refreshSectionTemplates);
           this.$root.$on('section-template-enabled', this.refreshSectionTemplates);
           this.$root.$on('section-template-disabled', this.refreshSectionTemplates);
           this.$root.$on('section-template-saved', this.refreshSectionTemplates);
@@ -71,6 +80,63 @@ export function init() {
             return this.$sectionTemplateService.getSectionTemplates()
               .then(data => this.sectionTemplates = data || [])
               .finally(() => this.loading--);
+          },
+          async applyOperationInBulk(callback, params, onFinish, onCancel) {
+            this.processedSectionTemplates = 0;
+            this.isBulkProcessing = true;
+            this.$emit('section-templates-bulk-operation-status', null, 'disabled');
+            try {
+              if (this.allSectionTemplatesSelected) {
+                let index = 0;
+                do {
+                  while (index < this.sectionTemplates.length && this.isBulkProcessing) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.applyOperationOnSectionTemplate(this.sectionTemplates[index++], params, callback);
+                  }
+                  if (index >= this.sectionTemplates.length && this.isBulkProcessing) {
+                    // eslint-disable-next-line no-await-in-loop
+                    this.selectedSectionTemplates = this.sectionTemplates;
+                  }
+                } while (index < this.sectionTemplates.length && this.isBulkProcessing);
+              } else {
+                for (const element of this.sectionTemplates) {
+                  if (!this.isBulkProcessing) {
+                    break;
+                  }
+                  const sectionTemplate = element;
+                  if (this.selectedSectionTemplates.find(s => s.id === sectionTemplate.id)) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.applyOperationOnSectionTemplate(sectionTemplate, params, callback);
+                  }
+                }
+              }
+            } finally {
+              this.allSectionTemplatesSelected = false;
+              this.selectedSectionTemplates = [];
+              this.$emit('section-templates-bulk-operation-status', null, null);
+              if (this.isBulkProcessing) {
+                this.isBulkProcessing = false;
+                await this.$nextTick();
+                if (onFinish) {
+                  onFinish(params);
+                }
+              } else if (onCancel) {
+                onCancel(params);
+              }
+            }
+          },
+          async applyOperationOnSectionTemplate(sectionTemplate, params, callback) {
+            this.$emit('section-templates-bulk-operation-status', sectionTemplate.id, 'processing');
+            try {
+              await callback(sectionTemplate, params);
+              this.$emit('section-templates-bulk-operation-status', sectionTemplate.id, 'done');
+            } catch (e) {
+              // eslint-disable-next-line no-console
+              console.error('Error processing section template ', sectionTemplate.id, '. Error: ', e);
+              this.$emit('section-templates-bulk-operation-status', sectionTemplate.id, 'error');
+            } finally {
+              this.processedSectionTemplates++;
+            }
           },
         },
       }, `#${appId}`, 'Section Template Management')
