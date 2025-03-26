@@ -26,6 +26,8 @@ import SectionTemplateItem from './components/main/Item.vue';
 import SectionTemplateMenu from './components/main/Menu.vue';
 
 import AddSectionTemplateDrawer from './components/drawer/AddSectionTemplateDrawer.vue';
+import BulkDelete from './components/action/BulkDelete.vue';
+import SectionTemplateDeserializeDrawer from './components/drawer/SectionTemplateDeserializeDrawer.vue';
 
 const components = {
   'section-template-management': SectionTemplateManagement,
@@ -37,6 +39,10 @@ const components = {
   'section-template-menu': SectionTemplateMenu,
 
   'section-template-add-drawer': AddSectionTemplateDrawer,
+
+  'section-templates-bulk-delete': BulkDelete,
+
+  'section-templates-deserialize-drawer': SectionTemplateDeserializeDrawer,
 };
 
 for (const key in components) {
