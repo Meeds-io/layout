@@ -21,6 +21,14 @@
 -->
 <template>
   <tr>
+    <td align="center">
+      <v-checkbox
+        :value="selected || $root.allSectionTemplatesSelected"
+        on-icon="fas fa-check-square fa-lg primary--text"
+        off-icon="far fa-square fa-lg"
+        class="my-auto pt-2"
+        @change="changeCheckboxStatus" />
+    </td>
     <!-- Illustration -->
     <td
       v-if="!$root.isMobile"
@@ -71,6 +79,14 @@
 export default {
   props: {
     sectionTemplate: {
+      type: Object,
+      default: null,
+    },
+    selected: {
+      type: Boolean,
+      default: false,
+    },
+    select: {
       type: Object,
       default: null,
     },
@@ -128,6 +144,9 @@ export default {
         .catch(() => this.$root.$emit('alert-message', this.$t('sectionTemplates.status.update.error'), 'error'))
         .finally(() => this.loading = false);
     },
+    changeCheckboxStatus(status) {
+      this.select(status);
+    }
   },
 };
 </script>
