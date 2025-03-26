@@ -37,6 +37,16 @@
     <section-template-drawer />
     <layout-image-illustration-preview />
     <layout-analytics application-name="sectionTemplateManagement" />
+    <serialize-drawer ref="serializeDrawer" @export-start="handleExportStart">
+      <template #title>{{ $t('sectionTemplates.label.exportTemplate') }}</template>
+      <template #content>
+        <v-card-text class="pb-0">{{ $t('sectionTemplates.label.exportTemplate.part1') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('sectionTemplates.label.exportTemplate.part2') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('sectionTemplates.label.exportTemplate.part3') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('sectionTemplates.label.exportTemplate.part4') }}</v-card-text>
+      </template>
+    </serialize-drawer>
+    <section-templates-deserialize-drawer />
   </v-app>
 </template>
 <script>
@@ -45,11 +55,11 @@ export default {
     keyword: null,
   }),
   created() {
-    this.$root.$on('section-template-created', this.handleInstanceCreated);
+    this.$root.$on('section-template-saved', this.handleInstanceCreated);
     this.$root.$on('section-template-layout-updated', this.handleLayoutUpdated);
   },
   beforeDestroy() {
-    this.$root.$off('section-template-created', this.handleInstanceCreated);
+    this.$root.$off('section-template-saved', this.handleInstanceCreated);
     this.$root.$off('section-template-layout-updated', this.handleLayoutUpdated);
   },
   methods: {
@@ -61,6 +71,10 @@ export default {
       this.$root.$emit('section-template-saved', instance);
       this.$root.$emit('alert-message', this.$t('layout.sectionTemplateLayoutUpdatedSuccessfully'), 'success');
     },
+    handleExportStart() {
+      this.$refs.serializeDrawer.close();
+      this.$root.selectedSectionTemplates = [];
+    }
   },
 };
 </script>
