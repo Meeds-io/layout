@@ -162,6 +162,10 @@ export default {
         await this.$databindService.deserialize(databind);
         this.importFinished = true;
         this.$root.$emit('portlet-instance-saved');
+      } catch (error) {
+        if (error.message === 'databind.notMatchType') {
+          this.$root.$emit('alert-message', this.$t('portletInstance.label.exception.notMatchType'), 'error');
+        }
       } finally {
         this.loading = false;
       }
