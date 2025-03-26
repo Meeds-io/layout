@@ -25,7 +25,7 @@
     allow-expand
     right>
     <template #title>
-      {{ $t('siteTemplate.label.importTemplate') }}
+      {{ $t('siteTemplates.label.templateToImport') }}
     </template>
     <template #content>
       <div class="pa-4" flat>
@@ -62,7 +62,7 @@
               </v-icon>
             </v-list-item-avatar>
             <v-list-item-content>
-              <v-list-item-title>{{ $t('siteTemplate.label.characteristics') }}</v-list-item-title>
+              <v-list-item-title>{{ $t('siteTemplates.label.characteristics') }}</v-list-item-title>
             </v-list-item-content>
           </v-list-item>
           <v-list-item
@@ -79,7 +79,7 @@
               </v-icon>
             </v-list-item-avatar>
             <v-list-item-content>
-              <v-list-item-title>{{ $t('siteTemplate.label.layoutAndPreferences') }}</v-list-item-title>
+              <v-list-item-title>{{ $t('siteTemplates.label.layoutAndPreferences') }}</v-list-item-title>
             </v-list-item-content>
           </v-list-item>
         </template>
