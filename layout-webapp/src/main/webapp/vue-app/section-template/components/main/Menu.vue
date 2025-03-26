@@ -104,6 +104,16 @@
               {{ $t('sectionTemplates.label.duplicate') }}
             </v-list-item-title>
           </v-list-item>
+          <v-list-item
+            dense
+            @click="$root.$emit('serialize-drawer-open', 'SectionTemplate', sectionTemplateId)">
+            <v-list-item-icon class="me-auto">
+              <v-icon size="13">fa-download</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>
+              {{ $t('sectionTemplates.label.export') }}
+            </v-list-item-title>
+          </v-list-item>
           <v-tooltip :disabled="!sectionTemplate.system" bottom>
             <template #activator="{ on, attrs }">
               <div
@@ -156,9 +166,6 @@ export default {
     },
     name() {
       return this.$te(this.sectionTemplate?.name) ? this.$t(this.sectionTemplate?.name) : this.sectionTemplate?.name;
-    },
-    hasEditMode() {
-      return this.sectionTemplate?.supportedModes?.find?.(mode => mode === 'edit');
     },
     editLayoutLink() {
       return `/portal/${eXo.env.portal.portalName}/section-editor?id=${this.sectionTemplateId}`;
