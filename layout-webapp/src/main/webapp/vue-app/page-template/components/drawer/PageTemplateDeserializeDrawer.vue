@@ -148,6 +148,10 @@ export default {
         });
         this.importFinished = true;
         this.$root.$emit('page-templates-saved');
+      } catch (error) {
+        if (error.message === 'databind.notMatchType') {
+          this.$root.$emit('alert-message', this.$t('pageTemplate.label.exception.notMatchType'), 'error');
+        }
       } finally {
         this.loading = false;
       }
