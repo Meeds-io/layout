@@ -163,8 +163,10 @@ export default {
         this.importFinished = true;
         this.$root.$emit('portlet-instance-saved');
       } catch (error) {
-        if (error.message === 'databind.notMatchType') {
+        if (String(error).indexOf('databind.notMatchType') >= 0) {
           this.$root.$emit('alert-message', this.$t('portletInstance.label.exception.notMatchType'), 'error');
+        } else {
+          this.$root.$emit('alert-message', String(error) , 'error');
         }
       } finally {
         this.loading = false;
