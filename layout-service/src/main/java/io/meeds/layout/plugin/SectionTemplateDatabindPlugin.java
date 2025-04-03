@@ -54,7 +54,6 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.upload.UploadResource;
 
 import io.meeds.common.ContainerTransactional;
-import io.meeds.layout.service.injection.LayoutTranslationImportService;
 import io.meeds.layout.util.JsonUtils;
 import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.plugin.DatabindPlugin;
@@ -68,35 +67,32 @@ import lombok.SneakyThrows;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class SectionTemplateDatabindPlugin implements DatabindPlugin {
 
-  private static final Random            RANDOM      = new Random();
+  private static final Random    RANDOM      = new Random();
 
-  public static final String             OBJECT_TYPE = "SectionTemplate";
-
-  @Autowired
-  private SectionTemplateService         sectionTemplateService;
+  public static final String     OBJECT_TYPE = "SectionTemplate";
 
   @Autowired
-  private DatabindService                databindService;
+  private SectionTemplateService sectionTemplateService;
 
   @Autowired
-  private FileService                    fileService;
+  private DatabindService        databindService;
 
   @Autowired
-  private LayoutTranslationImportService layoutTranslationService;
+  private FileService            fileService;
 
   @Autowired
-  private TranslationService             translationService;
+  private TranslationService     translationService;
 
   @Autowired
-  private AttachmentService              attachmentService;
+  private AttachmentService      attachmentService;
 
   @Autowired
-  private UserACL                        userAcl;
+  private UserACL                userAcl;
 
   @Autowired
-  private IdentityManager                identityManager;
+  private IdentityManager        identityManager;
 
-  private long                           superUserIdentityId;
+  private long                   superUserIdentityId;
 
   @PostConstruct
   public void init() {
@@ -158,16 +154,12 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
   }
 
   public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
-    return CompletableFuture.supplyAsync(() -> importSectionTemplates(zipFile))
-                            .thenCompose(processedInstances -> layoutTranslationService.postImport(SectionTemplateTranslationPlugin.OBJECT_TYPE)
-                                                                                       .thenApply(v -> {
-                                                                                         DatabindReport report =
-                                                                                                               new DatabindReport();
-                                                                                         report.setSuccess(!processedInstances.isEmpty());
-                                                                                         report.setProcessedItems(processedInstances);
-                                                                                         return report;
-                                                                                       }));
-
+    return CompletableFuture.supplyAsync(() -> importSectionTemplates(zipFile)).thenApply(processedTemplates -> {
+      DatabindReport report = new DatabindReport();
+      report.setSuccess(!processedTemplates.isEmpty());
+      report.setProcessedItems(processedTemplates);
+      return report;
+    });
   }
 
   @ContainerTransactional
@@ -242,18 +234,28 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
     }
   }
 
+  @SneakyThrows
   private void saveNames(SectionTemplateDatabind sectionTemplateDatabind, SectionTemplate sectionTemplate) {
-    layoutTranslationService.saveTranslationLabels(SectionTemplateTranslationPlugin.OBJECT_TYPE,
-                                                   sectionTemplate.getId(),
-                                                   SectionTemplateTranslationPlugin.TITLE_FIELD_NAME,
-                                                   sectionTemplateDatabind.getNames());
+    translationService.saveTranslationLabels(SectionTemplateTranslationPlugin.OBJECT_TYPE,
+                                             sectionTemplate.getId(),
+                                             SectionTemplateTranslationPlugin.TITLE_FIELD_NAME,
+                                             sectionTemplateDatabind.getNames()
+                                                                    .entrySet()
+                                                                    .stream()
+                                                                    .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
+                                                                                              Map.Entry::getValue)));
   }
 
+  @SneakyThrows
   private void saveDescriptions(SectionTemplateDatabind sectionTemplateDatabind, SectionTemplate sectionTemplate) {
-    layoutTranslationService.saveTranslationLabels(SectionTemplateTranslationPlugin.OBJECT_TYPE,
-                                                   sectionTemplate.getId(),
-                                                   SectionTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                   sectionTemplateDatabind.getDescriptions());
+    translationService.saveTranslationLabels(SectionTemplateTranslationPlugin.OBJECT_TYPE,
+                                             sectionTemplate.getId(),
+                                             SectionTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                             sectionTemplateDatabind.getDescriptions()
+                                                                    .entrySet()
+                                                                    .stream()
+                                                                    .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
+                                                                                              Map.Entry::getValue)));
   }
 
   @SneakyThrows

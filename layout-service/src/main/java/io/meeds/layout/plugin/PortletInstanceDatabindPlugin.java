@@ -25,7 +25,6 @@ import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.plugin.attachment.PortletInstanceAttachmentPlugin;
 import io.meeds.layout.plugin.translation.PortletInstanceTranslationPlugin;
 import io.meeds.layout.service.PortletInstanceService;
-import io.meeds.layout.service.injection.LayoutTranslationImportService;
 import io.meeds.layout.util.JsonUtils;
 import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.plugin.DatabindPlugin;
@@ -63,37 +62,34 @@ import java.util.zip.ZipOutputStream;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class PortletInstanceDatabindPlugin implements DatabindPlugin {
 
-  private static final Random            RANDOM                    = new Random();
+  private static final Random    RANDOM                    = new Random();
 
-  public static final String             OBJECT_TYPE               = "PortletInstance";
+  public static final String     OBJECT_TYPE               = "PortletInstance";
 
-  private static final String            PLATFORM_USERS_PERMISSION = "*:/platform/users";
-
-  @Autowired
-  private PortletInstanceService         portletInstanceService;
+  private static final String    PLATFORM_USERS_PERMISSION = "*:/platform/users";
 
   @Autowired
-  private DatabindService                databindService;
+  private PortletInstanceService portletInstanceService;
 
   @Autowired
-  private FileService                    fileService;
+  private DatabindService        databindService;
 
   @Autowired
-  private LayoutTranslationImportService layoutTranslationService;
+  private FileService            fileService;
 
   @Autowired
-  private TranslationService             translationService;
+  private TranslationService     translationService;
 
   @Autowired
-  private AttachmentService              attachmentService;
+  private AttachmentService      attachmentService;
 
   @Autowired
-  private UserACL                        userAcl;
+  private UserACL                userAcl;
 
   @Autowired
-  private IdentityManager                identityManager;
+  private IdentityManager        identityManager;
 
-  private long                           superUserIdentityId;
+  private long                   superUserIdentityId;
 
   @PostConstruct
   public void init() {
@@ -161,14 +157,13 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     String categoryId = params.get("categoryId");
     if (categoryId != null) {
       return CompletableFuture.supplyAsync(() -> importPortletInstances(zipFile, Long.parseLong(categoryId)))
-                              .thenCompose(processedInstances -> layoutTranslationService.postImport(PortletInstanceTranslationPlugin.OBJECT_TYPE)
-                                                                                         .thenApply(v -> {
-                                                                                           DatabindReport report =
-                                                                                                                 new DatabindReport();
-                                                                                           report.setSuccess(!processedInstances.isEmpty());
-                                                                                           report.setProcessedItems(processedInstances);
-                                                                                           return report;
-                                                                                         }));
+                              .thenApply(processedTemplates -> {
+                                DatabindReport report = new DatabindReport();
+                                report.setSuccess(!processedTemplates.isEmpty());
+                                report.setProcessedItems(processedTemplates);
+                                return report;
+                              });
+
     }
     return CompletableFuture.completedFuture(null);
   }
@@ -279,18 +274,28 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     }
   }
 
+  @SneakyThrows
   private void saveNames(PortletInstanceDatabind portletInstanceDatabind, PortletInstance portletInstance) {
-    layoutTranslationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
-                                                   portletInstance.getId(),
-                                                   PortletInstanceTranslationPlugin.TITLE_FIELD_NAME,
-                                                   portletInstanceDatabind.getNames());
+    translationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
+                                             portletInstance.getId(),
+                                             PortletInstanceTranslationPlugin.TITLE_FIELD_NAME,
+                                             portletInstanceDatabind.getNames()
+                                                                    .entrySet()
+                                                                    .stream()
+                                                                    .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
+                                                                                              Map.Entry::getValue)));
   }
 
+  @SneakyThrows
   private void saveDescriptions(PortletInstanceDatabind portletInstanceDatabind, PortletInstance portletInstance) {
-    layoutTranslationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
-                                                   portletInstance.getId(),
-                                                   PortletInstanceTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                   portletInstanceDatabind.getDescriptions());
+    translationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
+                                             portletInstance.getId(),
+                                             PortletInstanceTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                             portletInstanceDatabind.getDescriptions()
+                                                                    .entrySet()
+                                                                    .stream()
+                                                                    .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
+                                                                                              Map.Entry::getValue)));
   }
 
   @SneakyThrows
