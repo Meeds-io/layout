@@ -24,7 +24,6 @@ import static org.mockito.Mockito.*;
 
 import io.meeds.layout.model.PortletInstance;
 import io.meeds.layout.service.PortletInstanceService;
-import io.meeds.layout.service.injection.LayoutTranslationImportService;
 import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.service.DatabindService;
 import io.meeds.social.translation.service.TranslationService;
@@ -67,9 +66,6 @@ class PortletInstanceDatabindPluginTest {
 
   @MockBean
   private FileService                    fileService;
-
-  @MockBean
-  private LayoutTranslationImportService translationImportService;
 
   @MockBean
   private TranslationService             translationService;
@@ -118,8 +114,6 @@ class PortletInstanceDatabindPluginTest {
     File zipFile = createZipFileWithTwoJsonFiles();
 
     when(portletInstanceService.createPortletInstance(any())).thenReturn(new PortletInstance());
-
-    when(translationImportService.postImport(any())).thenReturn(CompletableFuture.completedFuture(null));
 
     // When
     CompletableFuture<DatabindReport> futureReport = portletInstanceDatabindPlugin.deserialize(zipFile,

@@ -48,7 +48,6 @@ import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.attachment.AttachmentService;
 import org.exoplatform.social.core.manager.IdentityManager;
 
-import io.meeds.layout.service.injection.LayoutTranslationImportService;
 import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.service.DatabindService;
 import io.meeds.social.translation.service.TranslationService;
@@ -68,9 +67,6 @@ class SectionTemplateDatabindPluginTest {
 
   @MockBean
   private FileService                    fileService;
-
-  @MockBean
-  private LayoutTranslationImportService layoutTranslationService;
 
   @MockBean
   private TranslationService             translationService;
@@ -116,8 +112,6 @@ class SectionTemplateDatabindPluginTest {
     File zipFile = createZipFileWithTwoJsonFiles();
 
     when(sectionTemplateService.createSectionTemplate(any())).thenReturn(new SectionTemplate());
-
-    when(layoutTranslationService.postImport(any())).thenReturn(CompletableFuture.completedFuture(null));
 
     // When
     CompletableFuture<DatabindReport> futureReport = sectionTemplateDatabindPlugin.deserialize(zipFile, null, "admin");

@@ -24,7 +24,6 @@ import static org.mockito.Mockito.*;
 
 import io.meeds.layout.model.PageTemplate;
 import io.meeds.layout.service.PageTemplateService;
-import io.meeds.layout.service.injection.LayoutTranslationImportService;
 import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.service.DatabindService;
 import io.meeds.social.translation.service.TranslationService;
@@ -65,9 +64,6 @@ class PageTemplateDatabindPluginTest {
 
   @MockBean
   private FileService                    fileService;
-
-  @MockBean
-  private LayoutTranslationImportService layoutTranslationService;
 
   @MockBean
   private TranslationService             translationService;
@@ -113,8 +109,6 @@ class PageTemplateDatabindPluginTest {
     File zipFile = createZipFileWithTwoJsonFiles();
 
     when(pageTemplateService.createPageTemplate(any())).thenReturn(new PageTemplate());
-
-    when(layoutTranslationService.postImport(any())).thenReturn(CompletableFuture.completedFuture(null));
 
     // When
     CompletableFuture<DatabindReport> futureReport = pageTemplateDatabindPlugin.deserialize(zipFile, null, "admin");
