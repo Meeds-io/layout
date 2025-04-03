@@ -36,7 +36,6 @@ import io.meeds.layout.model.*;
 import io.meeds.layout.plugin.attachment.PageTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.translation.PageTemplateTranslationPlugin;
 import io.meeds.layout.service.PageTemplateService;
-import io.meeds.layout.service.injection.LayoutTranslationImportService;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -65,35 +64,32 @@ import lombok.SneakyThrows;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class PageTemplateDatabindPlugin implements DatabindPlugin {
 
-  private static final Random            RANDOM      = new Random();
+  private static final Random RANDOM      = new Random();
 
-  public static final String             OBJECT_TYPE = "PageTemplate";
-
-  @Autowired
-  private PageTemplateService            pageTemplateService;
+  public static final String  OBJECT_TYPE = "PageTemplate";
 
   @Autowired
-  private DatabindService                databindService;
+  private PageTemplateService pageTemplateService;
 
   @Autowired
-  private FileService                    fileService;
+  private DatabindService     databindService;
 
   @Autowired
-  private LayoutTranslationImportService layoutTranslationService;
+  private FileService         fileService;
 
   @Autowired
-  private TranslationService             translationService;
+  private TranslationService  translationService;
 
   @Autowired
-  private AttachmentService              attachmentService;
+  private AttachmentService   attachmentService;
 
   @Autowired
-  private UserACL                        userAcl;
+  private UserACL             userAcl;
 
   @Autowired
-  private IdentityManager                identityManager;
+  private IdentityManager     identityManager;
 
-  private long                           superUserIdentityId;
+  private long                superUserIdentityId;
 
   @PostConstruct
   public void init() {
@@ -153,16 +149,12 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
   }
 
   public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
-    return CompletableFuture.supplyAsync(() -> importPageTemplates(zipFile))
-                            .thenCompose(processedInstances -> layoutTranslationService.postImport(PageTemplateTranslationPlugin.OBJECT_TYPE)
-                                                                                       .thenApply(v -> {
-                                                                                         DatabindReport report =
-                                                                                                               new DatabindReport();
-                                                                                         report.setSuccess(!processedInstances.isEmpty());
-                                                                                         report.setProcessedItems(processedInstances);
-                                                                                         return report;
-                                                                                       }));
-
+    return CompletableFuture.supplyAsync(() -> importPageTemplates(zipFile)).thenApply(processedTemplates -> {
+      DatabindReport report = new DatabindReport();
+      report.setSuccess(!processedTemplates.isEmpty());
+      report.setProcessedItems(processedTemplates);
+      return report;
+    });
   }
 
   @ContainerTransactional
@@ -237,18 +229,28 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
     }
   }
 
+  @SneakyThrows
   private void saveNames(PageTemplateDatabind pageTemplateDatabind, PageTemplate pageTemplate) {
-    layoutTranslationService.saveTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
-                                                   pageTemplate.getId(),
-                                                   PageTemplateTranslationPlugin.TITLE_FIELD_NAME,
-                                                   pageTemplateDatabind.getNames());
+    translationService.saveTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
+                                             pageTemplate.getId(),
+                                             PageTemplateTranslationPlugin.TITLE_FIELD_NAME,
+                                             pageTemplateDatabind.getNames()
+                                                                 .entrySet()
+                                                                 .stream()
+                                                                 .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
+                                                                                           Map.Entry::getValue)));
   }
 
+  @SneakyThrows
   private void saveDescriptions(PageTemplateDatabind pageTemplateDatabind, PageTemplate pageTemplate) {
-    layoutTranslationService.saveTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
-                                                   pageTemplate.getId(),
-                                                   PageTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                   pageTemplateDatabind.getDescriptions());
+    translationService.saveTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
+                                             pageTemplate.getId(),
+                                             PageTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                             pageTemplateDatabind.getDescriptions()
+                                                                 .entrySet()
+                                                                 .stream()
+                                                                 .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
+                                                                                           Map.Entry::getValue)));
   }
 
   @SneakyThrows
