@@ -38,6 +38,7 @@ import io.meeds.layout.plugin.attachment.PageTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.attachment.SiteTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.translation.PageTemplateTranslationPlugin;
 import io.meeds.layout.plugin.translation.SiteTemplateTranslationPlugin;
+import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.service.SiteTemplateService;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
@@ -70,35 +71,38 @@ import lombok.SneakyThrows;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
-  private static final Random RANDOM      = new Random();
+  private static final Random    RANDOM      = new Random();
 
-  public static final String  OBJECT_TYPE = "SiteTemplate";
-
-  @Autowired
-  private SiteTemplateService siteTemplateService;
+  public static final String     OBJECT_TYPE = "SiteTemplate";
 
   @Autowired
-  LayoutService               layoutService;
+  private SiteTemplateService    siteTemplateService;
 
   @Autowired
-  private DatabindService     databindService;
+  LayoutService                  layoutService;
 
   @Autowired
-  private FileService         fileService;
+  private DatabindService        databindService;
 
   @Autowired
-  private TranslationService  translationService;
+  private FileService            fileService;
 
   @Autowired
-  private AttachmentService   attachmentService;
+  private TranslationService     translationService;
 
   @Autowired
-  private UserACL             userAcl;
+  private AttachmentService      attachmentService;
 
   @Autowired
-  private IdentityManager     identityManager;
+  private UserACL                userAcl;
 
-  private long                superUserIdentityId;
+  @Autowired
+  private IdentityManager        identityManager;
+
+  private long                   superUserIdentityId;
+
+  @Autowired
+  private PortletInstanceService portletInstanceService;
 
   @PostConstruct
   public void init() {
@@ -121,7 +125,6 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     SiteTemplate siteTemplate = siteTemplateService.getSiteTemplate(Long.parseLong(objectId), Locale.getDefault());
 
     SiteTemplateDatabind databind = new SiteTemplateDatabind();
-    databind.setLayout(siteTemplate.getLayout());
     databind.setIcon(siteTemplate.getIcon());
     TranslationField translationNameField = translationService.getTranslationField(SiteTemplateTranslationPlugin.OBJECT_TYPE,
                                                                                    Long.parseLong(objectId),
@@ -159,9 +162,17 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
     PortalConfig portalConfig = layoutService.getPortalConfig(siteKey);
 
-    portalConfig.resetStorage();
+    SiteDefinition siteDefinition = new SiteDefinition();
 
-    databind.setPortalConfig(portalConfig);
+    siteDefinition.setName(portalConfig.getName());
+    siteDefinition.setType(portalConfig.getType());
+    siteDefinition.setAccessPermissions(portalConfig.getAccessPermissions());
+    siteDefinition.setEditPermission(portalConfig.getEditPermission());
+    siteDefinition.setProperties(portalConfig.getProperties());
+    siteDefinition.setLayout(new LayoutModel(portalConfig.getPortalLayout(), portletInstanceService));
+
+    siteDefinition.getLayout().resetStorage();
+    databind.setSiteDefinition(siteDefinition);
 
     String jsonData = JsonUtils.toJsonString(databind);
 
@@ -185,9 +196,9 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     Map<String, SiteTemplateDatabind> templates = extractTemplates(zipFile);
     List<String> processedPageTemplates = new ArrayList<>();
     for (Map.Entry<String, SiteTemplateDatabind> entry : templates.entrySet()) {
-      SiteTemplateDatabind pageTemplate = entry.getValue();
-      processSiteTemplate(pageTemplate, username);
-      processedPageTemplates.add(pageTemplate.getName());
+      SiteTemplateDatabind siteTemplate = entry.getValue();
+      processSiteTemplate(siteTemplate, username);
+      processedPageTemplates.add(siteTemplate.getSiteDefinition().getName());
     }
     return processedPageTemplates;
   }
@@ -284,11 +295,20 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     siteTemplate.setLayout(generateLayoutName(siteTemplate.getName()));
     siteTemplate.setIcon(siteTemplateDatabind.getIcon());
     siteTemplate.setSystem(false);
+    PortalConfig portalConfig = siteTemplateDatabind.getSiteDefinition().getLayout().toSite();
+
+    portalConfig.setName(siteTemplateDatabind.getSiteDefinition().getName());
+    portalConfig.setType(siteTemplateDatabind.getSiteDefinition().getType());
+    PortalConfig existSite = layoutService.getPortalConfig(portalConfig.getType(), portalConfig.getName());
+    if (existSite == null) {
+      layoutService.create(portalConfig);
+    } else {
+      portalConfig = existSite;
+    }
+
     SiteTemplate createdSiteTemplate = siteTemplateService.createSiteTemplate(siteTemplate,
-                                                                              new SiteKey(siteTemplateDatabind.getPortalConfig()
-                                                                                                              .getType(),
-                                                                                          siteTemplateDatabind.getPortalConfig()
-                                                                                                              .getName()),
+                                                                              new SiteKey(portalConfig.getType(),
+                                                                                          portalConfig.getName()),
                                                                               username,
                                                                               true);
     saveNames(siteTemplateDatabind, createdSiteTemplate);
