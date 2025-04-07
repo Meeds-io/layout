@@ -23,6 +23,7 @@ import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.exoplatform.portal.config.model.PortalConfig;
 
 @Data
 @AllArgsConstructor
@@ -32,6 +33,8 @@ public class SiteTemplateDatabind {
   private String              name;
 
   private String              layout;
+
+  PortalConfig                portalConfig;
 
   private String              icon;
 

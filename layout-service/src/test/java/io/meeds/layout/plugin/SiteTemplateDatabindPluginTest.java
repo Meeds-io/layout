@@ -34,6 +34,7 @@ import io.meeds.layout.model.SiteTemplate;
 import io.meeds.layout.service.SiteTemplateService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.service.LayoutService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -61,6 +62,9 @@ class SiteTemplateDatabindPluginTest {
 
   @MockBean
   private SiteTemplateService            siteTemplateService;
+
+  @MockBean
+  LayoutService layoutService;
 
   @MockBean
   private DatabindService                databindService;

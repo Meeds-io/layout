@@ -42,8 +42,9 @@ import io.meeds.layout.service.SiteTemplateService;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
-import org.exoplatform.portal.mop.SiteType;
+import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.social.attachment.model.UploadedAttachmentDetail;
 import org.exoplatform.upload.UploadResource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,6 +76,9 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
   @Autowired
   private SiteTemplateService siteTemplateService;
+
+  @Autowired
+  LayoutService               layoutService;
 
   @Autowired
   private DatabindService     databindService;
@@ -150,8 +154,20 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     if (file != null) {
       databind.setIllustration(Base64.encodeBase64String(file.getAsByte()));
     }
+
+    SiteKey siteKey = SiteKey.portalTemplate(siteTemplate.getLayout());
+
+    PortalConfig portalConfig = layoutService.getPortalConfig(siteKey);
+
+    portalConfig.resetStorage();
+
+    databind.setPortalConfig(portalConfig);
+
     String jsonData = JsonUtils.toJsonString(databind);
-    writeContent(zipOutputStream, objectId, jsonData);
+
+    String folderPath = "SiteTemplate_" + objectId + "/";
+
+    writeToZip(zipOutputStream, folderPath + "config.json", jsonData);
   }
 
   public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
@@ -182,7 +198,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile), StandardCharsets.UTF_8)) {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
-        if (!entry.isDirectory() && entry.getName().endsWith(".json")) {
+        if (!entry.isDirectory() && entry.getName().endsWith("config.json")) {
           ByteArrayOutputStream baos = new ByteArrayOutputStream();
           byte[] buffer = new byte[1024];
           int bytesRead;
@@ -269,8 +285,10 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     siteTemplate.setIcon(siteTemplateDatabind.getIcon());
     siteTemplate.setSystem(false);
     SiteTemplate createdSiteTemplate = siteTemplateService.createSiteTemplate(siteTemplate,
-                                                                              new SiteKey(SiteType.PORTAL_TEMPLATE,
-                                                                                          siteTemplateDatabind.getLayout()),
+                                                                              new SiteKey(siteTemplateDatabind.getPortalConfig()
+                                                                                                              .getType(),
+                                                                                          siteTemplateDatabind.getPortalConfig()
+                                                                                                              .getName()),
                                                                               username,
                                                                               true);
     saveNames(siteTemplateDatabind, createdSiteTemplate);
@@ -290,13 +308,6 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     return tempFile;
   }
 
-  private void writeContent(ZipOutputStream zipOutputStream, String objectId, String content) throws IOException {
-    ZipEntry entry = new ZipEntry(String.format("%s_%s.json", OBJECT_TYPE, objectId));
-    zipOutputStream.putNextEntry(entry);
-    zipOutputStream.write(content.getBytes(StandardCharsets.UTF_8));
-    zipOutputStream.closeEntry();
-  }
-
   private long getSuperUserIdentityId() {
     if (superUserIdentityId == 0) {
       superUserIdentityId = Long.parseLong(identityManager.getOrCreateUserIdentity(userAcl.getSuperUser()).getId());
@@ -311,6 +322,13 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
                              .collect(Collectors.joining());
     int randomNumber = ThreadLocalRandom.current().nextInt(1000);
     return transformed + randomNumber;
+  }
+
+  private void writeToZip(ZipOutputStream zipOutputStream, String filePath, String content) throws IOException {
+    ZipEntry entry = new ZipEntry(filePath);
+    zipOutputStream.putNextEntry(entry);
+    zipOutputStream.write(content.getBytes(StandardCharsets.UTF_8));
+    zipOutputStream.closeEntry();
   }
 
 }
