@@ -23,6 +23,7 @@ import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.exoplatform.portal.mop.navigation.NavigationContext;
 
 @Data
 @AllArgsConstructor
@@ -38,5 +39,7 @@ public class SiteTemplateDatabind {
   private Map<String, String> descriptions;
 
   private String              illustration;
+
+  private NavigationContext navigation;
 
 }

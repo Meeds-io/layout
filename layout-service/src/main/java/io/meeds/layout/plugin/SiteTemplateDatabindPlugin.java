@@ -38,6 +38,7 @@ import io.meeds.layout.plugin.attachment.PageTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.attachment.SiteTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.translation.PageTemplateTranslationPlugin;
 import io.meeds.layout.plugin.translation.SiteTemplateTranslationPlugin;
+import io.meeds.layout.service.NavigationLayoutService;
 import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.service.SiteTemplateService;
 import org.apache.commons.codec.binary.Base64;
@@ -45,7 +46,10 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.navigation.NavigationContext;
+import org.exoplatform.portal.mop.page.PageContext;
 import org.exoplatform.portal.mop.service.LayoutService;
+import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.social.attachment.model.UploadedAttachmentDetail;
 import org.exoplatform.upload.UploadResource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,6 +107,9 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
   @Autowired
   private PortletInstanceService portletInstanceService;
+
+  @Autowired
+  private NavigationService      navigationService;
 
   @PostConstruct
   public void init() {
@@ -178,7 +185,16 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
     String folderPath = "SiteTemplate_" + objectId + "/";
 
+    List<PageContext> pages = layoutService.findPages(siteKey);
+    NavigationContext navigationContext = navigationService.loadNavigation(siteKey);
+    String navigationJsonData = JsonUtils.toJsonString(navigationContext);
+
+    for (PageContext page : pages) {
+      String pageJson = JsonUtils.toJsonString(page);
+      writeToZip(zipOutputStream, folderPath + "pages/" + page.getKey() + ".json", pageJson);
+    }
     writeToZip(zipOutputStream, folderPath + "config.json", jsonData);
+    writeToZip(zipOutputStream, folderPath + "Navigation.json", navigationJsonData);
   }
 
   public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
@@ -209,7 +225,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile), StandardCharsets.UTF_8)) {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
-        if (!entry.isDirectory() && entry.getName().endsWith("config.json")) {
+        if (!entry.isDirectory() && (entry.getName().endsWith("config.json") || entry.getName().endsWith("Navigation.json"))) {
           ByteArrayOutputStream baos = new ByteArrayOutputStream();
           byte[] buffer = new byte[1024];
           int bytesRead;
@@ -218,16 +234,33 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
           }
           String jsonContent = baos.toString(StandardCharsets.UTF_8);
 
-          // Deserialize JSON into a Page templates
-          SiteTemplateDatabind databind = JsonUtils.fromJsonString(jsonContent, SiteTemplateDatabind.class);
-          if (databind != null) {
-            templateDatabindMap.put(entry.getName(), databind);
+          if (entry.getName().endsWith("config.json")) {
+            SiteTemplateDatabind databind = JsonUtils.fromJsonString(jsonContent, SiteTemplateDatabind.class);
+            if (databind != null) {
+              // Use folder name as key, e.g. "template1/config.json" -> "template1"
+              String key = entry.getName().substring(0, entry.getName().lastIndexOf('/'));
+              templateDatabindMap.put(key, databind);
+            }
+          } else if (entry.getName().endsWith("Navigation.json")) {
+            NavigationContext navigationContext = JsonUtils.fromJsonString(jsonContent, NavigationContext.class);
+            if (navigationContext != null) {
+              String key = entry.getName().substring(0, entry.getName().lastIndexOf('/'));
+              SiteTemplateDatabind databind = templateDatabindMap.get(key);
+              if (databind != null) {
+                databind.setNavigation(navigationContext);
+              } else {
+                databind = new SiteTemplateDatabind();
+                databind.setNavigation(navigationContext);
+                templateDatabindMap.put(key, databind);
+              }
+            }
           }
         }
       }
     } catch (IOException e) {
       throw new IllegalStateException("Error reading zip file", e);
     }
+
     return templateDatabindMap;
   }
 
