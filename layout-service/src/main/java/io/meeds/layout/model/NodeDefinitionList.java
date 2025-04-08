@@ -18,31 +18,17 @@
  */
 package io.meeds.layout.model;
 
-import java.util.List;
-import java.util.Map;
-
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.exoplatform.portal.config.model.Page;
+
+import java.util.List;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class SiteTemplateDatabind {
-
-  private SiteDefinition       siteDefinition;
-
-  private String               icon;
-
-  private Map<String, String>  names;
-
-  private Map<String, String>  descriptions;
-
-  private String               illustration;
+@AllArgsConstructor
+public class NodeDefinitionList {
 
   private List<NodeDefinition> nodeDefinitions;
-
-  private List<Page>           pages;
 
 }
