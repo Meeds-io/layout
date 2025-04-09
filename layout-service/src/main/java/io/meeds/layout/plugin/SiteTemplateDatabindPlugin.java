@@ -32,12 +32,15 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import io.meeds.common.ContainerTransactional;
 import io.meeds.layout.model.*;
 import io.meeds.layout.plugin.attachment.PageTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.attachment.SiteTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.translation.PageTemplateTranslationPlugin;
 import io.meeds.layout.plugin.translation.SiteTemplateTranslationPlugin;
+import io.meeds.layout.service.NavigationLayoutService;
+import io.meeds.layout.service.PageLayoutService;
 import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.service.SiteTemplateService;
 import org.apache.commons.codec.binary.Base64;
@@ -48,12 +51,15 @@ import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.State;
+import org.exoplatform.portal.mop.Utils;
+import org.exoplatform.portal.mop.Visibility;
 import org.exoplatform.portal.mop.navigation.*;
 import org.exoplatform.portal.mop.page.PageContext;
-import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.service.DescriptionService;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.social.attachment.model.UploadedAttachmentDetail;
 import org.exoplatform.upload.UploadResource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -79,48 +85,56 @@ import lombok.SneakyThrows;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
-  private static final Random    RANDOM          = new Random();
+  private static final Log        LOG             = ExoLogger.getLogger(SiteTemplateDatabindPlugin.class);
 
-  public static final String     OBJECT_TYPE     = "SiteTemplate";
+  private static final Random     RANDOM          = new Random();
 
-  public static final String     CONFIG_JSON     = "config.json";
+  public static final String      OBJECT_TYPE     = "SiteTemplate";
 
-  public static final String     NAVIGATION_JSON = "Navigation.json";
+  public static final String      CONFIG_JSON     = "config.json";
 
-  @Autowired
-  private SiteTemplateService    siteTemplateService;
-
-  @Autowired
-  LayoutService                  layoutService;
+  public static final String      NAVIGATION_JSON = "navigation.json";
 
   @Autowired
-  private DatabindService        databindService;
+  private SiteTemplateService     siteTemplateService;
 
   @Autowired
-  private FileService            fileService;
+  LayoutService                   layoutService;
 
   @Autowired
-  private TranslationService     translationService;
+  private DatabindService         databindService;
 
   @Autowired
-  private AttachmentService      attachmentService;
+  private FileService             fileService;
 
   @Autowired
-  private UserACL                userAcl;
+  private TranslationService      translationService;
 
   @Autowired
-  private IdentityManager        identityManager;
-
-  private long                   superUserIdentityId;
+  private AttachmentService       attachmentService;
 
   @Autowired
-  private PortletInstanceService portletInstanceService;
+  private UserACL                 userAcl;
 
   @Autowired
-  private NavigationService      navigationService;
+  private IdentityManager         identityManager;
+
+  private long                    superUserIdentityId;
 
   @Autowired
-  DescriptionService             descriptionService;
+  private PortletInstanceService  portletInstanceService;
+
+  @Autowired
+  private NavigationService       navigationService;
+
+  @Autowired
+  private NavigationLayoutService navigationLayoutService;
+
+  @Autowired
+  DescriptionService              descriptionService;
+
+  @Autowired
+  PageLayoutService               pageLayoutService;
 
   @PostConstruct
   public void init() {
@@ -194,7 +208,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
     String jsonData = JsonUtils.toJsonString(databind);
 
-    String folderPath = siteKey.getType() + "_" + siteKey.getName();
+    String folderPath = siteKey.getType() + "-" + siteKey.getName();
 
     List<PageContext> pageContexts = layoutService.findPages(siteKey);
     List<Page> pages = new ArrayList<>();
@@ -206,10 +220,16 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     String navigationJsonData = JsonUtils.toJsonString(nodeDefinitions);
 
     for (Page page : pages) {
-      page.resetStorage();
-      String pageJson = JsonUtils.toJsonString(page);
-      writeToZip(zipOutputStream, folderPath + "/pages/" + page.getName() + ".json", pageJson);
+      try {
+        LayoutModel layoutModel = new LayoutModel(page, portletInstanceService);
+        layoutModel.resetStorage();
+        String pageJson = JsonUtils.toJsonString(layoutModel);
+        writeToZip(zipOutputStream, folderPath + "/pages/" + page.getName() + ".json", pageJson);
+      } catch (Exception e) {
+        LOG.warn("Error processing page " + page.getName() + ": " + e.getMessage());
+      }
     }
+
     writeToZip(zipOutputStream, folderPath + "/" + CONFIG_JSON, jsonData);
     writeToZip(zipOutputStream, folderPath + "/" + NAVIGATION_JSON, navigationJsonData);
   }
@@ -236,14 +256,16 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     return processedPageTemplates;
   }
 
+  @SneakyThrows
   private Map<String, SiteTemplateDatabind> extractTemplates(File zipFile) {
     Map<String, SiteTemplateDatabind> templateDatabindMap = new HashMap<>();
 
     try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile), StandardCharsets.UTF_8)) {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
-        if (entry.isDirectory())
+        if (entry.isDirectory()) {
           continue;
+        }
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         byte[] buffer = new byte[1024];
@@ -252,29 +274,43 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
           baos.write(buffer, 0, bytesRead);
         }
         String jsonContent = baos.toString(StandardCharsets.UTF_8);
-
         String entryName = entry.getName();
 
         if (entryName.endsWith(CONFIG_JSON)) {
-          SiteTemplateDatabind databind = JsonUtils.fromJsonString(jsonContent, SiteTemplateDatabind.class);
-          if (databind != null) {
+          SiteTemplateDatabind databindFromJson = JsonUtils.fromJsonString(jsonContent, SiteTemplateDatabind.class);
+          if (databindFromJson != null) {
             String key = entryName.substring(0, entryName.lastIndexOf('/'));
-            templateDatabindMap.put(key, databind);
+            SiteTemplateDatabind existing = templateDatabindMap.get(key);
+            if (existing != null && existing.getPages() != null) {
+              databindFromJson.setPages(existing.getPages());
+            } else if (databindFromJson.getPages() == null) {
+              databindFromJson.setPages(new ArrayList<>());
+            }
+            templateDatabindMap.put(key, databindFromJson);
           }
-        } else if (entryName.endsWith(NAVIGATION_JSON)) {
-          // Deserialize NodeDefinition list from NAVIGATION_JSON
-          NodeDefinitionList nodeDefinitionList = JsonUtils.fromJsonString(jsonContent, NodeDefinitionList.class);
-
-          if (nodeDefinitionList != null && org.apache.commons.collections.CollectionUtils.isNotEmpty(nodeDefinitionList.getNodeDefinitions())) {
+        }
+        else if (entryName.endsWith(NAVIGATION_JSON)) {
+          List<NodeDefinition> nodeDefinitions = JsonUtils.fromJsonString(jsonContent, new TypeReference<>() {
+          });
+          if (nodeDefinitions != null) {
             String key = entryName.substring(0, entryName.lastIndexOf('/'));
-            SiteTemplateDatabind databind = templateDatabindMap.computeIfAbsent(key, k -> new SiteTemplateDatabind());
-            databind.setNodeDefinitions(nodeDefinitionList.getNodeDefinitions());
+            SiteTemplateDatabind databind = templateDatabindMap.computeIfAbsent(key, k -> {
+              SiteTemplateDatabind st = new SiteTemplateDatabind();
+              st.setPages(new ArrayList<>());
+              return st;
+            });
+            databind.setNodeDefinitions(nodeDefinitions);
           }
-        } else if (entryName.matches(".+/pages/.+\\.json$")) {
-          Page page = JsonUtils.fromJsonString(jsonContent, Page.class);
+        }
+        else if (entryName.matches(".+/pages/.+\\.json$")) {
+          LayoutModel page = JsonUtils.fromJsonString(jsonContent, LayoutModel.class);
           if (page != null) {
             String key = entryName.substring(0, entryName.indexOf("/pages/"));
-            SiteTemplateDatabind databind = templateDatabindMap.computeIfAbsent(key, k -> new SiteTemplateDatabind());
+            SiteTemplateDatabind databind = templateDatabindMap.computeIfAbsent(key, k -> {
+              SiteTemplateDatabind st = new SiteTemplateDatabind();
+              st.setPages(new ArrayList<>());
+              return st;
+            });
             if (databind.getPages() == null) {
               databind.setPages(new ArrayList<>());
             }
@@ -285,7 +321,6 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     } catch (IOException e) {
       throw new IllegalStateException("Error reading zip file", e);
     }
-
     return templateDatabindMap;
   }
 
@@ -364,16 +399,34 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
       portalConfig = existSite;
     }
 
-    SiteKey siteKey = portalConfig.getSiteKey();
     if (CollectionUtils.isNotEmpty(siteTemplateDatabind.getPages())) {
-      for (Page page : siteTemplateDatabind.getPages()) {
-        PageKey k = page.getPageKey();
-        layoutService.savePageFromTemplate(k, siteKey, "");
+      for (LayoutModel layoutModel : siteTemplateDatabind.getPages()) {
+
+        Page page = new Page();
+        page.setOwnerType(layoutModel.getOwnerType());
+        page.setOwnerId(layoutModel.getOwnerId());
+        page.setName(layoutModel.getName());
+        page.setType(layoutModel.getType());
+        page.setEditPermission(layoutModel.getEditPermission());
+        page.setAccessPermissions(layoutModel.getAccessPermissions());
+        page.setLink(layoutModel.getLink());
+        page.setShowMaxWindow(false);
+        page.setHideSharedLayout(false);
+
+        layoutService.save(new PageContext(page.getPageKey(), Utils.toPageState(page)));
+        pageLayoutService.updatePageLayout(page.getPageKey().format(), page, true, username);
       }
     }
 
-    List<NodeDefinition> nodeDefinitions = siteTemplateDatabind.getNodeDefinitions();
+    NodeContext<NodeContext<Object>> parentNode = navigationService.loadNode(portalConfig.getSiteKey());
+    if (parentNode == null) {
+      navigationService.saveNavigation(new NavigationContext(new SiteKey(portalConfig.getType(), portalConfig.getName()),
+                                                             new NavigationState(1)));
+      parentNode = navigationService.loadNode(new SiteKey(portalConfig.getType(), portalConfig.getName()));
+    }
 
+    List<NodeDefinition> nodeDefinitions = siteTemplateDatabind.getNodeDefinitions();
+    createNodesRecursively(nodeDefinitions, parentNode.getId(), username);
     SiteTemplate createdSiteTemplate = siteTemplateService.createSiteTemplate(siteTemplate,
                                                                               new SiteKey(portalConfig.getType(),
                                                                                           portalConfig.getName()),
@@ -451,14 +504,14 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     def.setName(nodeContext.getName());
     def.setIcon(state.getIcon());
     def.setVisibility(state.getVisibility());
-    def.setPageReference(state.getPageRef());
+    def.setPageReference(state.getPageRef().format());
 
     Map<Locale, State> descriptions = descriptionService.getDescriptions(nodeContext.getId());
 
-    Map<String, State> labels = new HashMap<>();
+    Map<String, String> labels = new HashMap<>();
     if (descriptions != null) {
       for (Map.Entry<Locale, State> entry : descriptions.entrySet()) {
-        labels.put(entry.getKey().toLanguageTag(), entry.getValue());
+        labels.put(entry.getKey().toLanguageTag(), entry.getValue().getName());
       }
     }
 
@@ -478,5 +531,36 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
       return Collections.emptyList();
     }
     return (Collection<NodeContext<?>>) rawNodes;
+  }
+
+  @SneakyThrows
+  private void createNodesRecursively(List<NodeDefinition> nodeDefinitions, String parentId, String username) {
+    String previousNodeId = null;
+    for (NodeDefinition nodeDefinition : nodeDefinitions) {
+      NavigationCreateModel model = new NavigationCreateModel(parentId != null ? Long.parseLong(parentId) : null,
+                                                              previousNodeId != null ? Long.parseLong(previousNodeId) : null,
+                                                              nodeDefinition.getName(),
+                                                              nodeDefinition.getName(),
+                                                              nodeDefinition.getVisibility().equals(Visibility.DISPLAYED),
+                                                              false,
+                                                              false,
+                                                              null,
+                                                              null,
+                                                              nodeDefinition.getPageReference(),
+                                                              null,
+                                                              false,
+                                                              nodeDefinition.getIcon(),
+                                                              nodeDefinition.getLabels());
+      NodeData nodeData = null;
+      if (!StringUtils.contains(nodeDefinition.getName(), "_draft_")) {
+        nodeData = navigationLayoutService.createNode(model, username);
+      }
+      previousNodeId = nodeData != null ? nodeData.getId() : null;
+
+      List<NodeDefinition> children = nodeDefinition.getChildren();
+      if (children != null && !children.isEmpty()) {
+        createNodesRecursively(children, nodeData != null ? nodeData.getId() : null, username);
+      }
+    }
   }
 }

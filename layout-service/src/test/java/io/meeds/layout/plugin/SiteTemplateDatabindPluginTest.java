@@ -30,11 +30,21 @@ import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
+import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.SiteTemplate;
+import io.meeds.layout.service.NavigationLayoutService;
+import io.meeds.layout.service.PageLayoutService;
+import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.service.SiteTemplateService;
+import io.meeds.layout.util.JsonUtils;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.config.serialize.model.SiteLayout;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.navigation.NodeContext;
+import org.exoplatform.portal.mop.service.DescriptionService;
 import org.exoplatform.portal.mop.service.LayoutService;
+import org.exoplatform.portal.mop.service.NavigationService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -58,34 +68,49 @@ import io.meeds.social.translation.service.TranslationService;
 class SiteTemplateDatabindPluginTest {
 
   @Mock
-  private Identity                       userIdentity;
+  private Identity                   userIdentity;
 
   @MockBean
-  private SiteTemplateService            siteTemplateService;
+  private SiteTemplateService        siteTemplateService;
 
   @MockBean
-  LayoutService layoutService;
+  LayoutService                      layoutService;
 
   @MockBean
-  private DatabindService                databindService;
+  private DatabindService            databindService;
 
   @MockBean
-  private FileService                    fileService;
+  private FileService                fileService;
 
   @MockBean
-  private TranslationService             translationService;
+  private TranslationService         translationService;
 
   @MockBean
-  private AttachmentService              attachmentService;
+  private AttachmentService          attachmentService;
 
   @MockBean
-  private UserACL                        userAcl;
+  private NavigationService          navigationService;
 
   @MockBean
-  private IdentityManager                identityManager;
+  private PortletInstanceService     portletInstanceService;
+
+  @MockBean
+  private NavigationLayoutService    navigationLayoutService;
+
+  @MockBean
+  DescriptionService                 descriptionService;
+
+  @MockBean
+  PageLayoutService                  pageLayoutService;
+
+  @MockBean
+  private UserACL                    userAcl;
+
+  @MockBean
+  private IdentityManager            identityManager;
 
   @Autowired
-  private SiteTemplateDatabindPlugin     siteTemplateDatabindPlugin;
+  private SiteTemplateDatabindPlugin siteTemplateDatabindPlugin;
 
   @Test
   void getObjectType() {
@@ -102,7 +127,12 @@ class SiteTemplateDatabindPluginTest {
   void serialize() throws ObjectNotFoundException {
     ZipOutputStream zipOutputStream = mock(ZipOutputStream.class);
     SiteTemplate siteTemplate = mock(SiteTemplate.class);
+    PortalConfig portalConfig = mock(PortalConfig.class);
+    SiteLayout siteLayout = mock(SiteLayout.class);
+    when(siteTemplate.getLayout()).thenReturn("layout");
+    when(portalConfig.getPortalLayout()).thenReturn(siteLayout);
     when(siteTemplateService.getSiteTemplate(anyLong(), any(Locale.class))).thenReturn(siteTemplate);
+    when(layoutService.getPortalConfig(any(SiteKey.class))).thenReturn(portalConfig);
 
     siteTemplateDatabindPlugin.serialize("1", zipOutputStream, "root");
 
@@ -113,8 +143,17 @@ class SiteTemplateDatabindPluginTest {
   @Test
   void deserialize() throws Exception {
     File zipFile = createZipFileWithTwoJsonFiles();
-
-    when(siteTemplateService.createSiteTemplate(any(SiteTemplate.class), any(SiteKey.class), anyString(), anyBoolean())).thenReturn(new SiteTemplate());
+    SiteTemplate siteTemplate = mock(SiteTemplate.class);
+    PortalConfig portalConfig = mock(PortalConfig.class);
+    when(siteTemplateService.getSiteTemplate(anyLong(), any(Locale.class))).thenReturn(siteTemplate);
+    when(layoutService.getPortalConfig(any(SiteKey.class))).thenReturn(portalConfig);
+    when(siteTemplateService.createSiteTemplate(any(SiteTemplate.class),
+                                                any(SiteKey.class),
+                                                anyString(),
+                                                anyBoolean())).thenReturn(new SiteTemplate());
+    NodeContext<NodeContext<Object>> parentNode = (NodeContext<NodeContext<Object>>) mock(NodeContext.class); // NOSONAR
+    when(parentNode.getId()).thenReturn("85");
+    when(navigationService.loadNode(any(SiteKey.class))).thenReturn(parentNode);
 
     // When
     CompletableFuture<DatabindReport> futureReport = siteTemplateDatabindPlugin.deserialize(zipFile, null, "admin");
@@ -128,18 +167,36 @@ class SiteTemplateDatabindPluginTest {
     assertTrue(report.getProcessedItems().contains("name1"));
     assertTrue(report.getProcessedItems().contains("name2"));
 
-    verify(siteTemplateService, times(2)).createSiteTemplate(any(SiteTemplate.class), any(SiteKey.class), anyString(), anyBoolean());
+    verify(siteTemplateService, times(2)).createSiteTemplate(any(SiteTemplate.class),
+                                                             any(SiteKey.class),
+                                                             anyString(),
+                                                             anyBoolean());
   }
 
   private File createZipFileWithTwoJsonFiles() throws IOException {
     File tempFile = File.createTempFile("test", ".zip");
     try (FileOutputStream fos = new FileOutputStream(tempFile); ZipOutputStream zos = new ZipOutputStream(fos)) {
       addJsonToZip(zos,
-                   "SiteTemplate_1.json",
-                   "{\"name\":\"name1\",\"names\":{\"en\":\"Test Page 1\"},\"descriptions\":{\"en\":\"Desc 1\"}, \"layout\":\"layout1\"}");
+                   "site1/config.json",
+                   "{\"names\":{\"en\":\"Test Page 2\"}," + "\"descriptions\":{\"en\":\"Desc 2\"}," + "\"siteDefinition\":{"
+                       + "\"name\":\"name1\"," + "\"type\":\"PORTAL\"," + "\"layout\":"
+                       + JsonUtils.toJsonString(new LayoutModel()) + "}" + "}");
+
+      // Add navigation JSON for site1
       addJsonToZip(zos,
-                   "SiteTemplate_2.json",
-                   "{\"name\":\"name2\",\"names\":{\"en\":\"Test Page 2\"},\"descriptions\":{\"en\":\"Desc 2\"}, \"layout\":\"layout2\"}");
+                   "site1/navigation.json",
+                   "[" + "{" + "\"name\":\"overview\"," + "\"icon\":null," + "\"visibility\":\"DISPLAYED\","
+                       + "\"pageReference\":\"portal_template::public::overview\"," + "\"labels\":{}," + "\"children\":[" + "{"
+                       + "\"name\":\"actions\"," + "\"icon\":null," + "\"visibility\":\"DISPLAYED\","
+                       + "\"pageReference\":\"portal_template::public::actions\"," + "\"labels\":{}," + "\"children\":[]" + "}"
+                       + "]" + "}" + "]");
+
+      // Add second site template under folder "site2"
+      addJsonToZip(zos,
+                   "site2/config.json",
+                   "{\"names\":{\"en\":\"Test Page 2\"}," + "\"descriptions\":{\"en\":\"Desc 2\"}," + "\"siteDefinition\":{"
+                       + "\"name\":\"name2\"," + "\"type\":\"PORTAL\"," + "\"layout\":"
+                       + JsonUtils.toJsonString(new LayoutModel()) + "}" + "}");
     }
     return tempFile;
   }

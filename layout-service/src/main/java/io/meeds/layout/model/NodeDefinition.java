@@ -22,8 +22,6 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.exoplatform.portal.mop.Visibility;
-import org.exoplatform.portal.mop.page.PageKey;
-import org.exoplatform.portal.mop.State;
 
 
 import java.util.ArrayList;
@@ -41,9 +39,9 @@ public class NodeDefinition {
 
   private Visibility visibility;
 
-  private PageKey pageReference;
+  private String pageReference;
 
-  private Map<String, State> labels;
+  private Map<String, String> labels;
 
   private List<NodeDefinition> children = new ArrayList<>();
 

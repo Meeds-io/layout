@@ -18,13 +18,13 @@
  */
 package io.meeds.layout.model;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.exoplatform.portal.config.model.Page;
 
 @Data
 @AllArgsConstructor
@@ -41,8 +41,8 @@ public class SiteTemplateDatabind {
 
   private String               illustration;
 
-  private List<NodeDefinition> nodeDefinitions;
+  private List<NodeDefinition> nodeDefinitions = new ArrayList<>();
 
-  private List<Page>           pages;
+  private List<LayoutModel>    pages           = new ArrayList<>();
 
 }
