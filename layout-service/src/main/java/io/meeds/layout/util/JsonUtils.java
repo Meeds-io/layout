@@ -19,6 +19,7 @@ package io.meeds.layout.util;
 
 import java.util.TimeZone;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import org.apache.commons.lang3.StringUtils;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
@@ -50,7 +51,7 @@ public class JsonUtils {
   }
 
   @SneakyThrows
-  public static final <T> T fromJsonString(String value, Class<T> resultClass) {
+  public static <T> T fromJsonString(String value, Class<T> resultClass) {
     if (StringUtils.isBlank(value)) {
       return null;
     }
@@ -58,7 +59,15 @@ public class JsonUtils {
   }
 
   @SneakyThrows
-  public static final String toJsonString(Object object) {
+  public static <T> T fromJsonString(String value, TypeReference<T> typeReference) {
+    if (StringUtils.isBlank(value)) {
+      return null;
+    }
+    return OBJECT_MAPPER.readValue(value, typeReference);
+  }
+
+  @SneakyThrows
+  public static String toJsonString(Object object) {
     return OBJECT_MAPPER.writeValueAsString(object);
   }
 
