@@ -267,10 +267,7 @@ public class LayoutModel {
       this.cssClass = container.getCssClass();
       this.profiles = container.getProfiles();
       this.accessPermissions = container.getAccessPermissions();
-      this.children = container.getChildren()
-                               .stream()
-                               .map(c -> new LayoutModel(c, portletInstanceService))
-                               .toList();
+      this.children = container.getChildren().stream().map(c -> new LayoutModel(c, portletInstanceService)).toList();
 
       ApplicationBackgroundStyle appCssStyle = container.getAppBackgroundStyle();
       if (appCssStyle != null) {
@@ -312,23 +309,24 @@ public class LayoutModel {
         TransientApplicationState transientState = (TransientApplicationState) application.getState();
         this.contentId = transientState.getContentId();
         Portlet portlet = transientState.getContentState();
-        this.preferences = portlet == null ? Collections.emptyList() :
-                                           StreamSupport.stream(portlet.spliterator(), false)
-                                                        .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
-                                                        .toList();
-      }
-      switch (state) {
-      case PersistentApplicationState persistentState -> this.storageId = persistentState.getStorageId();
-      case CloneApplicationState persistentState -> this.storageId = persistentState.getStorageId();
-      case TransientApplicationState transientState when portletInstanceService == null -> {
-        this.contentId = transientState.getContentId();
-        Portlet portlet = transientState.getContentState();
-        this.preferences = portlet == null ? Collections.emptyList() :
-                                           StreamSupport.stream(portlet.spliterator(), false)
-                                                        .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
-                                                        .toList();
-      }
-      default -> throw new IllegalStateException("PortletInstance should either has a persistent or transient state");
+        this.preferences = portlet == null ? Collections.emptyList()
+                                           : StreamSupport.stream(portlet.spliterator(), false)
+                                                          .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
+                                                          .toList();
+      } else {
+        switch (state) {
+        case PersistentApplicationState persistentState -> this.storageId = persistentState.getStorageId();
+        case CloneApplicationState persistentState -> this.storageId = persistentState.getStorageId();
+        case TransientApplicationState transientState -> {
+          this.contentId = transientState.getContentId();
+          Portlet portlet = transientState.getContentState();
+          this.preferences = portlet == null ? Collections.emptyList()
+                                             : StreamSupport.stream(portlet.spliterator(), false)
+                                                            .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
+                                                            .toList();
+        }
+        default -> throw new IllegalStateException("PortletInstance should either has a persistent or transient state");
+        }
       }
     }
   }

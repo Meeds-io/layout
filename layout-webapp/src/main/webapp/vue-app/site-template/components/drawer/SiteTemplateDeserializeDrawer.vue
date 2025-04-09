@@ -147,7 +147,7 @@ export default {
           uploadId: this.uploadId,
         });
         this.importFinished = true;
-        this.$root.$emit('site-template-created');
+        this.$root.$emit('site-templates-list-refresh');
       } catch (error) {
         if (error.message === 'databind.notMatchType') {
           this.$root.$emit('alert-message', this.$t('siteTemplates.label.exception.notMatchType'), 'error');
