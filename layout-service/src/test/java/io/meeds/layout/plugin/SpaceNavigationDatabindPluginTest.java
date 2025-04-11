@@ -30,18 +30,15 @@ import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import io.meeds.layout.model.LayoutModel;
-import io.meeds.layout.model.SiteTemplate;
 import io.meeds.layout.service.NavigationLayoutService;
 import io.meeds.layout.service.PageLayoutService;
 import io.meeds.layout.service.PortletInstanceService;
-import io.meeds.layout.service.SiteTemplateService;
-import io.meeds.layout.util.JsonUtils;
+import io.meeds.social.space.template.model.SpaceTemplate;
+import io.meeds.social.space.template.service.SpaceTemplateService;
 import org.apache.commons.lang3.tuple.Pair;
-import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.model.PortalConfig;
-import org.exoplatform.portal.config.serialize.model.SiteLayout;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.navigation.NavigationContext;
 import org.exoplatform.portal.mop.navigation.NodeContext;
 import org.exoplatform.portal.mop.service.DescriptionService;
 import org.exoplatform.portal.mop.service.LayoutService;
@@ -64,100 +61,99 @@ import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.service.DatabindService;
 import io.meeds.social.translation.service.TranslationService;
 
-@SpringBootTest(classes = { SiteTemplateDatabindPlugin.class, })
+@SpringBootTest(classes = { SpaceNavigationDatabindPlugin.class, })
 @ExtendWith(MockitoExtension.class)
-class SiteTemplateDatabindPluginTest {
+class SpaceNavigationDatabindPluginTest {
 
   @Mock
-  private Identity                   userIdentity;
+  private Identity                      userIdentity;
 
   @MockBean
-  private SiteTemplateService        siteTemplateService;
+  protected DatabindService             databindService;
 
   @MockBean
-  LayoutService                      layoutService;
+  protected FileService                 fileService;
 
   @MockBean
-  private DatabindService            databindService;
+  protected TranslationService          translationService;
 
   @MockBean
-  private FileService                fileService;
+  protected SpaceTemplateService        spaceTemplateService;
 
   @MockBean
-  private TranslationService         translationService;
+  protected AttachmentService           attachmentService;
 
   @MockBean
-  private AttachmentService          attachmentService;
+  LayoutService                         layoutService;
 
   @MockBean
-  private NavigationService          navigationService;
+  private NavigationService             navigationService;
 
   @MockBean
-  private PortletInstanceService     portletInstanceService;
+  DescriptionService                    descriptionService;
 
   @MockBean
-  private NavigationLayoutService    navigationLayoutService;
+  private NavigationLayoutService       navigationLayoutService;
 
   @MockBean
-  DescriptionService                 descriptionService;
+  private PageLayoutService             pageLayoutService;
 
   @MockBean
-  PageLayoutService                  pageLayoutService;
+  PortletInstanceService                portletInstanceService;
 
   @MockBean
-  private UserACL                    userAcl;
+  protected UserACL                     userAcl;
 
   @MockBean
-  private IdentityManager            identityManager;
+  private IdentityManager               identityManager;
 
   @Autowired
-  private SiteTemplateDatabindPlugin siteTemplateDatabindPlugin;
+  private SpaceNavigationDatabindPlugin spaceNavigationDatabindPlugin;
 
   @Test
   void getObjectType() {
-    assertEquals(SiteTemplateDatabindPlugin.OBJECT_TYPE, siteTemplateDatabindPlugin.getObjectType());
+    assertEquals(SpaceNavigationDatabindPlugin.OBJECT_TYPE, spaceNavigationDatabindPlugin.getObjectType());
   }
 
   @Test
   void canHandleDatabind() {
-    assertTrue(siteTemplateDatabindPlugin.canHandleDatabind("SiteTemplate", "1"));
-    assertFalse(siteTemplateDatabindPlugin.canHandleDatabind("ObjectInstance", "1"));
+    assertTrue(spaceNavigationDatabindPlugin.canHandleDatabind("SpaceTemplate", "1"));
+    assertFalse(spaceNavigationDatabindPlugin.canHandleDatabind("ObjectInstance", "1"));
   }
 
   @Test
-  void serialize() throws ObjectNotFoundException {
+  void serialize() throws IllegalAccessException {
     ZipOutputStream zipOutputStream = mock(ZipOutputStream.class);
-    SiteTemplate siteTemplate = mock(SiteTemplate.class);
+    SpaceTemplate spaceTemplate = mock(SpaceTemplate.class);
     PortalConfig portalConfig = mock(PortalConfig.class);
-    SiteLayout siteLayout = mock(SiteLayout.class);
-    when(siteTemplate.getLayout()).thenReturn("layout");
-    when(portalConfig.getPortalLayout()).thenReturn(siteLayout);
-    when(siteTemplateService.getSiteTemplate(anyLong(), any(Locale.class))).thenReturn(siteTemplate);
+    when(spaceTemplate.getLayout()).thenReturn("layout");
+    when(spaceTemplateService.getSpaceTemplate(anyLong(),
+                                               anyString(),
+                                               any(Locale.class),
+                                               anyBoolean())).thenReturn(spaceTemplate);
     when(layoutService.getPortalConfig(any(SiteKey.class))).thenReturn(portalConfig);
 
-    siteTemplateDatabindPlugin.serialize("1", zipOutputStream, "root");
+    spaceNavigationDatabindPlugin.serialize("1", zipOutputStream, "root");
 
-    verify(siteTemplateService, times(1)).getSiteTemplate(1L, Locale.getDefault());
+    verify(spaceTemplateService, times(1)).getSpaceTemplate(anyLong(), anyString(), any(Locale.class), anyBoolean());
 
   }
 
   @Test
   void deserialize() throws Exception {
     File zipFile = createZipFileWithTwoJsonFiles();
-    SiteTemplate siteTemplate = mock(SiteTemplate.class);
-    PortalConfig portalConfig = mock(PortalConfig.class);
-    when(siteTemplateService.getSiteTemplate(anyLong(), any(Locale.class))).thenReturn(siteTemplate);
-    when(layoutService.getPortalConfig(any(SiteKey.class))).thenReturn(portalConfig);
-    when(siteTemplateService.createSiteTemplate(any(SiteTemplate.class),
-                                                any(SiteKey.class),
-                                                anyString(),
-                                                anyBoolean())).thenReturn(new SiteTemplate());
-    NodeContext<NodeContext<Object>> parentNode = (NodeContext<NodeContext<Object>>) mock(NodeContext.class); // NOSONAR
+    NodeContext<NodeContext<Object>> parentNode = (NodeContext<NodeContext<Object>>) mock(NodeContext.class);
     when(parentNode.getId()).thenReturn("85");
-    when(navigationService.loadNode(any(SiteKey.class))).thenReturn(parentNode);
+    when(navigationService.loadNode(any(SiteKey.class))).thenReturn(null).thenReturn(parentNode);
+    doNothing().when(navigationService).saveNavigation(any(NavigationContext.class));
+
+    SpaceTemplate spaceTemplate = mock(SpaceTemplate.class);
+    when(spaceTemplate.getLayout()).thenReturn("layout");
+    when(spaceTemplateService.getSpaceTemplate(anyLong())).thenReturn(spaceTemplate);
 
     // When
-    CompletableFuture<Pair<DatabindReport, File>> futureReport = siteTemplateDatabindPlugin.deserialize(zipFile, null, "admin");
+    CompletableFuture<Pair<DatabindReport, File>> futureReport =
+                                                               spaceNavigationDatabindPlugin.deserialize(zipFile, null, "admin");
 
     DatabindReport report = futureReport.thenApply(Pair::getLeft).join();
 
@@ -165,39 +161,25 @@ class SiteTemplateDatabindPluginTest {
     assertNotNull(report);
     assertTrue(report.isSuccess());
     assertEquals(2, report.getProcessedItems().size());
-    assertTrue(report.getProcessedItems().contains("name1"));
-    assertTrue(report.getProcessedItems().contains("name2"));
-
-    verify(siteTemplateService, times(2)).createSiteTemplate(any(SiteTemplate.class),
-                                                             any(SiteKey.class),
-                                                             anyString(),
-                                                             anyBoolean());
   }
 
   private File createZipFileWithTwoJsonFiles() throws IOException {
     File tempFile = File.createTempFile("test", ".zip");
     try (FileOutputStream fos = new FileOutputStream(tempFile); ZipOutputStream zos = new ZipOutputStream(fos)) {
-      addJsonToZip(zos,
-                   "site1/config.json",
-                   "{\"names\":{\"en\":\"Test Page 2\"}," + "\"descriptions\":{\"en\":\"Desc 2\"}," + "\"siteDefinition\":{"
-                       + "\"name\":\"name1\"," + "\"type\":\"PORTAL\"," + "\"layout\":"
-                       + JsonUtils.toJsonString(new LayoutModel()) + "}" + "}");
+      addJsonToZip(zos, "space1/config.json", "{\"spaceTemplateId\":\"4\"" + "}");
 
-      // Add navigation JSON for site1
+      // Add navigation JSON for spaceTemplate1
       addJsonToZip(zos,
-                   "site1/navigation.json",
+                   "space1/navigation.json",
                    "[" + "{" + "\"name\":\"overview\"," + "\"icon\":null," + "\"visibility\":\"DISPLAYED\","
                        + "\"pageReference\":\"portal_template::public::overview\"," + "\"labels\":{}," + "\"children\":[" + "{"
                        + "\"name\":\"actions\"," + "\"icon\":null," + "\"visibility\":\"DISPLAYED\","
                        + "\"pageReference\":\"portal_template::public::actions\"," + "\"labels\":{}," + "\"children\":[]" + "}"
                        + "]" + "}" + "]");
 
-      // Add second site template under folder "site2"
-      addJsonToZip(zos,
-                   "site2/config.json",
-                   "{\"names\":{\"en\":\"Test Page 2\"}," + "\"descriptions\":{\"en\":\"Desc 2\"}," + "\"siteDefinition\":{"
-                       + "\"name\":\"name2\"," + "\"type\":\"PORTAL\"," + "\"layout\":"
-                       + JsonUtils.toJsonString(new LayoutModel()) + "}" + "}");
+      // Add second site template under folder "spaceTemplate2"
+      addJsonToZip(zos, "site2/config.json", "{\"spaceTemplateId\":\"4\"" + "}");
+
     }
     return tempFile;
   }

@@ -39,6 +39,7 @@ import io.meeds.layout.service.PageTemplateService;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.social.attachment.model.UploadedAttachmentDetail;
 import org.exoplatform.upload.UploadResource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -148,12 +149,12 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
     writeContent(zipOutputStream, objectId, jsonData);
   }
 
-  public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
+  public CompletableFuture<Pair<DatabindReport, File>> deserialize(File zipFile, Map<String, String> params, String username) {
     return CompletableFuture.supplyAsync(() -> importPageTemplates(zipFile)).thenApply(processedTemplates -> {
       DatabindReport report = new DatabindReport();
       report.setSuccess(!processedTemplates.isEmpty());
       report.setProcessedItems(processedTemplates);
-      return report;
+      return Pair.of(report, zipFile);
     });
   }
 
