@@ -40,6 +40,7 @@ import io.meeds.layout.service.SectionTemplateService;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.commons.file.model.FileItem;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
@@ -153,12 +154,12 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
     writeContent(zipOutputStream, objectId, jsonData);
   }
 
-  public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
+  public CompletableFuture<Pair<DatabindReport, File>> deserialize(File zipFile, Map<String, String> params, String username) {
     return CompletableFuture.supplyAsync(() -> importSectionTemplates(zipFile)).thenApply(processedTemplates -> {
       DatabindReport report = new DatabindReport();
       report.setSuccess(!processedTemplates.isEmpty());
       report.setProcessedItems(processedTemplates);
-      return report;
+      return Pair.of(report, zipFile);
     });
   }
 
