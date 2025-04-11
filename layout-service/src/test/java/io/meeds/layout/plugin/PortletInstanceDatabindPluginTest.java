@@ -27,6 +27,7 @@ import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.service.DatabindService;
 import io.meeds.social.translation.service.TranslationService;
+import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.portal.config.UserACL;
@@ -56,31 +57,31 @@ import java.util.zip.ZipOutputStream;
 class PortletInstanceDatabindPluginTest {
 
   @Mock
-  private Identity                       userIdentity;
+  private Identity                      userIdentity;
 
   @MockBean
-  private PortletInstanceService         portletInstanceService;
+  private PortletInstanceService        portletInstanceService;
 
   @MockBean
-  private DatabindService                databindService;
+  private DatabindService               databindService;
 
   @MockBean
-  private FileService                    fileService;
+  private FileService                   fileService;
 
   @MockBean
-  private TranslationService             translationService;
+  private TranslationService            translationService;
 
   @MockBean
-  private AttachmentService              attachmentService;
+  private AttachmentService             attachmentService;
 
   @MockBean
-  private UserACL                        userAcl;
+  private UserACL                       userAcl;
 
   @MockBean
-  private IdentityManager                identityManager;
+  private IdentityManager               identityManager;
 
   @Autowired
-  private PortletInstanceDatabindPlugin  portletInstanceDatabindPlugin;
+  private PortletInstanceDatabindPlugin portletInstanceDatabindPlugin;
 
   @Test
   void getObjectType() {
@@ -116,11 +117,12 @@ class PortletInstanceDatabindPluginTest {
     when(portletInstanceService.createPortletInstance(any())).thenReturn(new PortletInstance());
 
     // When
-    CompletableFuture<DatabindReport> futureReport = portletInstanceDatabindPlugin.deserialize(zipFile,
-                                                                                               Map.of("categoryId", "1"),
-                                                                                               "admin");
+    CompletableFuture<Pair<DatabindReport, File>> futureReport = portletInstanceDatabindPlugin.deserialize(zipFile,
+                                                                                                           Map.of("categoryId",
+                                                                                                                  "1"),
+                                                                                                           "admin");
 
-    DatabindReport report = futureReport.join();
+    DatabindReport report = futureReport.thenApply(Pair::getLeft).join();
 
     // Then
     assertNotNull(report);

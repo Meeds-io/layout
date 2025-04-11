@@ -33,6 +33,7 @@ import java.util.zip.ZipOutputStream;
 import io.meeds.layout.model.SectionTemplate;
 import io.meeds.layout.model.SectionTemplateDetail;
 import io.meeds.layout.service.SectionTemplateService;
+import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,31 +58,31 @@ import io.meeds.social.translation.service.TranslationService;
 class SectionTemplateDatabindPluginTest {
 
   @Mock
-  private Identity                       userIdentity;
+  private Identity                      userIdentity;
 
   @MockBean
-  private SectionTemplateService         sectionTemplateService;
+  private SectionTemplateService        sectionTemplateService;
 
   @MockBean
-  private DatabindService                databindService;
+  private DatabindService               databindService;
 
   @MockBean
-  private FileService                    fileService;
+  private FileService                   fileService;
 
   @MockBean
-  private TranslationService             translationService;
+  private TranslationService            translationService;
 
   @MockBean
-  private AttachmentService              attachmentService;
+  private AttachmentService             attachmentService;
 
   @MockBean
-  private UserACL                        userAcl;
+  private UserACL                       userAcl;
 
   @MockBean
-  private IdentityManager                identityManager;
+  private IdentityManager               identityManager;
 
   @Autowired
-  private SectionTemplateDatabindPlugin  sectionTemplateDatabindPlugin;
+  private SectionTemplateDatabindPlugin sectionTemplateDatabindPlugin;
 
   @Test
   void getObjectType() {
@@ -114,9 +115,10 @@ class SectionTemplateDatabindPluginTest {
     when(sectionTemplateService.createSectionTemplate(any())).thenReturn(new SectionTemplate());
 
     // When
-    CompletableFuture<DatabindReport> futureReport = sectionTemplateDatabindPlugin.deserialize(zipFile, null, "admin");
+    CompletableFuture<Pair<DatabindReport, File>> futureReport =
+                                                               sectionTemplateDatabindPlugin.deserialize(zipFile, null, "admin");
 
-    DatabindReport report = futureReport.join();
+    DatabindReport report = futureReport.thenApply(Pair::getLeft).join();
 
     // Then
     assertNotNull(report);
