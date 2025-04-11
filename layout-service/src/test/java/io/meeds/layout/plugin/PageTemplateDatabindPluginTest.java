@@ -27,6 +27,7 @@ import io.meeds.layout.service.PageTemplateService;
 import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.service.DatabindService;
 import io.meeds.social.translation.service.TranslationService;
+import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.social.core.manager.IdentityManager;
@@ -54,31 +55,31 @@ import java.util.zip.ZipOutputStream;
 class PageTemplateDatabindPluginTest {
 
   @Mock
-  private Identity                       userIdentity;
+  private Identity                   userIdentity;
 
   @MockBean
-  private PageTemplateService            pageTemplateService;
+  private PageTemplateService        pageTemplateService;
 
   @MockBean
-  private DatabindService                databindService;
+  private DatabindService            databindService;
 
   @MockBean
-  private FileService                    fileService;
+  private FileService                fileService;
 
   @MockBean
-  private TranslationService             translationService;
+  private TranslationService         translationService;
 
   @MockBean
-  private AttachmentService              attachmentService;
+  private AttachmentService          attachmentService;
 
   @MockBean
-  private UserACL                        userAcl;
+  private UserACL                    userAcl;
 
   @MockBean
-  private IdentityManager                identityManager;
+  private IdentityManager            identityManager;
 
   @Autowired
-  private PageTemplateDatabindPlugin     pageTemplateDatabindPlugin;
+  private PageTemplateDatabindPlugin pageTemplateDatabindPlugin;
 
   @Test
   void getObjectType() {
@@ -111,9 +112,9 @@ class PageTemplateDatabindPluginTest {
     when(pageTemplateService.createPageTemplate(any())).thenReturn(new PageTemplate());
 
     // When
-    CompletableFuture<DatabindReport> futureReport = pageTemplateDatabindPlugin.deserialize(zipFile, null, "admin");
+    CompletableFuture<Pair<DatabindReport, File>> futureReport = pageTemplateDatabindPlugin.deserialize(zipFile, null, "admin");
 
-    DatabindReport report = futureReport.join();
+    DatabindReport report = futureReport.thenApply(Pair::getLeft).join();
 
     // Then
     assertNotNull(report);

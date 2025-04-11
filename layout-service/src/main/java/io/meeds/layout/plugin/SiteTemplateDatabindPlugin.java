@@ -47,10 +47,10 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
-import org.exoplatform.portal.mop.State;
 import org.exoplatform.portal.mop.Utils;
 import org.exoplatform.portal.mop.Visibility;
 import org.exoplatform.portal.mop.navigation.*;
@@ -100,7 +100,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
   private SiteTemplateService     siteTemplateService;
 
   @Autowired
-  LayoutService                   layoutService;
+  private LayoutService           layoutService;
 
   @Autowired
   private DatabindService         databindService;
@@ -132,10 +132,10 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
   private NavigationLayoutService navigationLayoutService;
 
   @Autowired
-  DescriptionService              descriptionService;
+  private DescriptionService      descriptionService;
 
   @Autowired
-  PageLayoutService               pageLayoutService;
+  private PageLayoutService       pageLayoutService;
 
   @PostConstruct
   public void init() {
@@ -216,7 +216,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     if (CollectionUtils.isNotEmpty(pageContexts)) {
       pages = pageContexts.stream().map(this::toPage).toList();
     }
-    List<NodeDefinition> nodeDefinitions = buildNodeDefinitions(siteKey);
+    List<NodeDefinition> nodeDefinitions = buildNodeDefinitions(siteKey, username);
 
     String navigationJsonData = JsonUtils.toJsonString(nodeDefinitions);
 
@@ -235,12 +235,12 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     writeToZip(zipOutputStream, folderPath + "/" + NAVIGATION_JSON, navigationJsonData);
   }
 
-  public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
+  public CompletableFuture<Pair<DatabindReport, File>> deserialize(File zipFile, Map<String, String> params, String username) {
     return CompletableFuture.supplyAsync(() -> importSiteTemplates(zipFile, username)).thenApply(processedTemplates -> {
       DatabindReport report = new DatabindReport();
       report.setSuccess(!processedTemplates.isEmpty());
       report.setProcessedItems(processedTemplates);
-      return report;
+      return Pair.of(report, zipFile);
     });
 
   }
@@ -289,8 +289,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
             }
             templateDatabindMap.put(key, databindFromJson);
           }
-        }
-        else if (entryName.endsWith(NAVIGATION_JSON)) {
+        } else if (entryName.endsWith(NAVIGATION_JSON)) {
           List<NodeDefinition> nodeDefinitions = JsonUtils.fromJsonString(jsonContent, new TypeReference<>() {
           });
           if (nodeDefinitions != null) {
@@ -302,8 +301,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
             });
             databind.setNodeDefinitions(nodeDefinitions);
           }
-        }
-        else if (entryName.matches(".+/pages/.+\\.json$")) {
+        } else if (entryName.matches(".+/pages/.+\\.json$")) {
           LayoutModel page = JsonUtils.fromJsonString(jsonContent, LayoutModel.class);
           if (page != null) {
             String key = entryName.substring(0, entryName.indexOf("/pages/"));
@@ -428,17 +426,16 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     List<NodeDefinition> nodeDefinitions = siteTemplateDatabind.getNodeDefinitions();
     if (CollectionUtils.isNotEmpty(nodeDefinitions)) {
       NodeDefinition targetParentNode = nodeDefinitions.getFirst();
-      NavigationUpdateModel navigationUpdateModel = new NavigationUpdateModel(targetParentNode.getName(),
-                                                                              getPageKey(portalConfig.getSiteKey(),
-                                                                                         targetParentNode),
-                                                                              null,
-                                                                              targetParentNode.getVisibility()
-                                                                                              .equals(Visibility.DISPLAYED),
-                                                                              false,
-                                                                              null,
-                                                                              null,
-                                                                              targetParentNode.getIcon(),
-                                                                              targetParentNode.getLabels());
+
+      NavigationUpdateModel navigationUpdateModel = new NavigationUpdateModel();
+      navigationUpdateModel.setNodeLabel(targetParentNode.getName());
+      navigationUpdateModel.setPageRef(getPageKey(portalConfig.getSiteKey(), targetParentNode));
+      navigationUpdateModel.setVisible(targetParentNode.getVisibility()
+              .equals(Visibility.DISPLAYED));
+      navigationUpdateModel.setScheduled(false);
+      navigationUpdateModel.setIcon(targetParentNode.getIcon());
+      targetParentNode.setLabels(targetParentNode.getLabels());
+
       navigationLayoutService.updateNode(Long.parseLong(parentNode.getId()), navigationUpdateModel, username);
       parentNode.getNodes().forEach(node -> navigationLayoutService.deleteNode(Long.parseLong(node.getId())));
       createNodesRecursively(nodeDefinitions, parentNode.getId(), portalConfig.getSiteKey(), username);
@@ -491,7 +488,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     return page;
   }
 
-  private List<NodeDefinition> buildNodeDefinitions(SiteKey siteKey) {
+  private List<NodeDefinition> buildNodeDefinitions(SiteKey siteKey, String username) {
     NavigationContext navigationContext = navigationService.loadNavigation(siteKey);
 
     NodeContext<?> rootNode = navigationService.loadNode(NodeModel.SELF_MODEL, navigationContext, Scope.ALL, null);
@@ -504,34 +501,28 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
     Collection<NodeContext<?>> children = getChildren(rootNode);
     for (NodeContext<?> child : children) {
-      nodeDefinitions.add(buildNodeDefinitionRecursively(child));
+      nodeDefinitions.add(buildNodeDefinitionRecursively(child, username));
     }
     return nodeDefinitions;
   }
 
-  private NodeDefinition buildNodeDefinitionRecursively(NodeContext<?> nodeContext) {
+  @SneakyThrows
+  private NodeDefinition buildNodeDefinitionRecursively(NodeContext<?> nodeContext, String username) {
     NodeState state = nodeContext.getData().getState();
 
     NodeDefinition def = new NodeDefinition();
     def.setName(nodeContext.getName());
     def.setIcon(state.getIcon());
     def.setVisibility(state.getVisibility());
-    def.setPageReference(state.getPageRef().format());
+    def.setPageReference(state.getPageRef() != null ? state.getPageRef().format() : null);
 
-    Map<Locale, State> descriptions = descriptionService.getDescriptions(nodeContext.getId());
+    NodeLabel nodeLabel = navigationLayoutService.getNodeLabels(Long.parseLong(nodeContext.getId()), username);
 
-    Map<String, String> labels = new HashMap<>();
-    if (descriptions != null) {
-      for (Map.Entry<Locale, State> entry : descriptions.entrySet()) {
-        labels.put(entry.getKey().toLanguageTag(), entry.getValue().getName());
-      }
-    }
-
-    def.setLabels(labels);
+    def.setLabels(nodeLabel.getLabels());
 
     Collection<NodeContext<?>> children = getChildren(nodeContext);
     for (NodeContext<?> child : children) {
-      def.getChildren().add(buildNodeDefinitionRecursively(child));
+      def.getChildren().add(buildNodeDefinitionRecursively(child, username));
     }
     return def;
   }
