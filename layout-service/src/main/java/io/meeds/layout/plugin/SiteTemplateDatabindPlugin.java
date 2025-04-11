@@ -47,6 +47,7 @@ import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
@@ -99,7 +100,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
   private SiteTemplateService     siteTemplateService;
 
   @Autowired
-  LayoutService                   layoutService;
+  private LayoutService           layoutService;
 
   @Autowired
   private DatabindService         databindService;
@@ -131,10 +132,10 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
   private NavigationLayoutService navigationLayoutService;
 
   @Autowired
-  DescriptionService              descriptionService;
+  private DescriptionService      descriptionService;
 
   @Autowired
-  PageLayoutService               pageLayoutService;
+  private PageLayoutService       pageLayoutService;
 
   @PostConstruct
   public void init() {
@@ -234,12 +235,12 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     writeToZip(zipOutputStream, folderPath + "/" + NAVIGATION_JSON, navigationJsonData);
   }
 
-  public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
+  public CompletableFuture<Pair<DatabindReport, File>> deserialize(File zipFile, Map<String, String> params, String username) {
     return CompletableFuture.supplyAsync(() -> importSiteTemplates(zipFile, username)).thenApply(processedTemplates -> {
       DatabindReport report = new DatabindReport();
       report.setSuccess(!processedTemplates.isEmpty());
       report.setProcessedItems(processedTemplates);
-      return report;
+      return Pair.of(report, zipFile);
     });
 
   }
@@ -288,8 +289,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
             }
             templateDatabindMap.put(key, databindFromJson);
           }
-        }
-        else if (entryName.endsWith(NAVIGATION_JSON)) {
+        } else if (entryName.endsWith(NAVIGATION_JSON)) {
           List<NodeDefinition> nodeDefinitions = JsonUtils.fromJsonString(jsonContent, new TypeReference<>() {
           });
           if (nodeDefinitions != null) {
@@ -301,8 +301,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
             });
             databind.setNodeDefinitions(nodeDefinitions);
           }
-        }
-        else if (entryName.matches(".+/pages/.+\\.json$")) {
+        } else if (entryName.matches(".+/pages/.+\\.json$")) {
           LayoutModel page = JsonUtils.fromJsonString(jsonContent, LayoutModel.class);
           if (page != null) {
             String key = entryName.substring(0, entryName.indexOf("/pages/"));

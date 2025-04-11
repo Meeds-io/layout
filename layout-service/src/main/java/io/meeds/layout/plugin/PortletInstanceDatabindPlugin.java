@@ -36,6 +36,7 @@ import lombok.SneakyThrows;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.commons.file.model.FileItem;
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.portal.config.UserACL;
@@ -153,7 +154,7 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     writeContent(zipOutputStream, objectId, jsonData);
   }
 
-  public CompletableFuture<DatabindReport> deserialize(File zipFile, Map<String, String> params, String username) {
+  public CompletableFuture<Pair<DatabindReport, File>> deserialize(File zipFile, Map<String, String> params, String username) {
     String categoryId = params.get("categoryId");
     if (categoryId != null) {
       return CompletableFuture.supplyAsync(() -> importPortletInstances(zipFile, Long.parseLong(categoryId)))
@@ -161,7 +162,7 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
                                 DatabindReport report = new DatabindReport();
                                 report.setSuccess(!processedTemplates.isEmpty());
                                 report.setProcessedItems(processedTemplates);
-                                return report;
+                                return Pair.of(report, zipFile);
                               });
 
     }
