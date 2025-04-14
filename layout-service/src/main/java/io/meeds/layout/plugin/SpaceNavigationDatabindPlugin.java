@@ -263,7 +263,7 @@ public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
     if (CollectionUtils.isNotEmpty(spaceTemplateDatabind.getPages())) {
       for (LayoutModel layoutModel : spaceTemplateDatabind.getPages()) {
 
-        Page page = new Page();
+        Page page = layoutModel.toPage();
         page.setOwnerType(layoutModel.getOwnerType());
         page.setOwnerId(spaceTemplateDatabind.getSpaceTemplateId());
         page.setName(layoutModel.getName());
@@ -275,20 +275,30 @@ public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
         page.setHideSharedLayout(false);
 
         if (page.getPageKey() != null) {
-          layoutService.save(new PageContext(page.getPageKey(), Utils.toPageState(page)));
+          layoutService.save(new PageContext(new PageKey(siteKey, page.getName()), Utils.toPageState(page)));
           pageLayoutService.updatePageLayout(page.getPageKey().format(), page, true, username);
         }
       }
     }
 
     NodeContext<NodeContext<Object>> parentNode = navigationService.loadNode(siteKey);
-    if (parentNode == null) {
-      navigationService.saveNavigation(new NavigationContext(siteKey, new NavigationState(1)));
-      parentNode = navigationService.loadNode(siteKey);
-    }
-
     List<NodeDefinition> nodeDefinitions = spaceTemplateDatabind.getNodeDefinitions();
-    createNodesRecursively(nodeDefinitions, parentNode.getId(), siteKey, spaceTemplateDatabind.getSpaceTemplateId(), username);
+    if (CollectionUtils.isNotEmpty(nodeDefinitions)) {
+      NodeDefinition targetParentNode = nodeDefinitions.getFirst();
+      NavigationUpdateModel navigationUpdateModel = new NavigationUpdateModel(targetParentNode.getName(),
+                                                                              getPageKey(siteKey, targetParentNode),
+                                                                              null,
+                                                                              targetParentNode.getVisibility()
+                                                                                              .equals(Visibility.DISPLAYED),
+                                                                              false,
+                                                                              null,
+                                                                              null,
+                                                                              targetParentNode.getIcon(),
+                                                                              targetParentNode.getLabels());
+      navigationLayoutService.updateNode(Long.parseLong(parentNode.getId()), navigationUpdateModel, username);
+      parentNode.getNodes().forEach(node -> navigationLayoutService.deleteNode(Long.parseLong(node.getId())));
+      createNodesRecursively(nodeDefinitions, parentNode.getId(), siteKey, username);
+    }
   }
 
   private List<NodeDefinition> buildNodeDefinitions(SiteKey siteKey) {
@@ -360,11 +370,8 @@ public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
   }
 
   @SneakyThrows
-  private void createNodesRecursively(List<NodeDefinition> nodeDefinitions,
-                                      String parentId,
-                                      SiteKey siteKey,
-                                      String spaceTemplateId,
-                                      String username) {
+  private void createNodesRecursively(List<NodeDefinition> nodeDefinitions, String parentId, SiteKey siteKey, String username) {
+
     String previousNodeId = null;
     for (NodeDefinition nodeDefinition : nodeDefinitions) {
       NavigationCreateModel model = new NavigationCreateModel(parentId != null ? Long.parseLong(parentId) : null,
@@ -376,9 +383,7 @@ public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
                                                               false,
                                                               null,
                                                               null,
-                                                              getPageKey(new PageKey(siteKey.getType(),
-                                                                                     spaceTemplateId,
-                                                                                     nodeDefinition.getName()).format()),
+                                                              getPageKey(siteKey, nodeDefinition),
                                                               null,
                                                               false,
                                                               nodeDefinition.getIcon(),
@@ -391,21 +396,31 @@ public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
 
       List<NodeDefinition> children = nodeDefinition.getChildren();
       if (children != null && !children.isEmpty()) {
-        createNodesRecursively(children, nodeData != null ? nodeData.getId() : null, siteKey, spaceTemplateId, username);
+        createNodesRecursively(children, nodeData != null ? nodeData.getId() : null, siteKey, username);
       }
     }
   }
 
-  private String getPageKey(String pageRef) {
+  private String getPageKey(SiteKey siteKey, NodeDefinition nodeDefinition) {
+    String pageRef = nodeDefinition.getPageReference();
+    String pageName;
+
     if (StringUtils.isNotBlank(pageRef)) {
-      PageContext pageContext = layoutService.getPageContext(PageKey.parse(pageRef));
-      if (pageContext == null) {
-        return null;
-      } else {
-        return pageContext.getKey().format();
-      }
+      int lastIndex = pageRef.lastIndexOf("::");
+      pageName = lastIndex != -1 ? pageRef.substring(lastIndex + 2) : pageRef;
     } else {
+      pageName = nodeDefinition.getName();
+    }
+
+    PageKey pageKey = new PageKey(siteKey, pageName);
+    String formattedKey = pageKey.format();
+
+    if (StringUtils.isBlank(formattedKey)) {
       return null;
     }
+
+    PageContext pageContext = layoutService.getPageContext(PageKey.parse(formattedKey));
+    return pageContext != null ? pageContext.getKey().format() : null;
   }
+
 }
