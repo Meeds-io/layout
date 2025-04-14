@@ -56,6 +56,7 @@ import org.exoplatform.portal.mop.Utils;
 import org.exoplatform.portal.mop.Visibility;
 import org.exoplatform.portal.mop.navigation.*;
 import org.exoplatform.portal.mop.page.PageContext;
+import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.service.DescriptionService;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
@@ -401,7 +402,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     if (CollectionUtils.isNotEmpty(siteTemplateDatabind.getPages())) {
       for (LayoutModel layoutModel : siteTemplateDatabind.getPages()) {
 
-        Page page = new Page();
+        Page page = layoutModel.toPage();
         page.setOwnerType(layoutModel.getOwnerType());
         page.setOwnerId(layoutModel.getOwnerId());
         page.setName(layoutModel.getName());
@@ -416,25 +417,36 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
         pageLayoutService.updatePageLayout(page.getPageKey().format(), page, true, username);
       }
     }
-
-    NodeContext<NodeContext<Object>> parentNode = navigationService.loadNode(portalConfig.getSiteKey());
-    if (parentNode == null) {
-      navigationService.saveNavigation(new NavigationContext(new SiteKey(portalConfig.getType(), portalConfig.getName()),
-                                                             new NavigationState(1)));
-      parentNode = navigationService.loadNode(new SiteKey(portalConfig.getType(), portalConfig.getName()));
-    }
-
-    List<NodeDefinition> nodeDefinitions = siteTemplateDatabind.getNodeDefinitions();
-    createNodesRecursively(nodeDefinitions, parentNode.getId(), username);
     SiteTemplate createdSiteTemplate = siteTemplateService.createSiteTemplate(siteTemplate,
                                                                               new SiteKey(portalConfig.getType(),
                                                                                           portalConfig.getName()),
                                                                               username,
                                                                               true);
-    saveNames(siteTemplateDatabind, createdSiteTemplate);
-    saveDescriptions(siteTemplateDatabind, createdSiteTemplate);
-    if (siteTemplateDatabind.getIllustration() != null) {
-      saveIllustration(createdSiteTemplate.getId(), Base64.decodeBase64(siteTemplateDatabind.getIllustration()));
+
+    NodeContext<NodeContext<Object>> parentNode = navigationService.loadNode(portalConfig.getSiteKey());
+    List<NodeDefinition> nodeDefinitions = siteTemplateDatabind.getNodeDefinitions();
+    if (CollectionUtils.isNotEmpty(nodeDefinitions)) {
+      NodeDefinition targetParentNode = nodeDefinitions.getFirst();
+      NavigationUpdateModel navigationUpdateModel = new NavigationUpdateModel(targetParentNode.getName(),
+                                                                              getPageKey(portalConfig.getSiteKey(),
+                                                                                         targetParentNode),
+                                                                              null,
+                                                                              targetParentNode.getVisibility()
+                                                                                              .equals(Visibility.DISPLAYED),
+                                                                              false,
+                                                                              null,
+                                                                              null,
+                                                                              targetParentNode.getIcon(),
+                                                                              targetParentNode.getLabels());
+      navigationLayoutService.updateNode(Long.parseLong(parentNode.getId()), navigationUpdateModel, username);
+      parentNode.getNodes().forEach(node -> navigationLayoutService.deleteNode(Long.parseLong(node.getId())));
+      createNodesRecursively(nodeDefinitions, parentNode.getId(), portalConfig.getSiteKey(), username);
+
+      saveNames(siteTemplateDatabind, createdSiteTemplate);
+      saveDescriptions(siteTemplateDatabind, createdSiteTemplate);
+      if (siteTemplateDatabind.getIllustration() != null) {
+        saveIllustration(createdSiteTemplate.getId(), Base64.decodeBase64(siteTemplateDatabind.getIllustration()));
+      }
     }
   }
 
@@ -533,7 +545,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
   }
 
   @SneakyThrows
-  private void createNodesRecursively(List<NodeDefinition> nodeDefinitions, String parentId, String username) {
+  private void createNodesRecursively(List<NodeDefinition> nodeDefinitions, String parentId, SiteKey siteKey, String username) {
     String previousNodeId = null;
     for (NodeDefinition nodeDefinition : nodeDefinitions) {
       NavigationCreateModel model = new NavigationCreateModel(parentId != null ? Long.parseLong(parentId) : null,
@@ -545,7 +557,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
                                                               false,
                                                               null,
                                                               null,
-                                                              nodeDefinition.getPageReference(),
+                                                              getPageKey(siteKey, nodeDefinition),
                                                               null,
                                                               false,
                                                               nodeDefinition.getIcon(),
@@ -558,8 +570,30 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
       List<NodeDefinition> children = nodeDefinition.getChildren();
       if (children != null && !children.isEmpty()) {
-        createNodesRecursively(children, nodeData != null ? nodeData.getId() : null, username);
+        createNodesRecursively(children, nodeData != null ? nodeData.getId() : null, siteKey, username);
       }
     }
+  }
+
+  private String getPageKey(SiteKey siteKey, NodeDefinition nodeDefinition) {
+    String pageRef = nodeDefinition.getPageReference();
+    String pageName;
+
+    if (StringUtils.isNotBlank(pageRef)) {
+      int lastIndex = pageRef.lastIndexOf("::");
+      pageName = lastIndex != -1 ? pageRef.substring(lastIndex + 2) : pageRef;
+    } else {
+      pageName = nodeDefinition.getName();
+    }
+
+    PageKey pageKey = new PageKey(siteKey, pageName);
+    String formattedKey = pageKey.format();
+
+    if (StringUtils.isBlank(formattedKey)) {
+      return null;
+    }
+
+    PageContext pageContext = layoutService.getPageContext(PageKey.parse(formattedKey));
+    return pageContext != null ? pageContext.getKey().format() : null;
   }
 }
