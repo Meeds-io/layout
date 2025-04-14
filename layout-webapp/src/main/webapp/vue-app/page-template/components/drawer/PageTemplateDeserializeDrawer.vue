@@ -23,7 +23,8 @@
     ref="deserializeDrawer"
     body-classes="hide-scroll decrease-z-index-more"
     allow-expand
-    right>
+    right
+    @closed="close">
     <template #title>
       {{ $t('pageTemplate.label.importTemplate') }}
     </template>
@@ -134,6 +135,7 @@ export default {
       this.importFinished = false;
       this.fileName = '';
       this.uploadId = '';
+      this.$root.$emit('reset-uploaded-file');
       this.$refs.deserializeDrawer.close();
     },
     async deserializePageTemplates() {
