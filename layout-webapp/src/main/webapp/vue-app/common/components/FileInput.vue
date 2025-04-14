@@ -20,6 +20,7 @@
 
 <template>
   <v-file-input
+    v-if="!resetInput"
     ref="fileInput"
     :multiple="false"
     accept=".zip"
@@ -34,12 +35,16 @@ export default {
     return {
       selectedFile: null,
       uploadId: null,
+      resetInput: false
     };
   },
   computed: {
     fileName() {
       return this.selectedFile?.name;
     }
+  },
+  created() {
+    this.$root.$on('reset-uploaded-file', this.reset);
   },
   methods: {
     openFileExplorer() {
@@ -73,6 +78,12 @@ export default {
           .catch(error => this.$root.$emit('alert-message', this.$t(String(error)), 'error'))
           .finally(() => this.sending = false);
       }
+    },
+    reset() {
+      this.selectedFile = null;
+      this.uploadId = null;
+      this.resetInput = true;
+      this.$nextTick().then(() => this.resetInput = false);
     },
   }
 };
