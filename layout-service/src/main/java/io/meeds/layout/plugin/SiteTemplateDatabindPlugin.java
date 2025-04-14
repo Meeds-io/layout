@@ -51,7 +51,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
-import org.exoplatform.portal.mop.State;
 import org.exoplatform.portal.mop.Utils;
 import org.exoplatform.portal.mop.Visibility;
 import org.exoplatform.portal.mop.navigation.*;
@@ -217,7 +216,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     if (CollectionUtils.isNotEmpty(pageContexts)) {
       pages = pageContexts.stream().map(this::toPage).toList();
     }
-    List<NodeDefinition> nodeDefinitions = buildNodeDefinitions(siteKey);
+    List<NodeDefinition> nodeDefinitions = buildNodeDefinitions(siteKey, username);
 
     String navigationJsonData = JsonUtils.toJsonString(nodeDefinitions);
 
@@ -427,17 +426,16 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     List<NodeDefinition> nodeDefinitions = siteTemplateDatabind.getNodeDefinitions();
     if (CollectionUtils.isNotEmpty(nodeDefinitions)) {
       NodeDefinition targetParentNode = nodeDefinitions.getFirst();
-      NavigationUpdateModel navigationUpdateModel = new NavigationUpdateModel(targetParentNode.getName(),
-                                                                              getPageKey(portalConfig.getSiteKey(),
-                                                                                         targetParentNode),
-                                                                              null,
-                                                                              targetParentNode.getVisibility()
-                                                                                              .equals(Visibility.DISPLAYED),
-                                                                              false,
-                                                                              null,
-                                                                              null,
-                                                                              targetParentNode.getIcon(),
-                                                                              targetParentNode.getLabels());
+
+      NavigationUpdateModel navigationUpdateModel = new NavigationUpdateModel();
+      navigationUpdateModel.setNodeLabel(targetParentNode.getName());
+      navigationUpdateModel.setPageRef(getPageKey(portalConfig.getSiteKey(), targetParentNode));
+      navigationUpdateModel.setVisible(targetParentNode.getVisibility()
+              .equals(Visibility.DISPLAYED));
+      navigationUpdateModel.setScheduled(false);
+      navigationUpdateModel.setIcon(targetParentNode.getIcon());
+      targetParentNode.setLabels(targetParentNode.getLabels());
+
       navigationLayoutService.updateNode(Long.parseLong(parentNode.getId()), navigationUpdateModel, username);
       parentNode.getNodes().forEach(node -> navigationLayoutService.deleteNode(Long.parseLong(node.getId())));
       createNodesRecursively(nodeDefinitions, parentNode.getId(), portalConfig.getSiteKey(), username);
@@ -490,7 +488,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     return page;
   }
 
-  private List<NodeDefinition> buildNodeDefinitions(SiteKey siteKey) {
+  private List<NodeDefinition> buildNodeDefinitions(SiteKey siteKey, String username) {
     NavigationContext navigationContext = navigationService.loadNavigation(siteKey);
 
     NodeContext<?> rootNode = navigationService.loadNode(NodeModel.SELF_MODEL, navigationContext, Scope.ALL, null);
@@ -503,34 +501,28 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
     Collection<NodeContext<?>> children = getChildren(rootNode);
     for (NodeContext<?> child : children) {
-      nodeDefinitions.add(buildNodeDefinitionRecursively(child));
+      nodeDefinitions.add(buildNodeDefinitionRecursively(child, username));
     }
     return nodeDefinitions;
   }
 
-  private NodeDefinition buildNodeDefinitionRecursively(NodeContext<?> nodeContext) {
+  @SneakyThrows
+  private NodeDefinition buildNodeDefinitionRecursively(NodeContext<?> nodeContext, String username) {
     NodeState state = nodeContext.getData().getState();
 
     NodeDefinition def = new NodeDefinition();
     def.setName(nodeContext.getName());
     def.setIcon(state.getIcon());
     def.setVisibility(state.getVisibility());
-    def.setPageReference(state.getPageRef().format());
+    def.setPageReference(state.getPageRef() != null ? state.getPageRef().format() : null);
 
-    Map<Locale, State> descriptions = descriptionService.getDescriptions(nodeContext.getId());
+    NodeLabel nodeLabel = navigationLayoutService.getNodeLabels(Long.parseLong(nodeContext.getId()), username);
 
-    Map<String, String> labels = new HashMap<>();
-    if (descriptions != null) {
-      for (Map.Entry<Locale, State> entry : descriptions.entrySet()) {
-        labels.put(entry.getKey().toLanguageTag(), entry.getValue().getName());
-      }
-    }
-
-    def.setLabels(labels);
+    def.setLabels(nodeLabel.getLabels());
 
     Collection<NodeContext<?>> children = getChildren(nodeContext);
     for (NodeContext<?> child : children) {
-      def.getChildren().add(buildNodeDefinitionRecursively(child));
+      def.getChildren().add(buildNodeDefinitionRecursively(child, username));
     }
     return def;
   }
