@@ -140,7 +140,7 @@ public class PageLayoutService {
     } else if (!aclService.hasAccessPermission(application, username)) {
       throw new IllegalAccessException(String.format("Application with id %s access denied", applicationId));
     }
-    portletInstanceService.expandPortletPreferences(application);
+    portletInstanceService.expandPortletPreferences(application, null);
     return application;
   }
 

@@ -18,8 +18,10 @@
  */
 package io.meeds.layout.rest;
 
+import java.util.HashMap;
 import java.util.List;
 
+import io.meeds.layout.model.PortletInstanceContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.annotation.Secured;
@@ -108,7 +110,7 @@ public class PortletInstanceRest {
                                                                        @PathVariable("id")
                                                                        long id) {
     try {
-      return portletInstanceService.getPortletInstancePreferences(id, request.getRemoteUser());
+      return portletInstanceService.getPortletInstancePreferences(id, new PortletInstanceContext(false, null), request.getRemoteUser());
     } catch (ObjectNotFoundException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND);
     } catch (IllegalAccessException e) {
