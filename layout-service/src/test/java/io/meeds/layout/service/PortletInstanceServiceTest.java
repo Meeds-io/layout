@@ -37,6 +37,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
+import io.meeds.layout.model.PortletInstanceContext;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -194,10 +195,7 @@ public class PortletInstanceServiceTest {
     when(translationService.getTranslationField(PortletInstanceTranslationPlugin.OBJECT_TYPE,
                                                 template.getId(),
                                                 PortletInstanceTranslationPlugin.TITLE_FIELD_NAME)).thenReturn(titleTranslationField);
-    portletInstances = portletInstanceService.getPortletInstances(0,
-                                                                  null,
-                                                                  Locale.ENGLISH,
-                                                                  true);
+    portletInstances = portletInstanceService.getPortletInstances(0, null, Locale.ENGLISH, true);
     assertNotNull(portletInstances);
     assertEquals(1, portletInstances.size());
     assertEquals(template.getId(), portletInstances.get(0).getId());
@@ -209,10 +207,7 @@ public class PortletInstanceServiceTest {
     String frTitle = TITLE;
     when(titleTranslationField.getLabels()).thenReturn(Collections.singletonMap(Locale.FRENCH, frTitle));
 
-    portletInstances = portletInstanceService.getPortletInstances(0,
-                                                                  null,
-                                                                  Locale.FRENCH,
-                                                                  true);
+    portletInstances = portletInstanceService.getPortletInstances(0, null, Locale.FRENCH, true);
     assertNotNull(portletInstances);
     assertEquals(1, portletInstances.size());
     assertEquals(frTitle, portletInstances.get(0).getName());
@@ -224,20 +219,14 @@ public class PortletInstanceServiceTest {
     String enDesc = DESCRIPTION;
     when(descriptionTranslationField.getLabels()).thenReturn(Collections.singletonMap(Locale.ENGLISH, enDesc));
 
-    portletInstances = portletInstanceService.getPortletInstances(0,
-                                                                  null,
-                                                                  Locale.ENGLISH,
-                                                                  true);
+    portletInstances = portletInstanceService.getPortletInstances(0, null, Locale.ENGLISH, true);
     assertNotNull(portletInstances);
     assertEquals(1, portletInstances.size());
     assertEquals(enDesc, portletInstances.get(0).getDescription());
 
     when(attachmentService.getAttachmentFileIds(PortletInstanceAttachmentPlugin.OBJECT_TYPE,
                                                 "2")).thenReturn(Collections.singletonList("32"));
-    portletInstances = portletInstanceService.getPortletInstances(0,
-                                                                  null,
-                                                                  Locale.ENGLISH,
-                                                                  true);
+    portletInstances = portletInstanceService.getPortletInstances(0, null, Locale.ENGLISH, true);
     assertNotNull(portletInstances);
     assertEquals(1, portletInstances.size());
     assertEquals(32l, portletInstances.get(0).getIllustrationId());
@@ -550,8 +539,7 @@ public class PortletInstanceServiceTest {
   @Test
   @SneakyThrows
   public void getPortletInstanceApplication() {
-    assertThrows(ObjectNotFoundException.class,
-                 () -> portletInstanceService.getPortletInstanceApplication(2, 0, USERNAME));
+    assertThrows(ObjectNotFoundException.class, () -> portletInstanceService.getPortletInstanceApplication(2, 0, USERNAME));
     when(portletInstanceStorage.getPortletInstance(2)).thenReturn(portletInstance);
     when(portletInstanceLayoutStorage.getPortletInstanceApplication(portletInstance, 0)).thenReturn(application);
     Application portletInstanceApplication = portletInstanceService.getPortletInstanceApplication(2, 0, USERNAME);
@@ -576,8 +564,10 @@ public class PortletInstanceServiceTest {
     when(portletInstanceLayoutStorage.getOrCreatePortletInstanceApplication(portletInstance)).thenReturn(application);
     when(portletInstanceLayoutStorage.getApplicationPreferences(Long.parseLong(application.getStorageId()))).thenReturn(portlet);
 
-    List<PortletInstancePreference> portletInstancePreferences = portletInstanceService.getPortletInstancePreferences(2,
-                                                                                                                      USERNAME);
+    List<PortletInstancePreference> portletInstancePreferences =
+                                                               portletInstanceService.getPortletInstancePreferences(2,
+                                                                                                                    new PortletInstanceContext(),
+                                                                                                                    USERNAME);
     assertNotNull(portletInstancePreferences);
     assertEquals(1, portletInstancePreferences.size());
     assertEquals("test", portletInstancePreferences.get(0).getName());
@@ -594,11 +584,13 @@ public class PortletInstanceServiceTest {
     when(plugin.getPortletName()).thenReturn(CONTENT_ID.split("/")[1]);
     portletInstanceService.addPortletInstancePreferencePlugin(plugin);
     try {
-      when(plugin.generatePreferences(any(), any())).thenReturn(Collections.singletonList(new PortletInstancePreference("test",
-                                                                                                                        "value")));
+      when(plugin.generatePreferences(any(),
+                                      any(),
+                                      any())).thenReturn(Collections.singletonList(new PortletInstancePreference("test", "value")));
 
       List<PortletInstancePreference> portletInstancePreferences =
                                                                  portletInstanceService.getPortletInstancePreferences(2,
+                                                                                                                      new PortletInstanceContext(),
                                                                                                                       USERNAME);
       assertNotNull(portletInstancePreferences);
       assertEquals(1, portletInstancePreferences.size());
@@ -612,14 +604,15 @@ public class PortletInstanceServiceTest {
   @Test
   @SneakyThrows
   public void getPortletInstancePreferencesWhenNoPluginNoPreferences() {
-    assertThrows(ObjectNotFoundException.class, () -> portletInstanceService.getPortletInstancePreferences(2, USERNAME));
+    assertThrows(ObjectNotFoundException.class,
+                 () -> portletInstanceService.getPortletInstancePreferences(2, new PortletInstanceContext(), USERNAME));
 
     when(portletInstanceStorage.getPortletInstance(2)).thenReturn(portletInstance);
     when(portletInstanceLayoutStorage.getApplicationPortletName(application)).thenReturn(CONTENT_ID.split("/")[1]);
     when(portletInstanceLayoutStorage.getOrCreatePortletInstanceApplication(portletInstance)).thenReturn(application);
     when(application.getStorageId()).thenReturn("3");
-    assertNotNull(portletInstanceService.getPortletInstancePreferences(2, USERNAME));
-    assertEquals(0, portletInstanceService.getPortletInstancePreferences(2, USERNAME).size());
+    assertNotNull(portletInstanceService.getPortletInstancePreferences(2, new PortletInstanceContext(), USERNAME));
+    assertEquals(0, portletInstanceService.getPortletInstancePreferences(2, new PortletInstanceContext(), USERNAME).size());
   }
 
   @Test
@@ -632,11 +625,7 @@ public class PortletInstanceServiceTest {
   }
 
   private PortletInstanceCategory newPortletInstanceCategory() {
-    return new PortletInstanceCategory(3l,
-                                       null,
-                                       "icon",
-                                       true,
-                                       Collections.singletonList("Everyone"));
+    return new PortletInstanceCategory(3l, null, "icon", true, Collections.singletonList("Everyone"));
   }
 
   private PortletInstance newPortletInstance() {

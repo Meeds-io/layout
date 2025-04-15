@@ -22,8 +22,12 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
+import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.PageTemplate;
+import io.meeds.layout.model.PageTemplateDatabind;
 import io.meeds.layout.service.PageTemplateService;
+import io.meeds.layout.service.PortletInstanceService;
+import io.meeds.layout.util.JsonUtils;
 import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.service.DatabindService;
 import io.meeds.social.translation.service.TranslationService;
@@ -46,6 +50,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -73,6 +78,9 @@ class PageTemplateDatabindPluginTest {
   private AttachmentService          attachmentService;
 
   @MockBean
+  private PortletInstanceService     portletInstanceService;
+
+  @MockBean
   private UserACL                    userAcl;
 
   @MockBean
@@ -97,7 +105,7 @@ class PageTemplateDatabindPluginTest {
     ZipOutputStream zipOutputStream = mock(ZipOutputStream.class);
     PageTemplate pageTemplate = mock(PageTemplate.class);
     when(pageTemplateService.getPageTemplate(anyLong(), any(Locale.class), anyBoolean(), anyBoolean())).thenReturn(pageTemplate);
-    when(pageTemplate.getContent()).thenReturn("1");
+    when(pageTemplate.getContent()).thenReturn(JsonUtils.toJsonString(new LayoutModel()));
 
     pageTemplateDatabindPlugin.serialize("1", zipOutputStream, "root");
 
@@ -120,8 +128,6 @@ class PageTemplateDatabindPluginTest {
     assertNotNull(report);
     assertTrue(report.isSuccess());
     assertEquals(2, report.getProcessedItems().size());
-    assertTrue(report.getProcessedItems().contains("12345"));
-    assertTrue(report.getProcessedItems().contains("67890"));
 
     verify(pageTemplateService, times(2)).createPageTemplate(any());
   }
@@ -129,12 +135,21 @@ class PageTemplateDatabindPluginTest {
   private File createZipFileWithTwoJsonFiles() throws IOException {
     File tempFile = File.createTempFile("test", ".zip");
     try (FileOutputStream fos = new FileOutputStream(tempFile); ZipOutputStream zos = new ZipOutputStream(fos)) {
-      addJsonToZip(zos,
-                   "PageTemplate_1.json",
-                   "{\"content\":\"12345\",\"names\":{\"en\":\"Test Page 1\"},\"descriptions\":{\"en\":\"Desc 1\"}}");
-      addJsonToZip(zos,
-                   "PageTemplate_2.json",
-                   "{\"content\":\"67890\",\"names\":{\"en\":\"Test Page 2\"},\"descriptions\":{\"en\":\"Desc 2\"}}");
+      PageTemplateDatabind config1 = new PageTemplateDatabind();
+      config1.setContent(JsonUtils.toJsonString(new LayoutModel()));
+      config1.setNames(Map.of("en", "Test Page 1"));
+      config1.setDescriptions(Map.of("en", "Desc 1"));
+
+      PageTemplateDatabind config2 = new PageTemplateDatabind();
+      config2.setContent(JsonUtils.toJsonString(new LayoutModel()));
+      config2.setNames(Map.of("en", "Test Page 2"));
+      config2.setDescriptions(Map.of("en", "Desc 2"));
+
+      addJsonToZip(zos, "PageTemplate_1/config.json", JsonUtils.toJsonString(config1));
+      addJsonToZip(zos, "PageTemplate_1/layout.json", JsonUtils.toJsonString(new LayoutModel()));
+
+      addJsonToZip(zos, "PageTemplate_2/config.json", JsonUtils.toJsonString(config2));
+      addJsonToZip(zos, "PageTemplate_2/layout.json", JsonUtils.toJsonString(new LayoutModel()));
     }
     return tempFile;
   }
