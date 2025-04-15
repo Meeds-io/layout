@@ -156,7 +156,7 @@ public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
 
     for (Page page : pages) {
       try {
-        LayoutModel layoutModel = new LayoutModel(page, portletInstanceService);
+        LayoutModel layoutModel = new LayoutModel(page, portletInstanceService, new PortletInstanceContext(true, null));
         layoutModel.resetStorage();
         String pageJson = JsonUtils.toJsonString(layoutModel);
         writeToZip(zipOutputStream, folderPath + "/pages/" + page.getName() + ".json", pageJson);
