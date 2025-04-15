@@ -22,6 +22,7 @@ package io.meeds.layout.plugin.renderer;
 import java.util.List;
 import java.util.stream.StreamSupport;
 
+import io.meeds.layout.model.PortletInstanceContext;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
@@ -45,7 +46,7 @@ public class SpaceDirectoryPortletInstancePreferencePlugin implements PortletIns
 
   @Override
   @SneakyThrows
-  public List<PortletInstancePreference> generatePreferences(Application application, Portlet preferences) {
+  public List<PortletInstancePreference> generatePreferences(Application application, Portlet preferences, PortletInstanceContext portletInstanceContextge) {
     return StreamSupport.stream(preferences.spliterator(), false)
                         // remove generated setting name for the original
                         // instance to avoid duplicating instances using the
