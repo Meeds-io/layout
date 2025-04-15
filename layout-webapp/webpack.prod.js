@@ -16,6 +16,7 @@ const config = {
     sectionTemplates: './src/main/webapp/vue-app/section-template/main.js',
     sectionEditor: './src/main/webapp/vue-app/section-editor/main.js',
     siteTemplates: './src/main/webapp/vue-app/site-template/main.js',
+    layoutQuickActionExtensions: './src/main/webapp/vue-app/portlet-instance-viewer/main.js',
   },
   mode: 'production',
   context: path.resolve(__dirname, '.'),
