@@ -20,6 +20,7 @@ package io.meeds.layout.plugin;
 
 import io.meeds.common.ContainerTransactional;
 import io.meeds.layout.model.PortletInstance;
+import io.meeds.layout.model.PortletInstanceContext;
 import io.meeds.layout.model.PortletInstanceDatabind;
 import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.plugin.attachment.PortletInstanceAttachmentPlugin;
@@ -149,7 +150,7 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
     if (file != null) {
       databind.setIllustration(Base64.encodeBase64String(file.getAsByte()));
     }
-    databind.setPreferences(portletInstanceService.getPortletInstancePreferences(Long.parseLong(objectId), username));
+    databind.setPreferences(portletInstanceService.getPortletInstancePreferences(Long.parseLong(objectId), new PortletInstanceContext(true, new HashMap<>()), username));
     String jsonData = JsonUtils.toJsonString(databind);
     writeContent(zipOutputStream, objectId, jsonData);
   }
