@@ -36,10 +36,12 @@ import io.meeds.layout.model.*;
 import io.meeds.layout.plugin.attachment.PageTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.translation.PageTemplateTranslationPlugin;
 import io.meeds.layout.service.PageTemplateService;
+import io.meeds.layout.service.PortletInstanceService;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.social.attachment.model.UploadedAttachmentDetail;
 import org.exoplatform.upload.UploadResource;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -65,32 +67,39 @@ import lombok.SneakyThrows;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class PageTemplateDatabindPlugin implements DatabindPlugin {
 
-  private static final Random RANDOM      = new Random();
+  private static final Random    RANDOM      = new Random();
 
-  public static final String  OBJECT_TYPE = "PageTemplate";
+  public static final String     OBJECT_TYPE = "PageTemplate";
 
-  @Autowired
-  private PageTemplateService pageTemplateService;
+  public static final String     CONFIG_JSON = "config.json";
 
-  @Autowired
-  private DatabindService     databindService;
+  public static final String     LAYOUT_JSON = "layout.json";
 
   @Autowired
-  private FileService         fileService;
+  private PageTemplateService    pageTemplateService;
 
   @Autowired
-  private TranslationService  translationService;
+  private DatabindService        databindService;
 
   @Autowired
-  private AttachmentService   attachmentService;
+  private FileService            fileService;
 
   @Autowired
-  private UserACL             userAcl;
+  private TranslationService     translationService;
 
   @Autowired
-  private IdentityManager     identityManager;
+  private AttachmentService      attachmentService;
 
-  private long                superUserIdentityId;
+  @Autowired
+  private PortletInstanceService portletInstanceService;
+
+  @Autowired
+  private UserACL                userAcl;
+
+  @Autowired
+  private IdentityManager        identityManager;
+
+  private long                   superUserIdentityId;
 
   @PostConstruct
   public void init() {
@@ -145,8 +154,16 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
     if (file != null) {
       databind.setIllustration(Base64.encodeBase64String(file.getAsByte()));
     }
+
     String jsonData = JsonUtils.toJsonString(databind);
-    writeContent(zipOutputStream, objectId, jsonData);
+
+    Page pageLayout = JsonUtils.fromJsonString(pageTemplate.getContent(), LayoutModel.class).toPage();
+
+    LayoutModel layoutModel = new LayoutModel(pageLayout, portletInstanceService, new PortletInstanceContext(true, null));
+    layoutModel.resetStorage();
+    String layoutData = JsonUtils.toJsonString(layoutModel);
+    writeToZip(zipOutputStream, OBJECT_TYPE + "-" + pageTemplate.getId() + "/" + CONFIG_JSON, jsonData);
+    writeToZip(zipOutputStream, OBJECT_TYPE + "-" + pageTemplate.getId() + "/" + LAYOUT_JSON, layoutData);
   }
 
   public CompletableFuture<Pair<DatabindReport, File>> deserialize(File zipFile, Map<String, String> params, String username) {
@@ -176,19 +193,30 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
     try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile), StandardCharsets.UTF_8)) {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
-        if (!entry.isDirectory() && entry.getName().endsWith(".json")) {
-          ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          byte[] buffer = new byte[1024];
-          int bytesRead;
-          while ((bytesRead = zis.read(buffer)) != -1) {
-            baos.write(buffer, 0, bytesRead);
-          }
-          String jsonContent = baos.toString(StandardCharsets.UTF_8);
+        if (entry.isDirectory()) {
+          continue;
+        }
 
-          // Deserialize JSON into a Page templates
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        int bytesRead;
+        while ((bytesRead = zis.read(buffer)) != -1) {
+          baos.write(buffer, 0, bytesRead);
+        }
+        String jsonContent = baos.toString(StandardCharsets.UTF_8);
+        String entryName = entry.getName();
+        String key = entryName.split("/")[0];
+
+        if (entry.getName().endsWith(CONFIG_JSON)) {
           PageTemplateDatabind databind = JsonUtils.fromJsonString(jsonContent, PageTemplateDatabind.class);
           if (databind != null) {
-            templateDatabindMap.put(entry.getName(), databind);
+            templateDatabindMap.put(key, databind);
+          }
+        } else if (entry.getName().endsWith(LAYOUT_JSON)) {
+          LayoutModel page = JsonUtils.fromJsonString(jsonContent, LayoutModel.class);
+          if (page != null) {
+            PageTemplateDatabind databind = templateDatabindMap.computeIfAbsent(key, k -> new PageTemplateDatabind());
+            databind.setPage(page);
           }
         }
       }
@@ -259,7 +287,11 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
     PageTemplate pageTemplate = new PageTemplate();
     pageTemplate.setName(pageTemplateDatabind.getNames().get("en"));
     pageTemplate.setDescription(pageTemplateDatabind.getDescriptions().get("en"));
-    pageTemplate.setContent(pageTemplateDatabind.getContent());
+    LayoutModel page = JsonUtils.fromJsonString(pageTemplateDatabind.getContent(), LayoutModel.class);
+    if (page != null) {
+      page.setChildren(pageTemplateDatabind.getPage().getChildren());
+      pageTemplate.setContent(JsonUtils.toJsonString(page));
+    }
     pageTemplate.setSystem(false);
     PageTemplate createdPageTemplate = pageTemplateService.createPageTemplate(pageTemplate);
     saveNames(pageTemplateDatabind, createdPageTemplate);
@@ -279,8 +311,9 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
     return tempFile;
   }
 
-  private void writeContent(ZipOutputStream zipOutputStream, String objectId, String content) throws IOException {
-    ZipEntry entry = new ZipEntry(String.format("%s_%s.json", OBJECT_TYPE, objectId));
+  @SneakyThrows
+  private void writeToZip(ZipOutputStream zipOutputStream, String filePath, String content) {
+    ZipEntry entry = new ZipEntry(filePath);
     zipOutputStream.putNextEntry(entry);
     zipOutputStream.write(content.getBytes(StandardCharsets.UTF_8));
     zipOutputStream.closeEntry();
