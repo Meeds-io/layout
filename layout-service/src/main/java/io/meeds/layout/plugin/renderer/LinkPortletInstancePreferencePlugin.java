@@ -21,6 +21,7 @@ package io.meeds.layout.plugin.renderer;
 import java.util.Collections;
 import java.util.List;
 
+import io.meeds.layout.model.PortletInstanceContext;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -54,7 +55,7 @@ public class LinkPortletInstancePreferencePlugin implements PortletInstancePrefe
 
   @Override
   @SneakyThrows
-  public List<PortletInstancePreference> generatePreferences(Application application, Portlet preferences) {
+  public List<PortletInstancePreference> generatePreferences(Application application, Portlet preferences, PortletInstanceContext portletInstanceContext) {
     String settingName = getCmsSettingName(preferences);
     if (StringUtils.isBlank(settingName)) {
       if (preferences != null && preferences.getPreference(DATA_INIT_PREFERENCE_NAME) != null) {
