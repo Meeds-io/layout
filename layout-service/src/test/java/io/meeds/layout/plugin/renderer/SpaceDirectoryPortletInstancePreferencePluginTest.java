@@ -25,6 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.meeds.layout.model.PortletInstanceContext;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -58,7 +59,7 @@ public class SpaceDirectoryPortletInstancePreferencePluginTest {
     map.put(SETTING_NAME, new Preference(SETTING_NAME, "value", false));
     map.put(OTHER_PREF_NAME, new Preference(OTHER_PREF_NAME, "value", false));
     Portlet preferences = new Portlet(map);
-    List<PortletInstancePreference> generatedPreferences = spaceDirectoryPortletInstancePreferencePlugin.generatePreferences(null, preferences);
+    List<PortletInstancePreference> generatedPreferences = spaceDirectoryPortletInstancePreferencePlugin.generatePreferences(null, preferences, new PortletInstanceContext());
     assertNotNull(generatedPreferences);
     assertEquals(1, generatedPreferences.size());
     assertEquals(OTHER_PREF_NAME, generatedPreferences.get(0).getName());

@@ -20,6 +20,7 @@ package io.meeds.layout.plugin;
 
 import java.util.List;
 
+import io.meeds.layout.model.PortletInstanceContext;
 import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.pom.spi.portlet.Portlet;
 
@@ -44,8 +45,9 @@ public interface PortletInstancePreferencePlugin {
    * @param application {@link Application} designated to extract its
    *          preferences
    * @param preferences current {@link Portlet} preferences
-   * @return
+   * @param portletInstanceContext context preference generate global parm
+   * @return {@link List} of {@link PortletInstancePreference}
    */
-  List<PortletInstancePreference> generatePreferences(Application application, Portlet preferences);
+  List<PortletInstancePreference> generatePreferences(Application application, Portlet preferences, PortletInstanceContext portletInstanceContext);
 
 }
