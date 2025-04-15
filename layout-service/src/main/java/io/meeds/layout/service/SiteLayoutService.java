@@ -24,6 +24,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import io.meeds.layout.model.*;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -46,12 +47,6 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.resources.LocaleContextInfo;
-
-import io.meeds.layout.model.LayoutModel;
-import io.meeds.layout.model.NodeLabel;
-import io.meeds.layout.model.PermissionUpdateModel;
-import io.meeds.layout.model.SiteCreateModel;
-import io.meeds.layout.model.SiteUpdateModel;
 
 import lombok.SneakyThrows;
 
@@ -168,7 +163,7 @@ public class SiteLayoutService {
     PortalConfig draftSite = site.clone();
     draftSite.setType(PortalConfig.DRAFT);
     draftSite.setName(clonedSiteName);
-    LayoutModel siteLayoutModel = new LayoutModel(site.getPortalLayout(), portletInstanceService);
+    LayoutModel siteLayoutModel = new LayoutModel(site.getPortalLayout(), portletInstanceService, new PortletInstanceContext(false, null));
     siteLayoutModel.resetStorage();
     draftSite.setPortalLayout(siteLayoutModel.toSite().getPortalLayout());
     SiteKey draftSiteKey = new SiteKey(draftSite.getType(), draftSite.getName());

@@ -23,6 +23,7 @@ import static io.meeds.social.image.plugin.ImageAttachmentPlugin.OBJECT_TYPE;
 import java.util.Collections;
 import java.util.List;
 
+import io.meeds.layout.model.PortletInstanceContext;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -66,7 +67,7 @@ public class ImagePortletInstancePreferencePlugin implements PortletInstancePref
 
   @Override
   @SneakyThrows
-  public List<PortletInstancePreference> generatePreferences(Application application, Portlet preferences) {
+  public List<PortletInstancePreference> generatePreferences(Application application, Portlet preferences, PortletInstanceContext portletInstanceContext) {
     String settingName = getCmsSettingName(preferences);
     if (StringUtils.isBlank(settingName)) {
       if (preferences != null && preferences.getPreference(DATA_INIT_PREFERENCE_NAME) != null) {

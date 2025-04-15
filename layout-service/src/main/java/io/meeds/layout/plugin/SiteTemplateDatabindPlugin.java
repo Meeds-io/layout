@@ -202,7 +202,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     siteDefinition.setAccessPermissions(portalConfig.getAccessPermissions());
     siteDefinition.setEditPermission(portalConfig.getEditPermission());
     siteDefinition.setProperties(portalConfig.getProperties());
-    siteDefinition.setLayout(new LayoutModel(portalConfig.getPortalLayout(), portletInstanceService));
+    siteDefinition.setLayout(new LayoutModel(portalConfig.getPortalLayout(), portletInstanceService, new PortletInstanceContext(true, null)));
 
     siteDefinition.getLayout().resetStorage();
     databind.setSiteDefinition(siteDefinition);
@@ -222,7 +222,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
     for (Page page : pages) {
       try {
-        LayoutModel layoutModel = new LayoutModel(page, portletInstanceService);
+        LayoutModel layoutModel = new LayoutModel(page, portletInstanceService, new PortletInstanceContext(true, null));
         layoutModel.resetStorage();
         String pageJson = JsonUtils.toJsonString(layoutModel);
         writeToZip(zipOutputStream, folderPath + "/pages/" + page.getName() + ".json", pageJson);
@@ -416,13 +416,20 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
         pageLayoutService.updatePageLayout(page.getPageKey().format(), page, true, username);
       }
     }
+
+    NodeContext<NodeContext<Object>> parentNode = navigationService.loadNode(portalConfig.getSiteKey());
+    if (parentNode == null) {
+      navigationService.saveNavigation(new NavigationContext(new SiteKey(portalConfig.getType(), portalConfig.getName()),
+                                                             new NavigationState(1)));
+      parentNode = navigationService.loadNode(portalConfig.getSiteKey());
+    }
+
     SiteTemplate createdSiteTemplate = siteTemplateService.createSiteTemplate(siteTemplate,
                                                                               new SiteKey(portalConfig.getType(),
                                                                                           portalConfig.getName()),
                                                                               username,
                                                                               true);
 
-    NodeContext<NodeContext<Object>> parentNode = navigationService.loadNode(portalConfig.getSiteKey());
     List<NodeDefinition> nodeDefinitions = siteTemplateDatabind.getNodeDefinitions();
     if (CollectionUtils.isNotEmpty(nodeDefinitions)) {
       NodeDefinition targetParentNode = nodeDefinitions.getFirst();
@@ -430,8 +437,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
       NavigationUpdateModel navigationUpdateModel = new NavigationUpdateModel();
       navigationUpdateModel.setNodeLabel(targetParentNode.getName());
       navigationUpdateModel.setPageRef(getPageKey(portalConfig.getSiteKey(), targetParentNode));
-      navigationUpdateModel.setVisible(targetParentNode.getVisibility()
-              .equals(Visibility.DISPLAYED));
+      navigationUpdateModel.setVisible(targetParentNode.getVisibility().equals(Visibility.DISPLAYED));
       navigationUpdateModel.setScheduled(false);
       navigationUpdateModel.setIcon(targetParentNode.getIcon());
       targetParentNode.setLabels(targetParentNode.getLabels());
