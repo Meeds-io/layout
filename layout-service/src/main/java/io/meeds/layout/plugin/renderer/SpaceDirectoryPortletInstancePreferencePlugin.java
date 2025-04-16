@@ -46,7 +46,7 @@ public class SpaceDirectoryPortletInstancePreferencePlugin implements PortletIns
 
   @Override
   @SneakyThrows
-  public List<PortletInstancePreference> generatePreferences(Application application, Portlet preferences, PortletInstanceContext portletInstanceContextge) {
+  public List<PortletInstancePreference> generatePreferences(Application application, Portlet preferences, PortletInstanceContext portletInstanceContext) {
     return StreamSupport.stream(preferences.spliterator(), false)
                         // remove generated setting name for the original
                         // instance to avoid duplicating instances using the
