@@ -65,10 +65,16 @@
             id="applicationToolbarLeftButton"
             v-bind="attrs"
             v-on="on"
+            :disabled="loading"
             :aria-label="$t('layout.portletInstance.add')"
             :class="$root.isMobile && 'px-0'"
             class="btn btn-primary text-truncate"
             dense>
+            <v-progress-circular
+              v-if="loading"
+              indeterminate
+              size="20"
+              class="me-2" />
             <span
               v-if="!$root.isMobile"
               class="text-truncate text-none">
@@ -109,6 +115,9 @@
 </template>
 <script>
 export default {
+  data: () => ({
+    loading: false,
+  }),
   props: {
     tabName: {
       type: String,
@@ -128,10 +137,12 @@ export default {
   },
   methods: {
     openFileExplorer() {
+      this.loading = true;
       this.$refs.inputFile.openFileExplorer();
     },
     handelUpload(uploadId, fileName) {
       this.$root.$emit('deserialize-instance-drawer-open', uploadId, fileName);
+      this.loading = false;
     }
   }
 };
