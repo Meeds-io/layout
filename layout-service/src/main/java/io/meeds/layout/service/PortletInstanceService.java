@@ -355,9 +355,9 @@ public class PortletInstanceService {
     return new Portlet(preferencesMap);
   }
 
-  public void expandPortletPreferences(Application application) {
+  public void expandPortletPreferences(Application application, PortletInstanceContext portletInstanceContext) {
     String portletContentId = layoutService.getId(application.getState());
-    List<PortletInstancePreference> preferences = getApplicationPreferences(application, new PortletInstanceContext(false, null));
+    List<PortletInstancePreference> preferences = getApplicationPreferences(application, portletInstanceContext);
     Map<String, Preference> preferencesMap = preferences.stream()
                                                         .collect(Collectors.toMap(PortletInstancePreference::getName,
                                                                                   p -> new Preference(p.getName(),

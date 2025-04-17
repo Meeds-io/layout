@@ -29,12 +29,14 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class PageTemplateDatabind {
 
-  private Map<String, String>             names;
+  private Map<String, String> names;
 
-  private Map<String, String>             descriptions;
+  private Map<String, String> descriptions;
 
-  private String                          content;
+  private String              content;
 
-  private String                          illustration;
+  private String              illustration;
+
+  private LayoutModel         page;
 
 }

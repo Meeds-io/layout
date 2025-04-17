@@ -202,7 +202,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     siteDefinition.setAccessPermissions(portalConfig.getAccessPermissions());
     siteDefinition.setEditPermission(portalConfig.getEditPermission());
     siteDefinition.setProperties(portalConfig.getProperties());
-    siteDefinition.setLayout(new LayoutModel(portalConfig.getPortalLayout(), portletInstanceService));
+    siteDefinition.setLayout(new LayoutModel(portalConfig.getPortalLayout(), portletInstanceService, new PortletInstanceContext(true, null)));
 
     siteDefinition.getLayout().resetStorage();
     databind.setSiteDefinition(siteDefinition);
@@ -222,7 +222,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
     for (Page page : pages) {
       try {
-        LayoutModel layoutModel = new LayoutModel(page, portletInstanceService);
+        LayoutModel layoutModel = new LayoutModel(page, portletInstanceService, new PortletInstanceContext(true, null));
         layoutModel.resetStorage();
         String pageJson = JsonUtils.toJsonString(layoutModel);
         writeToZip(zipOutputStream, folderPath + "/pages/" + page.getName() + ".json", pageJson);
