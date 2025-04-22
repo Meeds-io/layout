@@ -37,4 +37,5 @@ public class SectionTemplateDatabind {
 
   private String              illustration;
 
+  private LayoutModel         page;
 }
