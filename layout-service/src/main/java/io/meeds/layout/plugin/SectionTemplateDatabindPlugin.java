@@ -31,17 +31,17 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
-import io.meeds.layout.model.SectionTemplate;
-import io.meeds.layout.model.SectionTemplateDatabind;
-import io.meeds.layout.model.SectionTemplateDetail;
+import io.meeds.layout.model.*;
 import io.meeds.layout.plugin.attachment.SectionTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.translation.SectionTemplateTranslationPlugin;
+import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.service.SectionTemplateService;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.commons.file.model.FileItem;
+import org.exoplatform.portal.config.model.Page;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -72,6 +72,10 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
 
   public static final String     OBJECT_TYPE = "SectionTemplate";
 
+  public static final String     CONFIG_JSON = "config.json";
+
+  public static final String     LAYOUT_JSON = "layout.json";
+
   @Autowired
   private SectionTemplateService sectionTemplateService;
 
@@ -86,6 +90,9 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
 
   @Autowired
   private AttachmentService      attachmentService;
+
+  @Autowired
+  private PortletInstanceService portletInstanceService;
 
   @Autowired
   private UserACL                userAcl;
@@ -151,7 +158,14 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
       databind.setIllustration(Base64.encodeBase64String(file.getAsByte()));
     }
     String jsonData = JsonUtils.toJsonString(databind);
-    writeContent(zipOutputStream, objectId, jsonData);
+
+    Page pageLayout = JsonUtils.fromJsonString(sectionTemplate.getContent(), LayoutModel.class).toPage();
+    LayoutModel layoutModel = new LayoutModel(pageLayout, portletInstanceService, new PortletInstanceContext(true, null));
+    layoutModel.resetStorage();
+    String layoutData = JsonUtils.toJsonString(layoutModel);
+
+    writeToZip(zipOutputStream, OBJECT_TYPE + "-" + sectionTemplate.getId() + "/" + CONFIG_JSON, jsonData);
+    writeToZip(zipOutputStream, OBJECT_TYPE + "-" + sectionTemplate.getId() + "/" + LAYOUT_JSON, layoutData);
   }
 
   public CompletableFuture<Pair<DatabindReport, File>> deserialize(File zipFile, Map<String, String> params, String username) {
@@ -181,19 +195,30 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
     try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile), StandardCharsets.UTF_8)) {
       ZipEntry entry;
       while ((entry = zis.getNextEntry()) != null) {
-        if (!entry.isDirectory() && entry.getName().endsWith(".json")) {
-          ByteArrayOutputStream baos = new ByteArrayOutputStream();
-          byte[] buffer = new byte[1024];
-          int bytesRead;
-          while ((bytesRead = zis.read(buffer)) != -1) {
-            baos.write(buffer, 0, bytesRead);
-          }
-          String jsonContent = baos.toString(StandardCharsets.UTF_8);
+        if (entry.isDirectory()) {
+          continue;
+        }
 
-          // Deserialize JSON into a Page templates
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        int bytesRead;
+        while ((bytesRead = zis.read(buffer)) != -1) {
+          baos.write(buffer, 0, bytesRead);
+        }
+        String jsonContent = baos.toString(StandardCharsets.UTF_8);
+        String entryName = entry.getName();
+        String key = entryName.split("/")[0];
+
+        if (entry.getName().endsWith(CONFIG_JSON)) {
           SectionTemplateDatabind databind = JsonUtils.fromJsonString(jsonContent, SectionTemplateDatabind.class);
           if (databind != null) {
-            templateDatabindMap.put(entry.getName(), databind);
+            templateDatabindMap.put(key, databind);
+          }
+        } else if (entry.getName().endsWith(LAYOUT_JSON)) {
+          LayoutModel page = JsonUtils.fromJsonString(jsonContent, LayoutModel.class);
+          if (page != null) {
+            SectionTemplateDatabind databind = templateDatabindMap.computeIfAbsent(key, k -> new SectionTemplateDatabind());
+            databind.setPage(page);
           }
         }
       }
@@ -262,7 +287,11 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
   @SneakyThrows
   private void processSectionTemplate(SectionTemplateDatabind sectionTemplateDatabind) {
     SectionTemplate sectionTemplate = new SectionTemplate();
-    sectionTemplate.setContent(sectionTemplateDatabind.getContent());
+    LayoutModel page = JsonUtils.fromJsonString(sectionTemplateDatabind.getContent(), LayoutModel.class);
+    if (page != null) {
+      page.setChildren(sectionTemplateDatabind.getPage().getChildren());
+      sectionTemplate.setContent(JsonUtils.toJsonString(page));
+    }
     sectionTemplate.setSystem(false);
     sectionTemplate.setCategory("custom");
     SectionTemplate createdSectionTemplate = sectionTemplateService.createSectionTemplate(sectionTemplate);
@@ -283,8 +312,9 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
     return tempFile;
   }
 
-  private void writeContent(ZipOutputStream zipOutputStream, String objectId, String content) throws IOException {
-    ZipEntry entry = new ZipEntry(String.format("%s_%s.json", OBJECT_TYPE, objectId));
+  @SneakyThrows
+  private void writeToZip(ZipOutputStream zipOutputStream, String filePath, String content) {
+    ZipEntry entry = new ZipEntry(filePath);
     zipOutputStream.putNextEntry(entry);
     zipOutputStream.write(content.getBytes(StandardCharsets.UTF_8));
     zipOutputStream.closeEntry();
