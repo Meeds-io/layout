@@ -26,13 +26,15 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-import io.meeds.layout.model.SectionTemplate;
-import io.meeds.layout.model.SectionTemplateDetail;
+import io.meeds.layout.model.*;
+import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.service.SectionTemplateService;
+import io.meeds.layout.util.JsonUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.junit.jupiter.api.Test;
@@ -76,6 +78,9 @@ class SectionTemplateDatabindPluginTest {
   private AttachmentService             attachmentService;
 
   @MockBean
+  private PortletInstanceService portletInstanceService;
+
+  @MockBean
   private UserACL                       userAcl;
 
   @MockBean
@@ -100,7 +105,7 @@ class SectionTemplateDatabindPluginTest {
     ZipOutputStream zipOutputStream = mock(ZipOutputStream.class);
     SectionTemplateDetail sectionTemplateDetail = mock(SectionTemplateDetail.class);
     when(sectionTemplateService.getSectionTemplate(anyLong(), any(Locale.class))).thenReturn(sectionTemplateDetail);
-    when(sectionTemplateDetail.getContent()).thenReturn("1");
+    when(sectionTemplateDetail.getContent()).thenReturn(JsonUtils.toJsonString(new LayoutModel()));
 
     sectionTemplateDatabindPlugin.serialize("1", zipOutputStream, "root");
 
@@ -124,8 +129,6 @@ class SectionTemplateDatabindPluginTest {
     assertNotNull(report);
     assertTrue(report.isSuccess());
     assertEquals(2, report.getProcessedItems().size());
-    assertTrue(report.getProcessedItems().contains("12345"));
-    assertTrue(report.getProcessedItems().contains("67890"));
 
     verify(sectionTemplateService, times(2)).createSectionTemplate(any());
   }
@@ -133,12 +136,21 @@ class SectionTemplateDatabindPluginTest {
   private File createZipFileWithTwoJsonFiles() throws IOException {
     File tempFile = File.createTempFile("test", ".zip");
     try (FileOutputStream fos = new FileOutputStream(tempFile); ZipOutputStream zos = new ZipOutputStream(fos)) {
-      addJsonToZip(zos,
-                   "SectionTemplate_1.json",
-                   "{\"content\":\"12345\",\"names\":{\"en\":\"Test Page 1\"},\"descriptions\":{\"en\":\"Desc 1\"}}");
-      addJsonToZip(zos,
-                   "SectionTemplate_2.json",
-                   "{\"content\":\"67890\",\"names\":{\"en\":\"Test Page 2\"},\"descriptions\":{\"en\":\"Desc 2\"}}");
+      SectionTemplateDatabind config1 = new SectionTemplateDatabind();
+      config1.setContent(JsonUtils.toJsonString(new LayoutModel()));
+      config1.setNames(Map.of("en", "Test Page 1"));
+      config1.setDescriptions(Map.of("en", "Desc 1"));
+
+      SectionTemplateDatabind config2 = new SectionTemplateDatabind();
+      config2.setContent(JsonUtils.toJsonString(new LayoutModel()));
+      config2.setNames(Map.of("en", "Test Page 2"));
+      config2.setDescriptions(Map.of("en", "Desc 2"));
+
+      addJsonToZip(zos, "SectionTemplate_1/config.json", JsonUtils.toJsonString(config1));
+      addJsonToZip(zos, "SectionTemplate_1/layout.json", JsonUtils.toJsonString(new LayoutModel()));
+
+      addJsonToZip(zos, "SectionTemplate_2/config.json", JsonUtils.toJsonString(config2));
+      addJsonToZip(zos, "SectionTemplate_2/layout.json", JsonUtils.toJsonString(new LayoutModel()));
     }
     return tempFile;
   }
