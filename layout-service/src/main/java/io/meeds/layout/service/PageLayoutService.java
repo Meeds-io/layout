@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.exoplatform.portal.config.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -35,14 +36,6 @@ import com.google.javascript.jscomp.jarjar.com.google.re2j.Pattern;
 
 import org.exoplatform.commons.addons.AddOnService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
-import org.exoplatform.portal.config.model.Application;
-import org.exoplatform.portal.config.model.Container;
-import org.exoplatform.portal.config.model.ModelObject;
-import org.exoplatform.portal.config.model.ModelStyle;
-import org.exoplatform.portal.config.model.Page;
-import org.exoplatform.portal.config.model.PageBody;
-import org.exoplatform.portal.config.model.PortalConfig;
-import org.exoplatform.portal.config.model.TransientApplicationState;
 import org.exoplatform.portal.mop.PageType;
 import org.exoplatform.portal.mop.QueryResult;
 import org.exoplatform.portal.mop.SiteKey;
@@ -530,6 +523,7 @@ public class PageLayoutService {
     return modelObject;
   }
 
+  @SneakyThrows
   private void impersonateModel(ModelObject object, Page page) {
     if (object instanceof Container container
         // Keep the addonContainer reference instead of storing its children
@@ -547,6 +541,15 @@ public class PageLayoutService {
         children.forEach(c -> impersonateModel(c, page));
       }
     } else if (object instanceof Application application) {
+      ModelStyle cssStyle = object.getCssStyle();
+      if (cssStyle != null && StringUtils.isNotBlank(cssStyle.getBackgroundImage())) {
+        String clonedBackgroundImageUrl = null;
+        try {
+          clonedBackgroundImageUrl = containerLayoutService.cloneBackgroundUrl(object, page, cssStyle.getBackgroundImage());
+        } finally {
+          cssStyle.setBackgroundImage(clonedBackgroundImageUrl);
+        }
+      }
       Portlet preferences = portletInstanceService.getApplicationPortletPreferences(application);
       if (preferences != null && StringUtils.isNotBlank(application.getStorageId())) {
         layoutService.save(application.getState(), preferences);
