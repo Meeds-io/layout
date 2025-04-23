@@ -42,6 +42,16 @@
     <portlets-instance-drawer />
     <layout-image-illustration-preview />
     <layout-analytics application-name="portletsManagement" />
+    <serialize-drawer ref="serializeDrawer" @export-start="handleExportStart">
+      <template #title>{{ $t('portletInstance.label.exportInstance') }}</template>
+      <template #content>
+        <v-card-text class="pb-0">{{ $t('portletInstance.label.exportInstance.part1') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('portletInstance.label.exportInstance.part2') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('portletInstance.label.exportInstance.part3') }}</v-card-text>
+        <v-card-text class="pb-0">{{ $t('portletInstance.label.exportInstance.part4') }}</v-card-text>
+      </template>
+    </serialize-drawer>
+    <portlets-instance-deserialize-drawer />
   </v-app>
 </template>
 <script>
@@ -83,6 +93,10 @@ export default {
       this.$root.$emit('portlet-instance-saved', instance);
       this.$root.$emit('alert-message', this.$t('layout.portletInstanceLayoutUpdatedSuccessfully'), 'success');
     },
+    handleExportStart() {
+      this.$refs.serializeDrawer.close();
+      this.$root.selectedPortletInstances = [];
+    }
   },
 };
 </script>

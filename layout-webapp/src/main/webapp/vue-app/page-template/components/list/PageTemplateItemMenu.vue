@@ -104,6 +104,16 @@
               {{ $t('pageTemplate.label.duplicate') }}
             </v-list-item-title>
           </v-list-item>
+          <v-list-item
+            dense
+            @click="$root.$emit('serialize-drawer-open', 'PageTemplate', pageTemplateId)">
+            <v-list-item-icon class="me-auto">
+              <v-icon size="13">fa-download</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>
+              {{ $t('pageTemplate.label.export') }}
+            </v-list-item-title>
+          </v-list-item>
           <v-tooltip :disabled="!pageTemplate.system" bottom>
             <template #activator="{ on, attrs }">
               <div

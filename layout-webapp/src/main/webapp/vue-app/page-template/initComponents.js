@@ -24,6 +24,8 @@ import PageTemplates from './components/list/PageTemplates.vue';
 
 import PageTemplateItem from './components/list/PageTemplateItem.vue';
 import PageTemplateItemMenu from './components/list/PageTemplateItemMenu.vue';
+import BulkDelete from './components/action/BulkDelete.vue';
+import PageTemplateDeserializeDrawer from './components/drawer/PageTemplateDeserializeDrawer.vue';
 
 const components = {
   'page-templates-management': PageTemplatesManagement,
@@ -33,6 +35,10 @@ const components = {
 
   'page-templates-management-item': PageTemplateItem,
   'page-templates-management-item-menu': PageTemplateItemMenu,
+
+  'page-templates-bulk-delete': BulkDelete,
+
+  'page-templates-deserialize-drawer': PageTemplateDeserializeDrawer,
 };
 
 for (const key in components) {

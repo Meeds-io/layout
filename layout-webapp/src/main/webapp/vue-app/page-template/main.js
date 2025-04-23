@@ -42,9 +42,116 @@ export function init() {
         template: `<page-templates-management id="${appId}"/>`,
         vuetify: Vue.prototype.vuetifyOptions,
         i18n,
+        data: () => ({
+          pageTemplates: [],
+          loading: 0,
+          collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
+          allPageTemplatesSelected: false,
+          selectedPageTemplates: [],
+          pageTemplatesSize: 0,
+          processedPageTemplates: 0,
+          isBulkProcessing: false,
+          columnsTemplate: null
+        }),
         computed: {
           isMobile() {
             return this.$vuetify.breakpoint.smAndDown;
+          },
+          systemSelectedPageTemplates() {
+            return this.selectedPageTemplates.every(template => template.system);
+          }
+        },
+        created() {
+          this.$root.$on('page-templates-list-refresh', this.refreshPageTemplates);
+          this.$root.$on('page-templates-deleted', this.refreshPageTemplates);
+          this.$root.$on('page-templates-created', this.refreshPageTemplates);
+          this.$root.$on('page-templates-updated', this.refreshPageTemplates);
+          this.$root.$on('page-templates-enabled', this.refreshPageTemplates);
+          this.$root.$on('page-templates-disabled', this.refreshPageTemplates);
+          this.$root.$on('page-templates-saved', this.refreshPageTemplates);
+          this.refreshPageTemplates();
+          this.retrieveColumnsTemplate();
+        },
+        methods: {
+          refreshPageTemplates() {
+            this.loading = true;
+            return this.$pageTemplateService.getPageTemplates()
+              .then(pageTemplates => this.pageTemplates = pageTemplates || [])
+              .finally(() => this.loading = false);
+          },
+          retrieveColumnsTemplate() {
+            return this.$pageTemplateService.getPageTemplates(true)
+              .then(pageTemplates => {
+                this.columnsTemplate = pageTemplates?.find?.(t => t.system && t.content.includes('FlexContainer'));
+              })
+              .finally(() => this.contentLoaded = true);
+          },
+          async createPageTemplate() {
+            this.creating = true;
+            try {
+              const columnsTemplateContent = this.columnsTemplate?.content || '{}';
+              const pageTemplate = await this.$pageTemplateService.createPageTemplate(columnsTemplateContent, true);
+              window.open(`/portal/administration/layout-editor?pageTemplateId=${pageTemplate.id}`, '_blank');
+            } finally {
+              this.creating = false;
+            }
+          },
+          async applyOperationInBulk(callback, params, onFinish, onCancel) {
+            this.processedPageTemplates = 0;
+            this.isBulkProcessing = true;
+            this.$emit('page-templates-bulk-operation-status', null, 'disabled');
+            try {
+              if (this.allPageTemplatesSelected) {
+                let index = 0;
+                do {
+                  while (index < this.pageTemplates.length && this.isBulkProcessing) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.applyOperationOnPageTemplate(this.pageTemplates[index++], params, callback);
+                  }
+                  if (index >= this.pageTemplates.length && this.isBulkProcessing) {
+                    // eslint-disable-next-line no-await-in-loop
+                    this.selectedPageTemplates = this.pageTemplates;
+                  }
+                } while (index < this.pageTemplates.length && this.isBulkProcessing);
+              } else {
+                for (const element of this.pageTemplates) {
+                  if (!this.isBulkProcessing) {
+                    break;
+                  }
+                  const pageTemplate = element;
+                  if (this.selectedPageTemplates.find(s => s.id === pageTemplate.id)) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await this.applyOperationOnPageTemplate(pageTemplate, params, callback);
+                  }
+                }
+              }
+            } finally {
+              this.allPageTemplatesSelected = false;
+              this.selectedPageTemplates = [];
+              this.$emit('page-templates-bulk-operation-status', null, null);
+              if (this.isBulkProcessing) {
+                this.isBulkProcessing = false;
+                await this.$nextTick();
+                if (onFinish) {
+                  onFinish(params);
+                }
+              } else if (onCancel) {
+                onCancel(params);
+              }
+            }
+          },
+          async applyOperationOnPageTemplate(pageTemplate, params, callback) {
+            this.$emit('page-templates-bulk-operation-status', pageTemplate.id, 'processing');
+            try {
+              await callback(pageTemplate, params);
+              this.$emit('page-templates-bulk-operation-status', pageTemplate.id, 'done');
+            } catch (e) {
+              // eslint-disable-next-line no-console
+              console.error('Error processing page template ', pageTemplate.id, '. Error: ', e);
+              this.$emit('page-templates-bulk-operation-status', pageTemplate.id, 'error');
+            } finally {
+              this.processedPageTemplates++;
+            }
           },
         },
       }, `#${appId}`, 'Page Layout')

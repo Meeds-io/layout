@@ -197,14 +197,14 @@ public class LayoutModel {
   private String                          link;
 
   public LayoutModel(ModelObject model) {
-    this(model, null);
+    this(model, null, null);
   }
 
-  public LayoutModel(ModelObject model, PortletInstanceService portletInstanceService) {
-    init(model, portletInstanceService);
+  public LayoutModel(ModelObject model, PortletInstanceService portletInstanceService, PortletInstanceContext portletInstanceContext) {
+    init(model, portletInstanceService, portletInstanceContext);
   }
 
-  private void init(ModelObject model, PortletInstanceService portletInstanceService) { // NOSONAR
+  private void init(ModelObject model, PortletInstanceService portletInstanceService, PortletInstanceContext portletInstanceContext) { // NOSONAR
     ModelStyle cssStyle = model.getCssStyle();
     if (cssStyle != null) {
       this.borderColor = cssStyle.getBorderColor();
@@ -267,10 +267,7 @@ public class LayoutModel {
       this.cssClass = container.getCssClass();
       this.profiles = container.getProfiles();
       this.accessPermissions = container.getAccessPermissions();
-      this.children = container.getChildren()
-                               .stream()
-                               .map(c -> new LayoutModel(c, portletInstanceService))
-                               .toList();
+      this.children = container.getChildren().stream().map(c -> new LayoutModel(c, portletInstanceService, portletInstanceContext)).toList();
 
       ApplicationBackgroundStyle appCssStyle = container.getAppBackgroundStyle();
       if (appCssStyle != null) {
@@ -308,27 +305,28 @@ public class LayoutModel {
 
       ApplicationState state = application.getState();
       if (portletInstanceService != null) {
-        portletInstanceService.expandPortletPreferences(application);
+        portletInstanceService.expandPortletPreferences(application, portletInstanceContext);
         TransientApplicationState transientState = (TransientApplicationState) application.getState();
         this.contentId = transientState.getContentId();
         Portlet portlet = transientState.getContentState();
-        this.preferences = portlet == null ? Collections.emptyList() :
-                                           StreamSupport.stream(portlet.spliterator(), false)
-                                                        .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
-                                                        .toList();
-      }
-      switch (state) {
-      case PersistentApplicationState persistentState -> this.storageId = persistentState.getStorageId();
-      case CloneApplicationState persistentState -> this.storageId = persistentState.getStorageId();
-      case TransientApplicationState transientState when portletInstanceService == null -> {
-        this.contentId = transientState.getContentId();
-        Portlet portlet = transientState.getContentState();
-        this.preferences = portlet == null ? Collections.emptyList() :
-                                           StreamSupport.stream(portlet.spliterator(), false)
-                                                        .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
-                                                        .toList();
-      }
-      default -> throw new IllegalStateException("PortletInstance should either has a persistent or transient state");
+        this.preferences = portlet == null ? Collections.emptyList()
+                                           : StreamSupport.stream(portlet.spliterator(), false)
+                                                          .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
+                                                          .toList();
+      } else {
+        switch (state) {
+        case PersistentApplicationState persistentState -> this.storageId = persistentState.getStorageId();
+        case CloneApplicationState persistentState -> this.storageId = persistentState.getStorageId();
+        case TransientApplicationState transientState -> {
+          this.contentId = transientState.getContentId();
+          Portlet portlet = transientState.getContentState();
+          this.preferences = portlet == null ? Collections.emptyList()
+                                             : StreamSupport.stream(portlet.spliterator(), false)
+                                                            .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
+                                                            .toList();
+        }
+        default -> throw new IllegalStateException("PortletInstance should either has a persistent or transient state");
+        }
       }
     }
   }

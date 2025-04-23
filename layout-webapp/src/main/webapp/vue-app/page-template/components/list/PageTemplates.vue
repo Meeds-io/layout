@@ -1,20 +1,48 @@
 <template>
   <div>
     <v-data-table
+      v-model="$root.selectedPageTemplates"
       :headers="headers"
       :items="filteredPageTemplates"
-      :loading="loading"
+      :loading="$root.loading"
       :disable-sort="$root.isMobile"
       :hide-default-header="$root.isMobile"
       :custom-sort="applySortOnItems"
+      :show-select="!$root.isMobile"
       must-sort
       disable-pagination
       hide-default-footer
       class="pageTemplatesTable px-5">
+      <template slot="header.data-table-select" slot-scope="{on, props}">
+        <v-checkbox
+          v-on="on"
+          v-bind="props"
+          on-icon="fas fa-check-square fa-lg primary--text"
+          indeterminate-icon="fas fa-minus-square fa-lg"
+          off-icon="far fa-square fa-lg"
+          class="my-auto pt-2"
+          @change="on.input" />
+      </template>
+      <template v-if="$root.selectedPageTemplates.length" slot="body.prepend">
+        <tr>
+          <td :colspan="headers.length + 1" class="px-0">
+            <v-alert
+              :icon="false"
+              class="ma-0 ps-5 no-border-radius"
+              border="left"
+              type="info"
+              colored-border>
+              <div v-html="selectionLabel"></div>
+            </v-alert>
+          </td>
+        </tr>
+      </template>
       <template slot="item" slot-scope="props">
         <page-templates-management-item
           :key="props.item.id"
-          :page-template="props.item" />
+          :page-template="props.item"
+          :selected="props.isSelected"
+          :select="props.select" />
       </template>
     </v-data-table>
     <exo-confirm-dialog
@@ -36,12 +64,9 @@ export default {
     },
   },
   data: () => ({
-    pageTemplates: [],
     pageTemplateToDelete: null,
-    loading: false,
     creating: false,
     contentLoaded: false,
-    collator: new Intl.Collator(eXo.env.portal.language, {numeric: true, sensitivity: 'base'}),
   }),
   computed: {
     headers() {
@@ -114,8 +139,8 @@ export default {
       ];
     },
     noEmptyPageTemplates() {
-      const pageTemplates = this.pageTemplates?.filter?.(t => t.name) || [];
-      pageTemplates.sort((a, b) => this.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+      const pageTemplates = this.$root.pageTemplates?.filter?.(t => t.name) || [];
+      pageTemplates.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
       return pageTemplates;
     },
     filteredPageTemplates() {
@@ -129,31 +154,32 @@ export default {
     nameToDelete() {
       return this.pageTemplateToDelete && this.$te(this.pageTemplateToDelete?.name) ? this.$t(this.pageTemplateToDelete?.name) : this.pageTemplateToDelete?.name;
     },
+    selectionLabel() {
+      if (this.$root.allPageTemplatesSelected) {
+        return this.$t('pageTemplate.label.allPageTemplatesSelected', {
+          0: `<strong>${this.$root.pageTemplatesSize}</strong>`,
+        });
+      } else {
+        return this.$t('pageTemplate.label.selectedPageTemplatesCount', {
+          0: `<strong>${this.$root.selectedPageTemplates.length}</strong>`,
+        });
+      }
+    },
   },
   watch: {
     creating() {
       this.$emit('creating', this.creating);
     },
+    keyword() {
+      this.$root.allPageTemplatesSelected = false;
+      this.$root.selectedPageTemplates = [];
+    },
   },
   created() {
-    this.$root.$on('page-templates-deleted', this.refreshPageTemplates);
-    this.$root.$on('page-templates-created', this.refreshPageTemplates);
-    this.$root.$on('page-templates-updated', this.refreshPageTemplates);
-    this.$root.$on('page-templates-enabled', this.refreshPageTemplates);
-    this.$root.$on('page-templates-disabled', this.refreshPageTemplates);
-    this.$root.$on('page-templates-saved', this.refreshPageTemplates);
     this.$root.$on('page-templates-delete', this.deletePageTemplateConfirm);
     this.$root.$on('page-templates-create', this.createPageTemplate);
-    this.refreshPageTemplates();
-    this.retrieveColumnsTemplate();
   },
   beforeDestroy() {
-    this.$root.$off('page-templates-deleted', this.refreshPageTemplates);
-    this.$root.$off('page-templates-created', this.refreshPageTemplates);
-    this.$root.$off('page-templates-updated', this.refreshPageTemplates);
-    this.$root.$off('page-templates-enabled', this.refreshPageTemplates);
-    this.$root.$off('page-templates-disabled', this.refreshPageTemplates);
-    this.$root.$off('page-templates-saved', this.refreshPageTemplates);
     this.$root.$off('page-templates-delete', this.deletePageTemplateConfirm);
     this.$root.$off('page-templates-create', this.createPageTemplate);
   },
@@ -187,19 +213,6 @@ export default {
         this.$refs.deleteConfirmDialog.open();
       }
     },
-    refreshPageTemplates() {
-      this.loading = true;
-      return this.$pageTemplateService.getPageTemplates()
-        .then(pageTemplates => this.pageTemplates = pageTemplates || [])
-        .finally(() => this.loading = false);
-    },
-    retrieveColumnsTemplate() {
-      return this.$pageTemplateService.getPageTemplates(true)
-        .then(pageTemplates => {
-          this.columnsTemplate = pageTemplates?.find?.(t => t.system && t.content.includes('FlexContainer'));
-        })
-        .finally(() => this.contentLoaded = true);
-    },
     deletePageTemplate(pageTemplate) {
       this.loading = true;
       this.$pageTemplateService.deletePageTemplate(pageTemplate.id)
@@ -213,7 +226,7 @@ export default {
     async createPageTemplate() {
       this.creating = true;
       try {
-        const columnsTemplateContent = this.columnsTemplate?.content || '{}';
+        const columnsTemplateContent = this.$root.columnsTemplate?.content || '{}';
         const pageTemplate = await this.$pageTemplateService.createPageTemplate(columnsTemplateContent, true);
         window.open(`/portal/administration/layout-editor?pageTemplateId=${pageTemplate.id}`, '_blank');
       } finally {

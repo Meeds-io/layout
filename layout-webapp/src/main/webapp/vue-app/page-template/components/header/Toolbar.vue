@@ -29,23 +29,74 @@
     class="px-1"
     @filter-text-input="$emit('page-templates-filter', $event)">
     <template v-if="!$root.isMobile" #left>
-      <v-btn
-        id="applicationToolbarLeftButton"
-        :aria-label="$t('pageTemplates.add')"
-        :class="$root.isMobile && 'px-0'"
-        :loading="creating"
-        class="btn btn-primary text-truncate"
-        @click="$root.$emit('page-templates-create')">
-        <v-icon
-          size="18">
-          fa-plus
-        </v-icon>
-        <span
-          v-if="!$root.isMobile"
-          class="text-truncate text-none ms-2">
-          {{ $t('pageTemplates.add') }}
-        </span>
-      </v-btn>
+      <div v-if="$root.selectedPageTemplates?.length && !$root.isMobile" class="d-flex">
+        <v-btn
+          color="primary"
+          elevation="0"
+          class="me-2"
+          outlined
+          @click="$root.$emit('serialize-drawer-open', 'PageTemplate', selectedPageTemplatesIds)">
+          <v-icon size="16" class="me-2">fa-download</v-icon>
+          {{ $t('pageTemplate.label.export') }}
+        </v-btn>
+        <page-templates-bulk-delete />
+      </div>
+      <v-menu
+        v-else
+        :right="!$vuetify.rtl"
+        :left="$vuetify.rtl"
+        content-class="application-menu z-index-modal"
+        offset-y>
+        <template #activator="{attrs, on}">
+          <v-btn
+            id="applicationToolbarLeftButton"
+            v-bind="attrs"
+            v-on="on"
+            :disabled="loading"
+            :aria-label="$t('pageTemplates.add')"
+            :class="$root.isMobile && 'px-0'"
+            class="btn btn-primary text-truncate"
+            dense>
+            <v-progress-circular
+              v-if="loading"
+              indeterminate
+              size="20"
+              class="me-2" />
+            <span
+              v-if="!$root.isMobile"
+              class="text-truncate text-none">
+              {{ $t('pageTemplates.add') }}
+            </span>
+          </v-btn>
+        </template>
+        <v-list dense>
+          <v-list-item
+            link
+            dense
+            @click="$root.$emit('page-templates-create')">
+            <v-list-item-icon class="me-3">
+              <v-icon size="18">fa-plus</v-icon>
+            </v-list-item-icon>
+            <v-list-item-content class="d-inline">
+              <v-list-item-title>{{ $t('pageTemplates.create') }}</v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
+          <v-list-item
+            link
+            dense
+            @click="openFileExplorer">
+            <v-list-item-icon class="me-3">
+              <v-icon size="18">fas fa-upload</v-icon>
+            </v-list-item-icon>
+            <v-list-item-content class="d-inline">
+              <v-list-item-title>{{ $t('pageTemplates.import') }}</v-list-item-title>
+            </v-list-item-content>
+          </v-list-item>
+          <layout-file-input
+            ref="inputFile"
+            @uploaded="handelUpload" />
+        </v-list>
+      </v-menu>
     </template>
   </application-toolbar>
 </template>
@@ -59,6 +110,28 @@ export default {
   },
   data: () => ({
     pageTemplates: null,
+    loading: false,
   }),
+  computed: {
+    selectedPageTemplatesIds() {
+      return this.$root.selectedPageTemplates.map(item => item.id);
+    },
+  },
+  created() {
+    this.$root.$on('page-template-file-explorer', this.openFileExplorer);
+  },
+  beforeDestroy() {
+    this.$root.$off('page-template-file-explorer', this.openFileExplorer);
+  },
+  methods: {
+    openFileExplorer() {
+      this.loading = true;
+      this.$refs.inputFile.openFileExplorer();
+    },
+    handelUpload(uploadId, fileName) {
+      this.$root.$emit('deserialize-page-template-drawer-open', uploadId, fileName);
+      this.loading = false;
+    }
+  }
 };
 </script>
