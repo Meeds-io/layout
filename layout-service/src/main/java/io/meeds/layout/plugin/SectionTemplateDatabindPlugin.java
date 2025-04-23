@@ -34,14 +34,21 @@ import java.util.zip.ZipOutputStream;
 import io.meeds.layout.model.*;
 import io.meeds.layout.plugin.attachment.SectionTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.translation.SectionTemplateTranslationPlugin;
-import io.meeds.layout.service.PortletInstanceService;
-import io.meeds.layout.service.SectionTemplateService;
+import io.meeds.layout.service.*;
+import io.meeds.layout.util.EntityMapper;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.io.FileUtils;
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.commons.file.model.FileItem;
+import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.Page;
+import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.Utils;
+import org.exoplatform.portal.mop.page.PageContext;
+import org.exoplatform.portal.mop.page.PageKey;
+import org.exoplatform.portal.mop.service.LayoutService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -55,7 +62,6 @@ import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.upload.UploadResource;
 
 import io.meeds.common.ContainerTransactional;
-import io.meeds.layout.util.JsonUtils;
 import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.plugin.DatabindPlugin;
 import io.meeds.social.databind.service.DatabindService;
@@ -64,17 +70,28 @@ import io.meeds.social.translation.service.TranslationService;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 
+import static io.meeds.layout.util.DatabindUtils.*;
+import static io.meeds.layout.util.JsonUtils.fromJsonString;
+import static io.meeds.layout.util.JsonUtils.toJsonString;
+
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class SectionTemplateDatabindPlugin implements DatabindPlugin {
 
-  private static final Random    RANDOM      = new Random();
+  public static final String     GLOBAL_SITE_NAME                        = "global";
 
-  public static final String     OBJECT_TYPE = "SectionTemplate";
+  private static final PageKey   SECTION_TEMPLATE_EDITOR_SYSTEM_PAGE_KEY = new PageKey(SiteKey.portal(GLOBAL_SITE_NAME),
+                                                                                       "_sectionTemplateEditor");
 
-  public static final String     CONFIG_JSON = "config.json";
+  private static final String[]  EVERYONE_PERMISSIONS                    = new String[] { UserACL.EVERYONE };
 
-  public static final String     LAYOUT_JSON = "layout.json";
+  private static final Random    RANDOM                                  = new Random();
+
+  public static final String     OBJECT_TYPE                             = "SectionTemplate";
+
+  public static final String     CONFIG_JSON                             = "config.json";
+
+  public static final String     LAYOUT_JSON                             = "layout.json";
 
   @Autowired
   private SectionTemplateService sectionTemplateService;
@@ -93,6 +110,15 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
 
   @Autowired
   private PortletInstanceService portletInstanceService;
+
+  @Autowired
+  private LayoutService          layoutService;
+
+  @Autowired
+  private PageLayoutService      pageLayoutService;
+
+  @Autowired
+  private ContainerLayoutService containerLayoutService;
 
   @Autowired
   private UserACL                userAcl;
@@ -157,12 +183,16 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
     if (file != null) {
       databind.setIllustration(Base64.encodeBase64String(file.getAsByte()));
     }
-    String jsonData = JsonUtils.toJsonString(databind);
+    LayoutModel sectionLayoutModel = fromJsonString(sectionTemplate.getContent(), LayoutModel.class);
+    retrieveBackgroundImages(sectionLayoutModel, fileService);
+    databind.setContent(toJsonString(sectionLayoutModel));
+    String jsonData = toJsonString(databind);
 
-    Page pageLayout = JsonUtils.fromJsonString(sectionTemplate.getContent(), LayoutModel.class).toPage();
+    Page pageLayout = fromJsonString(sectionTemplate.getContent(), LayoutModel.class).toPage();
     LayoutModel layoutModel = new LayoutModel(pageLayout, portletInstanceService, new PortletInstanceContext(true, null));
+    retrieveBackgroundImages(layoutModel, fileService);
     layoutModel.resetStorage();
-    String layoutData = JsonUtils.toJsonString(layoutModel);
+    String layoutData = toJsonString(layoutModel);
 
     writeToZip(zipOutputStream, OBJECT_TYPE + "-" + sectionTemplate.getId() + "/" + CONFIG_JSON, jsonData);
     writeToZip(zipOutputStream, OBJECT_TYPE + "-" + sectionTemplate.getId() + "/" + LAYOUT_JSON, layoutData);
@@ -210,12 +240,12 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
         String key = entryName.split("/")[0];
 
         if (entry.getName().endsWith(CONFIG_JSON)) {
-          SectionTemplateDatabind databind = JsonUtils.fromJsonString(jsonContent, SectionTemplateDatabind.class);
+          SectionTemplateDatabind databind = fromJsonString(jsonContent, SectionTemplateDatabind.class);
           if (databind != null) {
             templateDatabindMap.put(key, databind);
           }
         } else if (entry.getName().endsWith(LAYOUT_JSON)) {
-          LayoutModel page = JsonUtils.fromJsonString(jsonContent, LayoutModel.class);
+          LayoutModel page = fromJsonString(jsonContent, LayoutModel.class);
           if (page != null) {
             SectionTemplateDatabind databind = templateDatabindMap.computeIfAbsent(key, k -> new SectionTemplateDatabind());
             databind.setPage(page);
@@ -287,29 +317,32 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
   @SneakyThrows
   private void processSectionTemplate(SectionTemplateDatabind sectionTemplateDatabind) {
     SectionTemplate sectionTemplate = new SectionTemplate();
-    LayoutModel page = JsonUtils.fromJsonString(sectionTemplateDatabind.getContent(), LayoutModel.class);
+    LayoutModel page = fromJsonString(sectionTemplateDatabind.getContent(), LayoutModel.class);
+
     if (page != null) {
       page.setChildren(sectionTemplateDatabind.getPage().getChildren());
-      sectionTemplate.setContent(JsonUtils.toJsonString(page));
+      saveAppBackgroundImages(RANDOM.nextLong(), page, attachmentService, getSuperUserIdentityId());
+      sectionTemplate.setContent(toJsonString(page));
     }
     sectionTemplate.setSystem(false);
     sectionTemplate.setCategory("custom");
+
+    Page systemPage = createSectionTemplateSystemPage(toJsonString(page));
+
+    if (CollectionUtils.isNotEmpty(systemPage.getChildren())) {
+      Container section = (Container) ((Container) systemPage.getChildren().getFirst()).getChildren().getFirst();
+      containerLayoutService.exportPortletPreferences(section);
+      LayoutModel sectionLayoutModel = new LayoutModel(section);
+      sectionLayoutModel.resetStorage();
+      sectionTemplate.setContent(toJsonString(sectionLayoutModel));
+    }
+
     SectionTemplate createdSectionTemplate = sectionTemplateService.createSectionTemplate(sectionTemplate);
     saveNames(sectionTemplateDatabind, createdSectionTemplate);
     saveDescriptions(sectionTemplateDatabind, createdSectionTemplate);
     if (sectionTemplateDatabind.getIllustration() != null) {
       saveIllustration(createdSectionTemplate.getId(), Base64.decodeBase64(sectionTemplateDatabind.getIllustration()));
     }
-  }
-
-  @SneakyThrows
-  private File getIllustrationFile(byte[] data) {
-    if (data == null) {
-      throw new IllegalArgumentException("Illustration data is null");
-    }
-    File tempFile = File.createTempFile("temp", ".png");
-    FileUtils.writeByteArrayToFile(tempFile, data);
-    return tempFile;
   }
 
   @SneakyThrows
@@ -325,5 +358,33 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
       superUserIdentityId = Long.parseLong(identityManager.getOrCreateUserIdentity(userAcl.getSuperUser()).getId());
     }
     return superUserIdentityId;
+  }
+
+  @SneakyThrows
+  private Page createSectionTemplateSystemPage(String sectionTemplateContent) {
+    LayoutModel layoutModel = fromJsonString(sectionTemplateContent, LayoutModel.class);
+    if (layoutModel != null) {
+      layoutModel.resetStorage();
+    }
+    Container parentContainer = new Container();
+    parentContainer.setTemplate(EntityMapper.PAGE_LAYOUT_TEMPLATE);
+    parentContainer.setChildren(new ArrayList<>());
+    parentContainer.getChildren().add(EntityMapper.toModelObject(layoutModel));
+    Page systemPage = layoutService.getPage(SECTION_TEMPLATE_EDITOR_SYSTEM_PAGE_KEY);
+    if (systemPage == null) {
+      systemPage = new Page();
+      systemPage.setAccessPermissions(EVERYONE_PERMISSIONS);
+      systemPage.setOwnerType(PortalConfig.PORTAL_TYPE);
+      systemPage.setOwnerId(GLOBAL_SITE_NAME);
+      systemPage.setName("_sectionTemplateEditor");
+      systemPage.setTitle("sectionTemplateSystem");
+    }
+    systemPage.setChildren(new ArrayList<>());
+    systemPage.getChildren().add(parentContainer);
+    PageKey clonedPageKey = systemPage.getPageKey();
+    layoutService.save(new PageContext(clonedPageKey, Utils.toPageState(systemPage)), systemPage);
+    pageLayoutService.updatePageLayout(clonedPageKey.format(), systemPage, true, userAcl.getSuperUser());
+    pageLayoutService.impersonatePage(clonedPageKey);
+    return layoutService.getPage(clonedPageKey);
   }
 }
