@@ -37,9 +37,9 @@ import io.meeds.layout.service.SectionTemplateService;
 import io.meeds.layout.util.JsonUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.social.core.identity.model.Identity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -47,7 +47,6 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.portal.config.UserACL;
-import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.attachment.AttachmentService;
 import org.exoplatform.social.core.manager.IdentityManager;
 
@@ -58,9 +57,6 @@ import io.meeds.social.translation.service.TranslationService;
 @SpringBootTest(classes = { SectionTemplateDatabindPlugin.class, })
 @ExtendWith(MockitoExtension.class)
 class SectionTemplateDatabindPluginTest {
-
-  @Mock
-  private Identity                      userIdentity;
 
   @MockBean
   private SectionTemplateService        sectionTemplateService;
@@ -117,6 +113,10 @@ class SectionTemplateDatabindPluginTest {
   void deserialize() throws Exception {
     File zipFile = createZipFileWithTwoJsonFiles();
 
+    Identity identity = mock(Identity.class);
+    when(userAcl.getSuperUser()).thenReturn("root");
+    when(identityManager.getOrCreateUserIdentity(userAcl.getSuperUser())).thenReturn(identity);
+    lenient().when(identity.getId()).thenReturn("29");
     when(sectionTemplateService.createSectionTemplate(any())).thenReturn(new SectionTemplate());
 
     // When

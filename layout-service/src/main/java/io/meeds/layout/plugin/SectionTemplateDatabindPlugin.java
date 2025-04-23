@@ -37,7 +37,6 @@ import io.meeds.layout.plugin.translation.SectionTemplateTranslationPlugin;
 import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.service.SectionTemplateService;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.commons.file.model.FileItem;
@@ -63,6 +62,8 @@ import io.meeds.social.translation.model.TranslationField;
 import io.meeds.social.translation.service.TranslationService;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
+
+import static io.meeds.layout.util.DatabindUtils.*;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -161,6 +162,7 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
 
     Page pageLayout = JsonUtils.fromJsonString(sectionTemplate.getContent(), LayoutModel.class).toPage();
     LayoutModel layoutModel = new LayoutModel(pageLayout, portletInstanceService, new PortletInstanceContext(true, null));
+    retrieveAppBackgroundImages(layoutModel, fileService);
     layoutModel.resetStorage();
     String layoutData = JsonUtils.toJsonString(layoutModel);
 
@@ -300,16 +302,9 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
     if (sectionTemplateDatabind.getIllustration() != null) {
       saveIllustration(createdSectionTemplate.getId(), Base64.decodeBase64(sectionTemplateDatabind.getIllustration()));
     }
-  }
-
-  @SneakyThrows
-  private File getIllustrationFile(byte[] data) {
-    if (data == null) {
-      throw new IllegalArgumentException("Illustration data is null");
-    }
-    File tempFile = File.createTempFile("temp", ".png");
-    FileUtils.writeByteArrayToFile(tempFile, data);
-    return tempFile;
+    saveAppBackgroundImages(createdSectionTemplate.getId(), page, attachmentService, getSuperUserIdentityId());
+    createdSectionTemplate.setContent(JsonUtils.toJsonString(page));
+    sectionTemplateService.updateSectionTemplate(createdSectionTemplate);
   }
 
   @SneakyThrows
