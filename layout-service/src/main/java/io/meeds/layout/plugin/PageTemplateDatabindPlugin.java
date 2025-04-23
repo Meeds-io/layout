@@ -38,7 +38,6 @@ import io.meeds.layout.plugin.translation.PageTemplateTranslationPlugin;
 import io.meeds.layout.service.PageTemplateService;
 import io.meeds.layout.service.PortletInstanceService;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.portal.config.model.Page;
@@ -62,6 +61,8 @@ import io.meeds.social.translation.model.TranslationField;
 import io.meeds.social.translation.service.TranslationService;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
+
+import static io.meeds.layout.util.DatabindUtils.*;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -160,6 +161,7 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
     Page pageLayout = JsonUtils.fromJsonString(pageTemplate.getContent(), LayoutModel.class).toPage();
 
     LayoutModel layoutModel = new LayoutModel(pageLayout, portletInstanceService, new PortletInstanceContext(true, null));
+    retrieveBackgroundImages(layoutModel, fileService);
     layoutModel.resetStorage();
     String layoutData = JsonUtils.toJsonString(layoutModel);
     writeToZip(zipOutputStream, OBJECT_TYPE + "-" + pageTemplate.getId() + "/" + CONFIG_JSON, jsonData);
@@ -299,16 +301,9 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
     if (pageTemplateDatabind.getIllustration() != null) {
       saveIllustration(createdPageTemplate.getId(), Base64.decodeBase64(pageTemplateDatabind.getIllustration()));
     }
-  }
-
-  @SneakyThrows
-  private File getIllustrationFile(byte[] data) {
-    if (data == null) {
-      throw new IllegalArgumentException("Illustration data is null");
-    }
-    File tempFile = File.createTempFile("temp", ".png");
-    FileUtils.writeByteArrayToFile(tempFile, data);
-    return tempFile;
+    saveAppBackgroundImages(createdPageTemplate.getId(), page, attachmentService, getSuperUserIdentityId());
+    createdPageTemplate.setContent(JsonUtils.toJsonString(page));
+    pageTemplateService.updatePageTemplate(createdPageTemplate);
   }
 
   @SneakyThrows

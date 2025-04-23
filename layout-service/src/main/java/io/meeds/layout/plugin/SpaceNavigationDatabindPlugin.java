@@ -69,6 +69,9 @@ import io.meeds.social.translation.service.TranslationService;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 
+import static io.meeds.layout.util.DatabindUtils.retrieveBackgroundImages;
+import static io.meeds.layout.util.DatabindUtils.saveAppBackgroundImages;
+
 @Component
 public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
 
@@ -119,6 +122,8 @@ public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
   @Autowired
   protected IdentityManager       identityManager;
 
+  private long                    superUserIdentityId;
+
   @PostConstruct
   public void init() {
     databindService.addPlugin(this);
@@ -157,6 +162,7 @@ public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
     for (Page page : pages) {
       try {
         LayoutModel layoutModel = new LayoutModel(page, portletInstanceService, new PortletInstanceContext(true, null));
+        retrieveBackgroundImages(layoutModel, fileService);
         layoutModel.resetStorage();
         String pageJson = JsonUtils.toJsonString(layoutModel);
         writeToZip(zipOutputStream, folderPath + "/pages/" + page.getName() + ".json", pageJson);
@@ -261,6 +267,7 @@ public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
 
     if (CollectionUtils.isNotEmpty(spaceTemplateDatabind.getPages())) {
       for (LayoutModel layoutModel : spaceTemplateDatabind.getPages()) {
+        saveAppBackgroundImages(spaceTemplate.getId(), layoutModel, attachmentService, getSuperUserIdentityId());
 
         Page page = layoutModel.toPage();
         page.setOwnerType(layoutModel.getOwnerType());
@@ -413,6 +420,13 @@ public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
 
     PageContext pageContext = layoutService.getPageContext(PageKey.parse(formattedKey));
     return pageContext != null ? pageContext.getKey().format() : null;
+  }
+
+  private long getSuperUserIdentityId() {
+    if (superUserIdentityId == 0) {
+      superUserIdentityId = Long.parseLong(identityManager.getOrCreateUserIdentity(userAcl.getSuperUser()).getId());
+    }
+    return superUserIdentityId;
   }
 
 }

@@ -82,6 +82,9 @@ import io.meeds.social.translation.service.TranslationService;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 
+import static io.meeds.layout.util.DatabindUtils.retrieveBackgroundImages;
+import static io.meeds.layout.util.DatabindUtils.saveAppBackgroundImages;
+
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class SiteTemplateDatabindPlugin implements DatabindPlugin {
@@ -120,8 +123,6 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
   @Autowired
   private IdentityManager         identityManager;
 
-  private long                    superUserIdentityId;
-
   @Autowired
   private PortletInstanceService  portletInstanceService;
 
@@ -136,6 +137,8 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
   @Autowired
   private PageLayoutService       pageLayoutService;
+
+  private long                    superUserIdentityId;
 
   @PostConstruct
   public void init() {
@@ -202,7 +205,9 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     siteDefinition.setAccessPermissions(portalConfig.getAccessPermissions());
     siteDefinition.setEditPermission(portalConfig.getEditPermission());
     siteDefinition.setProperties(portalConfig.getProperties());
-    siteDefinition.setLayout(new LayoutModel(portalConfig.getPortalLayout(), portletInstanceService, new PortletInstanceContext(true, null)));
+    siteDefinition.setLayout(new LayoutModel(portalConfig.getPortalLayout(),
+                                             portletInstanceService,
+                                             new PortletInstanceContext(true, null)));
 
     siteDefinition.getLayout().resetStorage();
     databind.setSiteDefinition(siteDefinition);
@@ -223,6 +228,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     for (Page page : pages) {
       try {
         LayoutModel layoutModel = new LayoutModel(page, portletInstanceService, new PortletInstanceContext(true, null));
+        retrieveBackgroundImages(layoutModel, fileService);
         layoutModel.resetStorage();
         String pageJson = JsonUtils.toJsonString(layoutModel);
         writeToZip(zipOutputStream, folderPath + "/pages/" + page.getName() + ".json", pageJson);
@@ -400,7 +406,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
     if (CollectionUtils.isNotEmpty(siteTemplateDatabind.getPages())) {
       for (LayoutModel layoutModel : siteTemplateDatabind.getPages()) {
-
+        saveAppBackgroundImages(portalConfig.getId(), layoutModel, attachmentService, getSuperUserIdentityId());
         Page page = layoutModel.toPage();
         page.setOwnerType(layoutModel.getOwnerType());
         page.setOwnerId(layoutModel.getOwnerId());
@@ -471,7 +477,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     return superUserIdentityId;
   }
 
-  public static String generateLayoutName(String name) {
+  private static String generateLayoutName(String name) {
     String transformed = name.toLowerCase()
                              .chars()
                              .mapToObj(c -> String.valueOf((char) ((c % 25) + 97)))
