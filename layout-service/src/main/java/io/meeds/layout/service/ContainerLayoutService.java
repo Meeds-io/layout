@@ -140,7 +140,7 @@ public class ContainerLayoutService {
     }
   }
 
-  private String cloneBackgroundUrl(Container container, Page page, String backgroundImageUrl) throws Exception { // NOSONAR
+  public String cloneBackgroundUrl(ModelObject container, Page page, String backgroundImageUrl) throws Exception { // NOSONAR
     String clonedBackgroundImageUrl = null;
     if (StringUtils.contains(backgroundImageUrl, CONTAINER_BACKGROUND_IMAGE_URI)) {
       String[] backgroundImageUrlParts = backgroundImageUrl.split("/");
@@ -160,7 +160,7 @@ public class ContainerLayoutService {
     return clonedBackgroundImageUrl;
   }
 
-  private String getObjectId(Container container, Page page) {
+  private String getObjectId(ModelObject container, Page page) {
     return String.format("%s_%s",
                          page.getStorageId().replace("page_", ""),
                          container.getStorageId());
