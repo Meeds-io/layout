@@ -158,11 +158,14 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
     if (file != null) {
       databind.setIllustration(Base64.encodeBase64String(file.getAsByte()));
     }
+    LayoutModel sectionLayoutModel = JsonUtils.fromJsonString(sectionTemplate.getContent(), LayoutModel.class);
+    retrieveBackgroundImages(sectionLayoutModel, fileService);
+    databind.setContent(JsonUtils.toJsonString(sectionLayoutModel));
     String jsonData = JsonUtils.toJsonString(databind);
 
     Page pageLayout = JsonUtils.fromJsonString(sectionTemplate.getContent(), LayoutModel.class).toPage();
     LayoutModel layoutModel = new LayoutModel(pageLayout, portletInstanceService, new PortletInstanceContext(true, null));
-    retrieveAppBackgroundImages(layoutModel, fileService);
+    retrieveBackgroundImages(layoutModel, fileService);
     layoutModel.resetStorage();
     String layoutData = JsonUtils.toJsonString(layoutModel);
 
