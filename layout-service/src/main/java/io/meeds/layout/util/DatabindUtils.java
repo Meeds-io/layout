@@ -46,14 +46,14 @@ public class DatabindUtils {
   private static final Random RANDOM = new Random();
 
   @SneakyThrows
-  public static void retrieveAppBackgroundImages(LayoutModel layout, FileService fileService) {
+  public static void retrieveBackgroundImages(LayoutModel layout, FileService fileService) {
     if (layout == null) {
       return;
     }
 
-    String image = layout.getAppBackgroundImage();
-    if (image != null && !image.isEmpty()) {
-      String[] parts = image.split("/");
+    String appBackgroundImage = layout.getAppBackgroundImage();
+    if (appBackgroundImage != null && !appBackgroundImage.isEmpty()) {
+      String[] parts = appBackgroundImage.split("/");
       String lastPart = parts[parts.length - 1];
 
       FileItem file = fileService.getFile(Long.parseLong(lastPart));
@@ -62,9 +62,20 @@ public class DatabindUtils {
       }
     }
 
+    String backgroundImage = layout.getBackgroundImage();
+    if (backgroundImage != null && !backgroundImage.isEmpty()) {
+      String[] parts = backgroundImage.split("/");
+      String lastPart = parts[parts.length - 1];
+
+      FileItem file = fileService.getFile(Long.parseLong(lastPart));
+      if (file != null) {
+        layout.setBackgroundImage(Base64.encodeBase64String(file.getAsByte()));
+      }
+    }
+
     if (layout.getChildren() != null) {
       for (LayoutModel child : layout.getChildren()) {
-        retrieveAppBackgroundImages(child, fileService);
+        retrieveBackgroundImages(child, fileService);
       }
     }
   }
@@ -78,14 +89,25 @@ public class DatabindUtils {
       return;
     }
 
-    String image = layout.getAppBackgroundImage();
-    if (image != null && !image.isEmpty()) {
+    String appBackgroundImage = layout.getAppBackgroundImage();
+    if (appBackgroundImage != null && !appBackgroundImage.isEmpty()) {
       ObjectAttachmentDetail attachment = saveAppBackgroundImage(pageTemplateId,
-                                                                 Base64.decodeBase64(image),
+                                                                 Base64.decodeBase64(appBackgroundImage),
                                                                  attachmentService,
                                                                  userIdentityId);
       if (attachment != null) {
         layout.setAppBackgroundImage(buildBackgroundUrl(String.valueOf(pageTemplateId), attachment));
+      }
+    }
+
+    String backgroundImage = layout.getBackgroundImage();
+    if (backgroundImage != null && !backgroundImage.isEmpty()) {
+      ObjectAttachmentDetail attachment = saveAppBackgroundImage(pageTemplateId,
+              Base64.decodeBase64(backgroundImage),
+              attachmentService,
+              userIdentityId);
+      if (attachment != null) {
+        layout.setBackgroundImage(buildBackgroundUrl(String.valueOf(pageTemplateId), attachment));
       }
     }
     if (layout.getChildren() != null) {
