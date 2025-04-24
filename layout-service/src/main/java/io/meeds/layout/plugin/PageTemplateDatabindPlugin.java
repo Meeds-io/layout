@@ -161,7 +161,7 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
     Page pageLayout = JsonUtils.fromJsonString(pageTemplate.getContent(), LayoutModel.class).toPage();
 
     LayoutModel layoutModel = new LayoutModel(pageLayout, portletInstanceService, new PortletInstanceContext(true, null));
-    retrieveAppBackgroundImages(layoutModel, fileService);
+    retrieveBackgroundImages(layoutModel, fileService);
     layoutModel.resetStorage();
     String layoutData = JsonUtils.toJsonString(layoutModel);
     writeToZip(zipOutputStream, OBJECT_TYPE + "-" + pageTemplate.getId() + "/" + CONFIG_JSON, jsonData);

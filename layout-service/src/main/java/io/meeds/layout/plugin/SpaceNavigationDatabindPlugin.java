@@ -69,7 +69,7 @@ import io.meeds.social.translation.service.TranslationService;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 
-import static io.meeds.layout.util.DatabindUtils.retrieveAppBackgroundImages;
+import static io.meeds.layout.util.DatabindUtils.retrieveBackgroundImages;
 import static io.meeds.layout.util.DatabindUtils.saveAppBackgroundImages;
 
 @Component
@@ -162,7 +162,7 @@ public class SpaceNavigationDatabindPlugin implements DatabindPlugin {
     for (Page page : pages) {
       try {
         LayoutModel layoutModel = new LayoutModel(page, portletInstanceService, new PortletInstanceContext(true, null));
-        retrieveAppBackgroundImages(layoutModel, fileService);
+        retrieveBackgroundImages(layoutModel, fileService);
         layoutModel.resetStorage();
         String pageJson = JsonUtils.toJsonString(layoutModel);
         writeToZip(zipOutputStream, folderPath + "/pages/" + page.getName() + ".json", pageJson);
