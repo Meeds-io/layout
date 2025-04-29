@@ -42,6 +42,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.config.serialize.model.SiteLayout;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.SiteType;
 import org.exoplatform.portal.mop.navigation.NodeContext;
 import org.exoplatform.portal.mop.service.DescriptionService;
 import org.exoplatform.portal.mop.service.LayoutService;
@@ -146,8 +147,14 @@ class SiteTemplateDatabindPluginTest {
     File zipFile = createZipFileWithTwoJsonFiles();
     SiteTemplate siteTemplate = mock(SiteTemplate.class);
     PortalConfig portalConfig = mock(PortalConfig.class);
+    SiteKey siteKey = mock(SiteKey.class);
+
+    when(siteKey.getType()).thenReturn(SiteType.PORTAL);
+    when(siteKey.getName()).thenReturn("site1");
+    when(portalConfig.getSiteKey()).thenReturn(siteKey);
     when(siteTemplateService.getSiteTemplate(anyLong(), any(Locale.class))).thenReturn(siteTemplate);
     when(layoutService.getPortalConfig(any(SiteKey.class))).thenReturn(portalConfig);
+    when(layoutService.getPortalConfig(anyString(), anyString())).thenReturn(portalConfig);
     when(siteTemplateService.createSiteTemplate(any(SiteTemplate.class),
                                                 any(SiteKey.class),
                                                 anyString(),

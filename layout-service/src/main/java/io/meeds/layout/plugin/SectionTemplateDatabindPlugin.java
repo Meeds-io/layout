@@ -36,6 +36,7 @@ import io.meeds.layout.plugin.attachment.SectionTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.translation.SectionTemplateTranslationPlugin;
 import io.meeds.layout.service.*;
 import io.meeds.layout.util.EntityMapper;
+import lombok.Synchronized;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -315,6 +316,7 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
   }
 
   @SneakyThrows
+  @Synchronized
   private void processSectionTemplate(SectionTemplateDatabind sectionTemplateDatabind) {
     SectionTemplate sectionTemplate = new SectionTemplate();
     LayoutModel page = fromJsonString(sectionTemplateDatabind.getContent(), LayoutModel.class);
