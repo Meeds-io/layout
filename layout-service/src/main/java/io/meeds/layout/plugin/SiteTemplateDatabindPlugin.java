@@ -45,7 +45,6 @@ import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.service.SiteTemplateService;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.portal.config.model.Page;
@@ -82,8 +81,7 @@ import io.meeds.social.translation.service.TranslationService;
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
 
-import static io.meeds.layout.util.DatabindUtils.retrieveBackgroundImages;
-import static io.meeds.layout.util.DatabindUtils.saveAppBackgroundImages;
+import static io.meeds.layout.util.DatabindUtils.*;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -400,6 +398,7 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
     PortalConfig existSite = layoutService.getPortalConfig(portalConfig.getType(), portalConfig.getName());
     if (existSite == null) {
       layoutService.create(portalConfig);
+      portalConfig = layoutService.getPortalConfig(portalConfig.getType(), portalConfig.getName());
     } else {
       portalConfig = existSite;
     }
@@ -425,16 +424,9 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
     NodeContext<NodeContext<Object>> parentNode = navigationService.loadNode(portalConfig.getSiteKey());
     if (parentNode == null) {
-      navigationService.saveNavigation(new NavigationContext(new SiteKey(portalConfig.getType(), portalConfig.getName()),
-                                                             new NavigationState(1)));
+      navigationService.saveNavigation(new NavigationContext(new SiteKey(portalConfig.getType(), portalConfig.getName()), new NavigationState(1)));
       parentNode = navigationService.loadNode(portalConfig.getSiteKey());
     }
-
-    SiteTemplate createdSiteTemplate = siteTemplateService.createSiteTemplate(siteTemplate,
-                                                                              new SiteKey(portalConfig.getType(),
-                                                                                          portalConfig.getName()),
-                                                                              username,
-                                                                              true);
 
     List<NodeDefinition> nodeDefinitions = siteTemplateDatabind.getNodeDefinitions();
     if (CollectionUtils.isNotEmpty(nodeDefinitions)) {
@@ -451,23 +443,14 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
       navigationLayoutService.updateNode(Long.parseLong(parentNode.getId()), navigationUpdateModel, username);
       parentNode.getNodes().forEach(node -> navigationLayoutService.deleteNode(Long.parseLong(node.getId())));
       createNodesRecursively(nodeDefinitions, parentNode.getId(), portalConfig.getSiteKey(), username);
-
-      saveNames(siteTemplateDatabind, createdSiteTemplate);
-      saveDescriptions(siteTemplateDatabind, createdSiteTemplate);
-      if (siteTemplateDatabind.getIllustration() != null) {
-        saveIllustration(createdSiteTemplate.getId(), Base64.decodeBase64(siteTemplateDatabind.getIllustration()));
-      }
     }
-  }
+    SiteTemplate createdSiteTemplate = siteTemplateService.createSiteTemplate(siteTemplate, portalConfig.getSiteKey(), username, true);
 
-  @SneakyThrows
-  private File getIllustrationFile(byte[] data) {
-    if (data == null) {
-      throw new IllegalArgumentException("Illustration data is null");
+    saveNames(siteTemplateDatabind, createdSiteTemplate);
+    saveDescriptions(siteTemplateDatabind, createdSiteTemplate);
+    if (siteTemplateDatabind.getIllustration() != null) {
+      saveIllustration(createdSiteTemplate.getId(), Base64.decodeBase64(siteTemplateDatabind.getIllustration()));
     }
-    File tempFile = File.createTempFile("temp", ".png");
-    FileUtils.writeByteArrayToFile(tempFile, data);
-    return tempFile;
   }
 
   private long getSuperUserIdentityId() {
