@@ -36,6 +36,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.Random;
+import java.util.UUID;
 
 public class DatabindUtils {
 
@@ -103,9 +104,9 @@ public class DatabindUtils {
     String backgroundImage = layout.getBackgroundImage();
     if (backgroundImage != null && !backgroundImage.isEmpty()) {
       ObjectAttachmentDetail attachment = saveAppBackgroundImage(pageTemplateId,
-              Base64.decodeBase64(backgroundImage),
-              attachmentService,
-              userIdentityId);
+                                                                 Base64.decodeBase64(backgroundImage),
+                                                                 attachmentService,
+                                                                 userIdentityId);
       if (attachment != null) {
         layout.setBackgroundImage(buildBackgroundUrl(String.valueOf(pageTemplateId), attachment));
       }
@@ -141,13 +142,15 @@ public class DatabindUtils {
       attachmentService.deleteAttachments(LayoutBackgroundAttachmentPlugin.OBJECT_TYPE, String.valueOf(templateId));
       UploadedAttachmentDetail uploadedAttachmentDetail = new UploadedAttachmentDetail(uploadResource);
 
+      String objectId = "template_" + templateId + "_" + UUID.randomUUID();
+
       attachmentService.saveAttachment(uploadedAttachmentDetail,
                                        LayoutBackgroundAttachmentPlugin.OBJECT_TYPE,
-                                       String.valueOf(templateId),
+                                       objectId,
                                        null,
                                        userIdentityId);
       ObjectAttachmentList attachmentList = attachmentService.getAttachments(LayoutBackgroundAttachmentPlugin.OBJECT_TYPE,
-                                                                             String.valueOf(templateId));
+                                                                             objectId);
       if (attachmentList != null && CollectionUtils.isNotEmpty(attachmentList.getAttachments())) {
         return attachmentList.getAttachments().getFirst();
       } else {
