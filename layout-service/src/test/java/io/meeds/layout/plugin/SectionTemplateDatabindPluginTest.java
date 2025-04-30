@@ -25,18 +25,22 @@ import static org.mockito.Mockito.*;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 import io.meeds.layout.model.*;
+import io.meeds.layout.service.ContainerLayoutService;
+import io.meeds.layout.service.PageLayoutService;
 import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.service.SectionTemplateService;
 import io.meeds.layout.util.JsonUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.config.model.Page;
+import org.exoplatform.portal.mop.page.PageKey;
+import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.social.core.identity.model.Identity;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -74,7 +78,16 @@ class SectionTemplateDatabindPluginTest {
   private AttachmentService             attachmentService;
 
   @MockBean
-  private PortletInstanceService portletInstanceService;
+  private PortletInstanceService        portletInstanceService;
+
+  @MockBean
+  private LayoutService                 layoutService;
+
+  @MockBean
+  private PageLayoutService             pageLayoutService;
+
+  @MockBean
+  private ContainerLayoutService        containerLayoutService;
 
   @MockBean
   private UserACL                       userAcl;
@@ -114,10 +127,14 @@ class SectionTemplateDatabindPluginTest {
     File zipFile = createZipFileWithTwoJsonFiles();
 
     Identity identity = mock(Identity.class);
+    Page page = mock(Page.class);
+    PageKey pageKey = mock(PageKey.class);
     when(userAcl.getSuperUser()).thenReturn("root");
     when(identityManager.getOrCreateUserIdentity(userAcl.getSuperUser())).thenReturn(identity);
     lenient().when(identity.getId()).thenReturn("29");
     when(sectionTemplateService.createSectionTemplate(any())).thenReturn(new SectionTemplate());
+    when(layoutService.getPage(any(PageKey.class))).thenReturn(page);
+    when(page.getPageKey()).thenReturn(pageKey);
 
     // When
     CompletableFuture<Pair<DatabindReport, File>> futureReport =
