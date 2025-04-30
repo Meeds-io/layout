@@ -18,7 +18,6 @@
  */
 package io.meeds.layout.rest;
 
-import java.util.HashMap;
 import java.util.List;
 
 import io.meeds.layout.model.PortletInstanceContext;
