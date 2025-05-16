@@ -61,6 +61,8 @@ import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.service.DatabindService;
 import io.meeds.social.translation.service.TranslationService;
 
+import lombok.SneakyThrows;
+
 @SpringBootTest(classes = { SpaceNavigationDatabindPlugin.class, })
 @ExtendWith(MockitoExtension.class)
 class SpaceNavigationDatabindPluginTest {
@@ -140,9 +142,11 @@ class SpaceNavigationDatabindPluginTest {
   }
 
   @Test
-  void deserialize() throws Exception {
+  @SneakyThrows
+  @SuppressWarnings("unchecked")
+  void deserialize() {
     File zipFile = createZipFileWithTwoJsonFiles();
-    NodeContext<NodeContext<Object>> parentNode = (NodeContext<NodeContext<Object>>) mock(NodeContext.class);
+    NodeContext<NodeContext<Object>> parentNode = mock(NodeContext.class);
     when(parentNode.getId()).thenReturn("85");
     when(navigationService.loadNode(any(SiteKey.class))).thenReturn(null).thenReturn(parentNode);
     doNothing().when(navigationService).saveNavigation(any(NavigationContext.class));

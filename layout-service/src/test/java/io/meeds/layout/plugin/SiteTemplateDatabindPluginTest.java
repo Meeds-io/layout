@@ -65,6 +65,8 @@ import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.service.DatabindService;
 import io.meeds.social.translation.service.TranslationService;
 
+import lombok.SneakyThrows;
+
 @SpringBootTest(classes = { SiteTemplateDatabindPlugin.class, })
 @ExtendWith(MockitoExtension.class)
 class SiteTemplateDatabindPluginTest {
@@ -143,7 +145,9 @@ class SiteTemplateDatabindPluginTest {
   }
 
   @Test
-  void deserialize() throws Exception {
+  @SneakyThrows
+  @SuppressWarnings("unchecked")
+  void deserialize() {
     File zipFile = createZipFileWithTwoJsonFiles();
     SiteTemplate siteTemplate = mock(SiteTemplate.class);
     PortalConfig portalConfig = mock(PortalConfig.class);

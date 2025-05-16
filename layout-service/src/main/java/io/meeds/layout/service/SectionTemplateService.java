@@ -23,7 +23,6 @@ import java.util.Locale;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -58,29 +57,39 @@ public class SectionTemplateService {
 
   private static final Log             LOG                                    = ExoLogger.getLogger(SectionTemplateService.class);
 
-  @Autowired
   private LayoutAclService             layoutAclService;
 
-  @Autowired
   private TranslationService           translationService;
 
-  @Autowired
   private AttachmentService            attachmentService;
 
-  @Autowired
   private LocaleConfigService          localeConfigService;
 
-  @Autowired
   private SectionTemplateStorage       sectionTemplateStorage;
 
-  @Autowired
   private SectionTemplateLayoutStorage sectionTemplateLayoutStorage;
 
-  @Autowired
   private ContainerLayoutService       containerLayoutService;
 
-  @Autowired
   private ListenerService              listenerService;
+
+  public SectionTemplateService(LayoutAclService layoutAclService,
+                                TranslationService translationService,
+                                AttachmentService attachmentService,
+                                LocaleConfigService localeConfigService,
+                                SectionTemplateStorage sectionTemplateStorage,
+                                SectionTemplateLayoutStorage sectionTemplateLayoutStorage,
+                                ContainerLayoutService containerLayoutService,
+                                ListenerService listenerService) {
+    this.layoutAclService = layoutAclService;
+    this.translationService = translationService;
+    this.attachmentService = attachmentService;
+    this.localeConfigService = localeConfigService;
+    this.sectionTemplateStorage = sectionTemplateStorage;
+    this.sectionTemplateLayoutStorage = sectionTemplateLayoutStorage;
+    this.containerLayoutService = containerLayoutService;
+    this.listenerService = listenerService;
+  }
 
   public List<SectionTemplate> getSectionTemplates() {
     return sectionTemplateStorage.getSectionTemplates();
@@ -153,7 +162,7 @@ public class SectionTemplateService {
   }
 
   public SectionTemplate saveAsSectionTemplate(PageKey pageKey, long containerId, String username) throws ObjectNotFoundException,
-                                                                                                  IllegalAccessException {
+                                                                                                   IllegalAccessException {
     if (!layoutAclService.isAdministrator(username)) {
       throw new IllegalAccessException("User isn't authorized to edit the Section Template layout");
     }

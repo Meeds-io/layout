@@ -18,16 +18,18 @@
  */
 package io.meeds.layout.service;
 
-import java.util.*;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
-import io.meeds.layout.model.*;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -43,6 +45,11 @@ import org.exoplatform.services.log.Log;
 import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.social.attachment.AttachmentService;
 
+import io.meeds.layout.model.PortletDescriptor;
+import io.meeds.layout.model.PortletInstance;
+import io.meeds.layout.model.PortletInstanceCategory;
+import io.meeds.layout.model.PortletInstanceContext;
+import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.plugin.PortletInstancePreferencePlugin;
 import io.meeds.layout.plugin.attachment.PortletInstanceAttachmentPlugin;
 import io.meeds.layout.plugin.translation.PortletInstanceCategoryTranslationPlugin;
@@ -52,6 +59,8 @@ import io.meeds.layout.storage.PortletInstanceLayoutStorage;
 import io.meeds.layout.storage.PortletInstanceStorage;
 import io.meeds.social.translation.model.TranslationField;
 import io.meeds.social.translation.service.TranslationService;
+
+import jakarta.annotation.PostConstruct;
 
 @Service
 public class PortletInstanceService {
@@ -73,37 +82,54 @@ public class PortletInstanceService {
   private static final Log                             LOG                       =
                                                            ExoLogger.getLogger(PortletInstanceService.class);
 
-  @Autowired
   private LayoutAclService                             layoutAclService;
 
-  @Autowired
   private LayoutService                                layoutService;
 
-  @Autowired
   private TranslationService                           translationService;
 
-  @Autowired
   private AttachmentService                            attachmentService;
 
-  @Autowired
   private LocaleConfigService                          localeConfigService;
 
-  @Autowired
   private PortletInstanceCategoryStorage               portletInstanceCategoryStorage;
 
-  @Autowired
   private PortletInstanceStorage                       portletInstanceStorage;
 
-  @Autowired
   private PortletInstanceLayoutStorage                 portletInstanceLayoutStorage;
 
-  @Autowired
   private PortletService                               portletService;
 
-  @Autowired
   private ListenerService                              listenerService;
 
-  private Map<String, PortletInstancePreferencePlugin> preferencePlugins         = new ConcurrentHashMap<>();
+  private Map<String, PortletInstancePreferencePlugin> preferencePlugins;
+
+  public PortletInstanceService(LayoutAclService layoutAclService,
+                                LayoutService layoutService,
+                                TranslationService translationService,
+                                AttachmentService attachmentService,
+                                LocaleConfigService localeConfigService,
+                                PortletInstanceCategoryStorage portletInstanceCategoryStorage,
+                                PortletInstanceStorage portletInstanceStorage,
+                                PortletInstanceLayoutStorage portletInstanceLayoutStorage,
+                                PortletService portletService,
+                                ListenerService listenerService) {
+    this.layoutAclService = layoutAclService;
+    this.layoutService = layoutService;
+    this.translationService = translationService;
+    this.attachmentService = attachmentService;
+    this.localeConfigService = localeConfigService;
+    this.portletInstanceCategoryStorage = portletInstanceCategoryStorage;
+    this.portletInstanceStorage = portletInstanceStorage;
+    this.portletInstanceLayoutStorage = portletInstanceLayoutStorage;
+    this.portletService = portletService;
+    this.listenerService = listenerService;
+  }
+
+  @PostConstruct
+  public void init() {
+    this.preferencePlugins = new ConcurrentHashMap<>();
+  }
 
   public void addPortletInstancePreferencePlugin(PortletInstancePreferencePlugin plugin) {
     preferencePlugins.put(plugin.getPortletName(), plugin);
@@ -114,8 +140,8 @@ public class PortletInstanceService {
   }
 
   public List<PortletInstance> getPortletInstances(long categoryId, String username, Locale locale, boolean expand) {
-    List<PortletInstance> portletInstances = categoryId < 1 ? portletInstanceStorage.getPortletInstances()
-                                                            : portletInstanceStorage.getPortletInstances(categoryId);
+    List<PortletInstance> portletInstances = categoryId < 1 ? portletInstanceStorage.getPortletInstances() :
+                                                            portletInstanceStorage.getPortletInstances(categoryId);
     portletInstances = portletInstances.stream().filter(p -> this.hasPermission(p, username)).toList();
     if (expand) {
       portletInstances.stream().forEach(portletInstance -> computePortletInstanceAttributes(locale, portletInstance));
@@ -306,7 +332,7 @@ public class PortletInstanceService {
   public List<PortletInstancePreference> getPortletInstancePreferences(long portletInstanceId,
                                                                        PortletInstanceContext portletInstanceContext,
                                                                        String username) throws IllegalAccessException,
-                                                                                                                      ObjectNotFoundException {
+                                                                                        ObjectNotFoundException {
     PortletInstance portletInstance = getPortletInstance(portletInstanceId, username, null, false);
     return getPortletInstancePreferences(portletInstance, portletInstanceContext);
   }
@@ -346,7 +372,8 @@ public class PortletInstanceService {
   }
 
   public Portlet getApplicationPortletPreferences(Application application) {
-    List<PortletInstancePreference> exportedPreferences = getApplicationPreferences(application, new PortletInstanceContext(false, null));
+    List<PortletInstancePreference> exportedPreferences = getApplicationPreferences(application,
+                                                                                    new PortletInstanceContext(false, null));
     Map<String, Preference> preferencesMap = exportedPreferences.stream()
                                                                 .collect(Collectors.toMap(PortletInstancePreference::getName,
                                                                                           p -> new Preference(p.getName(),
@@ -418,7 +445,8 @@ public class PortletInstanceService {
                                              locale));
   }
 
-  private List<PortletInstancePreference> getPortletInstancePreferences(PortletInstance portletInstance, PortletInstanceContext portletInstanceContext) throws ObjectNotFoundException {
+  private List<PortletInstancePreference> getPortletInstancePreferences(PortletInstance portletInstance,
+                                                                        PortletInstanceContext portletInstanceContext) throws ObjectNotFoundException {
     Application application = portletInstanceLayoutStorage.getOrCreatePortletInstanceApplication(portletInstance);
     if (application == null) {
       throw new ObjectNotFoundException(String.format("Portlet Instance with id %s wasn't found", portletInstance.getId()));
@@ -477,12 +505,15 @@ public class PortletInstanceService {
   private boolean hasPermission(PortletInstance portletInstance, String username) {
     List<String> permissions = portletInstance.getPermissions();
     return CollectionUtils.isEmpty(permissions) || permissions.equals(EVERYONE_PERMISSIONS_LIST)
-        || (StringUtils.isNotBlank(username) && permissions.stream().anyMatch(p -> layoutAclService.hasPermission(username, p)));
+           || (StringUtils.isNotBlank(username)
+               && permissions.stream().anyMatch(p -> layoutAclService.hasPermission(username, p)));
   }
 
   private boolean hasPermission(PortletInstanceCategory category, String username) {
     List<String> permissions = category.getPermissions();
     return CollectionUtils.isEmpty(permissions) || permissions.equals(EVERYONE_PERMISSIONS_LIST)
-        || (StringUtils.isNotBlank(username) && permissions.stream().anyMatch(p -> layoutAclService.hasPermission(username, p)));
+           || (StringUtils.isNotBlank(username)
+               && permissions.stream().anyMatch(p -> layoutAclService.hasPermission(username, p)));
   }
+
 }

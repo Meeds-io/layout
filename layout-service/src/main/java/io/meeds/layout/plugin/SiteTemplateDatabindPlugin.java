@@ -18,13 +18,22 @@
  */
 package io.meeds.layout.plugin;
 
+import static io.meeds.layout.util.DatabindUtils.*;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -32,9 +41,53 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.stereotype.Component;
+
 import com.fasterxml.jackson.core.type.TypeReference;
+
+import org.exoplatform.commons.file.model.FileItem;
+import org.exoplatform.commons.file.services.FileService;
+import org.exoplatform.portal.config.UserACL;
+import org.exoplatform.portal.config.model.Page;
+import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.Utils;
+import org.exoplatform.portal.mop.Visibility;
+import org.exoplatform.portal.mop.navigation.NavigationContext;
+import org.exoplatform.portal.mop.navigation.NavigationState;
+import org.exoplatform.portal.mop.navigation.NodeContext;
+import org.exoplatform.portal.mop.navigation.NodeData;
+import org.exoplatform.portal.mop.navigation.NodeModel;
+import org.exoplatform.portal.mop.navigation.NodeState;
+import org.exoplatform.portal.mop.navigation.Scope;
+import org.exoplatform.portal.mop.page.PageContext;
+import org.exoplatform.portal.mop.page.PageKey;
+import org.exoplatform.portal.mop.service.LayoutService;
+import org.exoplatform.portal.mop.service.NavigationService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
+import org.exoplatform.social.attachment.AttachmentService;
+import org.exoplatform.social.attachment.model.UploadedAttachmentDetail;
+import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.upload.UploadResource;
+
 import io.meeds.common.ContainerTransactional;
-import io.meeds.layout.model.*;
+import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.model.NavigationCreateModel;
+import io.meeds.layout.model.NavigationUpdateModel;
+import io.meeds.layout.model.NodeDefinition;
+import io.meeds.layout.model.NodeLabel;
+import io.meeds.layout.model.PortletInstanceContext;
+import io.meeds.layout.model.SiteDefinition;
+import io.meeds.layout.model.SiteTemplate;
+import io.meeds.layout.model.SiteTemplateDatabind;
 import io.meeds.layout.plugin.attachment.PageTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.attachment.SiteTemplateAttachmentPlugin;
 import io.meeds.layout.plugin.translation.PageTemplateTranslationPlugin;
@@ -43,45 +96,15 @@ import io.meeds.layout.service.NavigationLayoutService;
 import io.meeds.layout.service.PageLayoutService;
 import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.service.SiteTemplateService;
-import org.apache.commons.codec.binary.Base64;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
-import org.exoplatform.portal.config.model.Page;
-import org.exoplatform.portal.config.model.PortalConfig;
-import org.exoplatform.portal.mop.SiteKey;
-import org.exoplatform.portal.mop.Utils;
-import org.exoplatform.portal.mop.Visibility;
-import org.exoplatform.portal.mop.navigation.*;
-import org.exoplatform.portal.mop.page.PageContext;
-import org.exoplatform.portal.mop.page.PageKey;
-import org.exoplatform.portal.mop.service.DescriptionService;
-import org.exoplatform.portal.mop.service.LayoutService;
-import org.exoplatform.portal.mop.service.NavigationService;
-import org.exoplatform.services.log.ExoLogger;
-import org.exoplatform.services.log.Log;
-import org.exoplatform.social.attachment.model.UploadedAttachmentDetail;
-import org.exoplatform.upload.UploadResource;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
-import org.springframework.stereotype.Component;
-
-import org.exoplatform.commons.file.model.FileItem;
-import org.exoplatform.commons.file.services.FileService;
-import org.exoplatform.portal.config.UserACL;
-import org.exoplatform.social.attachment.AttachmentService;
-import org.exoplatform.social.core.manager.IdentityManager;
 import io.meeds.layout.util.JsonUtils;
 import io.meeds.social.databind.model.DatabindReport;
 import io.meeds.social.databind.plugin.DatabindPlugin;
 import io.meeds.social.databind.service.DatabindService;
 import io.meeds.social.translation.model.TranslationField;
 import io.meeds.social.translation.service.TranslationService;
+
 import jakarta.annotation.PostConstruct;
 import lombok.SneakyThrows;
-
-import static io.meeds.layout.util.DatabindUtils.*;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -129,9 +152,6 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
 
   @Autowired
   private NavigationLayoutService navigationLayoutService;
-
-  @Autowired
-  private DescriptionService      descriptionService;
 
   @Autowired
   private PageLayoutService       pageLayoutService;
