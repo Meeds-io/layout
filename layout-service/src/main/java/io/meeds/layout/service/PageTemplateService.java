@@ -23,7 +23,6 @@ import java.util.Locale;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -44,20 +43,27 @@ public class PageTemplateService {
 
   private static final Log    LOG = ExoLogger.getLogger(PageTemplateService.class);
 
-  @Autowired
   private LayoutAclService    layoutAclService;
 
-  @Autowired
   private TranslationService  translationService;
 
-  @Autowired
   private AttachmentService   attachmentService;
 
-  @Autowired
   private LocaleConfigService localeConfigService;
 
-  @Autowired
   private PageTemplateStorage pageTemplateStorage;
+
+  public PageTemplateService(LayoutAclService layoutAclService,
+                             TranslationService translationService,
+                             AttachmentService attachmentService,
+                             LocaleConfigService localeConfigService,
+                             PageTemplateStorage pageTemplateStorage) {
+    this.layoutAclService = layoutAclService;
+    this.translationService = translationService;
+    this.attachmentService = attachmentService;
+    this.localeConfigService = localeConfigService;
+    this.pageTemplateStorage = pageTemplateStorage;
+  }
 
   public List<PageTemplate> getPageTemplates() {
     return getPageTemplates(null, false);

@@ -20,7 +20,6 @@ package io.meeds.layout.service;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import io.meeds.layout.model.PortletDescriptor;
@@ -29,8 +28,11 @@ import io.meeds.layout.storage.PortletStorage;
 @Service
 public class PortletService {
 
-  @Autowired
   private PortletStorage portletStorage;
+
+  public PortletService(PortletStorage portletStorage) {
+    this.portletStorage = portletStorage;
+  }
 
   /**
    * @return a {@link List} of {@link PortletDescriptor}
