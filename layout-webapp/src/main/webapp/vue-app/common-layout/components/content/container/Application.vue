@@ -42,7 +42,6 @@
             :section="section"
             :parent-id="parentId"
             :application-title="applicationTitle"
-            :application-category-title="applicationCategoryTitle"
             class="mb-auto"
             @move-start="moveStart"
             @move-end="moveEnd" />
@@ -124,17 +123,11 @@ export default {
       return this.section?.template === this.$layoutUtils.flexTemplate
         || this.section?.template === this.$layoutUtils.sidebarCellTemplate;
     },
-    portletInstance() {
-      return this.$root.portletInstances?.find?.(p => p.contentId === this.container?.contentId);
+    portlet() {
+      return this.$root.portlets?.find?.(p => p.contentId === this.container?.contentId);
     },
     applicationTitle() {
-      return this.portletInstance?.name || this.container?.title || '';
-    },
-    applicationCategory() {
-      return this.applicationTitle && this.$root.portletInstanceCategories?.find?.(c => c?.applications?.find?.(a => a?.name === this.applicationTitle));
-    },
-    applicationCategoryTitle() {
-      return this.applicationCategory?.name || '';
+      return this.container?.title || this.portlet?.name || '';
     },
     hoverApp() {
       return !!(this.hoverMenu || this.hover || this.hoverGridCell);

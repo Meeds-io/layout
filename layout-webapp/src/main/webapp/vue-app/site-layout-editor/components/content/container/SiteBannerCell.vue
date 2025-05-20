@@ -43,7 +43,6 @@
             :section="container"
             :parent-id="storageId"
             :application-title="applicationTitle"
-            :application-category-title="applicationCategoryTitle"
             @move-start="moveStart"
             @move-end="moveEnd" />
         </v-hover>
@@ -178,12 +177,6 @@ export default {
     },
     applicationTitle() {
       return this.portletInstance?.name || this.application?.title || '';
-    },
-    applicationCategory() {
-      return this.portletInstance?.id && this.$root.portletInstanceCategories?.find?.(c => c?.applications?.find?.(a => a?.id === this.portletInstance?.id));
-    },
-    applicationCategoryTitle() {
-      return this.applicationCategory?.name || '';
     },
     editablePortlet() {
       return this.portletInstance?.editable || false;

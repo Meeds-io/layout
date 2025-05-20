@@ -62,6 +62,7 @@ export function init() {
           hoveredApplication: null,
           portletInstanceCategories: null,
           portletInstances: null,
+          portlets: null,
           loadingPortletInstances: false,
           branding: null,
           displayMode: 'desktop',
@@ -187,13 +188,23 @@ export function init() {
           setDrawerClosed() {
             this.drawerOpened--;
           },
-          refreshPortletInstances() {
+          async refreshPortletInstances() {
             this.loadingPortletInstances = true;
-            return this.$portletInstanceCategoryService.getPortletInstanceCategories()
-              .then(categories => this.portletInstanceCategories = categories)
-              .then(()  => this.$portletInstanceService.getPortletInstances())
-              .then(applications => this.portletInstances = applications.filter(a => !a.disabled))
-              .finally(() => this.loadingPortletInstances = false);
+            try {
+              this.portletInstanceCategories =  await this.$portletInstanceCategoryService.getPortletInstanceCategories();
+
+              const applications = await this.$portletInstanceService.getPortletInstances();
+              this.portletInstances = applications.filter(a => !a.disabled);
+
+              const portlets = await this.$portletService.getPortlets();
+              this.portlets = portlets?.map?.(p => ({
+                ...p,
+                name: this.$te(`layout.portletInstance.${p?.portletName}.name`) ? this.$t(`layout.portletInstance.${p?.portletName}.name`) : p?.name,
+                description: this.$te(`layout.portletInstance.${p?.portletName}.description`) ? this.$t(`layout.portletInstance.${p?.portletName}.description`) : p?.description,
+              })) || [];
+            } finally {
+              this.loadingPortletInstances = false;
+            }
           },
           refreshContainerTypes() {
             this.containerTypes = extensionRegistry.loadExtensions('layout-editor', 'container');
