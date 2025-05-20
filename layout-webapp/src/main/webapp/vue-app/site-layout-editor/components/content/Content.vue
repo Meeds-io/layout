@@ -185,10 +185,10 @@ export default {
         console.warn(`Can't find section with id ${sectionId}`); // eslint-disable-line no-console
       }
     },
-    handleEditApplication(sectionId, container, applicationCategoryTitle, applicationTitle) {
+    handleEditApplication(sectionId, container, applicationTitle) {
       const section = this.$layoutUtils.getContainerById(this.$root.layout, sectionId);
       const containerToEdit = section.template === this.$layoutUtils.bannerCellTemplate ? section : container;
-      this.$refs.applicationPropertiesDrawer.open(section, containerToEdit, applicationCategoryTitle, applicationTitle);
+      this.$refs.applicationPropertiesDrawer.open(section, containerToEdit, applicationTitle);
     },
     handleSiteSaved() {
       document.dispatchEvent(new CustomEvent('alert-message', {detail: {
