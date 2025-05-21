@@ -43,7 +43,6 @@
             :section="container"
             :parent-id="storageId"
             :application-title="applicationTitle"
-            :application-category-title="applicationCategoryTitle"
             @move-start="moveStart"
             @move-end="moveEnd" />
         </v-hover>
@@ -173,20 +172,14 @@ export default {
     applicationId() {
       return this.application?.storageId;
     },
-    portletInstance() {
-      return this.$root.portletInstances?.find?.(p => p.contentId === this.application?.contentId);
-    },
-    applicationTitle() {
-      return this.portletInstance?.name || this.application?.title || '';
-    },
-    applicationCategory() {
-      return this.portletInstance?.id && this.$root.portletInstanceCategories?.find?.(c => c?.applications?.find?.(a => a?.id === this.portletInstance?.id));
-    },
-    applicationCategoryTitle() {
-      return this.applicationCategory?.name || '';
+    portlet() {
+      return this.$root.portlets?.find?.(p => p.contentId === this.application?.contentId);
     },
     editablePortlet() {
-      return this.portletInstance?.editable || false;
+      return this.portlet?.editable || false;
+    },
+    applicationTitle() {
+      return this.application?.title || this.portlet?.name || '';
     },
     backgroundClass() {
       if (this.$root.movingCell && this.$root.selectedSectionId === this.parentId) {

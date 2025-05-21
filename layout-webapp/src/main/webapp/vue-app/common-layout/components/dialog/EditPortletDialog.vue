@@ -62,15 +62,11 @@ export default {
     dialog: false,
     expand: false,
     applicationId: null,
-    applicationCategoryTitle: null,
     applicationTitle: null,
   }),
   computed: {
     drawerTitle() {
-      return this.applicationCategoryTitle?.length && this.$t('layout.editPortletTitle', {
-        0: this.applicationTitle,
-        1: this.applicationCategoryTitle,
-      }) || this.$t('layout.editPortletTitleNoCategory', {
+      return this.$t('layout.editPortletTitleNoCategory', {
         0: this.applicationTitle,
       });
     },
@@ -96,9 +92,8 @@ export default {
     this.$root.$off('layout-editor-portlet-edit', this.open);
   },
   methods: {
-    open(applicationId, applicationCategoryTitle, applicationTitle) {
+    open(applicationId, applicationTitle) {
       this.applicationId = applicationId;
-      this.applicationCategoryTitle = applicationCategoryTitle;
       this.applicationTitle = applicationTitle;
       this.$nextTick(() => this.dialog = true);
     },
