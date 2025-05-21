@@ -595,7 +595,8 @@ export function editDynamicSection(section, cols) {
 export function newApplication(parentContainer, appFromRegistry, append) {
   const application = JSON.parse(JSON.stringify(applicationModel));
   application.contentId = appFromRegistry.contentId;
-  application.title = appFromRegistry.displayName;
+  application.title = appFromRegistry.displayName || appFromRegistry.name;
+  application.description = appFromRegistry.description;
   application.preferences = appFromRegistry.preferences;
   application.showApplicationMode = true;
   if (append && parentContainer.children) {

@@ -34,7 +34,7 @@
     <template v-if="canEditPortletProperties" #titleIcons>
       <v-btn
         icon
-        @click="$root.$emit('layout-editor-portlet-edit', applicationId, applicationCategoryTitle, applicationTitle)">
+        @click="$root.$emit('layout-editor-portlet-edit', applicationId, applicationTitle)">
         <v-icon size="20">fa-edit</v-icon>
       </v-btn>
     </template>
@@ -172,7 +172,6 @@ export default {
     section: null,
     container: null,
     backgroundProperties: null,
-    applicationCategoryTitle: null,
     applicationTitle: null,
     refresh: 1,
   }),
@@ -184,10 +183,7 @@ export default {
       return this.container?.children?.[0]?.contentId || this.container?.contentId;
     },
     application() {
-      return this.$root.portletInstances?.find?.(a => a?.contentId === this.applicationContentId);
-    },
-    applicationCategory() {
-      return this.applicationTitle && this.$root.portletInstanceCategories?.find?.(c => c?.applications?.find?.(a => a?.name === this.applicationTitle));
+      return this.$root.portlets?.find?.(a => a?.contentId === this.applicationContentId);
     },
     supportedModes() {
       return this.application?.supportedModes || [];
@@ -205,10 +201,7 @@ export default {
       return (!this.height || this.height === '150px' || this.height === '300px' || this.height === '500px') ? 400 : this.height;
     },
     drawerTitle() {
-      return this.applicationCategoryTitle?.length && this.$t('layout.editApplicationTitle', {
-        0: this.applicationTitle,
-        1: this.applicationCategoryTitle,
-      }) || this.$t('layout.editApplicationTitleNoCategory', {
+      return this.$t('layout.editApplicationTitleNoCategory', {
         0: this.applicationTitle,
       });
     },
@@ -294,7 +287,7 @@ export default {
     },
   },
   methods: {
-    open(section, container, applicationCategoryTitle, applicationTitle) {
+    open(section, container, applicationTitle) {
       this.initialized = false;
       Object.assign(container, Object.assign({...this.$layoutUtils.applicationModel}, container));
       this.section = section;
@@ -303,7 +296,6 @@ export default {
       this.height = container.height;
       this.hiddenOnMobile = container.cssClass?.includes?.('hidden-sm-and-down') || false;
       this.fixedHeight = !!this.height;
-      this.applicationCategoryTitle = applicationCategoryTitle;
       this.applicationTitle = applicationTitle;
       this.$layoutUtils.parseContainerStyle(this.container);
 
@@ -331,7 +323,6 @@ export default {
         this.section = null;
         this.container = null;
         this.backgroundProperties = null;
-        this.applicationCategoryTitle = null;
         this.applicationTitle = null;
         this.refresh = 1;
       }, 200);
