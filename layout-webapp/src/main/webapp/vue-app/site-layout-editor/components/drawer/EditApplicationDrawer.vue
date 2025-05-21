@@ -35,7 +35,7 @@
     <template v-if="canEditPortletProperties" #titleIcons>
       <v-btn
         icon
-        @click="$root.$emit('layout-editor-portlet-edit', applicationId, applicationCategoryTitle, applicationTitle)">
+        @click="$root.$emit('layout-editor-portlet-edit', applicationId, applicationTitle)">
         <v-icon size="20">fa-edit</v-icon>
       </v-btn>
     </template>
@@ -288,7 +288,6 @@ export default {
     section: null,
     container: null,
     backgroundProperties: null,
-    applicationCategoryTitle: null,
     applicationTitle: null,
     refresh: 1,
   }),
@@ -301,9 +300,6 @@ export default {
     },
     application() {
       return this.$root.portletInstances?.find?.(a => a?.contentId === this.applicationContentId);
-    },
-    applicationCategory() {
-      return this.applicationTitle && this.$root.portletInstanceCategories?.find?.(c => c?.applications?.find?.(a => a?.name === this.applicationTitle));
     },
     supportedModes() {
       return this.application?.supportedModes || [];
@@ -324,10 +320,7 @@ export default {
       return (!this.width || this.width === 'fit-content') ? 400 : this.width;
     },
     drawerTitle() {
-      return this.applicationCategoryTitle?.length && this.$t('layout.editApplicationTitle', {
-        0: this.applicationTitle,
-        1: this.applicationCategoryTitle,
-      }) || this.$t('layout.editApplicationTitleNoCategory', {
+      return this.$t('layout.editApplicationTitleNoCategory', {
         0: this.applicationTitle,
       });
     },
@@ -470,7 +463,7 @@ export default {
     },
   },
   methods: {
-    open(section, container, applicationCategoryTitle, applicationTitle) {
+    open(section, container, applicationTitle) {
       this.initialized = false;
       this.$layoutUtils.parseContainerStyle(container);
       this.section = section;
@@ -495,7 +488,6 @@ export default {
       }
       this.fixedHeight = !!this.height;
       this.fixedWidth = !!this.width;
-      this.applicationCategoryTitle = applicationCategoryTitle;
       this.applicationTitle = applicationTitle;
 
       this.backgroundProperties = {
@@ -528,7 +520,6 @@ export default {
         this.section = null;
         this.container = null;
         this.backgroundProperties = null;
-        this.applicationCategoryTitle = null;
         this.applicationTitle = null;
         this.refresh = 1;
       }, 200);

@@ -246,10 +246,10 @@ export default {
         console.warn(`Can't find section with id ${sectionId}`); // eslint-disable-line no-console
       }
     },
-    handleEditApplication(sectionId, container, applicationCategoryTitle, applicationTitle) {
+    handleEditApplication(sectionId, container, applicationTitle) {
       const section = this.$layoutUtils.getSection(this.layoutToEdit, sectionId);
       const containerToEdit = this.$layoutUtils.getContainerById(this.layoutToEdit, container.id);
-      this.$refs.applicationPropertiesDrawer.open(section, containerToEdit, applicationCategoryTitle, applicationTitle);
+      this.$refs.applicationPropertiesDrawer.open(section, containerToEdit, applicationTitle);
     },
     mergeCell(sectionId, container, targetCellRowIndex, targetCellColIndex) {
       const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
