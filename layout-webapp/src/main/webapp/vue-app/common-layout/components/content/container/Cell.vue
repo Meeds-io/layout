@@ -48,7 +48,6 @@
           <v-icon size="40" class="icon-default-color mb-5">far fa-hourglass</v-icon>
           <span class="font-weight-bold">{{ $t('layout.inSearchOfData') }}</span>
           <span v-if="applicationTitle" class="caption">{{ applicationTitle }}</span>
-          <span v-if="applicationCategoryTitle" class="caption">({{ applicationCategoryTitle }})</span>
         </div>
       </div>
       <div v-if="$root.desktopDisplayMode && displayResizeButton">
@@ -173,12 +172,6 @@ export default {
     },
     applicationTitle() {
       return !this.isDynamicSection && this.container?.children?.[0]?.title || '';
-    },
-    applicationCategory() {
-      return this.applicationTitle && this.$root.portletInstanceCategories?.find?.(c => c?.applications?.find?.(a => a?.name === this.applicationTitle));
-    },
-    applicationCategoryTitle() {
-      return this.applicationCategory?.name || '';
     },
     isSelectedCell() {
       return this.$root.isMultiSelect
