@@ -87,34 +87,10 @@ public class PortletRestTest {
   }
 
   @Test
-  void getPortletsWithContributor() throws Exception {
-    ResultActions response = mockMvc.perform(get(REST_PATH).with(testContributorUser()));
-    response.andExpect(status().isOk());
-    verify(portletService).getPortlets();
-  }
-
-  @Test
-  void getPortletsWithAdmin() throws Exception {
-    ResultActions response = mockMvc.perform(get(REST_PATH).with(testAdminUser()));
-    response.andExpect(status().isOk());
-    verify(portletService).getPortlets();
-  }
-
-  @Test
   void getPortletsWithSimple() throws Exception {
     ResultActions response = mockMvc.perform(get(REST_PATH).with(testSimpleUser()));
-    response.andExpect(status().isForbidden());
-    verifyNoInteractions(portletService);
-  }
-
-  private RequestPostProcessor testContributorUser() {
-    return user(SIMPLE_USER).password(TEST_PASSWORD)
-                            .authorities(new SimpleGrantedAuthority("web-contributors"));
-  }
-
-  private RequestPostProcessor testAdminUser() {
-    return user(SIMPLE_USER).password(TEST_PASSWORD)
-                            .authorities(new SimpleGrantedAuthority("administrators"));
+    response.andExpect(status().isOk());
+    verify(portletService).getPortlets();
   }
 
   private RequestPostProcessor testSimpleUser() {
