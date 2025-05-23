@@ -105,7 +105,7 @@ public class PageTemplateImportService {
   @Value("${meeds.pages.import.override:false}")
   private boolean                        forceReimportTemplates;
 
-  @Value("${meeds.pages.import.version:2}")
+  @Value("${meeds.pages.import.version:3}")
   private long                           pageTemplateImportVersion;
 
   private List<PageTemplateDescriptor>   pageTemplateDescriptors;
