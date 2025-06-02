@@ -175,8 +175,7 @@ public class PageTemplateImportService {
         throw new IllegalStateException(String.format("Page Template with Id %s isn't a system page template", pageTemplateId));
       }
     } else {
-      importDescriptor(descriptor, true);
-      layoutTranslationService.postImport(PageTemplateTranslationPlugin.OBJECT_TYPE);
+      savePageTemplate(descriptor, pageTemplateId);
     }
   }
 
@@ -204,7 +203,7 @@ public class PageTemplateImportService {
   protected void importPageTemplate(PageTemplateDescriptor d, long oldTemplateId, boolean override) {
     LOG.info("Importing Page Template {}", d.getId());
     try {
-      PageTemplate pageTemplate = createPageTemplate(d, oldTemplateId);
+      PageTemplate pageTemplate = savePageTemplate(d, oldTemplateId);
       if (override || oldTemplateId == 0 || pageTemplate.getId() != oldTemplateId) {
         LOG.info("Importing Page Template {} title translations", d.getId());
         saveNames(d, pageTemplate);
@@ -236,7 +235,7 @@ public class PageTemplateImportService {
   }
 
   @SneakyThrows
-  protected PageTemplate createPageTemplate(PageTemplateDescriptor d, long oldTemplateId) {
+  protected PageTemplate savePageTemplate(PageTemplateDescriptor d, long oldTemplateId) {
     PageTemplate pageTemplate = null;
     if (oldTemplateId > 0) {
       pageTemplate = pageTemplateService.getPageTemplate(oldTemplateId);

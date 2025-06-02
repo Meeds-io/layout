@@ -101,6 +101,7 @@
             </v-list-item-title>
           </v-list-item>
           <v-list-item
+            v-if="pageTemplate.system"
             dense
             @click="$root.$emit('page-templates-restore', pageTemplateId)">
             <v-list-item-icon class="me-auto">

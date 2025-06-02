@@ -63,12 +63,11 @@ export default {
     this.$root.$off('section-template-layout-updated', this.handleLayoutUpdated);
   },
   methods: {
-    handleInstanceCreated(instance) {
-      const instanceEditorLink = `/portal/${eXo.env.portal.portalName}/section-editor?id=${instance.id}`;
-      window.open(instanceEditorLink, '_blank');
+    handleInstanceCreated(id) {
+      window.open(`/portal/${eXo.env.portal.portalName}/section-editor?id=${id}`, '_blank');
     },
     handleLayoutUpdated(instance) {
-      this.$root.$emit('section-template-saved', instance);
+      this.$root.$emit('section-template-saved', instance?.id);
       this.$root.$emit('alert-message', this.$t('layout.sectionTemplateLayoutUpdatedSuccessfully'), 'success');
     },
     handleExportStart() {

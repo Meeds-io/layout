@@ -121,7 +121,7 @@ export default {
           category: 'custom',
           content: JSON.stringify(section),
         });
-        this.$root.$emit('section-template-saved', sectionTemplate);
+        this.$root.$emit('section-template-saved', sectionTemplate?.id);
         this.close();
       } finally {
         this.saving = false;

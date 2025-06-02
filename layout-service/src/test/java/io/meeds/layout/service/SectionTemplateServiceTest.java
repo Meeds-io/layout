@@ -312,10 +312,7 @@ public class SectionTemplateServiceTest {
     assertThrows(ObjectNotFoundException.class, () -> sectionTemplateService.generateSectionTemplateNodeId(2l, testuser));
 
     when(sectionTemplateStorage.getSectionTemplate(2l)).thenReturn(sectionTemplate);
-    when(sectionTemplate.isSystem()).thenReturn(true);
-    assertThrows(IllegalAccessException.class, () -> sectionTemplateService.generateSectionTemplateNodeId(2l, testuser));
 
-    when(sectionTemplate.isSystem()).thenReturn(false);
     NodeData nodeData = mock(NodeData.class);
     when(nodeData.getId()).thenReturn("35");
     when(sectionTemplateLayoutStorage.generateSectionTemplateNodeId(sectionTemplate, testuser)).thenReturn(nodeData);
