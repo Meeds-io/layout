@@ -39,39 +39,25 @@
           </div>
         </v-subheader>
         <v-list-item-group v-model="listItem">
-          <v-tooltip
+          <v-list-item
             v-if="!$root.isMobile"
-            :disabled="!pageTemplate.system"
-            bottom>
-            <template #activator="{ on, attrs }">
-              <div
-                v-on="on"
-                v-bind="attrs">
-                <v-list-item
-                  :href="editLayoutLink"
-                  :disabled="pageTemplate.system"
-                  target="_blank"
-                  rel="opener"
-                  dense>
-                  <v-card
-                    color="transparent"
-                    min-width="15"
-                    class="me-2"
-                    flat>
-                    <v-icon
-                      :class="pageTemplate.system && 'disabled--text'"
-                      size="13">
-                      fa-columns
-                    </v-icon>
-                  </v-card>
-                  <v-list-item-title :class="pageTemplate.system && 'disabled--text'">
-                    {{ $t('pageTemplate.label.editLayout') }}
-                  </v-list-item-title>
-                </v-list-item>
-              </div>
-            </template>
-            <span>{{ $t('pageTemplate.label.system.noEditLayout') }}</span>
-          </v-tooltip>
+            :href="editLayoutLink"
+            target="_blank"
+            rel="opener"
+            dense>
+            <v-card
+              color="transparent"
+              min-width="15"
+              class="me-2"
+              flat>
+              <v-icon size="13">
+                fa-columns
+              </v-icon>
+            </v-card>
+            <v-list-item-title>
+              {{ $t('pageTemplate.label.editLayout') }}
+            </v-list-item-title>
+          </v-list-item>
           <v-list-item
             dense
             @click="$root.$emit('layout-page-template-drawer-open', pageTemplate)">
@@ -112,6 +98,16 @@
             </v-list-item-icon>
             <v-list-item-title>
               {{ $t('pageTemplate.label.export') }}
+            </v-list-item-title>
+          </v-list-item>
+          <v-list-item
+            dense
+            @click="$root.$emit('page-templates-restore', pageTemplateId)">
+            <v-list-item-icon class="me-auto">
+              <v-icon size="13">fa-redo</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>
+              {{ $t('pageTemplate.label.restore') }}
             </v-list-item-title>
           </v-list-item>
           <v-tooltip :disabled="!pageTemplate.system" bottom>

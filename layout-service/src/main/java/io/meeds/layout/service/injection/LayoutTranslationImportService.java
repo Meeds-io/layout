@@ -83,8 +83,11 @@ public class LayoutTranslationImportService {
   }
 
   public void postImport(String objectType) {
-    postImportProcessors.computeIfAbsent(objectType, k -> new ArrayList<>()).forEach(executorService::execute);
-    postImportProcessors.remove(objectType);
+    List<Runnable> runnables = postImportProcessors.get(objectType);
+    if (runnables != null) {
+      runnables.forEach(executorService::execute);
+      postImportProcessors.remove(objectType);
+    }
     bundles.clear();
   }
 
