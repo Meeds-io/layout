@@ -42,6 +42,7 @@ import org.exoplatform.commons.api.settings.SettingService;
 import org.exoplatform.commons.api.settings.SettingValue;
 import org.exoplatform.commons.api.settings.data.Context;
 import org.exoplatform.commons.api.settings.data.Scope;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.IOUtil;
 import org.exoplatform.container.PortalContainer;
 import org.exoplatform.container.configuration.ConfigurationManager;
@@ -107,6 +108,8 @@ public class PageTemplateImportService {
   @Value("${meeds.pages.import.version:2}")
   private long                           pageTemplateImportVersion;
 
+  private List<PageTemplateDescriptor>   pageTemplateDescriptors;
+
   @PostConstruct
   public void init() {
     CompletableFuture.runAsync(this::importPageTemplates);
@@ -125,18 +128,19 @@ public class PageTemplateImportService {
       Enumeration<URL> templateFiles = PortalContainer.getInstance()
                                                       .getPortalClassLoader()
                                                       .getResources("page-templates.json");
-      Collections.list(templateFiles)
-                 .stream()
-                 .map(this::parseDescriptors)
-                 .flatMap(List::stream)
-                 .sorted((d1, d2) -> {
-                   if (d1.getOrder() == d2.getOrder()) {
-                     return d1.getId().compareTo(d2.getId());
-                   } else {
-                     return d1.getOrder() - d2.getOrder();
-                   }
-                 })
-                 .forEach(this::importDescriptor);
+      pageTemplateDescriptors = Collections.list(templateFiles)
+                                           .stream()
+                                           .map(this::parseDescriptors)
+                                           .flatMap(List::stream)
+                                           .sorted((d1, d2) -> {
+                                             if (d1.getOrder() == d2.getOrder()) {
+                                               return d1.getId().compareTo(d2.getId());
+                                             } else {
+                                               return d1.getOrder() - d2.getOrder();
+                                             }
+                                           })
+                                           .toList();
+      pageTemplateDescriptors.forEach(d -> importDescriptor(d, forceReimportTemplates));
       LOG.info("Importing Page Templates finished successfully");
 
       LOG.info("Processing Post Page Templates import");
@@ -151,6 +155,31 @@ public class PageTemplateImportService {
     }
   }
 
+  public void restorePageTemplate(long pageTemplateId, String username) throws ObjectNotFoundException, IllegalAccessException {
+    if (!layoutAclService.isAdministrator(username)) {
+      throw new IllegalAccessException("User isn't authorized to restore a page template");
+    }
+    PageTemplate pageTemplate = pageTemplateService.getPageTemplate(pageTemplateId);
+    if (pageTemplate == null) {
+      throw new ObjectNotFoundException(String.format("Page Template with Id %s doesn't exists", pageTemplateId));
+    }
+    PageTemplateDescriptor descriptor = pageTemplateDescriptors.stream()
+                                                               .filter(d -> getSettingValue(d.getId()) == pageTemplateId)
+                                                               .findFirst()
+                                                               .orElse(null);
+    if (descriptor == null) {
+      if (pageTemplate.isSystem()) {
+        pageTemplate.setSystem(false);
+        pageTemplateService.updatePageTemplate(pageTemplate);
+      } else {
+        throw new IllegalStateException(String.format("Page Template with Id %s isn't a system page template", pageTemplateId));
+      }
+    } else {
+      importDescriptor(descriptor, true);
+      layoutTranslationService.postImport(PageTemplateTranslationPlugin.OBJECT_TYPE);
+    }
+  }
+
   protected List<PageTemplateDescriptor> parseDescriptors(URL url) {
     try (InputStream inputStream = url.openStream()) {
       String content = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
@@ -162,21 +191,21 @@ public class PageTemplateImportService {
     }
   }
 
-  protected void importDescriptor(PageTemplateDescriptor descriptor) {
+  protected void importDescriptor(PageTemplateDescriptor descriptor, boolean override) {
     String descriptorId = descriptor.getId();
     long existingTemplateId = getSettingValue(descriptorId);
-    if (forceReimportTemplates || existingTemplateId == 0) {
-      importPageTemplate(descriptor, existingTemplateId);
+    if (override || existingTemplateId == 0) {
+      importPageTemplate(descriptor, existingTemplateId, override);
     } else {
       LOG.debug("Ignore re-importing Page Template {}", descriptorId);
     }
   }
 
-  protected void importPageTemplate(PageTemplateDescriptor d, long oldTemplateId) {
+  protected void importPageTemplate(PageTemplateDescriptor d, long oldTemplateId, boolean override) {
     LOG.info("Importing Page Template {}", d.getId());
     try {
       PageTemplate pageTemplate = createPageTemplate(d, oldTemplateId);
-      if (forceReimportTemplates || oldTemplateId == 0 || pageTemplate.getId() != oldTemplateId) {
+      if (override || oldTemplateId == 0 || pageTemplate.getId() != oldTemplateId) {
         LOG.info("Importing Page Template {} title translations", d.getId());
         saveNames(d, pageTemplate);
         LOG.info("Importing Page Template {} description translations", d.getId());
@@ -269,11 +298,11 @@ public class PageTemplateImportService {
     return obj.getObject();
   }
 
-  protected void setSettingValue(String name, long value) {
+  protected void setSettingValue(String name, long id) {
     settingService.set(PAGE_TEMPLATE_CONTEXT,
                        PAGE_TEMPLATE_IMPORT_SCOPE,
                        name,
-                       SettingValue.create(String.valueOf(value)));
+                       SettingValue.create(String.valueOf(id)));
   }
 
   protected long getSettingValue(String name) {

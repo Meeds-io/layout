@@ -78,6 +78,17 @@ export function updatePageTemplate(pageTemplate) {
   });
 }
 
+export function restorePageTemplate(id) {
+  return fetch(`/layout/rest/page/templates/${id}/restore`, {
+    credentials: 'include',
+    method: 'PUT',
+  }).then((resp) => {
+    if (!resp?.ok) {
+      throw new Error('Error while restoring page template');
+    }
+  });
+}
+
 export function deletePageTemplate(id) {
   return fetch(`/layout/rest/page/templates/${id}`, {
     credentials: 'include',
