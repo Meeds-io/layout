@@ -38,6 +38,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 import io.meeds.layout.model.PageTemplate;
 import io.meeds.layout.service.PageTemplateService;
+import io.meeds.layout.service.injection.PageTemplateImportService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -53,6 +54,8 @@ public class PageTemplateRest {
 
   @Autowired
   private PageTemplateService pageTemplateService;
+  @Autowired
+  private PageTemplateImportService pageTemplateImportService;
 
   @GetMapping
   @Secured("users")
@@ -122,6 +125,31 @@ public class PageTemplateRest {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
     } catch (IllegalAccessException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+    }
+  }
+
+  @PutMapping("{id}/restore")
+  @Secured("users")
+  @Operation(summary = "Restores a system page template", method = "PUT", description = "This restores a system page template")
+  @ApiResponses(value = {
+    @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+    @ApiResponse(responseCode = "404", description = "Bad request"),
+    @ApiResponse(responseCode = "403", description = "Forbidden"),
+    @ApiResponse(responseCode = "404", description = "Not found"),
+  })
+  public void restorePageTemplate(
+                                  HttpServletRequest request,
+                                  @Parameter(description = "Page template identifier")
+                                  @PathVariable("id")
+                                  long id) {
+    try {
+      pageTemplateImportService.restorePageTemplate(id, request.getRemoteUser());
+    } catch (ObjectNotFoundException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+    } catch (IllegalAccessException e) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+    } catch (IllegalStateException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
     }
   }
 

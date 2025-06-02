@@ -56,6 +56,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 import io.meeds.layout.model.PageTemplate;
 import io.meeds.layout.service.PageTemplateService;
+import io.meeds.layout.service.injection.PageTemplateImportService;
 import io.meeds.spring.web.security.PortalAuthenticationManager;
 import io.meeds.spring.web.security.WebSecurityConfiguration;
 
@@ -68,22 +69,25 @@ import jakarta.servlet.Filter;
 @ExtendWith(MockitoExtension.class)
 public class PageTemplateRestTest {
 
-  private static final String REST_PATH     = "/page/templates"; // NOSONAR
+  private static final String       REST_PATH     = "/page/templates"; // NOSONAR
 
-  private static final String SIMPLE_USER   = "simple";
+  private static final String       SIMPLE_USER   = "simple";
 
-  private static final String TEST_PASSWORD = "testPassword";
+  private static final String       TEST_PASSWORD = "testPassword";
 
   @MockBean
-  private PageTemplateService   pageTemplateService;
+  private PageTemplateService       pageTemplateService;
+
+  @MockBean
+  private PageTemplateImportService pageTemplateImportService;
 
   @Autowired
-  private SecurityFilterChain   filterChain;
+  private SecurityFilterChain       filterChain;
 
   @Autowired
-  private WebApplicationContext context;
+  private WebApplicationContext     context;
 
-  private MockMvc               mockMvc;
+  private MockMvc                   mockMvc;
 
   @BeforeEach
   void setup() {

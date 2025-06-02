@@ -271,7 +271,7 @@ public class EntityMapper {
   }
 
   public static SectionTemplateEntity toEntity(SectionTemplate sectionTemplate) {
-    return new SectionTemplateEntity(sectionTemplate.getId(),
+    return new SectionTemplateEntity(sectionTemplate.getId() == 0 ? null : sectionTemplate.getId(),
                                      sectionTemplate.getCategory(),
                                      sectionTemplate.getContent(),
                                      sectionTemplate.isSystem(),

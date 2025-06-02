@@ -177,10 +177,12 @@ export default {
   },
   created() {
     this.$root.$on('page-templates-delete', this.deletePageTemplateConfirm);
+    this.$root.$on('page-templates-restore', this.restorePageTemplate);
     this.$root.$on('page-templates-create', this.createPageTemplate);
   },
   beforeDestroy() {
     this.$root.$off('page-templates-delete', this.deletePageTemplateConfirm);
+    this.$root.$off('page-templates-restore', this.restorePageTemplate);
     this.$root.$off('page-templates-create', this.createPageTemplate);
   },
   methods: {
@@ -221,6 +223,16 @@ export default {
           this.$root.$emit('alert-message', this.$t('pageTemplate.delete.success'), 'success');
         })
         .catch(() => this.$root.$emit('alert-message', this.$t('pageTemplate.delete.error'), 'error'))
+        .finally(() => this.loading = false);
+    },
+    restorePageTemplate(id) {
+      this.loading = true;
+      this.$pageTemplateService.restorePageTemplate(id)
+        .then(() => {
+          this.$root.$emit('page-templates-resored', id);
+          this.$root.$emit('alert-message', this.$t('pageTemplate.restore.success'), 'success');
+        })
+        .catch(() => this.$root.$emit('alert-message', this.$t('pageTemplate.restore.error'), 'error'))
         .finally(() => this.loading = false);
     },
     async createPageTemplate() {
