@@ -55,6 +55,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 import io.meeds.layout.model.SectionTemplate;
 import io.meeds.layout.service.SectionTemplateService;
+import io.meeds.layout.service.injection.SectionTemplateImportService;
 import io.meeds.spring.web.security.PortalAuthenticationManager;
 import io.meeds.spring.web.security.WebSecurityConfiguration;
 
@@ -74,7 +75,10 @@ public class SectionTemplateRestTest {
   private static final String    TEST_PASSWORD = "testPassword";
 
   @MockBean
-  private SectionTemplateService sectionTemplateService;
+  private SectionTemplateService       sectionTemplateService;
+
+  @MockBean
+  private SectionTemplateImportService sectionTemplateImportService;
 
   @Autowired
   private SecurityFilterChain    filterChain;

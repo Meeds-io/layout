@@ -45,35 +45,23 @@
         @mouseout="menu = false"
         @focusout="menu = false">
         <v-list-item-group v-model="listItem">
-          <v-tooltip :disabled="!sectionTemplate.system" bottom>
-            <template #activator="{ on, attrs }">
-              <div
-                v-on="on"
-                v-bind="attrs">
-                <v-list-item
-                  :href="!sectionTemplate.system && editLayoutLink"
-                  :disabled="sectionTemplate.system"
-                  target="_blank"
-                  rel="opener"
-                  dense>
-                  <v-card
-                    color="transparent"
-                    min-width="15"
-                    flat>
-                    <v-icon
-                      :class="sectionTemplate.system && 'disabled--text'"
-                      size="13">
-                      fa-edit
-                    </v-icon>
-                  </v-card>
-                  <v-list-item-title class="ps-2">
-                    {{ $t('sectionTemplates.label.editInstance') }}
-                  </v-list-item-title>
-                </v-list-item>
-              </div>
-            </template>
-            <span>{{ $t('sectionTemplates.label.system.noEdit') }}</span>
-          </v-tooltip>
+          <v-list-item
+            :href="editLayoutLink"
+            target="_blank"
+            rel="opener"
+            dense>
+            <v-card
+              color="transparent"
+              min-width="15"
+              flat>
+              <v-icon size="13">
+                fa-edit
+              </v-icon>
+            </v-card>
+            <v-list-item-title class="ps-2">
+              {{ $t('sectionTemplates.label.editInstance') }}
+            </v-list-item-title>
+          </v-list-item>
           <v-list-item
             dense
             @click="$root.$emit('section-template-edit', sectionTemplate)">
@@ -112,6 +100,17 @@
             </v-list-item-icon>
             <v-list-item-title>
               {{ $t('sectionTemplates.label.export') }}
+            </v-list-item-title>
+          </v-list-item>
+          <v-list-item
+            v-if="sectionTemplate.system"
+            dense
+            @click="$root.$emit('section-template-restore', sectionTemplateId)">
+            <v-list-item-icon class="me-auto">
+              <v-icon size="13">fa-redo</v-icon>
+            </v-list-item-icon>
+            <v-list-item-title>
+              {{ $t('sectionTemplates.label.restore') }}
             </v-list-item-title>
           </v-list-item>
           <v-tooltip :disabled="!sectionTemplate.system" bottom>

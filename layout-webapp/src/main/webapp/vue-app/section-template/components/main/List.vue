@@ -224,9 +224,11 @@ export default {
   },
   created() {
     this.$root.$on('section-template-delete', this.deleteSectionTemplateConfirm);
+    this.$root.$on('section-template-restore', this.restoreSectionTemplate);
   },
   beforeDestroy() {
     this.$root.$off('section-template-delete', this.deleteSectionTemplateConfirm);
+    this.$root.$off('section-template-restore', this.restoreSectionTemplate);
   },
   methods: {
     applySortOnItems(sectionTemplates, sortFields, sortDescendings) {
@@ -260,6 +262,16 @@ export default {
           this.$root.$emit('alert-message', this.$t('sectionTemplates.delete.success'), 'success');
         })
         .catch(() => this.$root.$emit('alert-message', this.$t('sectionTemplates.delete.error'), 'error'))
+        .finally(() => this.loading = false);
+    },
+    restoreSectionTemplate(id) {
+      this.loading = true;
+      this.$sectionTemplateService.restoreSectionTemplate(id)
+        .then(() => {
+          this.$root.$emit('section-template-restored', id);
+          this.$root.$emit('alert-message', this.$t('sectionTemplates.restore.success'), 'success');
+        })
+        .catch(() => this.$root.$emit('alert-message', this.$t('sectionTemplates.restore.error'), 'error'))
         .finally(() => this.loading = false);
     },
   },
