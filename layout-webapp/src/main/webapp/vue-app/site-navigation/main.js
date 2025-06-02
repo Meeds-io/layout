@@ -55,10 +55,16 @@ extensionRegistry.registerExtension('space-templates', 'space-templates-item-act
   componentName: 'site-navigation-space-template-manage-layout',
 });
 
-extensionRegistry.registerExtension('space-templates', 'space-templates-main', {
-  rank: 10,
+extensionRegistry.registerExtension('space-templates', 'space-templates-item-action', {
+  rank: 25,
   name: 'manage-layout',
-  componentName: 'site-navigation-space-template-create-listener',
+  componentName: 'site-navigation-space-template-manage-layout',
+});
+
+extensionRegistry.registerExtension('space-templates', 'space-templates-item-action', {
+  rank: 55,
+  name: 'restore-default-pages',
+  componentName: 'site-navigation-space-template-restore-default-pages',
 });
 
 const appId = 'siteNavigation';
@@ -67,8 +73,11 @@ const appId = 'siteNavigation';
 const lang = eXo && eXo.env.portal.language || 'en';
 
 //should expose the locale ressources as REST API
-const url = `/layout/i18n/locale.portlet.SiteNavigation?lang=${lang}`;
-const i18nPromise = exoi18n.loadLanguageAsync(lang, url);
+const urls = [
+  `/layout/i18n/locale.portlet.SiteNavigation?lang=${lang}`,
+  `/layout/i18n/locale.portlet.SiteManagement?lang=${lang}`,
+];
+const i18nPromise = exoi18n.loadLanguageAsync(lang, urls);
 
 export function init(canManageSiteNavigation) {
   i18nPromise.then(i18n => {

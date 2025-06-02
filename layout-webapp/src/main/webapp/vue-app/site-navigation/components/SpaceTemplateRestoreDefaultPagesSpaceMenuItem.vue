@@ -2,7 +2,7 @@
 
   This file is part of the Meeds project (https://meeds.io/).
 
-  Copyright (C) 2020 - 2024 Meeds Association contact@meeds.io
+  Copyright (C) 2020 - 2025 Meeds Association contact@meeds.io
 
   This program is free software; you can redistribute it and/or
   modify it under the terms of the GNU Lesser General Public
@@ -21,14 +21,14 @@
 -->
 <template>
   <v-list-item
-    v-if="spaceTemplate?.layout"
+    v-if="spaceTemplate?.system"
     dense
-    @click="openSiteNavigationDrawer">
+    @click="restoreDefaultPages">
     <v-icon size="13">
-      fa-columns
+      fa-redo
     </v-icon>
     <v-list-item-title class="ps-2">
-      {{ $t('spaceTemplate.label.editNavigation') }}
+      {{ $t('spaceTemplate.label.restoreDefaultPages') }}
     </v-list-item-title>
   </v-list-item>
 </template>
@@ -40,28 +40,24 @@ export default {
       default: null,
     },
   },
-  data: () => ({
-    site: null,
-  }),
   beforeDestroy() {
     this.$emit('loading', false);
   },
   methods: {
-    async openSiteNavigationDrawer() {
+    async restoreDefaultPages() {
       this.$emit('loading', true);
       try {
-        if (!this.site) {
-          this.site = await this.$siteService.getSite('group_template', this.spaceTemplate?.layout, {
-            expandNavigations: false,
-          });
-        }
-        document.dispatchEvent(new CustomEvent('open-site-navigation-drawer',{detail: {
-          siteName: this.site.name,
-          siteType: this.site.siteType,
-          siteId: this.site.siteId,
-          siteLabel: this.spaceTemplate?.name,
-          includeGlobal: false,
-        }}));
+        await this.$siteLayoutService.restoreSite({
+          siteType: 'group_template',
+          siteName: this.spaceTemplate.layout,
+          importMode: 'MERGE',
+          siteLayout: false,
+          sitePages: true,
+          siteNavigation: true,
+        });
+        this.$root.$emit('alert-message', window.vueI18nMessages['siteManagement.label.restoreSitePages.success'], 'success');
+      } catch (e) {
+        this.$root.$emit('alert-message', window.vueI18nMessages['siteManagement.label.restoreSitePages.error'], 'error');
       } finally {
         this.$emit('loading', false);
       }
