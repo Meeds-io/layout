@@ -119,6 +119,17 @@ export function updateSectionTemplate(sectionTemplate) {
   });
 }
 
+export function restoreSectionTemplate(id) {
+  return fetch(`/layout/rest/sections/${id}/restore`, {
+    credentials: 'include',
+    method: 'PUT',
+  }).then((resp) => {
+    if (!resp?.ok) {
+      throw new Error('Error when restoring section template');
+    }
+  });
+}
+
 export function deleteSectionTemplate(id) {
   return fetch(`/layout/rest/sections/${id}`, {
     credentials: 'include',

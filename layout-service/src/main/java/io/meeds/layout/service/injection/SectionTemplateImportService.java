@@ -42,6 +42,7 @@ import org.exoplatform.commons.api.settings.SettingService;
 import org.exoplatform.commons.api.settings.SettingValue;
 import org.exoplatform.commons.api.settings.data.Context;
 import org.exoplatform.commons.api.settings.data.Scope;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.container.configuration.ConfigurationManager;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -67,43 +68,44 @@ import lombok.SneakyThrows;
 @Order(Ordered.LOWEST_PRECEDENCE)
 public class SectionTemplateImportService {
 
-  private static final String            SECTION_TEMPLATE_IMPORT       = "SECTION_TEMPLATE_IMPORT";
+  private static final String             SECTION_TEMPLATE_IMPORT       = "SECTION_TEMPLATE_IMPORT";
 
-  private static final Scope             SECTION_TEMPLATE_IMPORT_SCOPE =
-                                                                       Scope.APPLICATION.id(SECTION_TEMPLATE_IMPORT);
+  private static final Scope              SECTION_TEMPLATE_IMPORT_SCOPE =
+                                                                        Scope.APPLICATION.id(SECTION_TEMPLATE_IMPORT);
 
-  private static final Context           SECTION_TEMPLATE_CONTEXT      = Context.GLOBAL.id("SECTION_TEMPLATE");
+  private static final Context            SECTION_TEMPLATE_CONTEXT      = Context.GLOBAL.id("SECTION_TEMPLATE");
 
-  private static final String            SECTION_TEMPLATE_VERSION      = "version";
+  private static final String             SECTION_TEMPLATE_VERSION      = "version";
 
-  private static final Log               LOG                           =
-                                             ExoLogger.getLogger(SectionTemplateImportService.class);
+  private static final Log                LOG                           = ExoLogger.getLogger(SectionTemplateImportService.class);
 
-  private static final Random            RANDOM                        = new Random();
-
-  @Autowired
-  private LayoutAclService               layoutAclService;
+  private static final Random             RANDOM                        = new Random();
 
   @Autowired
-  private LayoutTranslationImportService layoutTranslationService;
+  private LayoutAclService                layoutAclService;
 
   @Autowired
-  private AttachmentService              attachmentService;
+  private LayoutTranslationImportService  layoutTranslationService;
 
   @Autowired
-  private SectionTemplateService         sectionTemplateService;
+  private AttachmentService               attachmentService;
 
   @Autowired
-  private SettingService                 settingService;
+  private SectionTemplateService          sectionTemplateService;
 
   @Autowired
-  private ConfigurationManager           configurationManager;
+  private SettingService                  settingService;
+
+  @Autowired
+  private ConfigurationManager            configurationManager;
 
   @Value("${meeds.sections.import.override:false}")
-  private boolean                        forceReimport;
+  private boolean                         forceReimport;
 
   @Value("${meeds.sections.import.version:1}")
-  private long                           sectionTemplateImportVersion;
+  private long                            sectionTemplateImportVersion;
+
+  private List<SectionTemplateDescriptor> sectionTemplateDescriptors;
 
   @PostConstruct
   public void init() {
@@ -119,11 +121,13 @@ public class SectionTemplateImportService {
 
     ConversationState.setCurrent(layoutAclService.getSuperUserConversationState());
     try {
-      Collections.list(getClass().getClassLoader().getResources("section-templates.json"))
-                 .stream()
-                 .map(this::parseDescriptors)
-                 .flatMap(List::stream)
-                 .forEach(this::importDescriptor);
+      sectionTemplateDescriptors = Collections.list(getClass().getClassLoader()
+                                                              .getResources("section-templates.json"))
+                                              .stream()
+                                              .map(this::parseDescriptors)
+                                              .flatMap(List::stream)
+                                              .toList();
+      sectionTemplateDescriptors.forEach(d -> importDescriptor(d, forceReimport));
       LOG.info("Importing Section Templates finished successfully.");
 
       LOG.info("Processing Post Section Templates import");
@@ -138,6 +142,33 @@ public class SectionTemplateImportService {
     }
   }
 
+  public void restoreSectionTemplate(long sectionTemplateId, String username) throws ObjectNotFoundException,
+                                                                              IllegalAccessException {
+    if (!layoutAclService.isAdministrator(username)) {
+      throw new IllegalAccessException("User isn't authorized to restore a section template");
+    }
+    SectionTemplate sectionTemplate = sectionTemplateService.getSectionTemplate(sectionTemplateId);
+    if (sectionTemplate == null) {
+      throw new ObjectNotFoundException(String.format("Section Template with Id %s doesn't exists", sectionTemplateId));
+    }
+    SectionTemplateDescriptor descriptor = sectionTemplateDescriptors.stream()
+                                                                     .filter(d -> getSettingValue(d.getNameId())
+                                                                         == sectionTemplateId)
+                                                                     .findFirst()
+                                                                     .orElse(null);
+    if (descriptor == null) {
+      if (sectionTemplate.isSystem()) {
+        sectionTemplate.setSystem(false);
+        sectionTemplateService.updateSectionTemplate(sectionTemplate);
+      } else {
+        throw new IllegalStateException(String.format("Section Template with Id %s isn't a system Section template",
+                                                      sectionTemplateId));
+      }
+    } else {
+      saveSectionTemplate(descriptor, sectionTemplateId);
+    }
+  }
+
   protected List<SectionTemplateDescriptor> parseDescriptors(URL url) {
     try (InputStream inputStream = url.openStream()) {
       String content = IOUtils.toString(inputStream, StandardCharsets.UTF_8);
@@ -149,17 +180,17 @@ public class SectionTemplateImportService {
     }
   }
 
-  protected void importDescriptor(SectionTemplateDescriptor descriptor) {
+  protected void importDescriptor(SectionTemplateDescriptor descriptor, boolean override) {
     String descriptorId = descriptor.getNameId();
     long existingId = getSettingValue(descriptorId);
-    if (forceReimport || existingId == 0) {
-      importSectionTemplate(descriptor, existingId);
+    if (override || existingId == 0) {
+      importSectionTemplate(descriptor, existingId, override);
     } else {
       LOG.debug("Ignore re-importing Section Template {}", descriptorId);
     }
   }
 
-  protected void importSectionTemplate(SectionTemplateDescriptor d, long oldId) {
+  protected void importSectionTemplate(SectionTemplateDescriptor d, long oldId, boolean override) {
     String descriptorId = d.getNameId();
     LOG.debug("Importing Section Template {}", descriptorId);
     try {
@@ -167,7 +198,7 @@ public class SectionTemplateImportService {
       if (sectionTemplate == null) {
         return;
       }
-      if (forceReimport || oldId == 0 || sectionTemplate.getId() != oldId) {
+      if (override || oldId == 0 || sectionTemplate.getId() != oldId) {
         LOG.debug("Importing Section Template {} title translations", descriptorId);
         saveNames(d, sectionTemplate);
         LOG.debug("Importing Section Template {} description translations", descriptorId);

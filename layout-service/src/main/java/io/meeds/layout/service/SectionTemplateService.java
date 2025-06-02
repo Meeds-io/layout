@@ -189,9 +189,6 @@ public class SectionTemplateService {
     if (sectionTemplate == null) {
       throw new ObjectNotFoundException(SECTION_TEMPLATE_DOESN_T_EXIST_MESSAGE);
     }
-    if (sectionTemplate.isSystem()) {
-      throw new IllegalAccessException("Can't edit the layout of a system Section Template layout");
-    }
     NodeData clonedPageNode = sectionTemplateLayoutStorage.generateSectionTemplateNodeId(sectionTemplate, username);
     return Long.parseLong(clonedPageNode.getId());
   }
