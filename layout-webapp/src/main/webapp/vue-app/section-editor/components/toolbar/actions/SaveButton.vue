@@ -67,7 +67,9 @@ export default {
         const sectionContent = await this.$sectionTemplateService.generateSectionTemplateContent(this.$root.sectionTemplateId);
         const sectionTemplate = JSON.parse(JSON.stringify(this.$root.sectionTemplate));
         sectionTemplate.content = JSON.stringify(sectionContent);
-        sectionTemplate.category = 'custom';
+        if (!sectionTemplate.category) {
+          sectionTemplate.category = 'custom';
+        }
         this.$root.$emit('section-template-edit', sectionTemplate, false, document.querySelector('.layout-section'));
       } catch (e) {
         this.$root.$emit('alert-message', this.$te(e.message) ? this.$t(e.message) : this.$t('layout.pageSavingError'), 'error');

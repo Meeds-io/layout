@@ -67,9 +67,19 @@ export function init() {
           this.$root.$on('section-template-disabled', this.refreshSectionTemplates);
           this.$root.$on('section-template-saved', this.refreshSectionTemplates);
           this.$root.$on('section-template-deleted', this.refreshSectionTemplates);
+          this.$root.$on('section-template-restored', this.refreshSectionTemplates);
           window.addEventListener('section-template-layout-updated', this.propagateEventListenerLocally);
 
           this.refreshSectionTemplates();
+        },
+        beforeDestroy() {
+          this.$root.$off('section-templates-list-refresh', this.refreshSectionTemplates);
+          this.$root.$off('section-template-enabled', this.refreshSectionTemplates);
+          this.$root.$off('section-template-disabled', this.refreshSectionTemplates);
+          this.$root.$off('section-template-saved', this.refreshSectionTemplates);
+          this.$root.$off('section-template-deleted', this.refreshSectionTemplates);
+          this.$root.$off('section-template-restored', this.refreshSectionTemplates);
+          window.removeEventListener('section-template-layout-updated', this.propagateEventListenerLocally);
         },
         methods: {
           propagateEventListenerLocally(event) {

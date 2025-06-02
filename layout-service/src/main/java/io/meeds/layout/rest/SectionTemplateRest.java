@@ -41,6 +41,7 @@ import org.exoplatform.portal.mop.page.PageKey;
 import io.meeds.layout.model.SectionTemplate;
 import io.meeds.layout.model.SectionTemplateDetail;
 import io.meeds.layout.service.SectionTemplateService;
+import io.meeds.layout.service.injection.SectionTemplateImportService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -55,7 +56,10 @@ import jakarta.servlet.http.HttpServletRequest;
 public class SectionTemplateRest {
 
   @Autowired
-  private SectionTemplateService sectionTemplateService;
+  private SectionTemplateService       sectionTemplateService;
+
+  @Autowired
+  private SectionTemplateImportService sectionTemplateImportService;
 
   @GetMapping
   @Secured("users")
@@ -151,6 +155,31 @@ public class SectionTemplateRest {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
     } catch (IllegalAccessException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+    }
+  }
+
+  @PutMapping("{id}/restore")
+  @Secured("users")
+  @Operation(summary = "Restores a system Section template", method = "PUT", description = "This restores a system Section template")
+  @ApiResponses(value = {
+    @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+    @ApiResponse(responseCode = "404", description = "Bad request"),
+    @ApiResponse(responseCode = "403", description = "Forbidden"),
+    @ApiResponse(responseCode = "404", description = "Not found"),
+  })
+  public void restoreSectionTemplate(
+                                     HttpServletRequest request,
+                                     @Parameter(description = "Section template identifier")
+                                     @PathVariable("id")
+                                     long id) {
+    try {
+      sectionTemplateImportService.restoreSectionTemplate(id, request.getRemoteUser());
+    } catch (ObjectNotFoundException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+    } catch (IllegalAccessException e) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+    } catch (IllegalStateException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
     }
   }
 
