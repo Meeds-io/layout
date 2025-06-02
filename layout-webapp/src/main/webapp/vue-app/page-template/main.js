@@ -64,6 +64,7 @@ export function init() {
         created() {
           this.$root.$on('page-templates-list-refresh', this.refreshPageTemplates);
           this.$root.$on('page-templates-deleted', this.refreshPageTemplates);
+          this.$root.$on('page-templates-restored', this.refreshPageTemplates);
           this.$root.$on('page-templates-created', this.refreshPageTemplates);
           this.$root.$on('page-templates-updated', this.refreshPageTemplates);
           this.$root.$on('page-templates-enabled', this.refreshPageTemplates);
@@ -71,6 +72,16 @@ export function init() {
           this.$root.$on('page-templates-saved', this.refreshPageTemplates);
           this.refreshPageTemplates();
           this.retrieveColumnsTemplate();
+        },
+        beforeDestroy() {
+          this.$root.$off('page-templates-list-refresh', this.refreshPageTemplates);
+          this.$root.$off('page-templates-deleted', this.refreshPageTemplates);
+          this.$root.$off('page-templates-restored', this.refreshPageTemplates);
+          this.$root.$off('page-templates-created', this.refreshPageTemplates);
+          this.$root.$off('page-templates-updated', this.refreshPageTemplates);
+          this.$root.$off('page-templates-enabled', this.refreshPageTemplates);
+          this.$root.$off('page-templates-disabled', this.refreshPageTemplates);
+          this.$root.$off('page-templates-saved', this.refreshPageTemplates);
         },
         methods: {
           refreshPageTemplates() {
