@@ -46,18 +46,64 @@
         </template>
       </v-radio>
     </v-radio-group>
-    <exo-identity-suggester
-      v-if="!isAdministrationPermissions"
-      ref="targetPermissions"
-      v-model="specificGroupEntry"
-      :labels="suggesterLabels"
-      :search-options="{filterType: 'all'}"
-      name="specificGroupPermission"
-      class="mb-n3 mt-n3"
-      include-spaces
-      include-groups
-      all-groups-for-admin
-      required />
+    <template v-if="!isAdministrationPermissions">
+      <exo-identity-suggester
+        v-if="!specificGroupEntry"
+        ref="targetPermissions"
+        v-model="specificGroup"
+        :labels="suggesterLabels"
+        :search-options="{filterType: 'all'}"
+        name="specificGroupPermission"
+        class="mb-n3 mt-n3"
+        include-spaces
+        include-groups
+        all-groups-for-admin />
+      <v-list-item
+        v-else
+        class="pa-1 pb-1"
+        dense>
+        <v-list-item-action class="pa-0 ma-0">
+          <select
+            v-model="specificGroupEntry.role"
+            aria-label="hidden"
+            class="ignore-vuetify-classes width-auto pa-0 ma-0">
+            <option
+              v-for="role in roles"
+              :key="role.value"
+              :value="role.value">
+              {{ role.text }}
+            </option>
+          </select>
+        </v-list-item-action>
+        <v-list-item-content class="d-flex align-center pa-0">
+          <v-list-item-title class="d-flex align-center text-truncate">
+            <div class="px-2">
+              {{ $t('sites.permission.in') }}
+            </div>
+            <template v-if="specificGroupEntry.providerId === 'group'">
+              <v-icon size="28" class="me-2">
+                fa-users
+              </v-icon>
+              <span class="text-truncate">
+                {{ specificGroupEntry.displayName }}
+              </span>
+            </template>
+            <space-avatar
+              v-else
+              :space-id="specificGroupEntry.spaceId"
+              class="text-truncate" />
+          </v-list-item-title>
+        </v-list-item-content>
+        <v-list-item-action class="pa-0 my-auto">
+          <v-btn
+            :title="$t('siteNavigation.label.deleteCustomGroup')"
+            icon
+            @click.stop.prevent="deleteSpecificGroup">
+            <v-icon color="error" small>fa-trash</v-icon>
+          </v-btn>
+        </v-list-item-action>
+      </v-list-item>
+    </template>
   </div>
 </template>
 <script>
@@ -76,14 +122,31 @@ export default {
     administratorsPermission: '/platform/administrators',
     isAdministrationPermissions: true,
     specificGroupEntry: null,
+    specificGroup: null,
+    defaultRole: 'manager',
   }),
   computed: {
+    roles() {
+      return [{
+        value: '*',
+        text: this.$t('sites.permission.everyone'),
+      }, {
+        value: 'redactor',
+        text: this.$t('sites.permission.redactors'),
+      }, {
+        value: 'publisher',
+        text: this.$t('sites.permission.publishers'),
+      }, {
+        value: 'manager',
+        text: this.$t('sites.permission.managers'),
+      }];
+    },
     isSpecificGroup() {
       return this.specificGroupEntry;
     },
     permission() {
       if (!this.isAdministrationPermissions && this.specificGroupEntry?.groupId) {
-        return `*:${this.specificGroupEntry.groupId}`;
+        return `${this.specificGroupEntry.role || this.defaultRole}:${this.specificGroupEntry.groupId}`;
       } else {
         return `*:${this.administratorsPermission}`;
       }
@@ -99,6 +162,16 @@ export default {
     permission() {
       this.$emit('input', this.permission);
     },
+    async specificGroup() {
+      if (this.specificGroup) {
+        this.specificGroupEntry = {
+          ...this.specificGroup,
+          role: this.defaultRole,
+        };
+        await this.$nextTick();
+        this.specificGroup = null;
+      }
+    },
     isAdministrationPermissions() {
       if (this.isAdministrationPermissions) {
         this.specificGroupEntry = null;
@@ -111,14 +184,18 @@ export default {
     if (this.isAdministrationPermissions) {
       this.specificGroupEntry = null;
     } else if (permission) {
-      await this.retrieveObject(permission);
+      await this.retrieveObject(this.value, '*');
     } else {
       this.isAdministrationPermissions = true;
       this.specificGroupEntry = null;
     }
   },
   methods: {
-    async retrieveObject(groupId) {
+    deleteSpecificGroup() {
+      this.specificGroupEntry = null;
+    },
+    async retrieveObject(groupId, defaultRole) {
+      const role = groupId.includes(':') ? groupId.split(':')[0] : defaultRole || this.defaultRole;
       groupId = groupId.includes(':') ? groupId.split(':')[1] : groupId;
       if (groupId.indexOf('/spaces/') === 0) {
         const space = await this.$spaceService.getSpaceByGroupId(groupId);
@@ -130,6 +207,7 @@ export default {
             groupId: space.groupId,
             providerId: 'space',
             displayName: space.displayName,
+            role,
             profile: {
               fullName: space.displayName,
               originalName: space.shortName,
@@ -147,6 +225,7 @@ export default {
             groupId: groupId,
             providerId: 'group',
             displayName: group.profile?.fullname,
+            role,
             profile: {
               fullName: group.profile?.fullname,
               originalName: group.profile?.fullname,

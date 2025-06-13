@@ -32,10 +32,10 @@
     </template>
     <template v-if="drawer" #content>
       <v-card class="mx-4 my-4 px-2 py-2 elevation-0">
-        <site-edit-permission
+        <manage-permissions-edit
           v-model="editPermission"
           :is-site="isSite" />
-        <site-access-permissions
+        <manage-permissions-access
           v-model="accessPermissions"
           class="mt-4"
           :is-site="isSite" />
