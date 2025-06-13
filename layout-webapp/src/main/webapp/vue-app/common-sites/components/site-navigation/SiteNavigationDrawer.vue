@@ -72,19 +72,21 @@
             class="btn btn-primary ms-2">
             {{ $t('siteNavigation.label.btn.createNode') }}
           </v-btn>
-          <v-spacer v-if="$refs.drawer?.expand" />
-          <select
-            id="siteNavigationDrawerFilterSelect"
-            v-model="filter"
-            v-if="$refs.drawer?.expand"
-            class="ignore-vuetify-classes width-auto pa-0 me-5 mb-0">
-            <option
-              v-for="item in navigationsFilter"
-              :key="item.value"
-              :value="item.value">
-              {{ item.text }}
-            </option>
-          </select>
+          <template v-if="$refs.drawer?.expand">
+            <v-spacer />
+            <select
+              id="siteNavigationDrawerFilterSelect"
+              v-model="filter"
+              aria-label="hidden"
+              class="ignore-vuetify-classes width-auto pa-0 me-5 mb-0">
+              <option
+                v-for="item in navigationsFilter"
+                :key="item.value"
+                :value="item.value">
+                {{ item.text }}
+              </option>
+            </select>
+          </template>
         </v-toolbar>
         <site-navigation-nodes-list
           :navigation-nodes="navigationNodesToDisplay"
