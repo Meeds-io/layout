@@ -17,7 +17,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-import ManagePermissionsDrawer from './components/manage-permissions/ManagePermissionsDrawer.vue';
 import SiteNavigationDrawer from './components/site-navigation/SiteNavigationDrawer.vue';
 import SiteNavigationNodesList from './components/site-navigation/NodesList.vue';
 import SiteNavigationNodeItem from './components/site-navigation/NodeItem.vue';
@@ -34,11 +33,14 @@ import NodeIconPickerDrawer from './components/site-navigation/NodeIconPickerDra
 import SiteNavigationNewPageElementItemsList from './components/site-navigation/SiteNavigationNewPageElementItemsList.vue';
 import SiteNavigationNewPageElementItem from './components/site-navigation/SiteNavigationNewPageElementItem.vue';
 
-import SiteAccessPermissions from './components/manage-permissions/SiteAccessPermissions.vue';
-import SiteEditPermission from './components/manage-permissions/SiteEditPermission.vue';
+import ManagePermissionsDrawer from './components/manage-permissions/ManagePermissionsDrawer.vue';
+import AccessPermissions from './components/manage-permissions/AccessPermissions.vue';
+import EditPermission from './components/manage-permissions/EditPermission.vue';
 
 const components = {
   'manage-permissions-drawer': ManagePermissionsDrawer,
+  'manage-permissions-access': AccessPermissions,
+  'manage-permissions-edit': EditPermission,
   'site-navigation-drawer': SiteNavigationDrawer,
   'site-navigation-nodes-list': SiteNavigationNodesList,
   'site-navigation-node-item': SiteNavigationNodeItem,
@@ -53,8 +55,6 @@ const components = {
   'site-navigation-existing-page-element': SiteNavigationExistingPageElement,
   'site-navigation-page-suggester': SiteNavigationPageSuggester,
   'site-navigation-site-suggester': SiteNavigationSiteSuggester,
-  'site-access-permissions': SiteAccessPermissions,
-  'site-edit-permission': SiteEditPermission,
   'node-icon-picker-drawer': NodeIconPickerDrawer,
 };
 

@@ -180,10 +180,10 @@
                 v-if="step === 2"
                 class="px-4"
                 @submit.stop.prevent="0">
-                <site-edit-permission
+                <manage-permissions-edit
                   v-model="editPermission"
                   is-site />
-                <site-access-permissions
+                <manage-permissions-access
                   v-model="accessPermissions"
                   class="mt-4"
                   is-site />
