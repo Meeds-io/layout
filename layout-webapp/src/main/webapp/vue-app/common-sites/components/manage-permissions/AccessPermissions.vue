@@ -89,16 +89,64 @@
     <exo-identity-suggester
       v-if="isCustomPermissions"
       ref="targetPermissions"
-      v-model="specificGroupEntries"
+      v-model="specificGroup"
       :labels="suggesterLabels"
       :search-options="{filterType: 'all'}"
       name="specificGroupPermissions"
       class="mb-n3"
       include-spaces
       include-groups
-      all-groups-for-admin
-      multiple
-      required />
+      all-groups-for-admin />
+    <div v-if="specificGroupEntries?.length" class="mt-4">
+      <v-list-item
+        v-for="g in specificGroupEntries"
+        :key="g.id"
+        class="pa-1 pb-1"
+        dense>
+        <v-list-item-action class="pa-0 ma-0">
+          <select
+            v-model="g.role"
+            aria-label="hidden"
+            class="ignore-vuetify-classes width-auto pa-0 ma-0"
+            @change="updateIndex++"
+            @blur="updateIndex++">
+            <option
+              v-for="role in roles"
+              :key="role.value"
+              :value="role.value">
+              {{ role.text }}
+            </option>
+          </select>
+        </v-list-item-action>
+        <v-list-item-content class="d-flex align-center pa-0">
+          <v-list-item-title class="d-flex align-center text-truncate">
+            <div class="px-2">
+              {{ $t('sites.permission.in') }}
+            </div>
+            <template v-if="g.providerId === 'group'">
+              <v-icon size="28" class="me-2">
+                fa-users
+              </v-icon>
+              <span class="text-truncate">
+                {{ g.displayName }}
+              </span>
+            </template>
+            <space-avatar
+              v-else
+              :space-id="g.spaceId"
+              class="text-truncate" />
+          </v-list-item-title>
+        </v-list-item-content>
+        <v-list-item-action class="pa-0 my-auto">
+          <v-btn
+            :title="$t('siteNavigation.label.deleteCustomGroup')"
+            icon
+            @click.stop.prevent="deleteSpecificGroup(g)">
+            <v-icon color="error" small>fa-trash</v-icon>
+          </v-btn>
+        </v-list-item-action>
+      </v-list-item>
+    </div>
   </div>
 </template>
 <script>
@@ -124,8 +172,26 @@ export default {
     isAnyPermissions: false,
     isCustomPermissions: false,
     specificGroupEntries: null,
+    specificGroup: null,
+    defaultRole: '*',
+    updateIndex: 1,
   }),
   computed: {
+    roles() {
+      return [{
+        value: '*',
+        text: this.$t('sites.permission.everyone'),
+      }, {
+        value: 'redactor',
+        text: this.$t('sites.permission.redactors'),
+      }, {
+        value: 'publisher',
+        text: this.$t('sites.permission.publishers'),
+      }, {
+        value: 'manager',
+        text: this.$t('sites.permission.managers'),
+      }];
+    },
     isSpecificGroup() {
       return !!this.specificGroupEntries?.length;
     },
@@ -140,12 +206,14 @@ export default {
         if (this.isGuestPermissions) {
           permissions.push(`*:${this.externalsPermission}`);
         }
-        if (this.specificGroupEntries?.length) {
-          const specificGroupEntries = this.specificGroupEntries?.map?.(g => g.groupId)?.filter?.(g => g) || [];
-          permissions.push(...specificGroupEntries.map(g => `*:${g}`));
-        }
-        if (!permissions.length) {
-          permissions.push(`*:${this.administratorsPermission}`);
+        if (this.updateIndex > 0) {
+          if (this.specificGroupEntries?.length) {
+            const specificGroupEntries = this.specificGroupEntries?.filter?.(g => g.groupId) || [];
+            permissions.push(...specificGroupEntries.map(g => `${g.role || this.defaultRole}:${g.groupId}`));
+          }
+          if (!permissions.length) {
+            permissions.push(`*:${this.administratorsPermission}`);
+          }
         }
       }
       return permissions;
@@ -160,6 +228,19 @@ export default {
   watch: {
     permissions() {
       this.$emit('input', this.permissions);
+    },
+    async specificGroup() {
+      if (this.specificGroup) {
+        if (!this.specificGroupEntries) {
+          this.specificGroupEntries = [];
+        }
+        this.specificGroupEntries.push({
+          ...this.specificGroup,
+          role: this.defaultRole,
+        });
+        await this.$nextTick();
+        this.specificGroup = null;
+      }
     },
     isAnyPermissions() {
       if (this.isAnyPermissions) {
@@ -186,12 +267,19 @@ export default {
     }) || null;
     this.isCustomPermissions = !!specificGroupEntries?.length;
     if (specificGroupEntries?.length) {
-      specificGroupEntries.forEach(this.retrieveObject);
+      specificGroupEntries.forEach(id => this.retrieveObject(id, '*')); // * specifically to not have to migrate data
     }
   },
   methods: {
-    async retrieveObject(groupId) {
+    deleteSpecificGroup(group) {
+      const index = this.specificGroupEntries.findIndex(g => group.id === g.id);
+      if (index >= 0) {
+        this.specificGroupEntries.splice(index, 1);
+      }
+    },
+    async retrieveObject(groupId, defaultRole) {
       try {
+        const role = groupId.includes(':') ? groupId.split(':')[0] : defaultRole || this.defaultRole;
         groupId = groupId.includes(':') ? groupId.split(':')[1] : groupId;
         if (groupId.indexOf('/spaces/') === 0) {
           const space = await this.$spaceService.getSpaceByGroupId(groupId);
@@ -203,6 +291,7 @@ export default {
               groupId: space.groupId,
               providerId: 'space',
               displayName: space.displayName,
+              role,
               profile: {
                 fullName: space.displayName,
                 originalName: space.shortName,
@@ -220,6 +309,7 @@ export default {
               groupId: groupId,
               providerId: 'group',
               displayName: group.profile?.fullname,
+              role,
               profile: {
                 fullName: group.profile?.fullname,
                 originalName: group.profile?.fullname,
