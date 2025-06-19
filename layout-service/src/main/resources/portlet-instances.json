@@ -405,6 +405,23 @@
         "*:/platform/administrators"
       ],
       "system":true
+    },
+    {
+      "nameId":"SpaceCreation",
+      "categoryNameId":"tools",
+      "portletName":"SpaceCreation",
+      "names":{
+        "en":"layout.portletInstance.SpaceCreation.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.SpaceCreation.description"
+      },
+      "illustrationPath":"war:/../images/portlets/spaceCreation.webp",
+      "permissions":[
+        "*:/platform/administrators",
+        "*:/platform/web-contributors"
+      ],
+      "system":true
     }
   ]
 }
