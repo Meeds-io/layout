@@ -87,6 +87,17 @@
         "*:/platform/users"
       ],
       "system":true
+    },
+    {
+      "nameId":"login",
+      "names":{
+        "en":"layout.portletInstance.category.login.name"
+      },
+      "icon":"fa-sign-in-alt",
+      "permissions":[
+        "*:/platform/administrators"
+      ],
+      "system":true
     }
   ]
 }
