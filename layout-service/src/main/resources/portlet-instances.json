@@ -422,6 +422,21 @@
         "*:/platform/web-contributors"
       ],
       "system":true
+    },
+    {
+      "nameId":"PlatformName",
+      "categoryNameId":"login",
+      "portletName":"PlatformName",
+      "names":{
+        "en":"layout.portletInstance.PlatformName.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.PlatformName.description"
+      },
+      "permissions":[
+        "*:/platform/administrators"
+      ],
+      "system":true
     }
   ]
 }
