@@ -437,6 +437,22 @@
         "*:/platform/administrators"
       ],
       "system":true
+    },
+
+    {
+      "nameId":"PlatformLogo",
+      "categoryNameId":"login",
+      "portletName":"PlatformLogo",
+      "names":{
+        "en":"layout.portletInstance.PlatformLogo.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.PlatformLogo.description"
+      },
+      "permissions":[
+        "*:/platform/administrators"
+      ],
+      "system":true
     }
   ]
 }
