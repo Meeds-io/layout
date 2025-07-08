@@ -438,7 +438,6 @@
       ],
       "system":true
     },
-
     {
       "nameId":"PlatformLogo",
       "categoryNameId":"login",
@@ -449,6 +448,22 @@
       "descriptions":{
         "en":"layout.portletInstance.PlatformLogo.description"
       },
+      "permissions":[
+        "*:/platform/administrators"
+      ],
+      "system":true
+    },
+    {
+      "nameId":"SidebarLogin",
+      "categoryNameId":"login",
+      "portletName":"SidebarLogin",
+      "names":{
+        "en":"layout.portletInstance.SidebarLogin.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.SidebarLogin.description"
+      },
+      "illustrationPath":"war:/../images/portlets/sidebarLogin.webp",
       "permissions":[
         "*:/platform/administrators"
       ],
