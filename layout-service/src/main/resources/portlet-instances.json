@@ -468,6 +468,22 @@
         "*:/platform/administrators"
       ],
       "system":true
+    },
+    {
+      "nameId":"LoginForm",
+      "categoryNameId":"login",
+      "portletName":"LoginForm",
+      "names":{
+        "en":"layout.portletInstance.LoginForm.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.LoginForm.description"
+      },
+      "illustrationPath":"war:/../images/portlets/loginForm.webp",
+      "permissions":[
+        "*:/platform/administrators"
+      ],
+      "system":true
     }
   ]
 }
