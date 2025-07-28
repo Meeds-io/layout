@@ -291,8 +291,13 @@ public class PageLayoutService {
                                                       applicationId,
                                                       pageKey));
     }
-    Portlet portletPreferences = new Portlet();
-    preferences.forEach(preference -> portletPreferences.setValue(preference.getName(), preference.getValue()));
+    Portlet portletPreferences = layoutService.load(application.getState());
+    if (portletPreferences == null) {
+      portletPreferences = new Portlet();
+    }
+    for (PortletInstancePreference preference : preferences) {
+      portletPreferences.setValue(preference.getName(), preference.getValue());
+    }
     layoutService.save(application.getState(), portletPreferences);
   }
 
