@@ -172,9 +172,7 @@ export default {
         const pageTemplate = await this.$pageTemplateService.getPageTemplate(this.templateId, true);
         this.description = pageTemplate?.description || '';
         this.duplicate = duplicate;
-        if (this.duplicate) {
-          this.pageLayoutContent = pageTemplate.content;
-        }
+        this.pageLayoutContent = pageTemplate.content;
       }
       if (generateIllustration) {
         const parentElement = document.querySelector('.layout-sections-parent .layout-page-body').parentElement;
