@@ -278,7 +278,7 @@ export default {
         || !(/^[a-zA-Z0-9_-]*$/).test(this.siteName);
     },
     sortedTemplates() {
-      const siteTemplates = this.templates?.filter?.(t => t.name) || [];
+      const siteTemplates = this.templates?.filter?.(t => t.name && !t.disabled) || [];
       siteTemplates.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
       return siteTemplates;
     },
