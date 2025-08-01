@@ -30,7 +30,7 @@ import java.util.Collections;
 import java.util.List;
 
 @Service
-public class LoginFormPortletInstancePreferencePlugin  implements PortletInstancePreferencePlugin {
+public class SidebarLoginPortletInstancePreferencePlugin implements PortletInstancePreferencePlugin {
 
 
   private static final String    DATA_INIT_PREFERENCE_NAME   = "data.init";
@@ -38,7 +38,7 @@ public class LoginFormPortletInstancePreferencePlugin  implements PortletInstanc
 
   @Override
   public String getPortletName() {
-    return "LoginForm";
+    return "SidebarLogin";
   }
 
   @Override
