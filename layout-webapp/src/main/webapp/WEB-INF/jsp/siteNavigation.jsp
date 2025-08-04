@@ -32,7 +32,7 @@
   <div id="siteNavigation">
     <script type="text/javascript">
       eXo.env.portal.isAdministrator = <%=isAdministrator%>;
-      eXo.env.portal.siteLabel = '<%=rcontext.getSiteLabel()%>';
+      eXo.env.portal.siteLabel = '<%=rcontext.getSiteLabel() == null ? "" : rcontext.getSiteLabel()%>';
     </script>
   </div>
 </div>
