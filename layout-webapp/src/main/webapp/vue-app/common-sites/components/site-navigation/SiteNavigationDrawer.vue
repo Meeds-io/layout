@@ -147,7 +147,7 @@ export default {
       return this.site?.metaSite;
     },
     label() {
-      return this.siteLabel || this.siteName;
+      return (this.siteLabel === 'null' ? null : this.siteLabel) || this.siteName;
     },
     editSiteLayoutLink() {
       return `${eXo.env.portal.context}/${eXo.env.portal.portalName}/site-layout-editor?siteId=${this.siteId}`;
