@@ -58,22 +58,22 @@ public class SiteTemplateTranslationPlugin extends TranslationPlugin {
   }
 
   @Override
-  public boolean hasEditPermission(long id, String username) {
+  public boolean hasEditPermission(String id, String username) {
     return layoutAclService.isAdministrator(username);
   }
 
   @Override
-  public boolean hasAccessPermission(long id, String username) {
+  public boolean hasAccessPermission(String id, String username) {
     return true;
   }
 
   @Override
-  public long getAudienceId(long templateId) throws ObjectNotFoundException {
+  public long getAudienceId(String id) throws ObjectNotFoundException {
     return 0;
   }
 
   @Override
-  public long getSpaceId(long templateId) throws ObjectNotFoundException {
+  public long getSpaceId(String id) throws ObjectNotFoundException {
     return 0;
   }
 
