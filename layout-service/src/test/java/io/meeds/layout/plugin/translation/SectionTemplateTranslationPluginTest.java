@@ -65,28 +65,28 @@ public class SectionTemplateTranslationPluginTest {
   @Test
   @SneakyThrows
   void hasEditPermission() {
-    assertFalse(translationPlugin.hasEditPermission(0l, null));
-    assertFalse(translationPlugin.hasEditPermission(0l, username));
+    assertFalse(translationPlugin.hasEditPermission("0", null));
+    assertFalse(translationPlugin.hasEditPermission("0", username));
     when(layoutAclService.isAdministrator(username)).thenReturn(true);
-    assertTrue(translationPlugin.hasEditPermission(0l, username));
+    assertTrue(translationPlugin.hasEditPermission("0", username));
   }
 
   @Test
   @SneakyThrows
   void hasAccessPermission() {
-    assertTrue(translationPlugin.hasAccessPermission(1, username));
+    assertTrue(translationPlugin.hasAccessPermission("1", username));
   }
 
   @Test
   @SneakyThrows
   void getAudienceId() {
-    assertEquals(0l, translationPlugin.getAudienceId(0l));
+    assertEquals(0l, translationPlugin.getAudienceId("0"));
   }
 
   @Test
   @SneakyThrows
   void getSpaceId() {
-    assertEquals(0l, translationPlugin.getSpaceId(0l));
+    assertEquals(0l, translationPlugin.getSpaceId("0"));
   }
 
 }
