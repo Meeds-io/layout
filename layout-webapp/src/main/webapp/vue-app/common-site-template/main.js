@@ -19,3 +19,5 @@
 
 import './services.js';
 import './initComponents.js';
+
+import '../common-illustration/main.js';
