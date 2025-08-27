@@ -66,13 +66,13 @@ public class PortletInstanceTranslationPlugin extends TranslationPlugin {
   }
 
   @Override
-  public boolean hasEditPermission(long id, String username) throws ObjectNotFoundException {
+  public boolean hasEditPermission(String id, String username) throws ObjectNotFoundException {
     return layoutAclService.isAdministrator(username);
   }
 
   @Override
-  public boolean hasAccessPermission(long id, String username) throws ObjectNotFoundException {
-    PortletInstance portletInstance = portletInstanceService.getPortletInstance(id);
+  public boolean hasAccessPermission(String id, String username) throws ObjectNotFoundException {
+    PortletInstance portletInstance = portletInstanceService.getPortletInstance(Long.parseLong(id));
     if (portletInstance == null) {
       throw new ObjectNotFoundException("Portlet instance not found");
     }
@@ -82,12 +82,12 @@ public class PortletInstanceTranslationPlugin extends TranslationPlugin {
   }
 
   @Override
-  public long getAudienceId(long templateId) throws ObjectNotFoundException {
+  public long getAudienceId(String id) throws ObjectNotFoundException {
     return 0;
   }
 
   @Override
-  public long getSpaceId(long templateId) throws ObjectNotFoundException {
+  public long getSpaceId(String id) throws ObjectNotFoundException {
     return 0;
   }
 

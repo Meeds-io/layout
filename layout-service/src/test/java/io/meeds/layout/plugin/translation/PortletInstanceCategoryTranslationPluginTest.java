@@ -72,39 +72,39 @@ public class PortletInstanceCategoryTranslationPluginTest {
   @Test
   @SneakyThrows
   void hasEditPermission() {
-    assertFalse(translationPlugin.hasEditPermission(0l, null));
-    assertFalse(translationPlugin.hasEditPermission(0l, username));
+    assertFalse(translationPlugin.hasEditPermission("0", null));
+    assertFalse(translationPlugin.hasEditPermission("0", username));
     when(layoutAclService.isAdministrator(username)).thenReturn(true);
-    assertTrue(translationPlugin.hasEditPermission(0l, username));
+    assertTrue(translationPlugin.hasEditPermission("0", username));
   }
 
   @Test
   @SneakyThrows
   void hasAccessPermission() {
-    assertThrows(ObjectNotFoundException.class, () -> translationPlugin.hasAccessPermission(1, null));
+    assertThrows(ObjectNotFoundException.class, () -> translationPlugin.hasAccessPermission("1", null));
     PortletInstanceCategory portletInstanceCategory = mock(PortletInstanceCategory.class);
     when(portletInstanceCategoryService.getPortletInstanceCategory(1)).thenReturn(portletInstanceCategory);
-    assertTrue(translationPlugin.hasAccessPermission(1, null));
-    assertTrue(translationPlugin.hasAccessPermission(1, username));
+    assertTrue(translationPlugin.hasAccessPermission("1", null));
+    assertTrue(translationPlugin.hasAccessPermission("1", username));
 
     String permissionExpression = "A Permission Expression";
     when(portletInstanceCategory.getPermissions()).thenReturn(Collections.singletonList(permissionExpression));
-    assertFalse(translationPlugin.hasAccessPermission(1, username));
+    assertFalse(translationPlugin.hasAccessPermission("1", username));
 
     when(layoutAclService.hasPermission(username, permissionExpression)).thenReturn(true);
-    assertTrue(translationPlugin.hasAccessPermission(1, username));
+    assertTrue(translationPlugin.hasAccessPermission("1", username));
   }
 
   @Test
   @SneakyThrows
   void getAudienceId() {
-    assertEquals(0l, translationPlugin.getAudienceId(0l));
+    assertEquals(0l, translationPlugin.getAudienceId("0"));
   }
 
   @Test
   @SneakyThrows
   void getSpaceId() {
-    assertEquals(0l, translationPlugin.getSpaceId(0l));
+    assertEquals(0l, translationPlugin.getSpaceId("0"));
   }
 
 }
