@@ -28,13 +28,11 @@
       right
       @expand-updated="expanded = $event"
       @closed="close">
-      <template #title>
-        {{ title }}
-      </template>
+      <template #title>{{ title }}</template>
       <template v-if="drawer" #content>
-        <v-form
-          v-model="isValidInputs">
-          <v-card-text class="d-flex pb-2">
+        <v-form v-model="isValidInputs">
+          <v-card-text
+            class="d-flex pb-2">
             <span class="font-weight-bold text-start text-truncate-2">
               {{ $t('siteNavigation.label.nodeLabel.title') }}
             </span>
@@ -68,9 +66,7 @@
                   {{ $t('siteNavigation.label.nodeId.title') }}
                 </span>
               </div>
-              <v-switch
-                v-model="displayNodeName"
-                class="mt-0 me-0" />
+              <v-switch v-model="displayNodeName" class="mt-0 me-0" />
             </div>
           </v-card-text>
           <v-card-text v-if="displayNodeName" class="d-flex pt-0">
@@ -94,9 +90,7 @@
           </v-card-text>
           <v-card-text class="d-flex flex-row pt-0">
             <div class="d-flex flex-column flex-grow-1">
-              <v-radio-group
-                v-model="elementType"
-                class="mt-0">
+              <v-radio-group v-model="elementType" class="mt-0">
                 <v-radio
                   :label="$t('siteNavigation.label.newPage')"
                   value="PAGE" />
@@ -108,19 +102,15 @@
                     v-if="!isNewPageElement"
                     :selected-page="selectedPage" />
                   <div class="d-flex align-center justify-space-between flex-row ms-8 pb-2 mt-2">
-                    <span>
-                      {{ $t('siteNavigation.label.openSameTab') }}
-                    </span>
+                    <span>{{ $t('siteNavigation.label.openSameTab') }}</span>
                     <v-switch
                       v-model="nodeTarget"
                       true-value="SAME_TAB"
                       false-value="NEW_TAB"
                       class="mt-0 me-0" />
-                  </div>  
+                  </div>
                 </template>
-                <v-radio
-                  :label="$t('siteNavigation.label.link')"
-                  value="LINK" />
+                <v-radio :label="$t('siteNavigation.label.link')" value="LINK" />
                 <template v-if="isLinkElement">
                   <v-text-field
                     v-model="link"
@@ -132,9 +122,7 @@
                     outlined
                     dense />
                   <div class="d-flex align-center justify-space-between flex-row pb-2 ms-8">
-                    <span>
-                      {{ $t('siteNavigation.label.openSameTab') }}
-                    </span>
+                    <span>{{ $t('siteNavigation.label.openSameTab') }}</span>
                     <v-switch
                       v-model="nodeTarget"
                       true-value="SAME_TAB"
@@ -156,55 +144,37 @@
             </v-label>
           </v-card-text>
           <v-card-text class="d-flex pt-2">
-            <div
-              class="d-flex flex-grow-1 full-width">
-              <v-icon
-                size="32"
-                class="icon-default-color">
-                {{ icon }}
-              </v-icon>
-              <v-tooltip bottom>
-                <template #activator="{ on, attrs }">
-                  <v-btn
-                    v-on="on"
-                    v-bind="attrs"
-                    id="changeIconButton"
-                    class="btn btn-primary ms-3"
-                    outlined
-                    @click="openNodeIconPickerDrawer">
-                    <span>{{ $t('siteNavigation.label.icon.upload') }}</span>
-                  </v-btn>
-                </template>
-                <span>{{ $t('siteNavigation.btn.changeIcon.title') }}</span>
-              </v-tooltip>
+            <div class="d-flex flex-grow-1 full-width">
+              <site-navigation-icon-input
+                ref="nodeIcon"
+                v-model="nodeIcon"
+                :site-id="siteId" />
             </div>
           </v-card-text>
           <v-card-text class="d-flex flex-grow-1 pb-0">
             <span class="font-weight-bold pt-2">
               {{ $t('siteNavigation.label.visibility.title') }}
             </span>
-          </v-card-text>
-          <v-card-text class="pt-2">
+          </v-card-text> <v-card-text
+            class="pt-2">
             <div class="d-flex align-center justify-space-between flex-row">
               <span>
                 {{ $t('siteNavigation.label.visibility.visible') }}
               </span>
-              <v-switch
-                v-model="visible"
-                class="mt-0 me-0" />
+              <v-switch v-model="visible" class="mt-0 me-0" />
             </div>
             <div
-              class="d-flex align-center justify-space-between flex-row"
-              v-if="visible">
+              v-if="visible"
+              class="d-flex align-center justify-space-between flex-row">
               <span class="pt-1">
                 {{ $t('siteNavigation.label.visibility.scheduleVisibility') }}
               </span>
-              <v-switch
-                v-model="isScheduled"
-                class="mt-0 me-0" />
+              <v-switch v-model="isScheduled" class="mt-0 me-0" />
             </div>
           </v-card-text>
-          <v-card-text class="pt-0" v-if="visible && isScheduled">
+          <v-card-text
+            v-if="visible && isScheduled"
+            class="pt-0">
             <site-navigation-schedule-date-pickers
               :start-schedule-date="startScheduleDate"
               :end-schedule-date="endScheduleDate"
@@ -216,9 +186,7 @@
       </template>
       <template slot="footer">
         <div class="d-flex justify-end">
-          <v-btn
-            class="btn ms-2"
-            @click="close">
+          <v-btn class="btn ms-2" @click="close">
             {{ $t('siteNavigation.label.btn.cancel') }}
           </v-btn>
           <v-btn
@@ -246,8 +214,6 @@
       :default-language="defaultLanguage"
       :supported-languages="supportedLanguages"
       @input="updateNodeLabels" />
-    <node-icon-picker-drawer 
-      :expanded="expanded" />
   </div>
 </template>
 <script>
@@ -273,6 +239,7 @@ export default {
       disableNodeId: false,
       displayNodeName: false,
       elementType: 'PAGE',
+      siteId: null,
       allSites: true,
       nodeTarget: 'SAME_TAB',
       parentNavigationNodeUrl: '',
@@ -328,9 +295,6 @@ export default {
       this.open(navigationNode);
     });
     this.$root.$on('save-node-with-page', this.saveNode);
-    this.$root.$on('update-node-icon', (icon) => {
-      this.nodeIcon = icon;
-    });
     this.$root.$on('existing-page-selected', this.changeSelectedPage);
   },
   methods: {
@@ -340,10 +304,12 @@ export default {
       this.startScheduleTime = startTime;
       this.endScheduleTime = endTime;
     },
-    open(parentNavigationNode) {
+    async open(parentNavigationNode) {
       this.navigationNode = parentNavigationNode;
       const siteKey = parentNavigationNode.siteKey;
-      this.getNodeLabels();
+      const site = await this.$siteService.getSite(siteKey.type, siteKey.name);
+      this.siteId = site?.siteId;
+      await this.getNodeLabels();
       if (siteKey.typeName === 'portal') {
         this.parentNavigationNodeUrl = `/portal/${siteKey.name}/${parentNavigationNode.uri}`;
       } else {
@@ -407,7 +373,7 @@ export default {
       this.nodeIcon = null;
       this.$refs.siteNavigationAddNodeDrawer.close();
     },
-    saveNode(pageData) {
+    async saveNode(pageData) {
       let startScheduleDate = null;
       let endScheduleDate = null;
       if (this.isScheduled) {
@@ -434,9 +400,18 @@ export default {
       const nodeLabels = {
         labels: this.labels
       };
+      this.loading = true;
+      if (this.$refs?.nodeIcon) {
+        try {
+          await this.$refs.nodeIcon?.save?.();
+        } catch (e) {
+          this.loading = false;
+          this.$root.$emit('alert-message', this.$t('siteNavigation.errorUpdatingNode'), 'error');
+          throw e;
+        }
+      }
       if (this.editMode) {
         const pageRef = pageData?.pageRef ||  (this.elementType !== 'Group' ? this.navigationNode.pageKey?.ref || `${ this.navigationNode.pageKey.site.typeName}::${ this.navigationNode.pageKey.site.name}::${this.navigationNode.pageKey?.name}` : '');
-        this.loading = true;
         if (this.elementType === 'existingPage') {
           const pageRef = this.selectedPage?.pageRef;
           pageData = {
@@ -474,7 +449,6 @@ export default {
           this.updateNode(pageData, pageRef, startScheduleDate, endScheduleDate, nodeLabels);
         }
       } else {
-        this.loading = true;
         if (this.elementType === 'existingPage') {
           const pageRef = this.selectedPage?.pageRef;
           pageData = {
@@ -563,7 +537,7 @@ export default {
       this.$refs.translationDrawer.open();
     },
     getNodeLabels() {
-      this.$navigationLayoutService.getNodeLabels(this.navigationNode.id)
+      return this.$navigationLayoutService.getNodeLabels(this.navigationNode.id)
         .then(data => {
           if (this.editMode && data.labels != null) {
             this.valuesPerLanguage = data.labels;
@@ -600,9 +574,6 @@ export default {
       }
       return url ;
     },
-    openNodeIconPickerDrawer() {
-      this.$root.$emit('open-node-icon-picker-drawer');
-    }
   }
 };
 </script>
