@@ -29,9 +29,10 @@ import SiteNavigationScheduleDatePickers from './components/site-navigation/Site
 import SiteNavigationExistingPageElement from './components/site-navigation/SiteNavigationExistingPageElement.vue';
 import SiteNavigationPageSuggester from './components/site-navigation/SiteNavigationPageSuggester.vue';
 import SiteNavigationSiteSuggester from './components/site-navigation/SiteNavigationSiteSuggester.vue';
-import NodeIconPickerDrawer from './components/site-navigation/NodeIconPickerDrawer.vue';
 import SiteNavigationNewPageElementItemsList from './components/site-navigation/SiteNavigationNewPageElementItemsList.vue';
 import SiteNavigationNewPageElementItem from './components/site-navigation/SiteNavigationNewPageElementItem.vue';
+import SiteNavigationIcon from './components/site-navigation/SiteNavigationIcon.vue';
+import SiteNavigationIconInput from './components/site-navigation/SiteNavigationIconInput.vue';
 
 import ManagePermissionsDrawer from './components/manage-permissions/ManagePermissionsDrawer.vue';
 import AccessPermissions from './components/manage-permissions/AccessPermissions.vue';
@@ -55,7 +56,8 @@ const components = {
   'site-navigation-existing-page-element': SiteNavigationExistingPageElement,
   'site-navigation-page-suggester': SiteNavigationPageSuggester,
   'site-navigation-site-suggester': SiteNavigationSiteSuggester,
-  'node-icon-picker-drawer': NodeIconPickerDrawer,
+  'site-navigation-icon': SiteNavigationIcon,
+  'site-navigation-icon-input': SiteNavigationIconInput,
 };
 
 for (const key in components) {
