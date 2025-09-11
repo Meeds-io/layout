@@ -45,9 +45,11 @@ public class SidebarLoginPortletInstancePreferencePlugin implements PortletInsta
   public List<PortletInstancePreference> generatePreferences(Application application,
                                                              Portlet preferences,
                                                              PortletInstanceContext portletInstanceContext) {
-
-    String translationIdentifier = preferences.getPreference(TRANSLATION_IDENTIFIER).getValue();
-    return Collections.singletonList(new PortletInstancePreference(DATA_INIT_PREFERENCE_NAME, translationIdentifier));
-
+    if (preferences != null && preferences.getPreference(TRANSLATION_IDENTIFIER)!=null) {
+      String translationIdentifier = preferences.getPreference(TRANSLATION_IDENTIFIER).getValue();
+      return Collections.singletonList(new PortletInstancePreference(DATA_INIT_PREFERENCE_NAME, translationIdentifier));
+    } else {
+      return Collections.emptyList();
+    }
   }
 }
