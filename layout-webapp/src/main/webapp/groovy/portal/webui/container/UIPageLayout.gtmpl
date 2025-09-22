@@ -17,8 +17,12 @@
     for (int i =0; i < portlets.size(); i++) {
       def portletId = portlets.get(i).getId();
       if (portletId != null) {
+        def url=rcontext.getRequest().getRequestURI()+"?maximizedPortletId="+portletId+"&showMaxWindow=true&hideSharedLayout=true&maximizedPortletMode=VIEW";
+        for (String parameter : rcontext.getRequest().getParameterMap().keySet()) {
+          url += "&" + parameter + "=" + rcontext.getRequest().getParameter(parameter);
+        }
         %>
-        <link rel="preload" as="fetch" href="<%=rcontext.getRequest().getRequestURI()%>?maximizedPortletId=<%=portletId%>&showMaxWindow=true&hideSharedLayout=true&maximizedPortletMode=VIEW" crossorigin="use-credentials"><%
+        <link rel="preload" as="fetch" href="<%=url%>" crossorigin="use-credentials"><%
       }
     }
   }
