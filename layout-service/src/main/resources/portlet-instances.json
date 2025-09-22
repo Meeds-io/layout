@@ -484,6 +484,22 @@
         "*:/platform/administrators"
       ],
       "system":true
+    },
+    {
+      "nameId":"ExternalOnboarding",
+      "categoryNameId":"login",
+      "portletName":"ExternalOnboarding",
+      "names":{
+        "en":"layout.portletInstance.ExternalOnboarding.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.ExternalOnboarding.description"
+      },
+      "illustrationPath":"war:/../images/portlets/externalOnboarding.png",
+      "permissions":[
+        "*:/platform/administrators"
+      ],
+      "system":true
     }
   ]
 }
