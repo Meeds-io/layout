@@ -500,6 +500,38 @@
         "*:/platform/administrators"
       ],
       "system":true
+    },
+    {
+      "nameId":"ForgotPassword",
+      "categoryNameId":"login",
+      "portletName":"ForgotPassword",
+      "names":{
+        "en":"layout.portletInstance.ForgotPassword.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.ForgotPassword.description"
+      },
+      "illustrationPath":"war:/../images/portlets/forgotPassword.webp",
+      "permissions":[
+        "*:/platform/administrators"
+      ],
+      "system":true
+    },
+    {
+      "nameId":"InternalOnboarding",
+      "categoryNameId":"login",
+      "portletName":"InternalOnboarding",
+      "names":{
+        "en":"layout.portletInstance.InternalOnboarding.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.InternalOnboarding.description"
+      },
+      "illustrationPath":"war:/../images/portlets/internalOnboarding.png",
+      "permissions":[
+        "*:/platform/administrators"
+      ],
+      "system":true
     }
   ]
 }
