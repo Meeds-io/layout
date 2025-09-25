@@ -532,6 +532,22 @@
         "*:/platform/administrators"
       ],
       "system":true
+    },
+    {
+      "nameId":"RegisterForm",
+      "categoryNameId":"login",
+      "portletName":"RegisterForm",
+      "names":{
+        "en":"layout.portletInstance.RegisterForm.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.RegisterForm.description"
+      },
+      "illustrationPath":"war:/../images/portlets/registerForm.webp",
+      "permissions":[
+        "*:/platform/administrators"
+      ],
+      "system":true
     }
   ]
 }
