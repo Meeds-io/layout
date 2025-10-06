@@ -51,22 +51,22 @@ public class CmsPortletTranslationPlugin extends TranslationPlugin {
   }
 
   @Override
-  public boolean hasEditPermission(long id, String username) throws ObjectNotFoundException {
+  public boolean hasEditPermission(String id, String username) throws ObjectNotFoundException {
     return layoutAclService.isAdministrator(username);
   }
 
   @Override
-  public boolean hasAccessPermission(long id, String username) throws ObjectNotFoundException {
+  public boolean hasAccessPermission(String id, String username) throws ObjectNotFoundException {
     return true;
   }
 
   @Override
-  public long getAudienceId(long templateId) throws ObjectNotFoundException {
+  public long getAudienceId(String templateId) throws ObjectNotFoundException {
     return 0;
   }
 
   @Override
-  public long getSpaceId(long templateId) throws ObjectNotFoundException {
+  public long getSpaceId(String templateId) throws ObjectNotFoundException {
     return 0;
   }
 
