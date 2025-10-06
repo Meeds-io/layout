@@ -43,7 +43,6 @@ public class LoginFormPortletInstancePreferencePluginTest {
 
   private static final String OTHER_PREF_NAME = "name2";
   private static final String SETTING_NAME = "name";
-  public static final String TRANSLATION_IDENTIFIER = "translationIdentifier";
   private static final String    DATA_INIT_PREFERENCE_NAME   = "data.init";
 
   @Autowired
@@ -59,7 +58,6 @@ public class LoginFormPortletInstancePreferencePluginTest {
     Map<String, Preference> map = new HashMap<>();
     map.put(SETTING_NAME, new Preference(SETTING_NAME, "value", false));
     map.put(OTHER_PREF_NAME, new Preference(OTHER_PREF_NAME, "value", false));
-    map.put(TRANSLATION_IDENTIFIER, new Preference(TRANSLATION_IDENTIFIER, "123456789", false));
     Portlet preferences = new Portlet(map);
     List<PortletInstancePreference> generatedPreferences = loginFormPortletInstancePreferencePlugin.generatePreferences(null, preferences, new PortletInstanceContext());
     assertNotNull(generatedPreferences);
