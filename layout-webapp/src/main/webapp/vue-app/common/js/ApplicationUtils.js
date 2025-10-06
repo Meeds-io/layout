@@ -341,11 +341,7 @@ export function getStyle(container, options) {
 export function getApplicationContent(navUri, applicationStorageId, applicationMode, showSite, fullRender) {
   const spaceOption = eXo.env.portal.previewSpaceId && `&previewSpaceId=${eXo.env.portal.previewSpaceId}` || '';
   const fullRenderOption = fullRender && '&fullRender=true' || '';
-  let url = `/portal${navUri}?maximizedPortletId=${applicationStorageId}&showMaxWindow=${!showSite}&hideSharedLayout=true&maximizedPortletMode=${applicationMode || 'VIEW'}${spaceOption}${fullRenderOption}`;
-  for (const [key, value] of new URLSearchParams(window.location.search)) {
-    url += `&${key}=${value}`;
-  }
-  return fetch(url, {
+  return fetch(`/portal${navUri}?maximizedPortletId=${applicationStorageId}&showMaxWindow=${!showSite}&hideSharedLayout=true&maximizedPortletMode=${applicationMode || 'VIEW'}${spaceOption}${fullRenderOption}`, {
     credentials: 'include',
     method: 'GET',
     redirect: 'manual'

@@ -22,8 +22,10 @@ package io.meeds.layout.plugin.renderer;
 import io.meeds.layout.model.PortletInstanceContext;
 import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.plugin.PortletInstancePreferencePlugin;
+import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.pom.spi.portlet.Portlet;
+import org.exoplatform.portal.pom.spi.portlet.Preference;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -34,7 +36,9 @@ public class LoginFormPortletInstancePreferencePlugin  implements PortletInstanc
 
 
   private static final String    DATA_INIT_PREFERENCE_NAME   = "data.init";
-  private static final String TRANSLATION_IDENTIFIER = "translationIdentifier";
+
+  private static final String    CMS_SETTING_PREFERENCE_NAME = "name";
+
 
   @Override
   public String getPortletName() {
@@ -45,12 +49,19 @@ public class LoginFormPortletInstancePreferencePlugin  implements PortletInstanc
   public List<PortletInstancePreference> generatePreferences(Application application,
                                                              Portlet preferences,
                                                              PortletInstanceContext portletInstanceContext) {
-    if (preferences != null && preferences.getPreference(TRANSLATION_IDENTIFIER)!=null) {
-      String translationIdentifier = preferences.getPreference(TRANSLATION_IDENTIFIER).getValue();
-      return Collections.singletonList(new PortletInstancePreference(DATA_INIT_PREFERENCE_NAME, translationIdentifier));
+    String settingName = getCmsSettingName(preferences);
+    if (!StringUtils.isBlank(settingName)) {
+      return Collections.singletonList(new PortletInstancePreference(DATA_INIT_PREFERENCE_NAME, settingName));
     } else {
       return Collections.emptyList();
     }
+  }
 
+  private String getCmsSettingName(Portlet preferences) {
+    if (preferences == null) {
+      return null;
+    }
+    Preference settingNamePreference = preferences.getPreference(CMS_SETTING_PREFERENCE_NAME);
+    return settingNamePreference == null ? null : settingNamePreference.getValue();
   }
 }

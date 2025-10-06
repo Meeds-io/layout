@@ -22,6 +22,7 @@ package io.meeds.layout.rest;
 import java.util.List;
 import java.util.Optional;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -307,13 +308,18 @@ public class PageLayoutRest {
                                                @Parameter(description = "Application storage identifier", required = true)
                                                @RequestParam("applicationId")
                                                long applicationId,
+                                               @Parameter(description = "Keep existing preferences")
+                                               @Schema(defaultValue = "false")
+                                               @RequestParam(name = "keepExisting", required = false, defaultValue = "false")
+                                               boolean keepExisting,
                                                @RequestBody
                                                PortletPreferenceList portletPreferenceList) {
     try {
       pageLayoutService.updatePageApplicationPreferences(PageKey.parse(pageRef),
                                                          applicationId,
                                                          portletPreferenceList.getPreferences(),
-                                                         request.getRemoteUser());
+                                                         request.getRemoteUser(),
+                                                         keepExisting);
     } catch (ObjectNotFoundException e) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
     } catch (IllegalAccessException e) {

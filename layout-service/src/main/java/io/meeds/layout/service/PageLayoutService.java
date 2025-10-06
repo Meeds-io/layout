@@ -279,6 +279,14 @@ public class PageLayoutService {
                                                long applicationId,
                                                List<PortletInstancePreference> preferences,
                                                String username) throws IllegalAccessException, ObjectNotFoundException {
+    updatePageApplicationPreferences(pageKey, applicationId, preferences, username, false);
+
+  }
+  public void updatePageApplicationPreferences(PageKey pageKey,
+                                               long applicationId,
+                                               List<PortletInstancePreference> preferences,
+                                               String username,
+                                               boolean keepExisting) throws IllegalAccessException, ObjectNotFoundException {
     Page page = layoutService.getPage(pageKey);
     if (page == null) {
       throw new ObjectNotFoundException(String.format(PAGE_NOT_EXISTS_MESSAGE, pageKey.format()));
@@ -291,13 +299,17 @@ public class PageLayoutService {
                                                       applicationId,
                                                       pageKey));
     }
-    Portlet portletPreferences = layoutService.load(application.getState());
-    if (portletPreferences == null) {
-      portletPreferences = new Portlet();
+    Portlet portletPreferences = new Portlet();
+    if (keepExisting) {
+      portletPreferences = layoutService.load(application.getState());
+      if (portletPreferences == null) {
+        portletPreferences = new Portlet();
+      }
     }
     for (PortletInstancePreference preference : preferences) {
       portletPreferences.setValue(preference.getName(), preference.getValue());
     }
+
     layoutService.save(application.getState(), portletPreferences);
   }
 
