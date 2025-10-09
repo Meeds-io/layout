@@ -155,7 +155,7 @@ export default {
       };
     },
     disabled() {
-      return !this.title?.length || this.title.length > this.maxTitleLength || (this.description?.length && this.description.length > this.maxDescriptionLength);
+      return !this.title?.length || this.title.length > this.maxTitleLength || (this.description?.length && this.$utils.htmlToText(this.description).length > this.maxDescriptionLength);
     },
   },
   created() {
