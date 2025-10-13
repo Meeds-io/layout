@@ -165,7 +165,7 @@ export default {
     fixedHeight: false,
     customHeightValue: false,
     height: null,
-    minHeight: 100,
+    minHeight: 10,
     maxHeight: 1000,
     invalidCustomHeight: false,
     hiddenOnMobile: false,
@@ -316,7 +316,7 @@ export default {
         this.fixedHeight = false;
         this.customHeightValue = false;
         this.height = null;
-        this.minHeight = 100;
+        this.minHeight = 10;
         this.maxHeight = 1000;
         this.invalidCustomHeight = false;
         this.hiddenOnMobile = false;
