@@ -385,7 +385,7 @@ export default {
       try {
         const site = await this.$siteLayoutService.createSite(this.siteName, this.templateId, this.siteLabel, this.siteDescription, false, 0, this.bannerUploadId !== '0' && this.bannerUploadId || null, this.siteIcon, this.accessPermissions, this.editPermission);
         await this.$translationService.saveTranslations('site',  site.siteId, 'label', this.siteTitleTranslations);
-        await this.$translationService.saveTranslations('site', site.siteId, 'description', this.siteDescriptionTranslations);
+        await this.$translationService.saveRichTranslations('site', site.siteId, 'description', this.siteDescriptionTranslations);
         this.$root.$emit('alert-message', this.$t('siteManagement.label.createSite.success'), 'success');
         this.$root.$emit('site-created', site);
         this.close();
@@ -400,7 +400,7 @@ export default {
       try {
         await this.$siteLayoutService.updateSite(this.site.name, this.site.siteType, this.siteLabel, this.siteDescription, this.site.metaSite || this.site.displayed, this.site.displayed && this.site.displayOrder || 0, this.bannerUploadId !== '0' && this.bannerUploadId || null, this.bannerUploadId === '0', this.siteIcon);
         await this.$translationService.saveTranslations('site', this.siteId, 'label', this.siteTitleTranslations);
-        await this.$translationService.saveTranslations('site', this.siteId, 'description', this.siteDescriptionTranslations);
+        await this.$translationService.saveRichTranslations('site', this.siteId, 'description', this.siteDescriptionTranslations);
         this.$root.$emit('alert-message', this.$t('siteManagement.label.updateSite.success'), 'success');
         this.$root.$emit('site-updated', this.site);
         this.close();
