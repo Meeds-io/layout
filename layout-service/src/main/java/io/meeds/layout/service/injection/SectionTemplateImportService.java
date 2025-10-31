@@ -220,14 +220,16 @@ public class SectionTemplateImportService {
     layoutTranslationService.saveTranslationLabels(SectionTemplateTranslationPlugin.OBJECT_TYPE,
                                                    sectionTemplate.getId(),
                                                    SectionTemplateTranslationPlugin.TITLE_FIELD_NAME,
-                                                   d.getNames());
+                                                   d.getNames(),
+                                                   false);
   }
 
   protected void saveDescriptions(SectionTemplateDescriptor d, SectionTemplate sectionTemplate) {
     layoutTranslationService.saveTranslationLabels(SectionTemplateTranslationPlugin.OBJECT_TYPE,
                                                    sectionTemplate.getId(),
                                                    SectionTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                   d.getDescriptions());
+                                                   d.getDescriptions(),
+                                                   true);
   }
 
   @SneakyThrows

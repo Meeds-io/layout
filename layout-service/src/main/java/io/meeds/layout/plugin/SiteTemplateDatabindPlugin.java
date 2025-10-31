@@ -394,13 +394,14 @@ public class SiteTemplateDatabindPlugin implements DatabindPlugin {
   @SneakyThrows
   private void saveDescriptions(SiteTemplateDatabind siteTemplateDatabind, SiteTemplate siteTemplate) {
     translationService.saveTranslationLabels(SiteTemplateTranslationPlugin.OBJECT_TYPE,
-                                             siteTemplate.getId(),
+                                             siteTemplate.getId() == 0 ? null : String.valueOf(siteTemplate.getId()),
                                              SiteTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
                                              siteTemplateDatabind.getDescriptions()
                                                                  .entrySet()
                                                                  .stream()
                                                                  .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
-                                                                                           Map.Entry::getValue)));
+                                                                                           Map.Entry::getValue)),
+                                             true);
   }
 
   @SneakyThrows
