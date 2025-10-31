@@ -305,14 +305,15 @@ public class SectionTemplateDatabindPlugin implements DatabindPlugin {
 
   @SneakyThrows
   private void saveDescriptions(SectionTemplateDatabind sectionTemplateDatabind, SectionTemplate sectionTemplate) {
-    translationService.saveRichTranslationLabels(SectionTemplateTranslationPlugin.OBJECT_TYPE,
-                                                 sectionTemplate.getId(),
-                                                 SectionTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                 sectionTemplateDatabind.getDescriptions()
-                                                                        .entrySet()
-                                                                        .stream()
-                                                                        .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
-                                                                                                  Map.Entry::getValue)));
+    translationService.saveTranslationLabels(SectionTemplateTranslationPlugin.OBJECT_TYPE,
+                                             sectionTemplate.getId() == 0 ? null : String.valueOf(sectionTemplate.getId()),
+                                             SectionTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                             sectionTemplateDatabind.getDescriptions()
+                                                                    .entrySet()
+                                                                    .stream()
+                                                                    .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
+                                                                                              Map.Entry::getValue)),
+                                             true);
   }
 
   @SneakyThrows

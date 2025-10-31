@@ -188,14 +188,16 @@ public class SiteTemplateImportService {
     layoutTranslationService.saveTranslationLabels(SiteTemplateTranslationPlugin.OBJECT_TYPE,
                                                    siteTemplate.getId(),
                                                    SiteTemplateTranslationPlugin.TITLE_FIELD_NAME,
-                                                   d.getNames());
+                                                   d.getNames(),
+                                                   false);
   }
 
   protected void saveDescriptions(SiteTemplateDescriptor d, SiteTemplate siteTemplate) {
-    layoutTranslationService.saveRichTranslationLabels(SiteTemplateTranslationPlugin.OBJECT_TYPE,
-                                                       siteTemplate.getId(),
-                                                       SiteTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                       d.getDescriptions());
+    layoutTranslationService.saveTranslationLabels(SiteTemplateTranslationPlugin.OBJECT_TYPE,
+                                                   siteTemplate.getId(),
+                                                   SiteTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                                   d.getDescriptions(),
+                                                   true);
   }
 
   @SneakyThrows
