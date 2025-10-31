@@ -192,10 +192,10 @@ public class SiteTemplateImportService {
   }
 
   protected void saveDescriptions(SiteTemplateDescriptor d, SiteTemplate siteTemplate) {
-    layoutTranslationService.saveTranslationLabels(SiteTemplateTranslationPlugin.OBJECT_TYPE,
-                                                   siteTemplate.getId(),
-                                                   SiteTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                   d.getDescriptions());
+    layoutTranslationService.saveRichTranslationLabels(SiteTemplateTranslationPlugin.OBJECT_TYPE,
+                                                       siteTemplate.getId(),
+                                                       SiteTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                                       d.getDescriptions());
   }
 
   @SneakyThrows

@@ -274,14 +274,14 @@ public class PageTemplateDatabindPlugin implements DatabindPlugin {
 
   @SneakyThrows
   private void saveDescriptions(PageTemplateDatabind pageTemplateDatabind, PageTemplate pageTemplate) {
-    translationService.saveTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
-                                             pageTemplate.getId(),
-                                             PageTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                             pageTemplateDatabind.getDescriptions()
-                                                                 .entrySet()
-                                                                 .stream()
-                                                                 .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
-                                                                                           Map.Entry::getValue)));
+    translationService.saveRichTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
+                                                 pageTemplate.getId(),
+                                                 PageTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                                 pageTemplateDatabind.getDescriptions()
+                                                                     .entrySet()
+                                                                     .stream()
+                                                                     .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
+                                                                                               Map.Entry::getValue)));
   }
 
   @SneakyThrows

@@ -249,10 +249,10 @@ public class PortletInstanceImportService {
   }
 
   protected void saveDescriptions(PortletInstanceDescriptor d, PortletInstance portletInstance) {
-    layoutTranslationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
-                                                   portletInstance.getId(),
-                                                   PortletInstanceTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                   d.getDescriptions());
+    layoutTranslationService.saveRichTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
+                                                       portletInstance.getId(),
+                                                       PortletInstanceTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                                       d.getDescriptions());
   }
 
   protected void saveCategoryNames(PortletInstanceCategoryDescriptor d, PortletInstanceCategory category) {

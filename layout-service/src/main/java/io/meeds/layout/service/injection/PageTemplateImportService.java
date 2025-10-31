@@ -228,10 +228,10 @@ public class PageTemplateImportService {
   }
 
   protected void saveDescriptions(PageTemplateDescriptor d, PageTemplate pageTemplate) {
-    layoutTranslationService.saveTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
-                                                   pageTemplate.getId(),
-                                                   PageTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                   d.getDescriptions());
+    layoutTranslationService.saveRichTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
+                                                       pageTemplate.getId(),
+                                                       PageTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                                       d.getDescriptions());
   }
 
   @SneakyThrows

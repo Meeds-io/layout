@@ -224,10 +224,10 @@ public class SectionTemplateImportService {
   }
 
   protected void saveDescriptions(SectionTemplateDescriptor d, SectionTemplate sectionTemplate) {
-    layoutTranslationService.saveTranslationLabels(SectionTemplateTranslationPlugin.OBJECT_TYPE,
-                                                   sectionTemplate.getId(),
-                                                   SectionTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                   d.getDescriptions());
+    layoutTranslationService.saveRichTranslationLabels(SectionTemplateTranslationPlugin.OBJECT_TYPE,
+                                                       sectionTemplate.getId(),
+                                                       SectionTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                                       d.getDescriptions());
   }
 
   @SneakyThrows

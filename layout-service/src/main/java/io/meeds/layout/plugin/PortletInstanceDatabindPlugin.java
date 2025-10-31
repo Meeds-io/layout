@@ -290,14 +290,14 @@ public class PortletInstanceDatabindPlugin implements DatabindPlugin {
 
   @SneakyThrows
   private void saveDescriptions(PortletInstanceDatabind portletInstanceDatabind, PortletInstance portletInstance) {
-    translationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
-                                             portletInstance.getId(),
-                                             PortletInstanceTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                             portletInstanceDatabind.getDescriptions()
-                                                                    .entrySet()
-                                                                    .stream()
-                                                                    .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
-                                                                                              Map.Entry::getValue)));
+    translationService.saveRichTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
+                                                 portletInstance.getId(),
+                                                 PortletInstanceTranslationPlugin.DESCRIPTION_FIELD_NAME,
+                                                 portletInstanceDatabind.getDescriptions()
+                                                                        .entrySet()
+                                                                        .stream()
+                                                                        .collect(Collectors.toMap(entry -> Locale.forLanguageTag(entry.getKey()),
+                                                                                                  Map.Entry::getValue)));
   }
 
   @SneakyThrows

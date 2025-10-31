@@ -192,7 +192,7 @@ export default {
       try {
         const sectionTemplate = await this.$sectionTemplateService.saveAsSectionTemplate(this.pageRef, this.containerId);
         this.$translationService.saveTranslations('sectionTemplate', sectionTemplate.id, 'title', this.titleTranslations);
-        this.$translationService.saveTranslations('sectionTemplate', sectionTemplate.id, 'description', this.descriptionTranslations);
+        this.$translationService.saveRichTranslations('sectionTemplate', sectionTemplate.id, 'description', this.descriptionTranslations);
         this.$refs?.sectionTemplatePreview?.save(sectionTemplate.id);
         this.$root.$emit('section-template-saved', sectionTemplate.id);
         this.$root.$emit('alert-message', this.$t('layout.sectionTemplateCreatedSuccessfully'), 'success');
