@@ -198,7 +198,7 @@ export default {
         await this.$nextTick();
 
         await this.$translationService.saveTranslations('siteTemplate', siteTemplate.id, 'title', this.titleTranslations);
-        await this.$translationService.saveTranslations('siteTemplate', siteTemplate.id, 'description', this.descriptionTranslations);
+        await this.$translationService.saveRichTranslations('siteTemplate', siteTemplate.id, 'description', this.descriptionTranslations);
         if (this.isNewNoDuplication) {
           await this.$refs?.siteTemplateLayout?.save();
           this.$root.$emit('alert-message', this.$t('layout.siteTemplateCreatedSuccessfully'), 'success');

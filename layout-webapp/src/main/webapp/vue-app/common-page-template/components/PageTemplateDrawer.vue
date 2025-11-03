@@ -231,7 +231,7 @@ export default {
           }
         })
         .then(() => this.$translationService.saveTranslations('pageTemplate', this.templateId, 'title', this.titleTranslations))
-        .then(() => this.$translationService.saveTranslations('pageTemplate', this.templateId, 'description', this.descriptionTranslations))
+        .then(() => this.$translationService.saveRichTranslations('pageTemplate', this.templateId, 'description', this.descriptionTranslations))
         .then(() => this.$refs?.pagePreview?.save())
         .then(() => {
           if (this.$root.pageTemplate) {
