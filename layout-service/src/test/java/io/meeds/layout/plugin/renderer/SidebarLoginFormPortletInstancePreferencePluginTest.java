@@ -20,13 +20,17 @@ package io.meeds.layout.plugin.renderer;
 
 import io.meeds.layout.model.PortletInstanceContext;
 import io.meeds.layout.model.PortletInstancePreference;
+import io.meeds.social.translation.service.TranslationService;
+import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.portal.pom.spi.portlet.Portlet;
 import org.exoplatform.portal.pom.spi.portlet.Preference;
+import org.exoplatform.social.attachment.AttachmentService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 
 import java.util.HashMap;
 import java.util.List;
@@ -45,6 +49,15 @@ public class SidebarLoginFormPortletInstancePreferencePluginTest {
   private static final String SETTING_NAME = "name";
   private static final String    DATA_INIT_PREFERENCE_NAME   = "data.init";
 
+  @MockBean
+  private TranslationService translationService;
+
+  @MockBean
+  private FileService fileService;
+
+  @MockBean
+  private AttachmentService                           attachmentService;
+
   @Autowired
   private SidebarLoginPortletInstancePreferencePlugin sidebarLoginPortletInstancePreferencePlugin;
 
@@ -61,8 +74,8 @@ public class SidebarLoginFormPortletInstancePreferencePluginTest {
     Portlet preferences = new Portlet(map);
     List<PortletInstancePreference> generatedPreferences = sidebarLoginPortletInstancePreferencePlugin.generatePreferences(null, preferences, new PortletInstanceContext());
     assertNotNull(generatedPreferences);
-    assertEquals(1, generatedPreferences.size());
-    assertEquals(DATA_INIT_PREFERENCE_NAME, generatedPreferences.get(0).getName());
+    assertEquals(2, generatedPreferences.size());
+    assertEquals(DATA_INIT_PREFERENCE_NAME, generatedPreferences.get(1).getName());
   }
 
 }
