@@ -261,7 +261,7 @@ export default {
           }
         })
         .then(() => this.$translationService.saveTranslations('portletInstance', this.instanceId, 'title', this.titleTranslations))
-        .then(() => this.$translationService.saveTranslations('portletInstance', this.instanceId, 'description', this.descriptionTranslations))
+        .then(() => this.$translationService.saveRichTranslations('portletInstance', this.instanceId, 'description', this.descriptionTranslations))
         .then(() => this.$refs?.portletInstancePreview?.save())
         .then(() => {
           if (newInstance) {

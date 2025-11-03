@@ -224,14 +224,16 @@ public class PageTemplateImportService {
     layoutTranslationService.saveTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
                                                    pageTemplate.getId(),
                                                    PageTemplateTranslationPlugin.TITLE_FIELD_NAME,
-                                                   d.getNames());
+                                                   d.getNames(),
+                                                   false);
   }
 
   protected void saveDescriptions(PageTemplateDescriptor d, PageTemplate pageTemplate) {
     layoutTranslationService.saveTranslationLabels(PageTemplateTranslationPlugin.OBJECT_TYPE,
                                                    pageTemplate.getId(),
                                                    PageTemplateTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                   d.getDescriptions());
+                                                   d.getDescriptions(),
+                                                   true);
   }
 
   @SneakyThrows

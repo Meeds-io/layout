@@ -226,7 +226,7 @@ export default {
         await this.$translationService.saveTranslations('sectionTemplate', createdSectionTemplate.id, 'title', nameLabels);
 
         const descriptionLabels = await this.$translationService.getTranslations('sectionTemplate', this.sectionTemplate.id, 'description');
-        await this.$translationService.saveTranslations('sectionTemplate', createdSectionTemplate.id, 'description', descriptionLabels);
+        await this.$translationService.saveRichTranslations('sectionTemplate', createdSectionTemplate.id, 'description', descriptionLabels);
 
         if (this.sectionTemplate.illustrationId) {
           const illustrationSrc = `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/sectionTemplate/${this.sectionTemplate.id}/${this.sectionTemplate.illustrationId}`;

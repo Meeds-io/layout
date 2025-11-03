@@ -245,21 +245,24 @@ public class PortletInstanceImportService {
     layoutTranslationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
                                                    portletInstance.getId(),
                                                    PortletInstanceTranslationPlugin.TITLE_FIELD_NAME,
-                                                   d.getNames());
+                                                   d.getNames(),
+                                                   false);
   }
 
   protected void saveDescriptions(PortletInstanceDescriptor d, PortletInstance portletInstance) {
     layoutTranslationService.saveTranslationLabels(PortletInstanceTranslationPlugin.OBJECT_TYPE,
                                                    portletInstance.getId(),
                                                    PortletInstanceTranslationPlugin.DESCRIPTION_FIELD_NAME,
-                                                   d.getDescriptions());
+                                                   d.getDescriptions(),
+                                                   true);
   }
 
   protected void saveCategoryNames(PortletInstanceCategoryDescriptor d, PortletInstanceCategory category) {
     layoutTranslationService.saveTranslationLabels(PortletInstanceCategoryTranslationPlugin.OBJECT_TYPE,
                                                    category.getId(),
                                                    PortletInstanceCategoryTranslationPlugin.TITLE_FIELD_NAME,
-                                                   d.getNames());
+                                                   d.getNames(),
+                                                   false);
   }
 
   @SneakyThrows
