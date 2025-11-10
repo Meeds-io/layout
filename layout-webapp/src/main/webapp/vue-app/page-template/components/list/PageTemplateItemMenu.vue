@@ -60,7 +60,7 @@
           </v-list-item>
           <v-list-item
             dense
-            @click="$root.$emit('layout-page-template-drawer-open', pageTemplate)">
+            @click="$root.$emit('layout-page-template-drawer-open', pageTemplate, false, false, true)">
             <v-card
               color="transparent"
               min-width="15"
