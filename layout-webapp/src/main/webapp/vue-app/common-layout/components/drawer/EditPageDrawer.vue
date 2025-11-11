@@ -218,7 +218,7 @@ export default {
   },
   created() {
     this.$root.$on('layout-page-properties-open', this.open);
-    if (document.body.computedStyleMap().get('--allPagesLightGrey')) {
+    if (document.body.computedStyleMap && document.body.computedStyleMap().get('--allPagesLightGrey')) {
       this.defaultBackgroundColor = document.body.computedStyleMap().get('--allPagesLightGrey')[0] || this.defaultBackgroundColor;
     }
   },
