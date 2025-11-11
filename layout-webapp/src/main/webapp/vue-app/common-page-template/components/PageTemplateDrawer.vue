@@ -127,6 +127,7 @@ export default {
     duplicate: null,
     templateId: null,
     pageLayoutContent: null,
+    editLayoutProperties: false,
   }),
   watch: {
     description() {
@@ -165,14 +166,17 @@ export default {
     this.$root.$off('layout-page-template-drawer-open', this.open);
   },
   methods: {
-    async open(template, duplicate, generateIllustration) {
+    async open(template, duplicate, generateIllustration, editLayoutProperties) {
       this.templateId = template.id || this.$root.pageTemplate?.id || null;
+      this.editLayoutProperties = editLayoutProperties;
       this.pageLayoutContent = template.content;
       if (this.templateId) {
         const pageTemplate = await this.$pageTemplateService.getPageTemplate(this.templateId, true);
         this.description = pageTemplate?.description || '';
         this.duplicate = duplicate;
-        this.pageLayoutContent = pageTemplate.content;
+        if (this.duplicate) {
+          this.pageLayoutContent = pageTemplate.content;
+        }
       }
       if (generateIllustration) {
         const parentElement = document.querySelector('.layout-sections-parent .layout-page-body').parentElement;
@@ -208,7 +212,9 @@ export default {
             .then(pageTemplate => {
               const newTemplate = (this.$root.pageTemplate && !this.$root.pageTemplate.name);
               pageTemplate.disabled = newTemplate ? false : pageTemplate.disabled;
-              pageTemplate.content = this.pageLayoutContent;
+              if (!this.editLayoutProperties) {
+                pageTemplate.content = this.pageLayoutContent;
+              }
               return this.$pageTemplateService.updatePageTemplate(pageTemplate)
                 .then(() => {
                   if (newTemplate) {
