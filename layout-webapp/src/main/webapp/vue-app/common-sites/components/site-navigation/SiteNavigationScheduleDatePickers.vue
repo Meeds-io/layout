@@ -28,6 +28,8 @@
     <div class="flex-grow-1 flex-shrink-1">
       <div class="d-flex full-width overflow-hidden">
         <date-picker
+          :attach="false"
+          top
           v-model="startScheduleDate"
           :min-value="minimumStartDate"
           class="scheduleStartDatePicker flex-grow-1 flex-shrink-1 input-width-full pa-0" />
@@ -38,6 +40,8 @@
       </div>
       <div class="d-flex full-width overflow-hidden">
         <date-picker
+          :attach="false"
+          top
           v-model="endScheduleDate"
           :min-value="minimumEndDate"
           class="scheduleEndDatePicker flex-grow-1 flex-shrink-1 input-width-full pa-0" />
