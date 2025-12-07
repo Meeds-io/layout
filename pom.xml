@@ -41,7 +41,7 @@
 	</modules>
 	<properties>
 		<!-- 3rd party libraries versions -->
-		<io.meeds.social.version>7.2.x-meed-SNAPSHOT</io.meeds.social.version>
+		<io.meeds.social.version>7.2.0-meed-20251207</io.meeds.social.version>
 
     <!-- Sonar properties -->
     <sonar.organization>meeds-io</sonar.organization>
