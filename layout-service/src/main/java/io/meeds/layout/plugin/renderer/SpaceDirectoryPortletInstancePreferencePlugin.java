@@ -19,6 +19,7 @@
  */
 package io.meeds.layout.plugin.renderer;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.StreamSupport;
 
@@ -47,13 +48,17 @@ public class SpaceDirectoryPortletInstancePreferencePlugin implements PortletIns
   @Override
   @SneakyThrows
   public List<PortletInstancePreference> generatePreferences(Application application, Portlet preferences, PortletInstanceContext portletInstanceContext) {
+    if (preferences == null) {
+      return Collections.emptyList();
+    }
     return StreamSupport.stream(preferences.spliterator(), false)
-                        // remove generated setting name for the original
-                        // instance to avoid duplicating instances using the
-                        // same setting name
-                        .filter(p -> !StringUtils.equals(SETTING_PREFERENCE_NAME, p.getName()))
-                        .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
-                        .toList();
+                          // remove generated setting name for the original
+                          // instance to avoid duplicating instances using the
+                          // same setting name
+                          .filter(p -> !StringUtils.equals(SETTING_PREFERENCE_NAME, p.getName()))
+                          .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
+                          .toList();
+    
   }
 
 }
