@@ -114,7 +114,7 @@ public class PortletInstanceImportService {
   @Value("${meeds.portlets.import.override:false}")
   private boolean                        forceReimport;
 
-  @Value("${meeds.portlets.import.version:4}")
+  @Value("${meeds.portlets.import.version:5}")
   private long                           portletInstanceImportVersion;
 
   @PostConstruct
