@@ -551,7 +551,7 @@
     },
     {
       "nameId":"ParentSpaceListing",
-      "categoryNameId":"spaces",
+      "categoryNameId":"spaceTools",
       "portletName":"ParentSpaceListing",
       "names":{
         "en":"layout.portletInstance.ParentSpaceListing.name"
