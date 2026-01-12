@@ -548,6 +548,25 @@
         "*:/platform/administrators"
       ],
       "system":true
+    },
+    {
+      "nameId":"ParentSpaceListing",
+      "categoryNameId":"spaceTools",
+      "portletName":"ParentSpaceListing",
+      "names":{
+        "en":"layout.portletInstance.ParentSpaceListing.name"
+      },
+      "descriptions":{
+        "en":"layout.portletInstance.ParentSpaceListing.description"
+      },
+      "illustrationPath":"war:/../images/portlets/parentSpaceListing.webp",
+      "preferences":[
+
+      ],
+      "permissions":[
+        "*:/platform/administrators"
+      ],
+      "system":true
     }
   ]
 }
