@@ -411,7 +411,7 @@ export default {
         labels: this.labels
       };
       if (this.editMode) {
-        const pageRef = pageData?.pageRef ||  (this.elementType !== 'Group' ? this.navigationNode.pageKey?.ref || `${ this.navigationNode.pageKey.site.typeName}::${ this.navigationNode.pageKey.site.name}::${this.navigationNode.pageKey?.name}` : '');
+        const pageRef = pageData?.pageRef ||  (this.elementType !== 'Group' && this.navigationNode.pageKey ? this.navigationNode.pageKey?.ref || `${ this.navigationNode.pageKey.site.typeName}::${ this.navigationNode.pageKey.site.name}::${this.navigationNode.pageKey?.name}` : '');
         if (this.elementType === 'existingPage') {
           const pageRef = this.selectedPage?.pageRef;
           pageData = {
