@@ -86,7 +86,10 @@ export default {
     },
   },
   mounted() {
-    document.querySelector('#vuetify-apps').append(this.$el);
+    const container = document.querySelector('#vuetify-apps');
+    if (!container.hasChildNodes(this.$el)) {
+      container.append(this.$el);
+    }
   },
 };
 </script>
