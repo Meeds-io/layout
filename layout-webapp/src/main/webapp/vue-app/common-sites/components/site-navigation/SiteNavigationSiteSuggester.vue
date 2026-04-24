@@ -119,7 +119,7 @@ export default {
     },
     getSites() {
       this.loadingSuggestions = true;
-      return this.$siteService.getSites(null, 'USER', null, true, true, false, false, false, null, true)
+      return this.$siteService.getSites(null, 'USER', null, true, true, false, false, false, null)
         .then(sites => {
           this.sites = sites || [];
         })
