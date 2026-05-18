@@ -36,7 +36,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
@@ -52,7 +52,7 @@ public class PortletInstanceCategoryStorageTest {
 
   private static final String            ICON     = "icon";
 
-  @MockBean
+  @MockitoBean
   private PortletInstanceCategoryDAO     portletInstanceCategoryDAO;
 
   @Mock

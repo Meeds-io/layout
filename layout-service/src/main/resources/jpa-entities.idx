@@ -1,3 +1,4 @@
 io.meeds.layout.entity.PageTemplateEntity
 io.meeds.layout.entity.PortletInstanceEntity
 io.meeds.layout.entity.PortletInstanceCategoryEntity
+io.meeds.layout.entity.SectionTemplateEntity

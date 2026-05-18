@@ -29,7 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.model.Page;
@@ -50,13 +50,13 @@ public class LayoutAclServiceTest {
 
   private static final PageKey PAGE_KEY  = PageKey.parse("portal::test::test");
 
-  @MockBean
+  @MockitoBean
   private LayoutService        layoutService;
 
-  @MockBean
+  @MockitoBean
   private IdentityManager      identityManager;
 
-  @MockBean
+  @MockitoBean
   private UserACL              userAcl;
 
   @Autowired

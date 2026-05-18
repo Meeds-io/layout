@@ -45,7 +45,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.mop.navigation.NodeData;
@@ -75,31 +75,31 @@ public class SectionTemplateServiceTest {
 
   private static final String          CONTENT     = "{}";
 
-  @MockBean
+  @MockitoBean
   private LayoutAclService             layoutAclService;
 
-  @MockBean
+  @MockitoBean
   private TranslationService           translationService;
 
-  @MockBean
+  @MockitoBean
   private AttachmentService            attachmentService;
 
-  @MockBean
+  @MockitoBean
   private LocaleConfigService          localeConfigService;
 
-  @MockBean
+  @MockitoBean
   private SectionTemplateLayoutStorage sectionTemplateLayoutStorage;
 
-  @MockBean
+  @MockitoBean
   private ContainerLayoutService       containerLayoutService;
 
-  @MockBean
+  @MockitoBean
   private SectionTemplateStorage       sectionTemplateStorage;
 
-  @MockBean
+  @MockitoBean
   private PortletService               portletService;
 
-  @MockBean
+  @MockitoBean
   private ListenerService              listenerService;
 
   @Mock

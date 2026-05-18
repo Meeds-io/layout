@@ -29,7 +29,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.attachment.AttachmentService;
@@ -48,13 +48,13 @@ public class SiteTemplateAttachmentPluginTest {
   @Mock
   private Identity                     userIdentity;
 
-  @MockBean
+  @MockitoBean
   private AttachmentService            attachmentService;
 
-  @MockBean
+  @MockitoBean
   private LayoutAclService             layoutAclService;
 
-  @MockBean
+  @MockitoBean
   private SiteTemplateService          siteTemplateService;
 
   @Autowired
