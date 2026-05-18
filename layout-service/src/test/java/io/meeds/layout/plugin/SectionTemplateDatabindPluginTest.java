@@ -47,7 +47,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.portal.config.UserACL;
@@ -62,37 +62,37 @@ import io.meeds.social.translation.service.TranslationService;
 @ExtendWith(MockitoExtension.class)
 class SectionTemplateDatabindPluginTest {
 
-  @MockBean
+  @MockitoBean
   private SectionTemplateService        sectionTemplateService;
 
-  @MockBean
+  @MockitoBean
   private DatabindService               databindService;
 
-  @MockBean
+  @MockitoBean
   private FileService                   fileService;
 
-  @MockBean
+  @MockitoBean
   private TranslationService            translationService;
 
-  @MockBean
+  @MockitoBean
   private AttachmentService             attachmentService;
 
-  @MockBean
+  @MockitoBean
   private PortletInstanceService        portletInstanceService;
 
-  @MockBean
+  @MockitoBean
   private LayoutService                 layoutService;
 
-  @MockBean
+  @MockitoBean
   private PageLayoutService             pageLayoutService;
 
-  @MockBean
+  @MockitoBean
   private ContainerLayoutService        containerLayoutService;
 
-  @MockBean
+  @MockitoBean
   private UserACL                       userAcl;
 
-  @MockBean
+  @MockitoBean
   private IdentityManager               identityManager;
 
   @Autowired

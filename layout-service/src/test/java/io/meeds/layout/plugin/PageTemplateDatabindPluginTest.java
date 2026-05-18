@@ -41,7 +41,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.social.attachment.AttachmentService;
 
@@ -58,28 +58,28 @@ import java.util.zip.ZipOutputStream;
 @ExtendWith(MockitoExtension.class)
 class PageTemplateDatabindPluginTest {
 
-  @MockBean
+  @MockitoBean
   private PageTemplateService        pageTemplateService;
 
-  @MockBean
+  @MockitoBean
   private DatabindService            databindService;
 
-  @MockBean
+  @MockitoBean
   private FileService                fileService;
 
-  @MockBean
+  @MockitoBean
   private TranslationService         translationService;
 
-  @MockBean
+  @MockitoBean
   private AttachmentService          attachmentService;
 
-  @MockBean
+  @MockitoBean
   private PortletInstanceService     portletInstanceService;
 
-  @MockBean
+  @MockitoBean
   private UserACL                    userAcl;
 
-  @MockBean
+  @MockitoBean
   private IdentityManager            identityManager;
 
   @Autowired

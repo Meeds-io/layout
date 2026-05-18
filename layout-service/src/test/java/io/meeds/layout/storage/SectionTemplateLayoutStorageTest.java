@@ -34,7 +34,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
@@ -56,19 +56,19 @@ import lombok.SneakyThrows;
 @ExtendWith(MockitoExtension.class)
 public class SectionTemplateLayoutStorageTest {
 
-  @MockBean
+  @MockitoBean
   private LayoutService                layoutService;
 
-  @MockBean
+  @MockitoBean
   private NavigationService            navigationService;
 
-  @MockBean
+  @MockitoBean
   private PageLayoutService            pageLayoutService;
 
-  @MockBean
+  @MockitoBean
   private ContainerLayoutService       containerLayoutService;
 
-  @MockBean
+  @MockitoBean
   private NavigationLayoutService      navigationLayoutService;
 
   @Autowired

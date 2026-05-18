@@ -49,7 +49,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.portal.config.UserACL;
@@ -70,43 +70,43 @@ class SpaceNavigationDatabindPluginTest {
   @Mock
   private Identity                      userIdentity;
 
-  @MockBean
+  @MockitoBean
   protected DatabindService             databindService;
 
-  @MockBean
+  @MockitoBean
   protected FileService                 fileService;
 
-  @MockBean
+  @MockitoBean
   protected TranslationService          translationService;
 
-  @MockBean
+  @MockitoBean
   protected SpaceTemplateService        spaceTemplateService;
 
-  @MockBean
+  @MockitoBean
   protected AttachmentService           attachmentService;
 
-  @MockBean
+  @MockitoBean
   LayoutService                         layoutService;
 
-  @MockBean
+  @MockitoBean
   private NavigationService             navigationService;
 
-  @MockBean
+  @MockitoBean
   DescriptionService                    descriptionService;
 
-  @MockBean
+  @MockitoBean
   private NavigationLayoutService       navigationLayoutService;
 
-  @MockBean
+  @MockitoBean
   private PageLayoutService             pageLayoutService;
 
-  @MockBean
+  @MockitoBean
   PortletInstanceService                portletInstanceService;
 
-  @MockBean
+  @MockitoBean
   protected UserACL                     userAcl;
 
-  @MockBean
+  @MockitoBean
   private IdentityManager               identityManager;
 
   @Autowired
