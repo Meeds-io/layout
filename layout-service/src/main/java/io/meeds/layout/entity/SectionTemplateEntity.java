@@ -22,10 +22,8 @@ import java.io.Serializable;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.SequenceGenerator;
+import io.meeds.common.persistence.PortableSequence;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -41,8 +39,7 @@ public class SectionTemplateEntity implements Serializable {
   private static final long serialVersionUID = 4955770436068594917L;
 
   @Id
-  @SequenceGenerator(name = "SEQ_SECTION_TEMPLATE_ID", sequenceName = "SEQ_SECTION_TEMPLATE_ID", allocationSize = 1)
-  @GeneratedValue(strategy = GenerationType.AUTO, generator = "SEQ_SECTION_TEMPLATE_ID")
+  @PortableSequence(name = "SEQ_SECTION_TEMPLATE_ID")
   @Column(name = "ID")
   private Long              id;
 

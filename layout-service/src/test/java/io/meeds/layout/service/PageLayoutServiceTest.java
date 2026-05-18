@@ -43,7 +43,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.commons.addons.AddOnService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -90,28 +90,28 @@ public class PageLayoutServiceTest {
 
   private static final PageKey    PAGE_KEY             = PageKey.parse("portal::test::test");
 
-  @MockBean
+  @MockitoBean
   private LayoutService           layoutService;
 
-  @MockBean
+  @MockitoBean
   private LayoutAclService        aclService;
 
-  @MockBean
+  @MockitoBean
   private PageTemplateService     pageTemplateService;
 
-  @MockBean
+  @MockitoBean
   private UserPortalConfigService userPortalConfigService;
 
-  @MockBean
+  @MockitoBean
   private AddOnService            addOnService;
 
-  @MockBean
+  @MockitoBean
   private ContainerLayoutService  containerLayoutService;
 
-  @MockBean
+  @MockitoBean
   private PortletInstanceService  portletInstanceService;
 
-  @MockBean
+  @MockitoBean
   private ListenerService         listenerService;
 
   @Autowired

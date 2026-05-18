@@ -37,7 +37,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.commons.file.model.FileInfo;
 import org.exoplatform.commons.file.model.FileItem;
@@ -69,25 +69,25 @@ class ContainerLayoutServiceTest {
 
   private static final long          PAGE_ID      = 58L;
 
-  @MockBean
+  @MockitoBean
   private AttachmentService          attachmentService;
 
-  @MockBean
+  @MockitoBean
   private UploadService              uploadService;
 
-  @MockBean
+  @MockitoBean
   private FileService                fileService;
 
-  @MockBean
+  @MockitoBean
   private UserACL                    userAcl;
 
-  @MockBean
+  @MockitoBean
   private IdentityManager            identityManager;
 
-  @MockBean
+  @MockitoBean
   private LayoutService              layoutService;
 
-  @MockBean
+  @MockitoBean
   private PortletInstanceService     portletInstanceService;
 
   @Mock

@@ -53,7 +53,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.commons.file.services.FileService;
 import org.exoplatform.portal.config.UserACL;
@@ -74,43 +74,43 @@ class SiteTemplateDatabindPluginTest {
   @Mock
   private Identity                   userIdentity;
 
-  @MockBean
+  @MockitoBean
   private SiteTemplateService        siteTemplateService;
 
-  @MockBean
+  @MockitoBean
   LayoutService                      layoutService;
 
-  @MockBean
+  @MockitoBean
   private DatabindService            databindService;
 
-  @MockBean
+  @MockitoBean
   private FileService                fileService;
 
-  @MockBean
+  @MockitoBean
   private TranslationService         translationService;
 
-  @MockBean
+  @MockitoBean
   private AttachmentService          attachmentService;
 
-  @MockBean
+  @MockitoBean
   private NavigationService          navigationService;
 
-  @MockBean
+  @MockitoBean
   private PortletInstanceService     portletInstanceService;
 
-  @MockBean
+  @MockitoBean
   private NavigationLayoutService    navigationLayoutService;
 
-  @MockBean
+  @MockitoBean
   DescriptionService                 descriptionService;
 
-  @MockBean
+  @MockitoBean
   PageLayoutService                  pageLayoutService;
 
-  @MockBean
+  @MockitoBean
   private UserACL                    userAcl;
 
-  @MockBean
+  @MockitoBean
   private IdentityManager            identityManager;
 
   @Autowired
