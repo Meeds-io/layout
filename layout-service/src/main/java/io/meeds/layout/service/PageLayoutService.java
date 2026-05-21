@@ -193,6 +193,10 @@ public class PageLayoutService {
     Page page = layoutService.getPage(pageKey);
     if (page != null) {
       expandAddonContainerChildren(page);
+      if (replaceAddonContainerChildren(page)) {
+        layoutService.save(page);
+        page = layoutService.getPage(pageKey);
+      }
     }
     return page;
   }
@@ -249,7 +253,6 @@ public class PageLayoutService {
     page.resetStorage();
     page.setName(page.getName() + "_draft_" + username);
     page.setTitle(page.getTitle() + " Draft " + username);
-    replaceAddonContainerChildren(page);
 
     layoutService.save(new PageContext(page.getPageKey(), Utils.toPageState(page)), page);
     return page.getPageKey();
@@ -454,11 +457,12 @@ public class PageLayoutService {
     }
   }
 
-  private void replaceAddonContainerChildren(Container container) {
+  private boolean replaceAddonContainerChildren(Container container) {
     ArrayList<ModelObject> subContainers = container.getChildren();
     if (subContainers == null) {
-      return;
+      return false;
     }
+    boolean replaced = false;
     LinkedHashMap<Integer, List<Application>> addonContainerChildren = new LinkedHashMap<>();
     for (int i = subContainers.size() - 1; i >= 0; i--) {
       ModelObject modelObject = subContainers.get(i);
@@ -469,7 +473,9 @@ public class PageLayoutService {
             addonContainerChildren.put(i, applications);
           }
         } else {
-          replaceAddonContainerChildren(subContainer);
+          if (replaceAddonContainerChildren(subContainer)) {
+            replaced = true;
+          }
         }
       }
     }
@@ -479,7 +485,9 @@ public class PageLayoutService {
         subContainers.addAll(index, applications);
       });
       container.setChildren(subContainers);
+      replaced = true;
     }
+    return replaced;
   }
 
   private void validateCSSInputs(ModelObject modelObject) { // NOSONAR
