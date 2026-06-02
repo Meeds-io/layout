@@ -76,7 +76,7 @@
             <rich-editor
               id="pageTemplateDescription"
               ref="pageTemplateDescriptionEditor"
-              v-model="description"
+              v-model="descriptionTranslations[lang]"
               :placeholder="$t('layout.templateDescriptionPlaceholder')"
               :max-length="maxDescriptionLength"
               :tag-enabled="false"
@@ -128,6 +128,7 @@ export default {
     templateId: null,
     pageLayoutContent: null,
     editLayoutProperties: false,
+    lang: eXo.env.portal.language,
   }),
   watch: {
     description() {
@@ -156,11 +157,12 @@ export default {
       };
     },
     disabled() {
-      return !this.title?.length || this.title.length > this.maxTitleLength || (this.description?.length && this.$utils.htmlToText(this.description).length > this.maxDescriptionLength);
+      return !this.title?.length || this.title.length > this.maxTitleLength || (this.descriptionTranslations[this.lang]?.length && this.$utils.htmlToText(this.descriptionTranslations[this.lang]).length > this.maxDescriptionLength);
     },
   },
   created() {
     this.$root.$on('layout-page-template-drawer-open', this.open);
+    this.descriptionTranslations[this.lang] = '';
   },
   beforeDestroy() {
     this.$root.$off('layout-page-template-drawer-open', this.open);
