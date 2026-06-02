@@ -128,7 +128,7 @@ export default {
     templateId: null,
     pageLayoutContent: null,
     editLayoutProperties: false,
-    lang: eXo.env.portal.language,
+    lang: eXo.env.portal.defaultLanguage,
   }),
   watch: {
     description() {
