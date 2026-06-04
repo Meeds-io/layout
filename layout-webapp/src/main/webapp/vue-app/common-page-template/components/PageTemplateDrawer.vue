@@ -76,7 +76,7 @@
             <rich-editor
               id="pageTemplateDescription"
               ref="pageTemplateDescriptionEditor"
-              v-model="description"
+              v-model="descriptionTranslations[lang]"
               :placeholder="$t('layout.templateDescriptionPlaceholder')"
               :max-length="maxDescriptionLength"
               :tag-enabled="false"
@@ -128,6 +128,7 @@ export default {
     templateId: null,
     pageLayoutContent: null,
     editLayoutProperties: false,
+    lang: eXo.env.portal.defaultLanguage,
   }),
   watch: {
     description() {
@@ -156,7 +157,7 @@ export default {
       };
     },
     disabled() {
-      return !this.title?.length || this.title.length > this.maxTitleLength || (this.description?.length && this.$utils.htmlToText(this.description).length > this.maxDescriptionLength);
+      return !this.title?.length || this.title.length > this.maxTitleLength || (this.descriptionTranslations[this.lang]?.length && this.$utils.htmlToText(this.descriptionTranslations[this.lang]).length > this.maxDescriptionLength);
     },
   },
   created() {
@@ -178,6 +179,7 @@ export default {
           this.pageLayoutContent = pageTemplate.content;
         }
       }
+      this.descriptionTranslations[this.lang] = this.description || '';
       if (generateIllustration) {
         const parentElement = document.querySelector('.layout-sections-parent .layout-page-body').parentElement;
         parentElement.querySelectorAll('.layout-add-application-button').forEach(el => el.style.display = 'none');
