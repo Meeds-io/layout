@@ -55,8 +55,8 @@ export default {
   }),
   computed: {
     isMobileColumns() {
-      return ['xs', 'sm', 'md'].includes(this.$vuetify.breakpoint?.name)
-          && this.container?.cssClass?.includes?.('layout-mobile-columns');
+      return this.$vuetify.breakpoint.mdAndDown
+        && this.container?.cssClass?.includes?.('layout-mobile-columns');
     },
     isHiddenOnMobile() {
       return this.$vuetify.breakpoint.smAndDown
