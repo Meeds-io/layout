@@ -149,7 +149,6 @@ export default {
           uploadId: this.uploadId,
         });
         this.importFinished = true;
-        this.$root.$emit('section-template-saved');
       } catch (error) {
         if (String(error).indexOf('databind.notMatchType') >= 0) {
           this.$root.$emit('alert-message', this.$t('sectionTemplates.label.exception.notMatchType'), 'error');
