@@ -148,8 +148,8 @@ export default {
           objectType: 'SectionTemplate',
           uploadId: this.uploadId,
         });
+        this.$root.$emit('section-templates-list-refresh');
         this.importFinished = true;
-        this.$root.$emit('section-template-saved');
       } catch (error) {
         if (String(error).indexOf('databind.notMatchType') >= 0) {
           this.$root.$emit('alert-message', this.$t('sectionTemplates.label.exception.notMatchType'), 'error');
