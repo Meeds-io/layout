@@ -89,6 +89,18 @@ public class DatabindUtils {
     if (layout == null) {
       return;
     }
+    attachmentService.deleteAttachments(LayoutBackgroundAttachmentPlugin.OBJECT_TYPE,
+                                        String.valueOf(pageTemplateId));
+    saveAppBackgroundImagesInternal(pageTemplateId, layout, attachmentService, userIdentityId);
+  }
+
+  private static void saveAppBackgroundImagesInternal(long pageTemplateId,
+                                                      LayoutModel layout,
+                                                      AttachmentService attachmentService,
+                                                      long userIdentityId) {
+    if (layout == null) {
+      return;
+    }
 
     String appBackgroundImage = layout.getAppBackgroundImage();
     if (appBackgroundImage != null && !appBackgroundImage.isEmpty()) {
@@ -113,7 +125,7 @@ public class DatabindUtils {
     }
     if (layout.getChildren() != null) {
       for (LayoutModel child : layout.getChildren()) {
-        saveAppBackgroundImages(pageTemplateId, child, attachmentService, userIdentityId);
+        saveAppBackgroundImagesInternal(pageTemplateId, child, attachmentService, userIdentityId);
       }
     }
   }
@@ -139,10 +151,9 @@ public class DatabindUtils {
       uploadResource.setMimeType("image/png");
       uploadResource.setStatus(UploadResource.UPLOADED_STATUS);
       uploadResource.setStoreLocation(tempFile.getPath());
-      attachmentService.deleteAttachments(LayoutBackgroundAttachmentPlugin.OBJECT_TYPE, String.valueOf(templateId));
       UploadedAttachmentDetail uploadedAttachmentDetail = new UploadedAttachmentDetail(uploadResource);
 
-      String objectId = "template_" + templateId + "_" + UUID.randomUUID();
+      String objectId = String.valueOf(templateId);
 
       attachmentService.saveAttachment(uploadedAttachmentDetail,
                                        LayoutBackgroundAttachmentPlugin.OBJECT_TYPE,
