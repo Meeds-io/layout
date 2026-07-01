@@ -120,7 +120,7 @@ public class LayoutBackgroundAttachmentPlugin extends AttachmentPlugin {
       return null;
     } else {
       Page page = layoutService.getPage(pageId);
-      return page.getPageKey();
+      return page == null ? null : page.getPageKey();
     }
   }
 
