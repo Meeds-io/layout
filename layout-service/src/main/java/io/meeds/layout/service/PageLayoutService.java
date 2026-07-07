@@ -36,6 +36,7 @@ import com.google.javascript.jscomp.jarjar.com.google.re2j.Pattern;
 
 import org.exoplatform.commons.addons.AddOnService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.mop.PageType;
 import org.exoplatform.portal.mop.QueryResult;
 import org.exoplatform.portal.mop.SiteKey;
@@ -75,22 +76,25 @@ public class PageLayoutService {
   private static final String    PAGE_NOT_EDITABLE_MESSAGE       = "Page with ref %s isn't editable for user %s";
 
   @Autowired
-  private LayoutService          layoutService;
+  private LayoutService           layoutService;
 
   @Autowired
-  private LayoutAclService       aclService;
+  private LayoutAclService        aclService;
 
   @Autowired
-  private ContainerLayoutService containerLayoutService;
+  private ContainerLayoutService  containerLayoutService;
 
   @Autowired
-  private PageTemplateService    pageTemplateService;
+  private PageTemplateService     pageTemplateService;
 
   @Autowired
-  private PortletInstanceService portletInstanceService;
+  private PortletInstanceService  portletInstanceService;
 
   @Autowired
-  private AddOnService           addOnService;
+  private AddOnService            addOnService;
+
+  @Autowired
+  private UserPortalConfigService portalConfigService;
 
   public List<PageContext> getPages(String siteTypeName,
                                     String siteName,
@@ -180,6 +184,7 @@ public class PageLayoutService {
         throw new ObjectNotFoundException(String.format("Site width id %s not found", siteId));
       }
       Container portalLayout = site.getPortalLayout();
+      applyDefaultPageBackground(portalLayout);
       replacePageBody(portalLayout, page);
       page = portalLayout;
     }
@@ -580,6 +585,50 @@ public class PageLayoutService {
         layoutService.save(application.getState(), preferences);
       }
     }
+  }
+
+  private void applyDefaultPageBackground(Container portalLayout) {
+    Container pageBodyParent = findPageBodyParent(portalLayout);
+    if (pageBodyParent == null) {
+      return;
+    }
+    ModelStyle cssStyle = pageBodyParent.getCssStyle();
+    if (cssStyle != null
+        && (StringUtils.isNotBlank(cssStyle.getBackgroundColor())
+            || StringUtils.isNotBlank(cssStyle.getBackgroundImage())
+            || StringUtils.isNotBlank(cssStyle.getBackgroundEffect()))) {
+      return;
+    }
+    String defaultSiteName = portalConfigService.getDefaultPortal();
+    if (StringUtils.isBlank(defaultSiteName)) {
+      return;
+    }
+    PortalConfig defaultSite = layoutService.getPortalConfig(SiteKey.portal(defaultSiteName));
+    if (defaultSite == null) {
+      return;
+    }
+    Container defaultPageBodyParent = findPageBodyParent(defaultSite.getPortalLayout());
+    if (defaultPageBodyParent == null || defaultPageBodyParent.getCssStyle() == null) {
+      return;
+    }
+    pageBodyParent.setCssStyle(defaultPageBodyParent.getCssStyle());
+  }
+
+  private Container findPageBodyParent(Container container) {
+    if (container == null || CollectionUtils.isEmpty(container.getChildren())) {
+      return null;
+    }
+    for (ModelObject modelObject : container.getChildren()) {
+      if (modelObject instanceof PageBody) {
+        return container;
+      } else if (modelObject instanceof Container child) {
+        Container found = findPageBodyParent(child);
+        if (found != null) {
+          return found;
+        }
+      }
+    }
+    return null;
   }
 
   private void replacePageBody(Container portalLayout, Container page) {
