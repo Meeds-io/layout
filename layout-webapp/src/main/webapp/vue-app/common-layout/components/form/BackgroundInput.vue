@@ -142,7 +142,7 @@
             :label="$t('layout.scrollMiddleColor')"
             class="my-auto" />
         </div>
-        <div v-else-if="choice === 'linear' || choice === 'radial' || choice === 'angular'" style="min-width: 220px;">
+        <div v-else-if="choice === 'linear' || choice === 'radial' || choice === 'angular'">
           <layout-editor-color-picker
             v-model="backgroundGradientFrom"
             :label="$t('layout.gradientFrom')"
@@ -151,17 +151,21 @@
             v-model="backgroundGradientTo"
             :label="$t('layout.gradientTo')"
             class="my-auto" />
-          <v-slider
-            v-model="gradientRatio"
-            :label="$t('layout.gradientBalance')"
-            min="0"
-            max="100"
-            thumb-label
-            hide-details
-            class="mt-6" />
         </div>
       </v-list-item-action>
     </v-list-item>
+    <div
+      v-if="choice === 'linear' || choice === 'radial' || choice === 'angular'"
+      class="d-flex align-center px-1">
+      <v-slider
+        v-model="gradientRatio"
+        :label="$t('layout.gradientBalance')"
+        min="0"
+        max="100"
+        thumb-label
+        hide-details
+        class="flex-grow-1" />
+    </div>
 
     <v-list-item
       v-if="enabled"
