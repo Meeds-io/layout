@@ -318,6 +318,13 @@ export default {
         'bottom left': '0deg',
       }[this.gradientCorner] || '0deg';
     },
+    angularReversed() {
+      // The gradient line always sweeps clockwise from angularStartAngle. For
+      // these 2 corners, that start angle lands on the edge opposite to the
+      // corner's own name (e.g. "top right" starts at its right edge), so the
+      // From/To colors must be swapped for From to appear next to that edge.
+      return this.gradientCorner === 'top right' || this.gradientCorner === 'bottom left';
+    },
     backgroundEffect() {
       if (!this.backgroundGradientFrom || !this.backgroundGradientTo) {
         return null;
@@ -336,11 +343,18 @@ export default {
           `${this.backgroundGradientFrom} 0%, ${this.backgroundGradientFrom} ${ratio}%, ${this.backgroundGradientTo} 100%`;
         return `radial-gradient(${stops})`;
       } else if (this.choice === 'angular') {
+        const edgeColor = this.angularReversed ? this.backgroundGradientTo : this.backgroundGradientFrom;
+        const farColor = this.angularReversed ? this.backgroundGradientFrom : this.backgroundGradientTo;
         if (ratio === 50) {
-          return `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${this.backgroundGradientFrom} 0deg, ${this.backgroundGradientTo} 90deg)`;
+          return `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${edgeColor} 0deg, ${farColor} 90deg)`;
         }
-        const midAngle = (ratio / 100 * 90).toFixed(2);
-        return `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${this.backgroundGradientFrom} 0deg, ${this.backgroundGradientFrom} ${midAngle}deg, ${this.backgroundGradientTo} 90deg)`;
+        // The plateau (ratio-sized block of solid color) always sits next to
+        // From's own edge, whichever end of the stop list that is.
+        const midPercent = this.angularReversed ? (100 - ratio) : ratio;
+        const midAngle = (midPercent / 100 * 90).toFixed(2);
+        return this.angularReversed ?
+          `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${edgeColor} 0deg, ${farColor} ${midAngle}deg, ${farColor} 90deg)` :
+          `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${edgeColor} 0deg, ${edgeColor} ${midAngle}deg, ${farColor} 90deg)`;
       } else {
         return null;
       }
@@ -454,14 +468,17 @@ export default {
       const inner = this.container.backgroundEffect.replace('conic-gradient(', '').replace(/\)$/, '');
       const cornerMatch = inner.match(/at (top left|top right|bottom left|bottom right)/);
       this.gradientCorner = cornerMatch ? cornerMatch[1] : 'top left';
+      const reversed = this.gradientCorner === 'top right' || this.gradientCorner === 'bottom left';
       const stops = inner.substring(inner.indexOf(',') + 1).split(',').map(s => s.trim());
-      this.backgroundGradientFrom = stops[0].split(' ')[0];
+      const firstColor = stops[0].split(' ')[0];
+      const lastColor = stops[stops.length - 1].split(' ')[0];
+      this.backgroundGradientFrom = reversed ? lastColor : firstColor;
+      this.backgroundGradientTo = reversed ? firstColor : lastColor;
       if (stops.length === 3) {
-        this.gradientRatio = Math.round(parseFloat(stops[1].split(' ')[1]) / 90 * 100);
-        this.backgroundGradientTo = stops[2].split(' ')[0];
+        const midPercent = Math.round(parseFloat(stops[1].split(' ')[1]) / 90 * 100);
+        this.gradientRatio = reversed ? (100 - midPercent) : midPercent;
       } else {
         this.gradientRatio = 50;
-        this.backgroundGradientTo = stops[1].split(' ')[0];
       }
     } else if (this.container.backgroundEffect?.startsWith('linear-gradient(')) {
       this.choice = 'linear';
