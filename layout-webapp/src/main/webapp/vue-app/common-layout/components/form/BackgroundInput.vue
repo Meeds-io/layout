@@ -142,7 +142,7 @@
             :label="$t('layout.scrollMiddleColor')"
             class="my-auto" />
         </div>
-        <div v-else-if="choice === 'linear' || choice === 'radial' || choice === 'angular'">
+        <div v-else-if="choice === 'linear' || choice === 'radial' || choice === 'angular'" style="min-width: 220px;">
           <layout-editor-color-picker
             v-model="backgroundGradientFrom"
             :label="$t('layout.gradientFrom')"
@@ -151,6 +151,14 @@
             v-model="backgroundGradientTo"
             :label="$t('layout.gradientTo')"
             class="my-auto" />
+          <v-slider
+            v-model="gradientRatio"
+            :label="$t('layout.gradientBalance')"
+            min="0"
+            max="100"
+            thumb-label
+            hide-details
+            class="mt-6" />
         </div>
       </v-list-item-action>
     </v-list-item>
@@ -276,6 +284,7 @@ export default {
     backgroundGradientTo: null,
     gradientDirection: null,
     gradientCorner: null,
+    gradientRatio: null,
     initialized: false,
   }),
   computed: {
@@ -312,14 +321,26 @@ export default {
     backgroundEffect() {
       if (!this.backgroundGradientFrom || !this.backgroundGradientTo) {
         return null;
-      } else if (this.choice === 'linear') {
+      }
+      const ratio = this.gradientRatio ?? 50;
+      if (this.choice === 'linear') {
+        const stops = ratio === 50 ?
+          `${this.backgroundGradientFrom}, ${this.backgroundGradientTo}` :
+          `${this.backgroundGradientFrom} 0%, ${this.backgroundGradientFrom} ${ratio}%, ${this.backgroundGradientTo} 100%`;
         return this.gradientDirection === 'to right' ?
-          `linear-gradient(to right, ${this.backgroundGradientFrom}, ${this.backgroundGradientTo})` :
-          `linear-gradient(${this.backgroundGradientFrom}, ${this.backgroundGradientTo})`;
+          `linear-gradient(to right, ${stops})` :
+          `linear-gradient(${stops})`;
       } else if (this.choice === 'radial') {
-        return `radial-gradient(${this.backgroundGradientFrom}, ${this.backgroundGradientTo})`;
+        const stops = ratio === 50 ?
+          `${this.backgroundGradientFrom}, ${this.backgroundGradientTo}` :
+          `${this.backgroundGradientFrom} 0%, ${this.backgroundGradientFrom} ${ratio}%, ${this.backgroundGradientTo} 100%`;
+        return `radial-gradient(${stops})`;
       } else if (this.choice === 'angular') {
-        return `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${this.backgroundGradientFrom} 0deg, ${this.backgroundGradientTo} 90deg)`;
+        if (ratio === 50) {
+          return `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${this.backgroundGradientFrom} 0deg, ${this.backgroundGradientTo} 90deg)`;
+        }
+        const midAngle = (ratio / 100 * 90).toFixed(2);
+        return `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${this.backgroundGradientFrom} 0deg, ${this.backgroundGradientFrom} ${midAngle}deg, ${this.backgroundGradientTo} 90deg)`;
       } else {
         return null;
       }
@@ -353,6 +374,7 @@ export default {
         this.backgroundGradientTo = null;
         this.gradientDirection = null;
         this.gradientCorner = null;
+        this.gradientRatio = null;
       }
     },
     backgroundImageStyle() {
@@ -389,9 +411,11 @@ export default {
           this.backgroundGradientTo = null;
           this.gradientDirection = null;
           this.gradientCorner = null;
+          this.gradientRatio = null;
         } else {
           this.backgroundGradientFrom = this.backgroundGradientFrom || this.defaultBackgroundColor;
           this.backgroundGradientTo = this.backgroundGradientTo || '#999999FF';
+          this.gradientRatio = this.gradientRatio ?? 50;
           if (this.choice === 'linear') {
             this.gradientDirection = this.gradientDirection || 'to bottom';
           } else if (this.choice === 'angular') {
@@ -416,29 +440,47 @@ export default {
     }
     if (this.container.backgroundEffect?.startsWith('radial-gradient(')) {
       this.choice = 'radial';
-      const colors = this.container.backgroundEffect.replace('radial-gradient(', '').replace(/\)$/, '').split(',');
-      this.backgroundGradientFrom = colors[0].trim();
-      this.backgroundGradientTo = colors[1].trim();
+      const stops = this.container.backgroundEffect.replace('radial-gradient(', '').replace(/\)$/, '').split(',').map(s => s.trim());
+      this.backgroundGradientFrom = stops[0].split(' ')[0];
+      if (stops.length === 3) {
+        this.gradientRatio = parseFloat(stops[1].split(' ')[1]);
+        this.backgroundGradientTo = stops[2].split(' ')[0];
+      } else {
+        this.gradientRatio = 50;
+        this.backgroundGradientTo = stops[1].split(' ')[0];
+      }
     } else if (this.container.backgroundEffect?.startsWith('conic-gradient(')) {
       this.choice = 'angular';
       const inner = this.container.backgroundEffect.replace('conic-gradient(', '').replace(/\)$/, '');
       const cornerMatch = inner.match(/at (top left|top right|bottom left|bottom right)/);
       this.gradientCorner = cornerMatch ? cornerMatch[1] : 'top left';
-      const colors = inner.substring(inner.indexOf(',') + 1).split(',');
-      this.backgroundGradientFrom = colors[0].trim().split(' ')[0];
-      this.backgroundGradientTo = colors[1].trim().split(' ')[0];
+      const stops = inner.substring(inner.indexOf(',') + 1).split(',').map(s => s.trim());
+      this.backgroundGradientFrom = stops[0].split(' ')[0];
+      if (stops.length === 3) {
+        this.gradientRatio = Math.round(parseFloat(stops[1].split(' ')[1]) / 90 * 100);
+        this.backgroundGradientTo = stops[2].split(' ')[0];
+      } else {
+        this.gradientRatio = 50;
+        this.backgroundGradientTo = stops[1].split(' ')[0];
+      }
     } else if (this.container.backgroundEffect?.startsWith('linear-gradient(')) {
       this.choice = 'linear';
       const inner = this.container.backgroundEffect.replace('linear-gradient(', '').replace(/\)$/, '');
-      const parts = inner.split(',');
-      if (parts[0].trim().startsWith('to ')) {
-        this.gradientDirection = parts[0].trim();
-        this.backgroundGradientFrom = parts[1].trim();
-        this.backgroundGradientTo = parts[2].trim();
+      const parts = inner.split(',').map(s => s.trim());
+      let stops = parts;
+      if (parts[0].startsWith('to ')) {
+        this.gradientDirection = parts[0];
+        stops = parts.slice(1);
       } else {
         this.gradientDirection = 'to bottom';
-        this.backgroundGradientFrom = parts[0].trim();
-        this.backgroundGradientTo = parts[1].trim();
+      }
+      this.backgroundGradientFrom = stops[0].split(' ')[0];
+      if (stops.length === 3) {
+        this.gradientRatio = parseFloat(stops[1].split(' ')[1]);
+        this.backgroundGradientTo = stops[2].split(' ')[0];
+      } else {
+        this.gradientRatio = 50;
+        this.backgroundGradientTo = stops[1].split(' ')[0];
       }
     } else {
       this.choice = 'color';
