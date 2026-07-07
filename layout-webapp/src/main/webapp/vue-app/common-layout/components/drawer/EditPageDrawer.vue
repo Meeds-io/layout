@@ -190,6 +190,7 @@ export default {
     appBackgroundProperties: null,
     fullWindow: false,
     width: 1320,
+    defaultWidth: 1320,
     minWidth: 300,
     maxWidth: 5000,
     drawer: false,
@@ -206,7 +207,7 @@ export default {
       });
     },
     customWidth() {
-      return this.width === '100%' ? 0 : this.width;
+      return this.width === '100%' ? this.defaultWidth : this.width;
     },
   },
   watch: {
@@ -244,9 +245,9 @@ export default {
         this.pageContainer.marginLeft = this.defaultMarginLeft;
       }
       this.width = (this.pageContainer.width === 'fullWindow' ? '100%' : this.pageContainer.width)
-        || (this.pageContainer.width === 'singlePageApplication' ? 1320 : this.pageContainer.width)
+        || (this.pageContainer.width === 'singlePageApplication' ? this.defaultWidth : this.pageContainer.width)
         || (!!document.body.style.getPropertyValue('--allPagesWidth') && '100%')
-        || 1320;
+        || this.defaultWidth;
       this.appBackgroundProperties = {
         storageId: 0,
         backgroundColor: this.pageContainer.appBackgroundColor || null,
