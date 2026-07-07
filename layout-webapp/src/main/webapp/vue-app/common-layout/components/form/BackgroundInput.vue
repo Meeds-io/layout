@@ -154,18 +154,6 @@
         </div>
       </v-list-item-action>
     </v-list-item>
-    <div
-      v-if="choice === 'linear' || choice === 'radial' || choice === 'angular'"
-      class="d-flex align-center px-1">
-      <v-slider
-        v-model="gradientRatio"
-        :label="$t('layout.gradientBalance')"
-        min="0"
-        max="100"
-        thumb-label
-        hide-details
-        class="flex-grow-1" />
-    </div>
 
     <v-list-item
       v-if="enabled"
@@ -288,7 +276,6 @@ export default {
     backgroundGradientTo: null,
     gradientDirection: null,
     gradientCorner: null,
-    gradientRatio: null,
     initialized: false,
   }),
   computed: {
@@ -333,28 +320,23 @@ export default {
       if (!this.backgroundGradientFrom || !this.backgroundGradientTo) {
         return null;
       }
-      const ratio = this.gradientRatio ?? 50;
+      // Fixed 25%/75% split (instead of an even 50/50) so the "To" color
+      // stays clearly visible, especially on the angular gradient's
+      // 90deg-visible corner slice.
+      const fromRatio = 25;
       if (this.choice === 'linear') {
-        const stops = ratio === 50 ?
-          `${this.backgroundGradientFrom}, ${this.backgroundGradientTo}` :
-          `${this.backgroundGradientFrom} 0%, ${this.backgroundGradientFrom} ${ratio}%, ${this.backgroundGradientTo} 100%`;
+        const stops = `${this.backgroundGradientFrom} 0%, ${this.backgroundGradientFrom} ${fromRatio}%, ${this.backgroundGradientTo} 100%`;
         return this.gradientDirection === 'to right' ?
           `linear-gradient(to right, ${stops})` :
           `linear-gradient(${stops})`;
       } else if (this.choice === 'radial') {
-        const stops = ratio === 50 ?
-          `${this.backgroundGradientFrom}, ${this.backgroundGradientTo}` :
-          `${this.backgroundGradientFrom} 0%, ${this.backgroundGradientFrom} ${ratio}%, ${this.backgroundGradientTo} 100%`;
-        return `radial-gradient(${stops})`;
+        return `radial-gradient(${this.backgroundGradientFrom} 0%, ${this.backgroundGradientFrom} ${fromRatio}%, ${this.backgroundGradientTo} 100%)`;
       } else if (this.choice === 'angular') {
         const edgeColor = this.angularReversed ? this.backgroundGradientTo : this.backgroundGradientFrom;
         const farColor = this.angularReversed ? this.backgroundGradientFrom : this.backgroundGradientTo;
-        if (ratio === 50) {
-          return `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${edgeColor} 0deg, ${farColor} 90deg)`;
-        }
-        // The plateau (ratio-sized block of solid color) always sits next to
-        // From's own edge, whichever end of the stop list that is.
-        const midPercent = this.angularReversed ? (100 - ratio) : ratio;
+        // The plateau (fromRatio-sized block of solid color) always sits next
+        // to From's own edge, whichever end of the stop list that is.
+        const midPercent = this.angularReversed ? (100 - fromRatio) : fromRatio;
         const midAngle = (midPercent / 100 * 90).toFixed(2);
         return this.angularReversed ?
           `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${edgeColor} 0deg, ${farColor} ${midAngle}deg, ${farColor} 90deg)` :
@@ -392,7 +374,6 @@ export default {
         this.backgroundGradientTo = null;
         this.gradientDirection = null;
         this.gradientCorner = null;
-        this.gradientRatio = null;
       }
     },
     backgroundImageStyle() {
@@ -429,11 +410,9 @@ export default {
           this.backgroundGradientTo = null;
           this.gradientDirection = null;
           this.gradientCorner = null;
-          this.gradientRatio = null;
         } else {
           this.backgroundGradientFrom = this.backgroundGradientFrom || this.defaultBackgroundColor;
           this.backgroundGradientTo = this.backgroundGradientTo || '#999999FF';
-          this.gradientRatio = this.gradientRatio ?? 50;
           if (this.choice === 'linear') {
             this.gradientDirection = this.gradientDirection || 'to bottom';
           } else if (this.choice === 'angular') {
@@ -460,13 +439,7 @@ export default {
       this.choice = 'radial';
       const stops = this.container.backgroundEffect.replace('radial-gradient(', '').replace(/\)$/, '').split(',').map(s => s.trim());
       this.backgroundGradientFrom = stops[0].split(' ')[0];
-      if (stops.length === 3) {
-        this.gradientRatio = parseFloat(stops[1].split(' ')[1]);
-        this.backgroundGradientTo = stops[2].split(' ')[0];
-      } else {
-        this.gradientRatio = 50;
-        this.backgroundGradientTo = stops[1].split(' ')[0];
-      }
+      this.backgroundGradientTo = stops[stops.length - 1].split(' ')[0];
     } else if (this.container.backgroundEffect?.startsWith('conic-gradient(')) {
       this.choice = 'angular';
       const inner = this.container.backgroundEffect.replace('conic-gradient(', '').replace(/\)$/, '');
@@ -478,12 +451,6 @@ export default {
       const lastColor = stops[stops.length - 1].split(' ')[0];
       this.backgroundGradientFrom = reversed ? lastColor : firstColor;
       this.backgroundGradientTo = reversed ? firstColor : lastColor;
-      if (stops.length === 3) {
-        const midPercent = Math.round(parseFloat(stops[1].split(' ')[1]) / 90 * 100);
-        this.gradientRatio = reversed ? (100 - midPercent) : midPercent;
-      } else {
-        this.gradientRatio = 50;
-      }
     } else if (this.container.backgroundEffect?.startsWith('linear-gradient(')) {
       this.choice = 'linear';
       const inner = this.container.backgroundEffect.replace('linear-gradient(', '').replace(/\)$/, '');
@@ -496,13 +463,7 @@ export default {
         this.gradientDirection = 'to bottom';
       }
       this.backgroundGradientFrom = stops[0].split(' ')[0];
-      if (stops.length === 3) {
-        this.gradientRatio = parseFloat(stops[1].split(' ')[1]);
-        this.backgroundGradientTo = stops[2].split(' ')[0];
-      } else {
-        this.gradientRatio = 50;
-        this.backgroundGradientTo = stops[1].split(' ')[0];
-      }
+      this.backgroundGradientTo = stops[stops.length - 1].split(' ')[0];
     } else {
       this.choice = 'color';
     }
