@@ -319,7 +319,7 @@ export default {
       } else if (this.choice === 'radial') {
         return `radial-gradient(${this.backgroundGradientFrom}, ${this.backgroundGradientTo})`;
       } else if (this.choice === 'angular') {
-        return `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${this.backgroundGradientFrom}, ${this.backgroundGradientTo})`;
+        return `conic-gradient(from ${this.angularStartAngle} at ${this.gradientCorner}, ${this.backgroundGradientFrom} 0deg, ${this.backgroundGradientTo} 90deg)`;
       } else {
         return null;
       }
@@ -425,8 +425,8 @@ export default {
       const cornerMatch = inner.match(/at (top left|top right|bottom left|bottom right)/);
       this.gradientCorner = cornerMatch ? cornerMatch[1] : 'top left';
       const colors = inner.substring(inner.indexOf(',') + 1).split(',');
-      this.backgroundGradientFrom = colors[0].trim();
-      this.backgroundGradientTo = colors[1].trim();
+      this.backgroundGradientFrom = colors[0].trim().split(' ')[0];
+      this.backgroundGradientTo = colors[1].trim().split(' ')[0];
     } else if (this.container.backgroundEffect?.startsWith('linear-gradient(')) {
       this.choice = 'linear';
       const inner = this.container.backgroundEffect.replace('linear-gradient(', '').replace(/\)$/, '');
