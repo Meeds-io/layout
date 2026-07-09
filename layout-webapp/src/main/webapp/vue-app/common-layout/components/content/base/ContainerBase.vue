@@ -234,6 +234,11 @@ export default {
         chosenClass: 'layout-moving-chosen-container',
         handle: this.dragSelectionClass,
         dataIdAttr: 'data-storage-id',
+        scroll: true,
+        bubbleScroll: true,
+        scrollSensitivity: 80,
+        scrollSpeed: 15,
+        forceAutoScrollFallback: true,
       };
     },
   },
