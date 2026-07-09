@@ -238,6 +238,7 @@ export default {
         handle: this.dragSelectionClass,
         dataIdAttr: 'data-storage-id',
         forceFallback: true,
+        fallbackOnBody: true,
       };
     },
   },
