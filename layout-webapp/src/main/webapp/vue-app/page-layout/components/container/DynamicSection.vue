@@ -26,6 +26,10 @@
     }"
     :style="cssStyle"
     class="layout-section">
+    <div
+      v-if="backgroundLayerStyle"
+      class="layout-background-layer"
+      :style="backgroundLayerStyle"></div>
     <layout-section-mobile-column-menu-drawer
       v-if="isMobileColumns"
       v-model="mobileSectionColumnClass"
@@ -67,6 +71,9 @@ export default {
         onlyBackgroundStyle: true,
         sectionStyle: true,
       });
+    },
+    backgroundLayerStyle() {
+      return this.$applicationUtils.getBackgroundLayerStyle(this.container, {});
     },
   },
 };
