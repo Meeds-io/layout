@@ -19,7 +19,7 @@
 
 -->
 <template>
-  <v-hover v-model="hover" :disabled="$root.mobileDisplayMode">
+  <v-hover v-model="hover">
     <component
       v-model="children"
       v-bind="draggable && {
