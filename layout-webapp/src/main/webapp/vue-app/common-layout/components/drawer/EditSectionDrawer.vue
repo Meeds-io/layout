@@ -85,6 +85,8 @@
           v-if="section"
           ref="marginInput"
           v-model="section"
+          left
+          right
           class="mt-4" />
         <layout-editor-background-input
           v-if="section"
