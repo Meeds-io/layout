@@ -122,7 +122,18 @@ export default {
   methods: {
     setLayout(layout) {
       this.initContainer(layout);
+      if (this.mobileDisplayMode) {
+        // Breakpoint CSS classes are stripped while previewing mobile
+        // (see switchDisplayMode/applyMobileStyle) so that the desktop grid
+        // doesn't leak into the shrunk preview box. parseSections re-derives
+        // colsCount/rowsCount from those classes, so restore them first or
+        // it corrupts every section's layout, not just the one being edited.
+        this.$layoutUtils.applyDesktopStyle(layout);
+      }
       this.$layoutUtils.parseSections(layout);
+      if (this.mobileDisplayMode) {
+        this.$layoutUtils.applyMobileStyle(layout);
+      }
       if (this.layoutToEdit) {
         Object.assign(this.layoutToEdit, layout);
       } else {

@@ -160,6 +160,14 @@ export default {
     },
     setLayout(layout) {
       this.initContainer(layout);
+      if (this.mobileDisplayMode) {
+        // Breakpoint CSS classes are stripped while previewing mobile
+        // (see switchDisplayMode/applyMobileStyle) so that the desktop grid
+        // doesn't leak into the shrunk preview box. parseSections re-derives
+        // colsCount/rowsCount from those classes, so restore them first or
+        // it corrupts every section's layout, not just the one being edited.
+        this.$layoutUtils.applyDesktopStyle(layout);
+      }
       const isCompatible = this.$layoutUtils.parseSections(layout);
       if (!isCompatible) {
         const applications = this.$layoutUtils.getApplications(layout);
@@ -171,6 +179,9 @@ export default {
           this.$layoutUtils.newSection(parentContainer, 1, 1, 2, this.$layoutUtils.flexTemplate);
         }
         this.isCompatible = !applications?.length;
+      }
+      if (this.mobileDisplayMode) {
+        this.$layoutUtils.applyMobileStyle(layout);
       }
       if (this.layoutToEdit) {
         Object.assign(this.layoutToEdit, layout);
@@ -336,7 +347,13 @@ export default {
       const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
       this.addSectionVersion(section.storageId);
       parentContainer.children.splice(index || 0, 0, section);
+      if (this.mobileDisplayMode) {
+        this.$layoutUtils.applyDesktopStyle(this.layoutToEdit);
+      }
       this.$layoutUtils.parseSections(this.layoutToEdit);
+      if (this.mobileDisplayMode) {
+        this.$layoutUtils.applyMobileStyle(this.layoutToEdit);
+      }
       this.saveDraft();
     },
     handleRemoveSection(index) {
