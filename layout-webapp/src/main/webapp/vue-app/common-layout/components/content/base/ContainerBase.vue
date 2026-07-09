@@ -148,6 +148,9 @@ export default {
   data: () => ({
     hover: false,
     dragged: false,
+    autoScrollElement: null,
+    autoScrollY: null,
+    autoScrollInterval: null,
   }),
   computed: {
     children: {
@@ -234,11 +237,7 @@ export default {
         chosenClass: 'layout-moving-chosen-container',
         handle: this.dragSelectionClass,
         dataIdAttr: 'data-storage-id',
-        scroll: true,
-        bubbleScroll: true,
-        scrollSensitivity: 80,
-        scrollSpeed: 15,
-        forceAutoScrollFallback: true,
+        forceFallback: true,
       };
     },
   },
@@ -263,6 +262,7 @@ export default {
   },
   beforeDestroy() {
     this.$root.$off('layout-editor-moving-end', this.refreshChildren);
+    this.stopAutoScroll();
   },
   methods: {
     refreshChildren() {
@@ -283,10 +283,12 @@ export default {
       this.$root.movingParentId = this.parentId;
       const section = this.$layoutUtils.getContainerById(this.$root.layout, this.parentId);
       this.$root.movingParentDynamic = section?.template === this.$layoutUtils.flexTemplate;
+      this.startAutoScroll();
     },
     endMoving(event) {
       this.dragged = false;
       this.$root.movingParentId = null;
+      this.stopAutoScroll();
 
       const fromCell = this.$layoutUtils.getContainerById(this.$root.layout, event.from.getAttribute('data-storage-id'));
       const toCell = this.$layoutUtils.getContainerById(this.$root.layout, event.to.getAttribute('data-storage-id'));
@@ -306,6 +308,44 @@ export default {
         if (toIndex < 0) {
           toCell.children.splice(event.newIndex, 0, application);
         }
+      }
+    },
+    startAutoScroll() {
+      this.autoScrollElement = document.querySelector('.site-scroll-parent');
+      if (!this.autoScrollElement) {
+        return;
+      }
+      this.autoScrollY = null;
+      document.addEventListener('dragover', this.trackAutoScrollPosition);
+      document.addEventListener('mousemove', this.trackAutoScrollPosition);
+      this.autoScrollInterval = window.setInterval(this.applyAutoScroll, 16);
+    },
+    stopAutoScroll() {
+      document.removeEventListener('dragover', this.trackAutoScrollPosition);
+      document.removeEventListener('mousemove', this.trackAutoScrollPosition);
+      if (this.autoScrollInterval) {
+        window.clearInterval(this.autoScrollInterval);
+        this.autoScrollInterval = null;
+      }
+      this.autoScrollElement = null;
+      this.autoScrollY = null;
+    },
+    trackAutoScrollPosition(event) {
+      this.autoScrollY = event.clientY;
+    },
+    applyAutoScroll() {
+      if (!this.autoScrollElement || this.autoScrollY === null) {
+        return;
+      }
+      const rect = this.autoScrollElement.getBoundingClientRect();
+      const threshold = 60;
+      const maxSpeed = 15;
+      if (this.autoScrollY < rect.top + threshold) {
+        const speed = Math.ceil((rect.top + threshold - this.autoScrollY) / threshold * maxSpeed);
+        this.autoScrollElement.scrollBy(0, -speed);
+      } else if (this.autoScrollY > rect.bottom - threshold) {
+        const speed = Math.ceil((this.autoScrollY - (rect.bottom - threshold)) / threshold * maxSpeed);
+        this.autoScrollElement.scrollBy(0, speed);
       }
     },
   },
