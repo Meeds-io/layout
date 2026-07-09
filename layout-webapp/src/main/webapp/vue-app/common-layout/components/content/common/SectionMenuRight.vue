@@ -44,7 +44,7 @@
             </template>
             {{ $t('layout.editSection') }}
           </v-tooltip>
-          <v-tooltip v-if="$root.isAdministrator" bottom>
+          <v-tooltip bottom>
             <template #activator="{on, attrs}">
               <div
                 v-on="on"
