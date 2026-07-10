@@ -39,6 +39,10 @@
           class="py-1"
           width="380px"
           flat>
+          <div
+            v-if="backgroundLayerStyle"
+            class="layout-background-layer"
+            :style="backgroundLayerStyle"></div>
           <v-img
             :src="pagePreview"
             width="100%"
@@ -188,8 +192,8 @@ export default {
     parentContainer: null,
     pageContainer: null,
     appBackgroundProperties: null,
-    fullWindow: false,
     width: 1320,
+    defaultWidth: 1320,
     minWidth: 300,
     maxWidth: 5000,
     drawer: false,
@@ -205,8 +209,14 @@ export default {
         onlyBackgroundStyle: true,
       });
     },
+    backgroundLayerStyle() {
+      return this.$applicationUtils.getBackgroundLayerStyle(this.pageContainer, {});
+    },
     customWidth() {
-      return this.width === '100%' ? 0 : this.width;
+      return this.width === '100%' ? this.defaultWidth : this.width;
+    },
+    fullWindow() {
+      return this.width === '100%';
     },
   },
   watch: {
@@ -244,9 +254,8 @@ export default {
         this.pageContainer.marginLeft = this.defaultMarginLeft;
       }
       this.width = (this.pageContainer.width === 'fullWindow' ? '100%' : this.pageContainer.width)
-        || (this.pageContainer.width === 'singlePageApplication' ? 1320 : this.pageContainer.width)
-        || (!!document.body.style.getPropertyValue('--allPagesWidth') && '100%')
-        || 1320;
+        || (this.pageContainer.width === 'singlePageApplication' ? this.defaultWidth : this.pageContainer.width)
+        || this.defaultWidth;
       this.appBackgroundProperties = {
         storageId: 0,
         backgroundColor: this.pageContainer.appBackgroundColor || null,

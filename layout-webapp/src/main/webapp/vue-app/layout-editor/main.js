@@ -158,7 +158,7 @@ export function init() {
               window.setTimeout(() => document.dispatchEvent(new CustomEvent('hideTopBarLoading')), 200);
             }
             const parentContainer = this.$layoutUtils.getParentContainer(newVal);
-            this.pageFullWindow = parentContainer?.width !== 'singlePageApplication' && (parentContainer?.width === 'fullWindow' || !!document.body.style.getPropertyValue('--allPagesWidth'));
+            this.pageFullWindow = parentContainer?.width === 'fullWindow' || parentContainer?.width === '100%';
           },
         },
         created() {

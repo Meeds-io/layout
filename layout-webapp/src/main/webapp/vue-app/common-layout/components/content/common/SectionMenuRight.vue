@@ -123,7 +123,7 @@ export default {
     },
     rightButtonStyle() {
       return {
-        right: 'calc(50% - min(50%, var(--allPagesWidth, 1320px) / 2) - 16px)',
+        right: this.$root.pageFullWindow && '4px' || 'calc(50% - min(50%, var(--allPagesWidth, 1320px) / 2) - 16px)',
       };
     },
   },
