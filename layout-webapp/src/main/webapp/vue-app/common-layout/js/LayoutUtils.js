@@ -17,6 +17,8 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+import { parseBackgroundLayerValues, setBackgroundLayerValues } from '../../common/js/ApplicationUtils.js';
+
 export const breakpoints = ['md', 'lg', 'xl'];
 
 export const currentBreakpoint = 'xl';
@@ -330,6 +332,25 @@ export function applyContainerStyle(container, containerStyle) {
     container.cssClass += ' hidden-sm-and-down';
   }
   Vue.set(container, 'cssClass', container.cssClass);
+  if (containerStyle !== container && typeof containerStyle.cssClass === 'string') {
+    // Background margin/radius (EXIP-88427) are opaque cssClass tokens, not
+    // ModelStyle fields, so they don't flow through the explicit properties
+    // above. When containerStyle is a curated stand-in object (e.g. the
+    // application drawer's backgroundProperties) rather than the real
+    // container itself, its cssClass carries the up-to-date bg-* tokens and
+    // must be replicated onto the real container's cssClass here.
+    const backgroundLayerValues = parseBackgroundLayerValues(containerStyle.cssClass) || {};
+    setBackgroundLayerValues(container, {
+      marginTop: backgroundLayerValues.marginTop ?? null,
+      marginRight: backgroundLayerValues.marginRight ?? null,
+      marginBottom: backgroundLayerValues.marginBottom ?? null,
+      marginLeft: backgroundLayerValues.marginLeft ?? null,
+      radiusTopRight: backgroundLayerValues.radiusTopRight ?? null,
+      radiusTopLeft: backgroundLayerValues.radiusTopLeft ?? null,
+      radiusBottomRight: backgroundLayerValues.radiusBottomRight ?? null,
+      radiusBottomLeft: backgroundLayerValues.radiusBottomLeft ?? null,
+    });
+  }
   Vue.set(container, 'height', container.height || null);
   Vue.set(container, 'width', container.width || null);
   Vue.set(container, 'borderColor', containerStyle.borderColor || null);
