@@ -202,7 +202,10 @@ export default {
   }),
   computed: {
     cssStyle() {
-      return this.$applicationUtils.getStyle(this.pageContainer, {
+      return this.$applicationUtils.getStyle({
+        ...this.pageContainer,
+        backgroundColor: this.pageContainer?.backgroundColor || this.defaultBackgroundColor,
+      }, {
         onlyBackgroundStyle: true,
       });
     },
