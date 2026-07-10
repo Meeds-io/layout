@@ -32,13 +32,24 @@
       <span class="text-truncate">{{ $t('layout.addApplicationFromCategoryTitle', {0: categoryName}) }}</span>
     </template>
     <template v-if="drawer" #content>
+      <application-toolbar
+        id="addApplicationToolbar"
+        compact
+        :left-text="$t('layout.filterApplication.label')"
+        :right-text-filter="{
+          minCharacters: 1,
+          placeholder: $t('layout.filterApplication.placeholder'),
+          tooltip: $t('layout.filterApplication.placeholder'),
+        }"
+        class="border-box-sizing px-1"
+        @filter-text-input="keyword = $event" />
       <v-card
         :class="expanded && 'flex-wrap' || 'flex-column'"
         max-width="100%"
         class="d-flex justify-center ma-4 overflow-hidden"
         flat>
         <layout-editor-application-card
-          v-for="application in sortedPortletInstances"
+          v-for="application in filteredPortletInstances"
           :key="application.id"
           :application="application"
           :width="expanded && '388px' || '100%'"
@@ -57,6 +68,7 @@ export default {
   data: () => ({
     drawer: false,
     expanded: false,
+    keyword: null,
     portletInstances: [],
     category: null,
   }),
@@ -69,12 +81,21 @@ export default {
       categories.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
       return categories;
     },
+    filteredPortletInstances() {
+      return this.keyword?.length && this.sortedPortletInstances.filter(a => {
+        const name = this.$te(a.name) ? this.$t(a.name) : a.name;
+        const description = this.$te(a.description) ? this.$t(a.description) : a.description;
+        return name?.toLowerCase?.()?.includes(this.keyword.toLowerCase())
+          || this.$utils.htmlToText(description)?.toLowerCase?.()?.includes(this.keyword.toLowerCase());
+      }) || this.sortedPortletInstances;
+    },
   },
   created() {
     this.$root.$on('layout-add-application-drawer', this.open);
   },
   methods: {
     open(portletInstances, category) {
+      this.keyword = null;
       this.portletInstances = portletInstances;
       this.category = category;
       this.$refs.drawer.endLoading();
