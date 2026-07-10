@@ -34,6 +34,10 @@
         mouseover: () => hover = true,
         focusin: () => hover = true,
       }">
+      <div
+        v-if="backgroundLayerStyle"
+        class="layout-background-layer"
+        :style="backgroundLayerStyle"></div>
       <template v-if="!ignoreMenu">
         <v-hover v-model="hoverMenu">
           <layout-editor-application-menu
@@ -138,8 +142,14 @@ export default {
     displayNoContent() {
       return this.isDynamicSection && !this.hasContent && this.$root.desktopDisplayMode;
     },
+    backgroundLayerStyle() {
+      return this.$applicationUtils.getBackgroundLayerStyle(this.container, {});
+    },
   },
   watch: {
+    'container.cssClass'() {
+      this.initStyle();
+    },
     applicationInstalled() {
       this.$emit('initialized');
       this.computeHasContent();

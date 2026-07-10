@@ -263,6 +263,14 @@
         </v-radio>
       </v-radio-group>
     </div>
+    <layout-editor-background-margin-input
+      v-if="enabled"
+      :value="container"
+      class="my-auto" />
+    <layout-editor-background-radius-input
+      v-if="enabled"
+      :value="container"
+      class="my-auto" />
   </div>
 </template>
 <script>
@@ -437,6 +445,9 @@ export default {
           this.gradientDirection = null;
           this.gradientCorner = null;
           this.gradientRatio = null;
+          this.container.backgroundColor = this.enabled && this.defaultBackgroundColor || null;
+          this.backgroundScrollTop = this.enabled && this.scrollColor && this.defaultBackgroundColor || null;
+          this.backgroundScrollMiddle = this.enabled && this.scrollColor && this.defaultBackgroundColor || null;
         } else {
           this.backgroundGradientFrom = this.backgroundGradientFrom || this.defaultBackgroundColor;
           this.backgroundGradientTo = this.backgroundGradientTo || '#999999FF';
@@ -446,10 +457,10 @@ export default {
           } else if (this.choice === 'angular') {
             this.gradientCorner = this.gradientCorner || 'top left';
           }
+          this.container.backgroundColor = '#FFFFFF00';
+          this.backgroundScrollTop = null;
+          this.backgroundScrollMiddle = null;
         }
-        this.container.backgroundColor = this.enabled && this.defaultBackgroundColor || null;
-        this.backgroundScrollTop = this.enabled && this.scrollColor && this.defaultBackgroundColor || null;
-        this.backgroundScrollMiddle = this.enabled && this.scrollColor && this.defaultBackgroundColor || null;
       }
     },
   },

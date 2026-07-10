@@ -24,6 +24,10 @@ export function installApplication(navUri, applicationStorageId, applicationElem
 
 export function getStyle(container, options) {
   const style = {};
+  const backgroundLayerValues = !options.noBackgroundStyle && parseBackgroundLayerValues(container.cssClass);
+  if (backgroundLayerValues) {
+    style.position = 'relative';
+  }
   if (container.marginTop === 0
     || container.marginTop
     || container.marginBottom === 0
@@ -196,6 +200,7 @@ export function getStyle(container, options) {
     }
   }
   if (!options.noBackgroundStyle
+    && !backgroundLayerValues
     && (container.backgroundImage
       || container.backgroundColor
       || container.backgroundEffect)) {
@@ -295,7 +300,19 @@ export function getStyle(container, options) {
         }
       }
     }
-  } else if (!options.noBackgroundStyle && options.siteStyle) {
+  } else if (backgroundLayerValues && options.isApplicationBackground) {
+    // The real visible application background paints on the descendant
+    // .PORTLET-FRAGMENT element (via these inherited custom properties, per
+    // the platform-ui-skin LESS rules), not on this element itself. Leaving
+    // them merely unset lets that descendant fall back to its own opaque
+    // default background, hiding the new background layer behind it -
+    // these must be explicitly cleared instead.
+    style['--appBackgroundColor'] = 'transparent';
+    style['--appBackgroundImage'] = 'none';
+    style['--appBackgroundRepeat'] = 'no-repeat';
+    style['--appBackgroundSize'] = 'unset';
+    style['--appBackgroundPosition'] = 'unset';
+  } else if (!options.noBackgroundStyle && !backgroundLayerValues && options.siteStyle) {
     document.body.style.removeProperty('--allPagesBackgroundColor');
     document.body.style.removeProperty('--allPagesBackgroundImage');
     document.body.style.removeProperty('--allPagesBackgroundRepeat');
@@ -334,6 +351,97 @@ export function getStyle(container, options) {
   }
   if (container.radiusBottomLeft || container.radiusBottomLeft === 0) {
     style['--appBorderRadiusBottomLeft'] = `${container.radiusBottomLeft}px`;
+  }
+  return style;
+}
+
+// Background margin/radius (EXIP-88427) can't be stored as dedicated ModelStyle
+// fields since ModelStyle is an external org.exoplatform.portal class we can't
+// extend from this repo, so the 8 values are opaquely encoded as cssClass tokens
+// (same pattern already used to mirror marginTop/radiusTopRight into mt-/brtr-
+// classes, under a prefix that can't collide with those).
+const BACKGROUND_LAYER_TOKEN_PREFIXES = {
+  marginTop: 'layout-bg-margin-top',
+  marginRight: 'layout-bg-margin-right',
+  marginBottom: 'layout-bg-margin-bottom',
+  marginLeft: 'layout-bg-margin-left',
+  radiusTopRight: 'layout-bg-radius-tr',
+  radiusTopLeft: 'layout-bg-radius-tl',
+  radiusBottomRight: 'layout-bg-radius-br',
+  radiusBottomLeft: 'layout-bg-radius-bl',
+};
+
+export function parseBackgroundLayerValues(cssClass) {
+  if (!cssClass) {
+    return null;
+  }
+  const values = {};
+  let found = false;
+  Object.entries(BACKGROUND_LAYER_TOKEN_PREFIXES).forEach(([key, prefix]) => {
+    const match = cssClass.match(new RegExp(`(?:^| )${prefix}-([0-9]+)(?: |$)`));
+    if (match) {
+      values[key] = parseInt(match[1]);
+      found = true;
+    }
+  });
+  return found ? values : null;
+}
+
+export function setBackgroundLayerValues(container, partialValues) {
+  // Merge with whatever's already encoded so that the margin component's
+  // writes never clobber the radius component's tokens (and vice-versa) -
+  // each only knows about its own 4 values, not the other's.
+  const values = { ...parseBackgroundLayerValues(container.cssClass), ...partialValues };
+  const prefixesPattern = Object.values(BACKGROUND_LAYER_TOKEN_PREFIXES).join('|');
+  let cssClass = (container.cssClass || '').replace(new RegExp(`(^| )(${prefixesPattern})-[0-9]+`, 'g'), '').replace(/ {2,}/g, ' ').trim();
+  Object.entries(BACKGROUND_LAYER_TOKEN_PREFIXES).forEach(([key, prefix]) => {
+    if (values[key] || values[key] === 0) {
+      cssClass += ` ${prefix}-${values[key]}`;
+    }
+  });
+  container.cssClass = cssClass.trim();
+}
+
+export function getBackgroundLayerStyle(container, options) {
+  if (options?.noBackgroundStyle) {
+    return null;
+  }
+  const values = parseBackgroundLayerValues(container?.cssClass);
+  if (!values) {
+    return null;
+  }
+  const style = {
+    position: 'absolute',
+    top: `${values.marginTop || 0}px`,
+    right: `${values.marginRight || 0}px`,
+    bottom: `${values.marginBottom || 0}px`,
+    left: `${values.marginLeft || 0}px`,
+    'border-radius': `${values.radiusTopLeft || 0}px ${values.radiusTopRight || 0}px ${values.radiusBottomRight || 0}px ${values.radiusBottomLeft || 0}px`,
+    'z-index': -1,
+    'pointer-events': 'none',
+  };
+  if (container.backgroundColor) {
+    style['background-color'] = container.backgroundColor.includes?.('@') ? container.backgroundColor.split('@')[0] : container.backgroundColor;
+  } else if (container.backgroundEffect || container.backgroundImage) {
+    style['background-color'] = 'transparent';
+  }
+  if (container.backgroundEffect && container.backgroundImage) {
+    style['background-image'] = `url(${container.backgroundImage}),${container.backgroundEffect}`;
+  } else if (container.backgroundImage) {
+    style['background-image'] = `url(${container.backgroundImage})`;
+  } else if (container.backgroundEffect) {
+    style['background-image'] = container.backgroundEffect;
+  }
+  if (container.backgroundImage) {
+    if (container.backgroundRepeat) {
+      style['background-repeat'] = container.backgroundRepeat;
+    }
+    if (container.backgroundSize) {
+      style['background-size'] = container.backgroundSize;
+    }
+    if (container.backgroundPosition) {
+      style['background-position'] = container.backgroundPosition;
+    }
   }
   return style;
 }
