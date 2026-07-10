@@ -64,6 +64,10 @@
       :style="cssStyle"
       class="border-color-thin-grey-opacity2 border-radius mt-2 mb-4 pa-2">
       <div
+        v-if="backgroundLayerStyle"
+        class="layout-background-layer"
+        :style="backgroundLayerStyle"></div>
+      <div
         :class="gridClass"
         class="grid-gap-1">
         <v-card
@@ -101,6 +105,9 @@ export default {
       return this.backgroundProperties && this.$applicationUtils.getStyle(this.backgroundProperties, {
         onlyBackgroundStyle: true,
       });
+    },
+    backgroundLayerStyle() {
+      return this.backgroundProperties && this.$applicationUtils.getBackgroundLayerStyle(this.backgroundProperties, {});
     },
   },
   watch: {

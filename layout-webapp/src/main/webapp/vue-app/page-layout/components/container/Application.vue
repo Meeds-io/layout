@@ -24,7 +24,12 @@
     :id="id"
     :class="cssClass"
     :style="cssStyle"
-    class="layout-application"></div>
+    class="layout-application">
+    <div
+      v-if="backgroundLayerStyle"
+      class="layout-background-layer"
+      :style="backgroundLayerStyle"></div>
+  </div>
 </template>
 <script>
 export default {
@@ -64,6 +69,9 @@ export default {
         isApplicationScroll: true,
         appStyle: true,
       });
+    },
+    backgroundLayerStyle() {
+      return this.$applicationUtils.getBackgroundLayerStyle(this.container, {});
     },
     cssClass() {
       return this.container.cssClass || '';
