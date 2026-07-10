@@ -524,6 +524,13 @@ export function getSectionByContainer(layout, id, isSiteLayout) {
   }
 }
 
+export function reorderChildren(container, order) {
+  if (!container?.children || !order) {
+    return;
+  }
+  container.children = order.map(storageId => container.children.find(c => c?.storageId === storageId)).filter(c => c);
+}
+
 export function getContainerById(container, id) {
   if (container?.storageId === id) {
     return container;
