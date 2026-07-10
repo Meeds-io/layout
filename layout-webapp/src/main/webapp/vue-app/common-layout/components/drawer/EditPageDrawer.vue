@@ -219,8 +219,11 @@ export default {
   },
   created() {
     this.$root.$on('layout-page-properties-open', this.open);
-    if (document.body.computedStyleMap && document.body.computedStyleMap().get('--allPagesLightGrey')) {
-      this.defaultBackgroundColor = document.body.computedStyleMap().get('--allPagesLightGrey')[0] || this.defaultBackgroundColor;
+    if (document.body.computedStyleMap && document.body.computedStyleMap().get('--allPagesBackgroundColor')) {
+      const backgroundColor = document.body.computedStyleMap().get('--allPagesBackgroundColor')[0]?.trim?.();
+      if (backgroundColor) {
+        this.defaultBackgroundColor = backgroundColor.length === 7 ? `${backgroundColor}FF` : backgroundColor;
+      }
     }
   },
   beforeDestroy() {
