@@ -192,7 +192,6 @@ export default {
     parentContainer: null,
     pageContainer: null,
     appBackgroundProperties: null,
-    fullWindow: false,
     width: 1320,
     defaultWidth: 1320,
     minWidth: 300,
@@ -215,6 +214,9 @@ export default {
     },
     customWidth() {
       return this.width === '100%' ? this.defaultWidth : this.width;
+    },
+    fullWindow() {
+      return this.width === '100%';
     },
   },
   watch: {
@@ -253,7 +255,6 @@ export default {
       }
       this.width = (this.pageContainer.width === 'fullWindow' ? '100%' : this.pageContainer.width)
         || (this.pageContainer.width === 'singlePageApplication' ? this.defaultWidth : this.pageContainer.width)
-        || (!!document.body.style.getPropertyValue('--allPagesWidth') && '100%')
         || this.defaultWidth;
       this.appBackgroundProperties = {
         storageId: 0,
