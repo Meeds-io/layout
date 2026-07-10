@@ -152,6 +152,7 @@ export default {
   data: () => ({
     hover: false,
     dragged: false,
+    movingOrder: null,
   }),
   computed: {
     children: {
@@ -287,14 +288,29 @@ export default {
       this.$root.movingParentId = this.parentId;
       const section = this.$layoutUtils.getContainerById(this.$root.layout, this.parentId);
       this.$root.movingParentDynamic = section?.template === this.$layoutUtils.flexTemplate;
+      // Captured here (before the 'draggable' component's v-model reorders
+      // this.container.children on its own) so the history entry reflects
+      // the order that was in place before the move, not after it.
+      this.movingOrder = !this.isCell && this.container.children?.map(c => c.storageId) || null;
     },
     endMoving(event) {
       this.dragged = false;
       this.$root.movingParentId = null;
+      const movingOrder = this.movingOrder;
+      this.movingOrder = null;
 
       const fromCell = this.$layoutUtils.getContainerById(this.$root.layout, event.from.getAttribute('data-storage-id'));
       const toCell = this.$layoutUtils.getContainerById(this.$root.layout, event.to.getAttribute('data-storage-id'));
       const application = this.$layoutUtils.getContainerById(this.$root.layout, event.item.getAttribute('data-storage-id'));
+
+      // Section items (Section.vue) don't carry a 'data-storage-id' on their
+      // own root element like cells/applications do, so 'application' can't
+      // be resolved for a section-level (non-cell) reorder. Order history only
+      // needs fromCell/toCell (resolved from the list container itself), so
+      // it's handled independently of whether the dragged item itself resolved.
+      if (!this.isCell && movingOrder && fromCell && toCell && fromCell.storageId === toCell.storageId) {
+        this.$root.$emit('layout-section-order-history-add', fromCell.storageId, movingOrder);
+      }
 
       if (fromCell && toCell && application) {
         if (this.isCell) {
