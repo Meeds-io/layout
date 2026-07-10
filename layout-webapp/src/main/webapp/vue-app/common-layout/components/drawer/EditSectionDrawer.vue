@@ -28,7 +28,7 @@
     <template #title>
       {{ $t('layout.editSectionTitle', {0: index + 1}) }}
     </template>
-    <template v-if="$root.isAdministrator" #titleIcons>
+    <template #titleIcons>
       <v-tooltip bottom>
         <template #activator="{on, attrs}">
           <div
@@ -47,7 +47,7 @@
         </template>
         {{ $t('layout.cloneSection') }}
       </v-tooltip>
-      <v-tooltip bottom>
+      <v-tooltip v-if="$root.isAdministrator" bottom>
         <template #activator="{on, attrs}">
           <div
             v-on="on"
