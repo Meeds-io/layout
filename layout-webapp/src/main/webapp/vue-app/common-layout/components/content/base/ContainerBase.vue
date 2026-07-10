@@ -34,6 +34,10 @@
       :class="cssClass"
       :style="cssStyle"
       :data-storage-id="storageId">
+      <div
+        v-if="backgroundLayerStyle"
+        class="layout-background-layer"
+        :style="backgroundLayerStyle"></div>
       <!-- Added in a template on purpose to workaround a 'draggable' component bug -->
       <template v-if="$slots.header">
         <slot name="header"></slot>
@@ -197,6 +201,11 @@ export default {
         sectionStyle: this.sectionStyle,
         appStyle: !this.noApplicationStyle,
         dynamicWidth: this.dynamicWidth,
+      });
+    },
+    backgroundLayerStyle() {
+      return this.$applicationUtils.getBackgroundLayerStyle(this.container, {
+        noBackgroundStyle: this.noBackgroundStyle,
       });
     },
     containerCssClass() {
