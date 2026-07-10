@@ -492,6 +492,7 @@ export default {
 
       this.backgroundProperties = {
         storageId: this.container.storageId,
+        cssClass: this.container.cssClass || '',
         backgroundColor: this.container.backgroundColor || null,
         backgroundImage: this.container.backgroundImage || null,
         backgroundEffect: this.container.backgroundEffect || null,

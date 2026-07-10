@@ -28,6 +28,10 @@
     v-on="!isDynamicSection && {
       'mousedown': startSelection,
     }">
+    <div
+      v-if="backgroundLayerStyle"
+      class="layout-background-layer"
+      :style="backgroundLayerStyle"></div>
     <layout-editor-section-menu-top
       v-model="hoverButton1"
       :display="hoverSectionMenu"
@@ -148,6 +152,9 @@ export default {
         onlyBackgroundStyle: true,
         sectionStyle: true,
       });
+    },
+    backgroundLayerStyle() {
+      return this.$applicationUtils.getBackgroundLayerStyle(this.container, {});
     },
     mobileInColumns() {
       return this.isDynamicSection

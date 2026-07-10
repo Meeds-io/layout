@@ -263,6 +263,14 @@
         </v-radio>
       </v-radio-group>
     </div>
+    <layout-editor-background-margin-input
+      v-if="enabled"
+      :value="container"
+      class="my-auto" />
+    <layout-editor-background-radius-input
+      v-if="enabled"
+      :value="container"
+      class="my-auto" />
   </div>
 </template>
 <script>
