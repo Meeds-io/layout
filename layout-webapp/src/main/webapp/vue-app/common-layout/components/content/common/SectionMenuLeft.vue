@@ -85,7 +85,7 @@ export default {
     },
     leftButtonStyle() {
       return {
-        left: 'calc(50% - min(50%, var(--allPagesWidth, 1320px) / 2) - 16px)',
+        left: this.$root.pageFullWindow && '4px' || 'calc(50% - min(50%, var(--allPagesWidth, 1320px) / 2) - 16px)',
       };
     },
   },

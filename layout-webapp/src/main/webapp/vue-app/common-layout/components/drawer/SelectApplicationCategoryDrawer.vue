@@ -26,12 +26,25 @@
     :loading="$root.loadingPortletInstances"
     allow-expand
     right
+    @expand-updated="expanded = $event"
     @closed="$root.$emit('layout-application-category-drawer-closed')">
     <template #title>
       {{ $t('layout.selectApplicationCategoryTitle') }}
     </template>
     <template v-if="drawer" #content>
+      <application-toolbar
+        id="selectApplicationCategoryToolbar"
+        compact
+        :left-text="$t('layout.filterApplication.label')"
+        :right-text-filter="{
+          minCharacters: 1,
+          placeholder: $t('layout.filterApplication.placeholder'),
+          tooltip: $t('layout.filterApplication.placeholder'),
+        }"
+        class="border-box-sizing px-1"
+        @filter-text-input="keyword = $event" />
       <v-card
+        v-if="!keyword"
         max-width="100%"
         class="d-flex flex-wrap mb-4 ms-4 me-2 overflow-hidden"
         flat>
@@ -42,6 +55,24 @@
           :applications="applications"
           class="me-2" />
       </v-card>
+      <v-card
+        v-else
+        :class="expanded && 'flex-wrap' || 'flex-column'"
+        max-width="100%"
+        class="d-flex justify-center ma-4 overflow-hidden"
+        flat>
+        <layout-editor-application-card
+          v-for="application in filteredApplications"
+          :key="application.id"
+          :application="application"
+          :width="expanded && '388px' || '100%'"
+          :height="expanded && '210px' || 'auto'"
+          :max-image-height="expanded && '100%' || '110px'"
+          max-image-width="100%"
+          :class="expanded && 'mx-2 content-box-sizing'"
+          class="flex-grow-1 mb-4"
+          @add="addApplication(application)" />
+      </v-card>
     </template>
   </exo-drawer>
 </template>
@@ -49,6 +80,8 @@
 export default {
   data: () => ({
     drawer: false,
+    expanded: false,
+    keyword: null,
     portletInstances: [],
   }),
   computed: {
@@ -65,6 +98,19 @@ export default {
       categories.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
       return categories;
     },
+    sortedApplications() {
+      const applications = this.applications?.filter?.(a => a.name) || [];
+      applications.sort((a, b) => this.$root.collator.compare(a.name.toLowerCase(), b.name.toLowerCase()));
+      return applications;
+    },
+    filteredApplications() {
+      return this.keyword?.length && this.sortedApplications.filter(a => {
+        const name = this.$te(a.name) ? this.$t(a.name) : a.name;
+        const description = this.$te(a.description) ? this.$t(a.description) : a.description;
+        return name?.toLowerCase?.()?.includes(this.keyword.toLowerCase())
+          || this.$utils.htmlToText(description)?.toLowerCase?.()?.includes(this.keyword.toLowerCase());
+      }) || [];
+    },
   },
   created() {
     this.$root.$on('layout-add-application', this.close);
@@ -74,11 +120,15 @@ export default {
   },
   methods: {
     open() {
+      this.keyword = null;
       this.$root.$emit('layout-editor-portlet-instances-refresh');
       this.$refs.drawer.open();
     },
     close() {
       this.$refs.drawer.close();
+    },
+    addApplication(application) {
+      this.$root.$emit('layout-add-application', application);
     },
   },
 };
