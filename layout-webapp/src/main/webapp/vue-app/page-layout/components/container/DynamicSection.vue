@@ -23,6 +23,7 @@
     :class="{
       'layout-section-mobile-pages': isMobileColumns,
       'hidden-sm-and-down': isHiddenOnMobile,
+      'hidden-md-and-up': isHiddenOnDesktop,
     }"
     :style="cssStyle"
     class="layout-section">
@@ -64,7 +65,12 @@ export default {
     },
     isHiddenOnMobile() {
       return this.$vuetify.breakpoint.smAndDown
-        && !this.container?.children?.find(c => !c?.children?.length || !c?.children?.[0]?.cssClass?.includes?.('hidden-sm-and-down'));
+        && (this.container?.cssClass?.includes?.('hidden-sm-and-down')
+          || !this.container?.children?.find(c => !c?.children?.length || !c?.children?.[0]?.cssClass?.includes?.('hidden-sm-and-down')));
+    },
+    isHiddenOnDesktop() {
+      return this.$vuetify.breakpoint.mdAndUp
+        && this.container?.cssClass?.includes?.('hidden-md-and-up');
     },
     cssStyle() {
       return this.$applicationUtils.getStyle(this.container, {
