@@ -46,6 +46,7 @@ import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.pom.spi.portlet.Portlet;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 
@@ -61,6 +62,12 @@ import lombok.SneakyThrows;
 
 @Service
 public class PageLayoutService {
+
+  /** Broadcast after a page's layout has been persisted (content added/removed/reordered). */
+  public static final String     PAGE_UPDATED_EVENT              = "layout.page.updated";
+
+  /** Broadcast after a page's access/edit permissions have been persisted. */
+  public static final String     PAGE_PERMISSIONS_UPDATED_EVENT  = "layout.page.permissions.updated";
 
   private static final String    ADDON_CONTAINER_FACTORY_ID      = "addonContainer";
 
@@ -91,6 +98,9 @@ public class PageLayoutService {
 
   @Autowired
   private AddOnService           addOnService;
+
+  @Autowired
+  private ListenerService        listenerService;
 
   public List<PageContext> getPages(String siteTypeName,
                                     String siteName,
@@ -345,6 +355,7 @@ public class PageLayoutService {
     validateCSSInputs(page);
     existingPage.setChildren(page.getChildren());
     layoutService.save(existingPage);
+    listenerService.broadcast(PAGE_UPDATED_EVENT, username, pageKey.format());
     return layoutService.getPageContext(existingPage.getPageKey());
   }
 
@@ -384,6 +395,7 @@ public class PageLayoutService {
     pageState.setAccessPermissions(permissionUpdateModel.getAccessPermissions());
     pageState.setEditPermission(permissionUpdateModel.getEditPermission());
     layoutService.save(pageContext);
+    listenerService.broadcast(PAGE_PERMISSIONS_UPDATED_EVENT, username, pageKey.format());
   }
 
   public void impersonateModel(ModelObject object) {
