@@ -20,9 +20,12 @@ package io.meeds.layout.service;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.ResourceBundle;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +40,7 @@ import org.springframework.stereotype.Service;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.commons.utils.ExpressionUtil;
 import org.exoplatform.portal.application.PortalRequestHandler;
+import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
@@ -50,6 +54,9 @@ import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.service.DescriptionService;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
+import org.exoplatform.services.listener.ListenerService;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.resources.ResourceBundleManager;
@@ -66,6 +73,17 @@ import io.meeds.portal.web.handler.PortalTemplateRequestHandler;
 @Service
 public class NavigationLayoutService {
 
+  /**
+   * Broadcast when a page stops being reachable through any navigation node,
+   * while the page itself still exists. Deliberately NOT
+   * {@link LayoutService#PAGE_REMOVED}: that event means the page's own data
+   * is gone, and a listener acting on it is entitled to clean up everything
+   * attached to the page — which would destroy live data here.
+   */
+  public static final String             PAGE_UNREACHABLE_EVENT              = "layout.page.unreachable";
+
+  private static final Log               LOG                                 = ExoLogger.getExoLogger(NavigationLayoutService.class);
+
   private static final String            NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND = "Node with id %s doesn't exist";
 
   private static final Map<Long, String> QUEUE                               = new ConcurrentHashMap<>();
@@ -75,6 +93,9 @@ public class NavigationLayoutService {
 
   @Autowired
   private LayoutService                  layoutService;
+
+  @Autowired
+  private ListenerService                listenerService;
 
   @Autowired
   private PageLayoutService              pageLayoutService;
@@ -125,6 +146,17 @@ public class NavigationLayoutService {
       NodeData nodeData = nodeDatas[1];
       saveNodeLabels(nodeData.getId(), nodeModel.getLabels());
 
+      // A page becomes reachable — hence searchable — the moment a node starts
+      // pointing at it, and this is the only navigation operation that does so
+      // without any other event firing. Without this, a page whose content
+      // blocks were unindexed when their last node was deleted would stay out
+      // of the search index for good once a new node points at it again, and a
+      // page indexed while it had no node at all would keep an empty pagePath.
+      // Draft nodes are skipped: the connector doesn't index draft pages.
+      if (nodeState.getPageRef() != null && !nodeModel.isDraft()) {
+        broadcastPageUpdated(nodeState.getPageRef(), username);
+      }
+
       return navigationService.getNodeById(Long.parseLong(nodeData.getId()));
     }
   }
@@ -172,6 +204,9 @@ public class NavigationLayoutService {
       throw new IllegalAccessException();
     }
 
+    NodeState previousState = nodeData.getState();
+    PageKey previousPageKey = previousState == null ? null : previousState.getPageRef();
+
     NodeState nodeState = buildNodeState(nodeModel.getNodeLabel(),
                                          nodeModel.getIcon(),
                                          getPageKey(nodeModel.getPageRef()),
@@ -184,6 +219,24 @@ public class NavigationLayoutService {
                                          false);
     saveNodeLabels(nodeData.getId(), nodeModel.getLabels());
     navigationService.updateNode(nodeId, nodeState);
+
+    // A node's name — the only part of its URI it owns — can't be changed
+    // here (NavigationUpdateModel carries no name, and nothing else renames a
+    // node), so neither this node's URI nor any of its descendants' can move.
+    // The one thing that does change what is searchable is the page this node
+    // points to: the newly referenced page becomes reachable at this URI, and
+    // the previously referenced one may have just lost its last node — in
+    // which case its indexed content block would keep a pagePath that now
+    // leads to a different page entirely.
+    PageKey newPageKey = nodeState.getPageRef();
+    if (!Objects.equals(previousPageKey, newPageKey)) {
+      if (newPageKey != null) {
+        broadcastPageUpdated(newPageKey, username);
+      }
+      if (previousPageKey != null) {
+        unindexPagesNoLongerReachable(nodeData.getSiteKey(), Set.of(previousPageKey));
+      }
+    }
   }
 
   public void deleteNode(long nodeId,
@@ -228,18 +281,24 @@ public class NavigationLayoutService {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
       throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
-    } else {
-      if (destinationParentId == null) {
-        destinationParentId = Long.parseLong(nodeData.getParentId());
-      }
-      NodeData destinationNodeData = navigationService.getNodeById(destinationParentId);
-      if (destinationNodeData == null) {
-        throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, destinationParentId));
-      } else if (!aclService.canEditNavigation(destinationNodeData.getSiteKey(), username)) {
-        throw new IllegalAccessException();
-      }
+    }
+    if (destinationParentId == null) {
+      destinationParentId = Long.parseLong(nodeData.getParentId());
+    }
+    NodeData destinationNodeData = navigationService.getNodeById(destinationParentId);
+    if (destinationNodeData == null) {
+      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, destinationParentId));
+    } else if (!aclService.canEditNavigation(destinationNodeData.getSiteKey(), username)) {
+      throw new IllegalAccessException();
     }
     navigationService.moveNode(nodeId, Long.parseLong(nodeData.getParentId()), destinationParentId, previousNodeId);
+
+    // The moved subtree has to be looked up in the site it landed in, not the
+    // one it came from: the destination parent is allowed to belong to another
+    // site (that's the site the ACL check above runs against), and the node
+    // wouldn't be found in the source site's tree anymore — leaving every page
+    // it carries indexed with the URI it had before the move.
+    broadcastPagesUpdated(destinationNodeData.getSiteKey(), nodeId, username);
   }
 
   public NodeData getNode(long nodeId,
@@ -318,7 +377,141 @@ public class NavigationLayoutService {
 
   @ContainerTransactional
   public void deleteNode(long nodeId) {
+    NodeData nodeData = navigationService.getNodeById(nodeId);
+    NodeState state = nodeData == null ? null : nodeData.getState();
+    PageKey pageKey = state == null ? null : state.getPageRef();
+    SiteKey siteKey = nodeData == null ? null : nodeData.getSiteKey();
+
+    Set<PageKey> pageKeys = new HashSet<>();
+    if (pageKey != null) {
+      pageKeys.add(pageKey);
+    }
+    // Deleting a node cascades to its entire subtree (NodeEntity#children is
+    // mapped with CascadeType.ALL), so the pages carried by its descendants can
+    // become unreachable as well. They have to be collected before the
+    // deletion, while the subtree still exists.
+    if (siteKey != null) {
+      collectSubtreePages(siteKey, String.valueOf(nodeId), pageKeys);
+    }
+
     navigationService.deleteNode(nodeId);
+
+    if (siteKey != null) {
+      unindexPagesNoLongerReachable(siteKey, pageKeys);
+    }
+  }
+
+  /**
+   * Adds to {@code pageKeys} every page referenced by the node identified by
+   * {@code nodeId} or by any of its descendants.
+   *
+   * @param siteKey  the site the node belongs to
+   * @param nodeId   the node whose subtree to walk
+   * @param pageKeys the collected page keys, mutated in place
+   */
+  private void collectSubtreePages(SiteKey siteKey, String nodeId, Set<PageKey> pageKeys) {
+    try {
+      NodeContext<NodeContext<Object>> node = findNodeById(navigationService.loadNode(siteKey), nodeId);
+      collectPages(node, pageKeys);
+    } catch (Exception e) {
+      LOG.debug("Cannot collect the pages carried by the subtree of node {}", nodeId, e);
+    }
+  }
+
+  private NodeContext<NodeContext<Object>> findNodeById(NodeContext<NodeContext<Object>> node, String nodeId) {
+    if (node == null) {
+      return null;
+    }
+    if (nodeId.equals(node.getId())) {
+      return node;
+    }
+    int count = node.getNodeCount();
+    for (int i = 0; i < count; i++) {
+      NodeContext<NodeContext<Object>> found = findNodeById(node.get(i), nodeId);
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
+  }
+
+  private void collectPages(NodeContext<NodeContext<Object>> node, Set<PageKey> pageKeys) {
+    if (node == null) {
+      return;
+    }
+    NodeState state = node.getState();
+    if (state != null && state.getPageRef() != null) {
+      pageKeys.add(state.getPageRef());
+    }
+    int count = node.getNodeCount();
+    for (int i = 0; i < count; i++) {
+      collectPages(node.get(i), pageKeys);
+    }
+  }
+
+  /**
+   * A page carrying an indexed content block stays searchable only as long
+   * as some navigation node still leads to it — deleting the last node
+   * pointing to a page doesn't delete the page itself (nothing else does
+   * either), so without this check its content block would stay indexed
+   * forever with a search result that leads nowhere.
+   * <p>
+   * The site's navigation tree is loaded (with {@code Scope.ALL}) and walked
+   * exactly once for the whole set: deleting a section carrying dozens of
+   * descendant pages must not turn into one full tree load per page.
+   *
+   * @param siteKey the site the deleted node belonged to
+   * @param pageKeys the pages the just-deleted subtree used to point to
+   */
+  private void unindexPagesNoLongerReachable(SiteKey siteKey, Set<PageKey> pageKeys) {
+    if (pageKeys.isEmpty()) {
+      return;
+    }
+    try {
+      Set<PageKey> reachablePages = new HashSet<>();
+      collectPages(navigationService.loadNode(siteKey), reachablePages);
+      pageKeys.stream().filter(pageKey -> !reachablePages.contains(pageKey)).forEach(this::broadcastPageUnreachable);
+    } catch (Exception e) {
+      LOG.debug("Cannot check whether pages {} are still reachable from navigation of site {}", pageKeys, siteKey, e);
+    }
+  }
+
+  private void broadcastPageUnreachable(PageKey pageKey) {
+    try {
+      Page page = layoutService.getPage(pageKey);
+      if (page != null) {
+        listenerService.broadcast(PAGE_UNREACHABLE_EVENT, this, page);
+      }
+    } catch (Exception e) {
+      LOG.debug("Cannot broadcast that page {} is no longer reachable from navigation", pageKey, e);
+    }
+  }
+
+  /**
+   * Renaming or moving a node changes the portal URI of the page it points
+   * to, and of every page carried by its descendants. That URI is stored at
+   * index time ({@code pagePath}), so the pages have to be re-indexed or
+   * their search results would keep pointing at a URL that now 404s.
+   *
+   * @param siteKey the site the node belongs to
+   * @param nodeId the node whose subtree's URIs just changed
+   * @param username the user who made the change
+   */
+  private void broadcastPagesUpdated(SiteKey siteKey, long nodeId, String username) {
+    if (siteKey == null) {
+      return;
+    }
+    Set<PageKey> pageKeys = new HashSet<>();
+    collectSubtreePages(siteKey, String.valueOf(nodeId), pageKeys);
+    pageKeys.forEach(pageKey -> broadcastPageUpdated(pageKey, username));
+  }
+
+  private void broadcastPageUpdated(PageKey pageKey, String username) {
+    try {
+      listenerService.broadcast(PageLayoutService.PAGE_UPDATED_EVENT, username, pageKey.format());
+    } catch (Exception e) {
+      LOG.debug("Cannot broadcast the update of page {} after its navigation node changed", pageKey, e);
+    }
   }
 
   public NodeContext<NodeContext<Object>> findNode(NodeContext<NodeContext<Object>> node, String name) {
