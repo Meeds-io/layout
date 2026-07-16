@@ -66,6 +66,7 @@ import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.pom.spi.portlet.Portlet;
+import org.exoplatform.services.listener.ListenerService;
 
 import io.meeds.layout.model.PageCreateModel;
 import io.meeds.layout.model.PageTemplate;
@@ -108,6 +109,9 @@ public class PageLayoutServiceTest {
 
   @MockBean
   private PortletInstanceService  portletInstanceService;
+
+  @MockBean
+  private ListenerService         listenerService;
 
   @Autowired
   private PageLayoutService       pageLayoutService;
