@@ -339,7 +339,7 @@ export default {
         await this.$siteLayoutService.restoreSite({
           siteName: this.site.name,
           siteType: this.site.siteType,
-          importMode: 'OVERWRITE',
+          importMode: 'MERGE',
           siteLayout: false,
           sitePages: true,
           siteNavigation: true,
