@@ -365,6 +365,11 @@ export default {
       const startScheduleDate = nodeToPaste.startPublicationTime !== -1 ? new Date(nodeToPaste.startPublicationTime) : null;
       const endScheduleDate = nodeToPaste.endPublicationTime !== -1 ? new Date(nodeToPaste.endPublicationTime) : null;
       const isPasteMode = true;
+      // A pasted copy must never keep its source's name: default-navigation
+      // restore reconciles nodes by name per parent, so two live nodes
+      // sharing a name (the original and this copy) get conflated and
+      // corrupted the next time an admin restores the site's defaults.
+      const nodeName = `${nodeToPaste.name}-copy-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
       this.$navigationLayoutService.getNodeLabels(nodeToPaste.id)
         .then(data => {
           this.nodeLabels = {
@@ -372,7 +377,7 @@ export default {
           };
         })
         .then(() => {
-          this.$navigationLayoutService.createNode(navigationNodeId, null, nodeToPaste.label, nodeToPaste.name, nodeToPaste.icon, visible, isScheduled, startScheduleDate, endScheduleDate, this.nodeLabels?.labels, pageRef, nodeToPaste.target, isPasteMode)
+          this.$navigationLayoutService.createNode(navigationNodeId, null, nodeToPaste.label, nodeName, nodeToPaste.icon, visible, isScheduled, startScheduleDate, endScheduleDate, this.nodeLabels?.labels, pageRef, nodeToPaste.target, isPasteMode)
             .then(createdNode => {
               if (nodeToPaste.children.length > 0) {
                 nodeToPaste.children.forEach(children => this.pasteCopiedNode(createdNode.id, children));
