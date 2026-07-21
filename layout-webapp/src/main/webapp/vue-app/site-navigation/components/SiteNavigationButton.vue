@@ -34,10 +34,30 @@ export default {
   },
   methods: {
     openSiteNavigationDrawer() {
-      document.dispatchEvent(new CustomEvent('open-site-navigation-drawer',{detail: {
-        includeGlobal: eXo.env.portal.metaPortalName === eXo.env.portal.siteKeyName && eXo.env.portal.siteKeyType === 'portal',
-      }}));
-    }
+      const includeGlobal = eXo.env.portal.metaPortalName === eXo.env.portal.siteKeyName && eXo.env.portal.siteKeyType === 'portal';
+      const selectedNodeId = eXo.env.portal.selectedNodeId;
+      if (!selectedNodeId) {
+        this.dispatchOpenDrawer({includeGlobal});
+        return;
+      }
+      // The page currently displayed may be reached via a navigation node
+      // inherited from the global site (merged into every site's menu), even
+      // while browsing another site. Resolve the node's actual owning site
+      // rather than assuming it's the site currently being browsed.
+      this.$navigationLayoutService.getNode(selectedNodeId)
+        .then(node => this.$siteLayoutService.getSite(node.siteKey.typeName, node.siteKey.name)
+          .then(site => this.dispatchOpenDrawer({
+            includeGlobal,
+            siteId: site.siteId,
+            siteType: node.siteKey.typeName,
+            siteName: node.siteKey.name,
+            siteLabel: site.displayName,
+          })))
+        .catch(() => this.dispatchOpenDrawer({includeGlobal}));
+    },
+    dispatchOpenDrawer(detail) {
+      document.dispatchEvent(new CustomEvent('open-site-navigation-drawer', {detail}));
+    },
   }
 };
 </script>
