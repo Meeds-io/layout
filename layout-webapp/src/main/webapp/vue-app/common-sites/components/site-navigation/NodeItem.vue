@@ -69,13 +69,27 @@
             </v-col>
             <v-col
               cols="2"
-              class="mb-1 mt-0 py-0">
+              class="mb-1 mt-0 py-0 d-flex align-center justify-end flex-nowrap">
+              <v-btn
+                v-show="hover && canMoveUp"
+                :title="$t('siteNavigation.label.moveUp')"
+                :aria-label="$t('siteNavigation.label.moveUp')"
+                icon
+                @click="moveUpNode">
+                <v-icon size="16" class="icon-default-color">fas fa-arrow-up</v-icon>
+              </v-btn>
+              <v-btn
+                v-show="hover && canMoveDown"
+                :title="$t('siteNavigation.label.moveDown')"
+                :aria-label="$t('siteNavigation.label.moveDown')"
+                icon
+                @click="moveDownNode">
+                <v-icon size="16" class="icon-default-color">fas fa-arrow-down</v-icon>
+              </v-btn>
               <site-navigation-node-item-menu
                 :navigation-node="navigationNode"
                 :hover="hover"
                 :can-delete="canDelete"
-                :can-move-up="canMoveUp"
-                :can-move-down="canMoveDown"
                 :node-to-paste="nodeToPaste"
                 :paste-mode="pasteMode" />
             </v-col>
@@ -263,6 +277,12 @@ export default {
     });
   },
   methods: {
+    moveUpNode() {
+      this.$root.$emit('moveup-node', this.navigationNode.id);
+    },
+    moveDownNode() {
+      this.$root.$emit('movedown-node', this.navigationNode.id);
+    },
     moveUpChildNode(navigationNodeId) {
       if (this.navigationNode.children.length) {
         const index = this.navigationNode?.children?.findIndex?.(navigationNode => navigationNode.id === navigationNodeId);
