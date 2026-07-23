@@ -146,34 +146,6 @@
         </v-list-item-title>
       </v-list-item>
       <v-list-item
-        v-if="canMoveUp"
-        @click="moveUpNode()">
-        <v-list-item-icon class="me-1">
-          <v-icon
-            size="21"
-            class="pe-1">
-            mdi-mouse-move-up
-          </v-icon>
-        </v-list-item-icon>
-        <v-list-item-title class="text-body menu-text-color">
-          <span class="ps-1">{{ $t('siteNavigation.label.moveUp') }}</span>
-        </v-list-item-title>
-      </v-list-item>
-      <v-list-item
-        v-if="canMoveDown"
-        @click="moveDownNode()">
-        <v-list-item-icon class="me-1">
-          <v-icon
-            size="21"
-            class="pe-1">
-            mdi-mouse-move-down
-          </v-icon>
-        </v-list-item-icon>
-        <v-list-item-title class="text-body menu-text-color">
-          <span class="ps-1">{{ $t('siteNavigation.label.moveDown') }}</span>
-        </v-list-item-title>
-      </v-list-item>
-      <v-list-item
         v-if="canEditPage"
         @click="openManagePermissionsDrawer">
         <v-list-item-icon class="me-1">
@@ -234,14 +206,6 @@ export default {
     canDelete: {
       type: Boolean,
       default: false,
-    },
-    canMoveUp: {
-      type: Boolean,
-      default: () => false,
-    },
-    canMoveDown: {
-      type: Boolean,
-      default: () => false,
     },
     nodeToPaste: {
       type: Object,
@@ -314,12 +278,6 @@ export default {
       window.setTimeout(() => {
         this.displayActionMenu = false;
       },200);
-    },
-    moveUpNode() {
-      this.$root.$emit('moveup-node', this.navigationNode.id);
-    },
-    moveDownNode() {
-      this.$root.$emit('movedown-node', this.navigationNode.id);
     },
     deleteNode() {
       this.$root.$emit('delete-node', this.navigationNode.id);
