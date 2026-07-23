@@ -43,6 +43,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import org.exoplatform.commons.ObjectAlreadyExistsException;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
@@ -76,6 +77,9 @@ public class SiteLayoutRest {
   @Autowired
   private LayoutService     layoutService;
 
+  @Autowired
+  private UserPortalConfigService portalConfigService;
+
   @GetMapping("{siteId}")
   @Operation(summary = "Gets a specific site by its id", description = "Gets site by id", method = "GET")
   @ApiResponses(value = {
@@ -104,7 +108,8 @@ public class SiteLayoutRest {
       }
       SiteEntity siteEntity = RestEntityBuilder.toSiteEntity(site,
                                                              request,
-                                                             locale);
+                                                             locale,
+                                                             portalConfigService);
       String eTag = String.valueOf(siteEntity.hashCode());
       if (webRequest.checkNotModified(eTag)) {
         return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
@@ -321,7 +326,8 @@ public class SiteLayoutRest {
                                                        request.getRemoteUser());
       SiteEntity siteEntity = RestEntityBuilder.toSiteEntity(site,
                                                              request,
-                                                             request.getLocale());
+                                                             request.getLocale(),
+                                                             portalConfigService);
       return ResponseEntity.ok()
                            .body(siteEntity);
     } catch (ObjectAlreadyExistsException e) {

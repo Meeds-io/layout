@@ -108,6 +108,20 @@ export function updatePageLink(pageRef, link) {
   });
 }
 
+export function restorePageLayout(pageRef) {
+  return fetch(`/layout/rest/pages/restore?pageRef=${pageRef}`, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+  }).then(resp => {
+    if (!resp?.ok) {
+      throw new Error('Error when restoring page layout');
+    }
+  });
+}
+
 export function cloneSection(pageRef, containerId) {
   return fetch(`/layout/rest/pages/cloneSection/${containerId}`, {
     credentials: 'include',

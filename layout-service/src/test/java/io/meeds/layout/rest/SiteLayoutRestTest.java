@@ -52,6 +52,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import org.exoplatform.commons.ObjectAlreadyExistsException;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
@@ -108,6 +109,9 @@ public class SiteLayoutRestTest {
   @MockBean
   private LayoutService         layoutService;
 
+  @MockBean
+  private UserPortalConfigService portalConfigService;
+
   @Autowired
   private SecurityFilterChain   filterChain;
 
@@ -147,7 +151,7 @@ public class SiteLayoutRestTest {
     PortalConfig site = mock(PortalConfig.class);
     when(siteLayoutService.getSite(2l, SIMPLE_USER)).thenReturn(site);
     try (MockedStatic<RestEntityBuilder> restEntityBuilder = mockStatic(RestEntityBuilder.class)) {
-      restEntityBuilder.when(() -> RestEntityBuilder.toSiteEntity(any(), any(), any())).thenReturn(mock(SiteEntity.class));
+      restEntityBuilder.when(() -> RestEntityBuilder.toSiteEntity(any(), any(), any(), any())).thenReturn(mock(SiteEntity.class));
       ResultActions response = mockMvc.perform(get(REST_PATH + "/2").with(testSimpleUser()));
       response.andExpect(status().isOk());
     }
@@ -176,7 +180,7 @@ public class SiteLayoutRestTest {
     when(site.getId()).thenReturn(2l);
     when(siteLayoutService.getSite(2l, SIMPLE_USER)).thenReturn(site);
     try (MockedStatic<RestEntityBuilder> restEntityBuilder = mockStatic(RestEntityBuilder.class)) {
-      restEntityBuilder.when(() -> RestEntityBuilder.toSiteEntity(any(), any(), any())).thenReturn(mock(SiteEntity.class));
+      restEntityBuilder.when(() -> RestEntityBuilder.toSiteEntity(any(), any(), any(), any())).thenReturn(mock(SiteEntity.class));
       ResultActions response = mockMvc.perform(get(GET_SITE_REST_PATH).with(testSimpleUser()));
       response.andExpect(status().isOk());
     }
@@ -371,7 +375,7 @@ public class SiteLayoutRestTest {
     when(siteLayoutService.getSite(draftSiteKey, SIMPLE_USER)).thenReturn(draftSite);
     when(siteLayoutService.createDraftSite(SITE_KEY, SIMPLE_USER)).thenReturn(draftSiteKey);
     try (MockedStatic<RestEntityBuilder> restEntityBuilder = mockStatic(RestEntityBuilder.class)) {
-      restEntityBuilder.when(() -> RestEntityBuilder.toSiteEntity(any(), any(), any())).thenReturn(mock(SiteEntity.class));
+      restEntityBuilder.when(() -> RestEntityBuilder.toSiteEntity(any(), any(), any(), any())).thenReturn(mock(SiteEntity.class));
       ResultActions response = mockMvc.perform(post(CREATE_DRAFT_LAYOUT_REST_PATH).with(testSimpleUser()));
       response.andExpect(status().isOk());
     }
