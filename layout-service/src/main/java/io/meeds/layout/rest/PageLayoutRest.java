@@ -218,6 +218,31 @@ public class PageLayoutRest {
     }
   }
 
+  @PatchMapping(value = "restore", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
+  @Secured("users")
+  @Operation(summary = "Restore a page's default layout", method = "PATCH", description = "This restores the designated page's layout to its shipped default")
+  @ApiResponses(value = {
+    @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+    @ApiResponse(responseCode = "400", description = "Invalid request input"),
+    @ApiResponse(responseCode = "403", description = "Forbidden"),
+    @ApiResponse(responseCode = "404", description = "Not found"),
+  })
+  public void restorePageLayout(
+                                HttpServletRequest request,
+                                @Parameter(description = "page display name", required = true)
+                                @RequestParam("pageRef")
+                                String pageRef) {
+    try {
+      pageLayoutService.restorePageLayout(PageKey.parse(pageRef), request.getRemoteUser());
+    } catch (IllegalStateException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
+    } catch (ObjectNotFoundException e) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+    } catch (IllegalAccessException e) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+    }
+  }
+
   @PatchMapping(name = "link", consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
   @Secured("users")
   @Operation(summary = "Update page link", method = "GET", description = "This updates page link")

@@ -36,11 +36,13 @@ import com.google.javascript.jscomp.jarjar.com.google.re2j.Pattern;
 
 import org.exoplatform.commons.addons.AddOnService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.mop.PageType;
 import org.exoplatform.portal.mop.QueryResult;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
 import org.exoplatform.portal.mop.Utils;
+import org.exoplatform.portal.mop.importer.ImportMode;
 import org.exoplatform.portal.mop.page.PageContext;
 import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.page.PageState;
@@ -91,6 +93,9 @@ public class PageLayoutService {
 
   @Autowired
   private AddOnService           addOnService;
+
+  @Autowired
+  private UserPortalConfigService portalConfigService;
 
   public List<PageContext> getPages(String siteTypeName,
                                     String siteName,
@@ -346,6 +351,40 @@ public class PageLayoutService {
     existingPage.setChildren(page.getChildren());
     layoutService.save(existingPage);
     return layoutService.getPageContext(existingPage.getPageKey());
+  }
+
+  /**
+   * Restores a single page's layout to its shipped default, preserving the page's current access
+   * and edit permissions (only the layout is reset, not who can see/edit the page).
+   *
+   * @param pageKey the key of the page to restore
+   * @param username the user requesting the restore
+   * @return the restored {@link PageContext}
+   * @throws ObjectNotFoundException when the page doesn't exist
+   * @throws IllegalAccessException when the user can't edit the page's layout
+   * @throws IllegalStateException when the page isn't part of any default/product configuration
+   */
+  public PageContext restorePageLayout(PageKey pageKey, String username) throws ObjectNotFoundException,
+                                                                          IllegalAccessException {
+    PageContext existingPageContext = layoutService.getPageContext(pageKey);
+    if (existingPageContext == null) {
+      throw new ObjectNotFoundException(String.format(PAGE_NOT_EXISTS_MESSAGE, pageKey.format()));
+    } else if (!aclService.canEditPage(pageKey, username)) {
+      throw new IllegalAccessException(String.format(PAGE_NOT_EDITABLE_MESSAGE, pageKey.format(), username));
+    }
+    PageState previousState = existingPageContext.getState();
+    boolean restored = portalConfigService.restorePage(pageKey, ImportMode.RESTORE_DEFAULTS);
+    if (!restored) {
+      throw new IllegalStateException(String.format("Page %s can't be restored since it isn't a default page",
+                                                     pageKey.format()));
+    }
+    PageContext restoredPageContext = layoutService.getPageContext(pageKey);
+    PageState restoredState = restoredPageContext.getState();
+    restoredState.setAccessPermissions(previousState.getAccessPermissions());
+    restoredState.setEditPermission(previousState.getEditPermission());
+    restoredPageContext.setState(restoredState);
+    layoutService.save(restoredPageContext);
+    return restoredPageContext;
   }
 
   public void updatePageLink(PageKey pageKey,
