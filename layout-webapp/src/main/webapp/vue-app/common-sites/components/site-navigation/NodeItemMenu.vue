@@ -78,6 +78,20 @@
         </v-list-item-title>
       </v-list-item>
       <v-list-item
+        v-if="canEditPageLayout && canRestoreLayout"
+        @click="restoreLayout">
+        <v-list-item-icon class="me-1">
+          <v-icon
+            size="16"
+            class="pe-1">
+            fas fa-redo
+          </v-icon>
+        </v-list-item-icon>
+        <v-list-item-title class="text-body menu-text-color">
+          <span class="ps-1">{{ $t('siteNavigation.label.restoreLayout') }}</span>
+        </v-list-item-title>
+      </v-list-item>
+      <v-list-item
         @click="$root.$emit('open-site-navigation-edit-node-drawer', navigationNode)">
         <v-list-item-icon class="me-1">
           <v-icon
@@ -273,6 +287,9 @@ export default {
     canEditPageLayout() {
       return this.canEditPage && !this.pageLink;
     },
+    canRestoreLayout() {
+      return this.navigationNode?.canRestoreLayout;
+    },
     isSystemVisibility() {
       return this.navigationNode?.visibility === 'SYSTEM';
     },
@@ -329,6 +346,22 @@ export default {
     },
     editLayout() {
       return this.$pageLayoutService.editPageLayout(this.nodeId, this.pageRef);
+    },
+    restoreLayout() {
+      return this.$pageLayoutService.restorePageLayout(this.pageRef)
+        .then(() => {
+          this.$root.$emit('refresh-navigation-nodes');
+          document.dispatchEvent(new CustomEvent('alert-message', {detail: {
+            alertType: 'success',
+            alertMessage: this.$t('siteNavigation.label.restoreLayoutSuccess'),
+          }}));
+        })
+        .catch(() => {
+          document.dispatchEvent(new CustomEvent('alert-message', {detail: {
+            alertType: 'error',
+            alertMessage: this.$t('siteNavigation.label.restoreLayoutError'),
+          }}));
+        });
     },
     openManagePermissionsDrawer(){
       this.$root.$emit('open-manage-permissions-drawer', JSON.parse(JSON.stringify(this.navigationNode)));
