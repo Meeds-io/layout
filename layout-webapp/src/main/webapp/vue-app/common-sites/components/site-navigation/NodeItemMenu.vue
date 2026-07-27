@@ -26,7 +26,8 @@
     offset-y>
     <template #activator="{ on, attrs }">
       <v-btn
-        v-show="hover"
+        v-show="hover || displayActionMenu"
+        :title="$t('siteNavigation.label.actions')"
         v-bind="attrs"
         icon
         v-on="on">

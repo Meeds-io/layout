@@ -20,22 +20,25 @@
   <div class="d-contents">
     <tr>
       <td>
-        <v-hover :disabled="$root.mobileDisplayMode">
+        <v-hover v-model="hover" :disabled="$root.mobileDisplayMode">
           <v-row
-            slot-scope="{ hover }"
             class="d-flex pt-2 px-0 text-truncate v-list-item v-list-item--dense d-flex flex-nowrap"
-            :class="extraClass">
+            :class="extraClass"
+            tabindex="0"
+            @focusin="rowFocused = true"
+            @focusout="rowFocused = $event.currentTarget.contains($event.relatedTarget)">
             <v-col
               :cols="cols"
               class="my-0 py-0 px-0">
-              <v-icon
+              <v-btn
                 v-if="hasChildren && !hideChildren"
-                size="23"
-                class="align-center px-0"
+                :aria-expanded="displayChildren ? 'true' : 'false'"
                 :class="!$vuetify.rtl ? 'pull-right' : 'pull-left'"
+                icon
+                small
                 @click="displayChildren = !displayChildren">
-                {{ icon }}
-              </v-icon>
+                <v-icon size="23" class="align-center px-0">{{ icon }}</v-icon>
+              </v-btn>
               <div v-else class="ms-3 me-2"></div>
             </v-col>
             <v-col
@@ -71,24 +74,22 @@
               cols="2"
               class="mb-1 mt-0 py-0 d-flex align-center justify-end flex-nowrap">
               <v-btn
-                v-show="hover && canMoveUp"
+                v-show="showActions && canMoveUp"
                 :title="$t('siteNavigation.label.moveUp')"
-                :aria-label="$t('siteNavigation.label.moveUp')"
                 icon
                 @click="moveUpNode">
                 <v-icon size="16" class="icon-default-color">fas fa-arrow-up</v-icon>
               </v-btn>
               <v-btn
-                v-show="hover && canMoveDown"
+                v-show="showActions && canMoveDown"
                 :title="$t('siteNavigation.label.moveDown')"
-                :aria-label="$t('siteNavigation.label.moveDown')"
                 icon
                 @click="moveDownNode">
                 <v-icon size="16" class="icon-default-color">fas fa-arrow-down</v-icon>
               </v-btn>
               <site-navigation-node-item-menu
                 :navigation-node="navigationNode"
-                :hover="hover"
+                :hover="showActions"
                 :can-delete="canDelete"
                 :node-to-paste="nodeToPaste"
                 :paste-mode="pasteMode" />
@@ -188,6 +189,8 @@ export default {
   },
   data() {
     return {
+      hover: false,
+      rowFocused: false,
       displayChildren: false,
       nodeToPaste: null,
       pasteMode: null,
@@ -204,6 +207,9 @@ export default {
   computed: {
     highlightNode() {
       return this.navigationNode.uri === eXo.env.portal.selectedNodeUri;
+    },
+    showActions() {
+      return this.hover || this.rowFocused;
     },
     icon() {
       return this.displayChildren && 'mdi-menu-down' || 'mdi-menu-right';
