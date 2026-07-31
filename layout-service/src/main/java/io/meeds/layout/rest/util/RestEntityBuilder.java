@@ -28,10 +28,12 @@ import java.util.Map;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.mop.rest.model.UserNodeRestEntity;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.social.rest.api.EntityBuilder;
 import org.exoplatform.social.rest.entity.SiteEntity;
@@ -47,15 +49,37 @@ public class RestEntityBuilder {
 
   public static SiteEntity toSiteEntity(PortalConfig site,
                                         HttpServletRequest request,
-                                        Locale locale) throws Exception {
-    return EntityBuilder.buildSiteEntity(site,
-                                         request,
-                                         true,
-                                         null,
-                                         false,
-                                         false,
-                                         false,
-                                         locale);
+                                        Locale locale,
+                                        UserPortalConfigService portalConfigService) throws Exception {
+    SiteEntity siteEntity = EntityBuilder.buildSiteEntity(site,
+                                                          request,
+                                                          true,
+                                                          null,
+                                                          false,
+                                                          false,
+                                                          false,
+                                                          locale);
+    if (siteEntity != null) {
+      markRestorableNodes(siteEntity.getSiteNavigations(), portalConfigService);
+    }
+    return siteEntity;
+  }
+
+  /**
+   * Flags each navigation node whose page is a default/product page, so the UI can offer to restore
+   * the page's layout to its shipped default only where it makes sense.
+   */
+  private static void markRestorableNodes(List<UserNodeRestEntity> nodes,
+                                          UserPortalConfigService portalConfigService) {
+    if (CollectionUtils.isEmpty(nodes)) {
+      return;
+    }
+    for (UserNodeRestEntity node : nodes) {
+      if (node.getPageKey() != null) {
+        node.setCanRestoreLayout(portalConfigService.isDefaultPage(node.getPageKey()));
+      }
+      markRestorableNodes(node.getChildren(), portalConfigService);
+    }
   }
 
   public static LayoutModel toLayoutModel(ModelObject modelObject,

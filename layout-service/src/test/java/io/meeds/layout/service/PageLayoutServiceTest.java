@@ -61,6 +61,7 @@ import org.exoplatform.portal.config.serialize.model.SiteLayout;
 import org.exoplatform.portal.mop.PageType;
 import org.exoplatform.portal.mop.QueryResult;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.importer.ImportMode;
 import org.exoplatform.portal.mop.page.PageContext;
 import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.page.PageState;
@@ -482,6 +483,31 @@ public class PageLayoutServiceTest {
     when(applicationCssStyle.getBorderColor()).thenReturn(borderColor);
 
     assertDoesNotThrow(() -> pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER));
+  }
+
+  @Test
+  public void restorePageLayout() throws IllegalAccessException, ObjectNotFoundException {
+    assertThrows(ObjectNotFoundException.class, () -> pageLayoutService.restorePageLayout(PAGE_KEY, TEST_USER));
+    when(layoutService.getPageContext(PAGE_KEY)).thenReturn(pageContext);
+    assertThrows(IllegalAccessException.class, () -> pageLayoutService.restorePageLayout(PAGE_KEY, TEST_USER));
+    when(aclService.canEditPage(PAGE_KEY, TEST_USER)).thenReturn(true);
+    when(pageContext.getState()).thenReturn(pageState);
+
+    assertThrows(IllegalStateException.class, () -> pageLayoutService.restorePageLayout(PAGE_KEY, TEST_USER));
+    verify(userPortalConfigService).restorePage(PAGE_KEY, ImportMode.RESTORE_DEFAULTS);
+
+    when(userPortalConfigService.restorePage(PAGE_KEY, ImportMode.RESTORE_DEFAULTS)).thenReturn(true);
+    List<String> accessPermissions = Arrays.asList("access", "permissions");
+    String editPermission = "edit permission";
+    when(pageState.getAccessPermissions()).thenReturn(accessPermissions);
+    when(pageState.getEditPermission()).thenReturn(editPermission);
+
+    PageContext result = pageLayoutService.restorePageLayout(PAGE_KEY, TEST_USER);
+    assertEquals(pageContext, result);
+    verify(pageState).setAccessPermissions(accessPermissions);
+    verify(pageState).setEditPermission(editPermission);
+    verify(pageContext).setState(pageState);
+    verify(layoutService).save(pageContext);
   }
 
   @Test
