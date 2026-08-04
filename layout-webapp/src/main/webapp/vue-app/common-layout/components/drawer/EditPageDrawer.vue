@@ -205,7 +205,10 @@ export default {
   }),
   computed: {
     cssStyle() {
-      return this.$applicationUtils.getStyle(this.pageContainer, {
+      return this.$applicationUtils.getStyle({
+        ...this.pageContainer,
+        backgroundColor: this.pageContainer?.backgroundColor || this.defaultBackgroundColor,
+      }, {
         onlyBackgroundStyle: true,
       });
     },
@@ -228,8 +231,11 @@ export default {
   },
   created() {
     this.$root.$on('layout-page-properties-open', this.open);
-    if (document.body.computedStyleMap && document.body.computedStyleMap().get('--allPagesLightGrey')) {
-      this.defaultBackgroundColor = document.body.computedStyleMap().get('--allPagesLightGrey')[0] || this.defaultBackgroundColor;
+    if (document.body.computedStyleMap && document.body.computedStyleMap().get('--allPagesBackgroundColor')) {
+      const backgroundColor = document.body.computedStyleMap().get('--allPagesBackgroundColor')[0]?.trim?.();
+      if (backgroundColor) {
+        this.defaultBackgroundColor = backgroundColor.length === 7 ? `${backgroundColor}FF` : backgroundColor;
+      }
     }
   },
   beforeDestroy() {
@@ -255,6 +261,7 @@ export default {
       }
       this.width = (this.pageContainer.width === 'fullWindow' ? '100%' : this.pageContainer.width)
         || (this.pageContainer.width === 'singlePageApplication' ? this.defaultWidth : this.pageContainer.width)
+        || (!!document.body.style.getPropertyValue('--allPagesWidth') && '100%')
         || this.defaultWidth;
       this.appBackgroundProperties = {
         storageId: 0,
