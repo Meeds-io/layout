@@ -17,6 +17,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+// Tracks whether getStyle() itself has overridden the site-level --allPagesBackground*
+// custom properties on <body>, so it only clears them when reverting its own override,
+// never when the site simply never had a background (see getStyle's siteStyle branch).
+let siteBackgroundOverridden = false;
+
 export function installApplication(navUri, applicationStorageId, applicationElement, applicationMode, showSite, fullRender) {
   return getApplicationContent(navUri, applicationStorageId, applicationMode, showSite, fullRender)
     .then(applicationContent => handleApplicationContent(applicationContent, applicationElement, applicationMode));
@@ -204,6 +209,9 @@ export function getStyle(container, options) {
     && (container.backgroundImage
       || container.backgroundColor
       || container.backgroundEffect)) {
+    if (options.siteStyle) {
+      siteBackgroundOverridden = true;
+    }
     if (container.backgroundColor) {
       if (options.siteStyle) {
         document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
@@ -312,12 +320,18 @@ export function getStyle(container, options) {
     style['--appBackgroundRepeat'] = 'no-repeat';
     style['--appBackgroundSize'] = 'unset';
     style['--appBackgroundPosition'] = 'unset';
-  } else if (!options.noBackgroundStyle && !backgroundLayerValues && options.siteStyle) {
+  } else if (!options.noBackgroundStyle && !backgroundLayerValues && options.siteStyle && siteBackgroundOverridden) {
+    // Only clear these when a previous call on this same page actually set them:
+    // the server (UIPortalApplication.gtmpl) writes them as inline <body> style from
+    // the branding admin's default page background, and blindly removing them here
+    // on every render with no site-level override would wipe out that branding
+    // default instead of letting it show through.
     document.body.style.removeProperty('--allPagesBackgroundColor');
     document.body.style.removeProperty('--allPagesBackgroundImage');
     document.body.style.removeProperty('--allPagesBackgroundRepeat');
     document.body.style.removeProperty('--allPagesBackgroundSize');
     document.body.style.removeProperty('--allPagesBackgroundPosition');
+    siteBackgroundOverridden = false;
   }
   if (container.appBackgroundColor) {
     style['--appBackgroundColor'] = container.appBackgroundColor;
