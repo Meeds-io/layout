@@ -28,7 +28,7 @@
     <template #title>
       {{ $t('layout.editSectionTitle', {0: index + 1}) }}
     </template>
-    <template v-if="$root.isAdministrator" #titleIcons>
+    <template #titleIcons>
       <v-tooltip bottom>
         <template #activator="{on, attrs}">
           <div
@@ -47,7 +47,7 @@
         </template>
         {{ $t('layout.cloneSection') }}
       </v-tooltip>
-      <v-tooltip bottom>
+      <v-tooltip v-if="$root.isAdministrator" bottom>
         <template #activator="{on, attrs}">
           <div
             v-on="on"
@@ -85,6 +85,8 @@
           v-if="section"
           ref="marginInput"
           v-model="section"
+          left
+          right
           class="mt-4" />
         <layout-editor-background-input
           v-if="section"
@@ -98,9 +100,39 @@
             </div>
           </div>
           <div class="d-flex align-center mt-2">
-            {{ $t('layout.mobileView') }}
+            {{ $t('layout.viewOptions') }}
           </div>
           <div class="d-flex flex-column justify-center">
+            <v-radio-group
+              v-model="viewOption"
+              class="my-auto text-no-wrap ms-n1 mt-2"
+              mandatory>
+              <v-radio
+                value="both"
+                class="mx-0">
+                <template #label>
+                  <span class="text-font-size text-color">{{ $t('layout.sectionDisplayBoth') }}</span>
+                </template>
+              </v-radio>
+              <v-radio
+                value="hideDesktop"
+                class="mx-0">
+                <template #label>
+                  <span class="text-font-size text-color">{{ $t('layout.sectionHiddenOnDesktop') }}</span>
+                </template>
+              </v-radio>
+              <v-radio
+                value="hideMobile"
+                class="mx-0">
+                <template #label>
+                  <span class="text-font-size text-color">{{ $t('layout.sectionHiddenOnMobile') }}</span>
+                </template>
+              </v-radio>
+            </v-radio-group>
+          </div>
+          <div
+            v-if="viewOption !== 'hideMobile'"
+            class="d-flex flex-column justify-center ms-4">
             <v-radio-group
               v-model="mobileInColumns"
               class="my-auto text-no-wrap ms-n1 mt-2"
@@ -185,6 +217,7 @@ export default {
     rows: 0,
     cols: 0,
     canRemove: false,
+    viewOption: 'both',
     mobileInColumns: false,
     enableBackgroundColor: false,
     enableBackgroundImage: false,
@@ -247,6 +280,20 @@ export default {
         this.optionsModified = true;
       }
     },
+    viewOption() {
+      if (this.drawer) {
+        if (!this.section.cssClass) {
+          this.section.cssClass = '';
+        }
+        this.section.cssClass = this.section.cssClass.replace(/hidden-sm-and-down|hidden-md-and-up/g, '').trim();
+        if (this.viewOption === 'hideDesktop') {
+          this.section.cssClass += ' hidden-md-and-up';
+        } else if (this.viewOption === 'hideMobile') {
+          this.section.cssClass += ' hidden-sm-and-down';
+        }
+        this.optionsModified = true;
+      }
+    },
   },
   methods: {
     open(section, index, length) {
@@ -254,6 +301,13 @@ export default {
       this.section.children = section.children;
       this.stickyApplication = this.section.cssClass?.includes?.('layout-sticky-application');
       this.mobileInColumns = this.section.cssClass?.includes?.('layout-mobile-columns');
+      if (this.section.cssClass?.includes?.('hidden-md-and-up')) {
+        this.viewOption = 'hideDesktop';
+      } else if (this.section.cssClass?.includes?.('hidden-sm-and-down')) {
+        this.viewOption = 'hideMobile';
+      } else {
+        this.viewOption = 'both';
+      }
       this.optionsModified = false;
       this.originalSection = JSON.parse(JSON.stringify(section));
       this.index = index;

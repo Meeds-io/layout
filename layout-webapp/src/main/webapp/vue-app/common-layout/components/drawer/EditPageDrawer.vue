@@ -39,6 +39,10 @@
           class="py-1"
           width="380px"
           flat>
+          <div
+            v-if="backgroundLayerStyle"
+            class="layout-background-layer"
+            :style="backgroundLayerStyle"></div>
           <v-img
             :src="pagePreview"
             width="100%"
@@ -188,7 +192,6 @@ export default {
     parentContainer: null,
     pageContainer: null,
     appBackgroundProperties: null,
-    fullWindow: false,
     width: 1320,
     defaultWidth: 1320,
     minWidth: 300,
@@ -209,8 +212,14 @@ export default {
         onlyBackgroundStyle: true,
       });
     },
+    backgroundLayerStyle() {
+      return this.$applicationUtils.getBackgroundLayerStyle(this.pageContainer, {});
+    },
     customWidth() {
       return this.width === '100%' ? this.defaultWidth : this.width;
+    },
+    fullWindow() {
+      return this.width === '100%';
     },
   },
   watch: {

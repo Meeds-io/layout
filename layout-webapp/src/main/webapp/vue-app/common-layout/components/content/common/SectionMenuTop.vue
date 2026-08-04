@@ -20,7 +20,7 @@
 
 -->
 <template>
-  <v-hover v-model="hoverButton" :disabled="$root.mobileDisplayMode">
+  <v-hover v-model="hoverButton">
     <div>
       <v-slide-y-transition>
         <div

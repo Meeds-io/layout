@@ -108,7 +108,8 @@ export default {
             .then(page => {
               this.$root.page = page;
               this.pageContext = page;
-            });
+            })
+            .catch(e => this.handleLoadError(e));
         }
       },
     },
@@ -125,12 +126,13 @@ export default {
                 JSON.parse(this.$root.pageTemplate.content),
                 'contentId'))
               .then(draftLayout => this.setDraftLayout(draftLayout))
-              .catch(e => this.$root.$emit('alert-message', this.$te(e.message) ? this.$t(e.message) : this.$t('layout.pageSavingError'), 'error'));
+              .catch(e => this.handleLoadError(e));
           } else {
             this.$pageLayoutService.getPageLayout({
               pageRef: this.draftPageRef,
               expand: 'contentId',
-            }).then(draftLayout => this.setDraftLayout(draftLayout));
+            }).then(draftLayout => this.setDraftLayout(draftLayout))
+              .catch(e => this.handleLoadError(e));
           }
         }
       },
@@ -142,7 +144,8 @@ export default {
           this.$root.nodeId = this.nodeId;
           if (this.nodeId && !this.nodeLabels) {
             this.$navigationLayoutService.getNodeLabels(this.nodeId)
-              .then(nodeLabels => this.nodeLabels = nodeLabels);
+              .then(nodeLabels => this.nodeLabels = nodeLabels)
+              .catch(e => this.handleLoadError(e));
           }
           if (this.nodeId && !this.$root.nodeUri) {
             this.$navigationLayoutService.getNodeUri(this.nodeId)
@@ -150,7 +153,8 @@ export default {
                 uri = uri.replace(/^\/global\//g, `/${eXo.env.portal.portalName}/`);
                 return this.$layoutUtils.initPageContext(uri)
                   .finally(() => this.$root.nodeUri = uri);
-              });
+              })
+              .catch(e => this.handleLoadError(e));
           }
         }
       },
@@ -163,7 +167,8 @@ export default {
           this.$root.draftNodeId = this.draftNodeId;
           if (this.draftNodeId && !this.$root.draftNodeUri) {
             this.$navigationLayoutService.getNodeUri(this.draftNodeId)
-              .then(uri => this.$root.draftNodeUri = uri.replace(/^\/global\//g, `/${eXo.env.portal.portalName}/`));
+              .then(uri => this.$root.draftNodeUri = uri.replace(/^\/global\//g, `/${eXo.env.portal.portalName}/`))
+              .catch(e => this.handleLoadError(e));
           }
         }
       },
@@ -196,7 +201,8 @@ export default {
         this.$navigationLayoutService.getNode(this.nodeId)
           .then(node => this.node = node)
           .then(() => this.$navigationLayoutService.getNode(this.draftNodeId))
-          .then(draftNode => this.draftNode = draftNode);
+          .then(draftNode => this.draftNode = draftNode)
+          .catch(e => this.handleLoadError(e));
       } else {
         this.$navigationLayoutService.getNode(this.nodeId)
           .then(node => this.node = node)
@@ -204,7 +210,8 @@ export default {
           .then(draftNode => {
             this.draftNode = draftNode;
             this.draftNodeId = draftNode?.id;
-          });
+          })
+          .catch(e => this.handleLoadError(e));
       }
     },
     cancelEditPage() {
@@ -213,6 +220,10 @@ export default {
     },
     stopLoading() {
       document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+    },
+    handleLoadError(e) {
+      this.$root.$emit('alert-message', this.$te(e?.message) ? this.$t(e.message) : this.$t('layout.pageSavingError'), 'error');
+      this.stopLoading();
     },
     setDraftLayout(draftLayout) {
       this.draftLayout = draftLayout;

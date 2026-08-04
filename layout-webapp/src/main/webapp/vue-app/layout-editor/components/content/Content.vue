@@ -142,6 +142,7 @@ export default {
     this.$root.$on('layout-delete-application', this.handleDeleteApplication);
     this.$root.$on('layout-application-category-drawer-closed', this.resetCellsSelection);
     this.$root.$on('layout-section-history-add', this.addSectionVersion);
+    this.$root.$on('layout-section-order-history-add', this.addOrderVersion);
     this.$root.$on('layout-page-saved', this.handlePageSaved);
     this.$root.$on('layout-apply-grid-style', this.handleApplyGridStyle);
     this.$root.$on('layout-save-draft', this.saveDraft);
@@ -160,6 +161,14 @@ export default {
     },
     setLayout(layout) {
       this.initContainer(layout);
+      if (this.mobileDisplayMode) {
+        // Breakpoint CSS classes are stripped while previewing mobile
+        // (see switchDisplayMode/applyMobileStyle) so that the desktop grid
+        // doesn't leak into the shrunk preview box. parseSections re-derives
+        // colsCount/rowsCount from those classes, so restore them first or
+        // it corrupts every section's layout, not just the one being edited.
+        this.$layoutUtils.applyDesktopStyle(layout);
+      }
       const isCompatible = this.$layoutUtils.parseSections(layout);
       if (!isCompatible) {
         const applications = this.$layoutUtils.getApplications(layout);
@@ -171,6 +180,9 @@ export default {
           this.$layoutUtils.newSection(parentContainer, 1, 1, 2, this.$layoutUtils.flexTemplate);
         }
         this.isCompatible = !applications?.length;
+      }
+      if (this.mobileDisplayMode) {
+        this.$layoutUtils.applyMobileStyle(layout);
       }
       if (this.layoutToEdit) {
         Object.assign(this.layoutToEdit, layout);
@@ -336,7 +348,13 @@ export default {
       const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
       this.addSectionVersion(section.storageId);
       parentContainer.children.splice(index || 0, 0, section);
+      if (this.mobileDisplayMode) {
+        this.$layoutUtils.applyDesktopStyle(this.layoutToEdit);
+      }
       this.$layoutUtils.parseSections(this.layoutToEdit);
+      if (this.mobileDisplayMode) {
+        this.$layoutUtils.applyMobileStyle(this.layoutToEdit);
+      }
       this.saveDraft();
     },
     handleRemoveSection(index) {
@@ -363,27 +381,60 @@ export default {
         this.$root.sectionRedo = [];
       }
     },
+    addOrderVersion(containerId, order) {
+      if (containerId && order) {
+        const entry = {orderContainerId: containerId, order};
+        if (!this.$root.sectionHistory) {
+          this.$root.sectionHistory = [entry];
+        } else {
+          this.$root.sectionHistory.push(entry);
+        }
+        this.$root.sectionRedo = [];
+      }
+    },
     restoreSectionVersion(event) {
       if (event.ctrlKey) {
         if (event.keyCode === 90) {
-          if (this.$root.sectionHistory?.length) {
-            const section = this.$root.sectionHistory.pop();
-            const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
-            const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
-            if (index >= 0) {
-              this.$root.sectionRedo.push(parentContainer.children[index]);
-              parentContainer.children.splice(index, 1, section);
-            }
-          }
+          this.undoSectionVersion();
         } else if (event.keyCode === 89) {
-          if (this.$root.sectionRedo?.length) {
-            const section = this.$root.sectionRedo.pop();
-            const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
-            const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
-            if (index >= 0) {
-              this.$root.sectionHistory.push(parentContainer.children[index]);
-              parentContainer.children.splice(index, 1, section);
-            }
+          this.redoSectionVersion();
+        }
+      }
+    },
+    undoSectionVersion() {
+      if (this.$root.sectionHistory?.length) {
+        const entry = this.$root.sectionHistory.pop();
+        if (entry.orderContainerId) {
+          const container = this.$layoutUtils.getContainerById(this.layoutToEdit, entry.orderContainerId);
+          if (container) {
+            this.$root.sectionRedo.push({orderContainerId: entry.orderContainerId, order: container.children.map(c => c.storageId)});
+            this.$layoutUtils.reorderChildren(container, entry.order);
+          }
+        } else {
+          const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
+          const index = parentContainer.children.findIndex(c => c.storageId === entry.storageId);
+          if (index >= 0) {
+            this.$root.sectionRedo.push(parentContainer.children[index]);
+            parentContainer.children.splice(index, 1, entry);
+          }
+        }
+      }
+    },
+    redoSectionVersion() {
+      if (this.$root.sectionRedo?.length) {
+        const entry = this.$root.sectionRedo.pop();
+        if (entry.orderContainerId) {
+          const container = this.$layoutUtils.getContainerById(this.layoutToEdit, entry.orderContainerId);
+          if (container) {
+            this.$root.sectionHistory.push({orderContainerId: entry.orderContainerId, order: container.children.map(c => c.storageId)});
+            this.$layoutUtils.reorderChildren(container, entry.order);
+          }
+        } else {
+          const parentContainer = this.$layoutUtils.getParentContainer(this.layoutToEdit);
+          const index = parentContainer.children.findIndex(c => c.storageId === entry.storageId);
+          if (index >= 0) {
+            this.$root.sectionHistory.push(parentContainer.children[index]);
+            parentContainer.children.splice(index, 1, entry);
           }
         }
       }

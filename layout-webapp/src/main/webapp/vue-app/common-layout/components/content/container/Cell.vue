@@ -50,7 +50,7 @@
           <span v-if="applicationTitle" class="caption">{{ applicationTitle }}</span>
         </div>
       </div>
-      <div v-if="$root.desktopDisplayMode && displayResizeButton">
+      <div v-if="displayResizeButton">
         <layout-editor-cell-resize-button
           :container="container"
           :parent-id="parentId"
@@ -59,7 +59,7 @@
           :moving="moving"
           @move-start="moveStart" />
       </div>
-      <v-hover v-if="$root.desktopDisplayMode && (!hasApplication || isDynamicSection)">
+      <v-hover v-if="!hasApplication || isDynamicSection">
         <v-card
           slot-scope="hoverScope"
           v-show="!movingChildren"
