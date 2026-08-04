@@ -196,13 +196,30 @@
             }) }}</span>
           </div>
         </template>
-        <div class="d-flex align-center ms-n1 mb-4">
-          <v-checkbox
-            v-model="hiddenOnMobile"
-            :label="$t('layout.hiddenOnMobile')"
-            on-icon="fa-check-square"
-            off-icon="far fa-square"
-            class="my-0 ml-n2px" />
+        <div class="d-flex align-center mt-2">
+          {{ $t('layout.viewOptions') }}
+        </div>
+        <div class="d-flex flex-column justify-center mb-4">
+          <v-radio-group
+            v-model="viewOption"
+            class="my-auto text-no-wrap ms-n1 mt-2"
+            mandatory>
+            <v-radio value="both" class="mx-0">
+              <template #label>
+                <span class="text-font-size text-color">{{ $t('layout.appDisplayBoth') }}</span>
+              </template>
+            </v-radio>
+            <v-radio value="hideDesktop" class="mx-0">
+              <template #label>
+                <span class="text-font-size text-color">{{ $t('layout.appHiddenOnDesktop') }}</span>
+              </template>
+            </v-radio>
+            <v-radio value="hideMobile" class="mx-0">
+              <template #label>
+                <span class="text-font-size text-color">{{ $t('layout.hiddenOnMobile') }}</span>
+              </template>
+            </v-radio>
+          </v-radio-group>
         </div>
         <template v-if="!isDynamicSection">
           <div class="text-header mb-2">
@@ -284,7 +301,7 @@ export default {
     maxWidth: 1000,
     invalidCustomHeight: false,
     invalidCustomWidth: false,
-    hiddenOnMobile: false,
+    viewOption: 'both',
     section: null,
     container: null,
     backgroundProperties: null,
@@ -390,7 +407,8 @@ export default {
         height: this.container?.height || null,
         width: this.container?.width || null,
         ...this.backgroundProperties,
-        hiddenOnMobile: this.hiddenOnMobile,
+        hiddenOnMobile: this.viewOption === 'hideMobile',
+        hiddenOnDesktop: this.viewOption === 'hideDesktop',
       } || null;
     },
   },
@@ -471,7 +489,13 @@ export default {
       this.height = container.height;
       this.width = container.width;
       this.$set(container, 'cssClass', container?.cssClass?.trim?.() || '');
-      this.hiddenOnMobile = container.cssClass?.includes?.('hidden-sm-and-down') || false;
+      if (container.cssClass?.includes?.('hidden-sm-and-down')) {
+        this.viewOption = 'hideMobile';
+      } else if (container.cssClass?.includes?.('hidden-md-and-up')) {
+        this.viewOption = 'hideDesktop';
+      } else {
+        this.viewOption = 'both';
+      }
       if (this.container.cssClass?.includes?.('application-align-v-end')) {
         this.vAlign = 'END';
       } else if (this.container.cssClass?.includes?.('application-align-v-center')) {
@@ -517,7 +541,7 @@ export default {
         this.maxWidth = 1000;
         this.invalidCustomHeight = false;
         this.invalidCustomWidth = false;
-        this.hiddenOnMobile = false;
+        this.viewOption = 'both';
         this.section = null;
         this.container = null;
         this.backgroundProperties = null;

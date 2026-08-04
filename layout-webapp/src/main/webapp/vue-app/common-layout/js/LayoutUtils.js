@@ -327,9 +327,11 @@ export function applyContainerStyle(container, containerStyle) {
     container.cssClass += ` brbl-${parseInt(Math.min(20, Math.max(containerStyle.radiusBottomLeft, 0)) / 4)}`;
   }
 
-  container.cssClass = container.cssClass.replace(new RegExp('(^| )hidden-sm-and-down', 'g'), '').replace(/  +/g, ' ');
+  container.cssClass = container.cssClass.replace(new RegExp('(^| )(hidden-sm-and-down|hidden-md-and-up)', 'g'), '').replace(/  +/g, ' ');
   if (containerStyle.hiddenOnMobile) {
     container.cssClass += ' hidden-sm-and-down';
+  } else if (containerStyle.hiddenOnDesktop) {
+    container.cssClass += ' hidden-md-and-up';
   }
   Vue.set(container, 'cssClass', container.cssClass);
   if (containerStyle !== container && typeof containerStyle.cssClass === 'string') {
