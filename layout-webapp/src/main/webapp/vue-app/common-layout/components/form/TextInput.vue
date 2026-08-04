@@ -34,7 +34,7 @@
       v-if="enabled"
       class="pa-0"
       dense>
-      <v-list-item-content class="my-auto">
+      <v-list-item-content class="my-auto text-body font-weight-bold">
         {{ $t('layout.textColorTitle') }}
       </v-list-item-content>
       <v-list-item-action
@@ -66,11 +66,16 @@
           class="my-auto" />
       </v-list-item-action>
     </v-list-item>
+    <layout-editor-text-background-input
+      v-if="enabled"
+      v-model="container"
+      type-prefix="Title"
+      class="mb-4" />
     <v-list-item
       v-if="enabled"
       class="pa-0"
       dense>
-      <v-list-item-content class="my-auto">
+      <v-list-item-content class="my-auto text-body font-weight-bold">
         {{ $t('layout.textColorHeader') }}
       </v-list-item-content>
       <v-list-item-action
@@ -101,11 +106,16 @@
           class="my-auto" />
       </v-list-item-action>
     </v-list-item>
+    <layout-editor-text-background-input
+      v-if="enabled"
+      v-model="container"
+      type-prefix="Header"
+      class="mb-4" />
     <v-list-item
       v-if="enabled"
       class="pa-0"
       dense>
-      <v-list-item-content class="my-auto">
+      <v-list-item-content class="my-auto text-body font-weight-bold">
         {{ $t('layout.textColorBody') }}
       </v-list-item-content>
       <v-list-item-action
@@ -136,11 +146,16 @@
           class="my-auto" />
       </v-list-item-action>
     </v-list-item>
+    <layout-editor-text-background-input
+      v-if="enabled"
+      v-model="container"
+      type-prefix=""
+      class="mb-4" />
     <v-list-item
       v-if="enabled"
       class="pa-0"
       dense>
-      <v-list-item-content class="my-auto">
+      <v-list-item-content class="my-auto text-body font-weight-bold">
         {{ $t('layout.textColorSubtitle') }}
       </v-list-item-content>
       <v-list-item-action
@@ -171,6 +186,11 @@
           class="my-auto" />
       </v-list-item-action>
     </v-list-item>
+    <layout-editor-text-background-input
+      v-if="enabled"
+      v-model="container"
+      type-prefix="Subtitle"
+      class="mb-4" />
   </div>
 </template>
 <script>

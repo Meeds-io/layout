@@ -74,6 +74,10 @@ export default {
       type: Boolean,
       default: false,
     },
+    objectType: {
+      type: String,
+      default: 'containerBackground',
+    },
   },
   data: () => ({
     changed: false,
@@ -87,7 +91,7 @@ export default {
       return this.attachments?.[0]?.id;
     },
     remoteIllustrationSrc() {
-      return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/containerBackground/${this.storageId}/${this.illustrationId}` || null;
+      return this.illustrationId && `${eXo.env.portal.context}/${eXo.env.portal.rest}/v1/social/attachments/${this.objectType}/${this.storageId}/${this.illustrationId}` || null;
     },
   },
   watch: {
@@ -136,7 +140,7 @@ export default {
     save() {
       if (this.changed) {
         return this.$fileAttachmentService.saveAttachments({
-          objectType: 'containerBackground',
+          objectType: this.objectType,
           objectId: this.storageId,
           uploadedFiles: this.uploadId && [{uploadId: this.uploadId}] || [],
           attachedFiles: [],
@@ -160,7 +164,7 @@ export default {
       }
     },
     async getAttachments() {
-      return await this.$fileAttachmentService.getAttachments('containerBackground', this.storageId)
+      return await this.$fileAttachmentService.getAttachments(this.objectType, this.storageId)
         .then(data => this.attachments = data?.attachments || []);
     },
   },
