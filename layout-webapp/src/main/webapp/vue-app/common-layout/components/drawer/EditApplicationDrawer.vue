@@ -145,13 +145,30 @@
             }) }}</span>
           </div>
         </template>
-        <div class="d-flex align-center ms-n1">
-          <v-checkbox
-            v-model="hiddenOnMobile"
-            :label="$t('layout.hiddenOnMobile')"
-            on-icon="fa-check-square"
-            off-icon="far fa-square"
-            class="my-0 ml-n2px" />
+        <div class="d-flex align-center mt-2">
+          {{ $t('layout.viewOptions') }}
+        </div>
+        <div class="d-flex flex-column justify-center">
+          <v-radio-group
+            v-model="viewOption"
+            class="my-auto text-no-wrap ms-n1 mt-2"
+            mandatory>
+            <v-radio value="both" class="mx-0">
+              <template #label>
+                <span class="text-font-size text-color">{{ $t('layout.appDisplayBoth') }}</span>
+              </template>
+            </v-radio>
+            <v-radio value="hideDesktop" class="mx-0">
+              <template #label>
+                <span class="text-font-size text-color">{{ $t('layout.appHiddenOnDesktop') }}</span>
+              </template>
+            </v-radio>
+            <v-radio value="hideMobile" class="mx-0">
+              <template #label>
+                <span class="text-font-size text-color">{{ $t('layout.hiddenOnMobile') }}</span>
+              </template>
+            </v-radio>
+          </v-radio-group>
         </div>
       </v-card>
     </template>
@@ -168,7 +185,7 @@ export default {
     minHeight: 10,
     maxHeight: 1000,
     invalidCustomHeight: false,
-    hiddenOnMobile: false,
+    viewOption: 'both',
     section: null,
     container: null,
     backgroundProperties: null,
@@ -253,7 +270,8 @@ export default {
         textSubtitleFontStyle: this.container?.textSubtitleFontStyle || null,
         height: this.container?.height || null,
         ...this.backgroundProperties,
-        hiddenOnMobile: this.hiddenOnMobile,
+        hiddenOnMobile: this.viewOption === 'hideMobile',
+        hiddenOnDesktop: this.viewOption === 'hideDesktop',
       } || null;
     },
   },
@@ -294,7 +312,13 @@ export default {
       this.container = container;
       this.section = section;
       this.height = container.height;
-      this.hiddenOnMobile = container.cssClass?.includes?.('hidden-sm-and-down') || false;
+      if (container.cssClass?.includes?.('hidden-sm-and-down')) {
+        this.viewOption = 'hideMobile';
+      } else if (container.cssClass?.includes?.('hidden-md-and-up')) {
+        this.viewOption = 'hideDesktop';
+      } else {
+        this.viewOption = 'both';
+      }
       this.fixedHeight = !!this.height;
       this.applicationTitle = applicationTitle;
       this.$layoutUtils.parseContainerStyle(this.container);
@@ -320,7 +344,7 @@ export default {
         this.minHeight = 10;
         this.maxHeight = 1000;
         this.invalidCustomHeight = false;
-        this.hiddenOnMobile = false;
+        this.viewOption = 'both';
         this.section = null;
         this.container = null;
         this.backgroundProperties = null;
