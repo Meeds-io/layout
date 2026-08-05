@@ -160,6 +160,70 @@ public class LayoutModel {
 
   private String                          textSubtitleFontStyle;
 
+  private String                          textTitleBackgroundColor;
+
+  private String                          textTitleBackgroundImage;
+
+  private String                          textTitleBackgroundEffect;
+
+  private String                          textTitleBackgroundPosition;
+
+  private String                          textTitleBackgroundSize;
+
+  private String                          textTitleBackgroundRepeat;
+
+  private String                          textTitleBackgroundPadding;
+
+  private String                          textTitleBackgroundRadius;
+
+  private String                          textHeaderBackgroundColor;
+
+  private String                          textHeaderBackgroundImage;
+
+  private String                          textHeaderBackgroundEffect;
+
+  private String                          textHeaderBackgroundPosition;
+
+  private String                          textHeaderBackgroundSize;
+
+  private String                          textHeaderBackgroundRepeat;
+
+  private String                          textHeaderBackgroundPadding;
+
+  private String                          textHeaderBackgroundRadius;
+
+  private String                          textBackgroundColor;
+
+  private String                          textBackgroundImage;
+
+  private String                          textBackgroundEffect;
+
+  private String                          textBackgroundPosition;
+
+  private String                          textBackgroundSize;
+
+  private String                          textBackgroundRepeat;
+
+  private String                          textBackgroundPadding;
+
+  private String                          textBackgroundRadius;
+
+  private String                          textSubtitleBackgroundColor;
+
+  private String                          textSubtitleBackgroundImage;
+
+  private String                          textSubtitleBackgroundEffect;
+
+  private String                          textSubtitleBackgroundPosition;
+
+  private String                          textSubtitleBackgroundSize;
+
+  private String                          textSubtitleBackgroundRepeat;
+
+  private String                          textSubtitleBackgroundPadding;
+
+  private String                          textSubtitleBackgroundRadius;
+
   private String[]                        accessPermissions;
 
   // Specific to container
@@ -243,6 +307,38 @@ public class LayoutModel {
       this.textSubtitleFontSize = cssStyle.getTextSubtitleFontSize();
       this.textSubtitleFontWeight = cssStyle.getTextSubtitleFontWeight();
       this.textSubtitleFontStyle = cssStyle.getTextSubtitleFontStyle();
+      this.textTitleBackgroundColor = cssStyle.getTextTitleBackgroundColor();
+      this.textTitleBackgroundImage = cssStyle.getTextTitleBackgroundImage();
+      this.textTitleBackgroundEffect = cssStyle.getTextTitleBackgroundEffect();
+      this.textTitleBackgroundPosition = cssStyle.getTextTitleBackgroundPosition();
+      this.textTitleBackgroundSize = cssStyle.getTextTitleBackgroundSize();
+      this.textTitleBackgroundRepeat = cssStyle.getTextTitleBackgroundRepeat();
+      this.textTitleBackgroundPadding = cssStyle.getTextTitleBackgroundPadding();
+      this.textTitleBackgroundRadius = cssStyle.getTextTitleBackgroundRadius();
+      this.textHeaderBackgroundColor = cssStyle.getTextHeaderBackgroundColor();
+      this.textHeaderBackgroundImage = cssStyle.getTextHeaderBackgroundImage();
+      this.textHeaderBackgroundEffect = cssStyle.getTextHeaderBackgroundEffect();
+      this.textHeaderBackgroundPosition = cssStyle.getTextHeaderBackgroundPosition();
+      this.textHeaderBackgroundSize = cssStyle.getTextHeaderBackgroundSize();
+      this.textHeaderBackgroundRepeat = cssStyle.getTextHeaderBackgroundRepeat();
+      this.textHeaderBackgroundPadding = cssStyle.getTextHeaderBackgroundPadding();
+      this.textHeaderBackgroundRadius = cssStyle.getTextHeaderBackgroundRadius();
+      this.textBackgroundColor = cssStyle.getTextBackgroundColor();
+      this.textBackgroundImage = cssStyle.getTextBackgroundImage();
+      this.textBackgroundEffect = cssStyle.getTextBackgroundEffect();
+      this.textBackgroundPosition = cssStyle.getTextBackgroundPosition();
+      this.textBackgroundSize = cssStyle.getTextBackgroundSize();
+      this.textBackgroundRepeat = cssStyle.getTextBackgroundRepeat();
+      this.textBackgroundPadding = cssStyle.getTextBackgroundPadding();
+      this.textBackgroundRadius = cssStyle.getTextBackgroundRadius();
+      this.textSubtitleBackgroundColor = cssStyle.getTextSubtitleBackgroundColor();
+      this.textSubtitleBackgroundImage = cssStyle.getTextSubtitleBackgroundImage();
+      this.textSubtitleBackgroundEffect = cssStyle.getTextSubtitleBackgroundEffect();
+      this.textSubtitleBackgroundPosition = cssStyle.getTextSubtitleBackgroundPosition();
+      this.textSubtitleBackgroundSize = cssStyle.getTextSubtitleBackgroundSize();
+      this.textSubtitleBackgroundRepeat = cssStyle.getTextSubtitleBackgroundRepeat();
+      this.textSubtitleBackgroundPadding = cssStyle.getTextSubtitleBackgroundPadding();
+      this.textSubtitleBackgroundRadius = cssStyle.getTextSubtitleBackgroundRadius();
     }
 
     if (model instanceof PageBody pageBody) {

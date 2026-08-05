@@ -116,6 +116,15 @@ export default {
       type: Boolean,
       default: false,
     },
+    // When set, radius is read/written as a plain CSS border-radius shorthand
+    // string ("top-left top-right bottom-right bottom-left") on
+    // container[field] instead of an opaque cssClass token (used for
+    // per-text-type backgrounds, which don't need the separate
+    // background-layer positioning that the opaque tokens exist for).
+    field: {
+      type: String,
+      default: null,
+    },
   },
   data: () => ({
     container: null,
@@ -173,7 +182,19 @@ export default {
   },
   created() {
     this.container = this.value;
-    const values = this.$applicationUtils.parseBackgroundLayerValues(this.container.cssClass) || {};
+    let values;
+    if (this.field) {
+      // CSS border-radius shorthand order: top-left top-right bottom-right bottom-left
+      const parts = (this.container[this.field] || '').trim().split(/\s+/).map(v => parseInt(v) || 0);
+      values = {
+        radiusTopLeft: parts[0] || 0,
+        radiusTopRight: parts[1] || 0,
+        radiusBottomRight: parts[2] || 0,
+        radiusBottomLeft: parts[3] || 0,
+      };
+    } else {
+      values = this.$applicationUtils.parseBackgroundLayerValues(this.container.cssClass) || {};
+    }
     this.radiusTopRight = values.radiusTopRight || 0;
     this.radiusTopLeft = values.radiusTopLeft || 0;
     this.radiusBottomRight = values.radiusBottomRight || 0;
@@ -182,17 +203,23 @@ export default {
       this.radiusTopRight === this.radiusTopLeft
       && this.radiusBottomRight === this.radiusTopLeft
       && this.radiusTopLeft === this.radiusBottomLeft ? 'same' : 'different';
-    this.enabled = this.choice !== 'same' || this.radiusTopRight !== 0;
+    this.enabled = this.field ? !!this.container[this.field] : (this.choice !== 'same' || this.radiusTopRight !== 0);
     this.$nextTick().then(() => this.initialized = true);
   },
   methods: {
     save() {
-      this.$applicationUtils.setBackgroundLayerValues(this.container, {
-        radiusTopRight: this.enabled ? (this.radiusTopRight || 0) : null,
-        radiusTopLeft: this.enabled ? (this.radiusTopLeft || 0) : null,
-        radiusBottomRight: this.enabled ? (this.radiusBottomRight || 0) : null,
-        radiusBottomLeft: this.enabled ? (this.radiusBottomLeft || 0) : null,
-      });
+      if (this.field) {
+        this.$set(this.container, this.field, this.enabled
+          ? `${this.radiusTopLeft || 0}px ${this.radiusTopRight || 0}px ${this.radiusBottomRight || 0}px ${this.radiusBottomLeft || 0}px`
+          : null);
+      } else {
+        this.$applicationUtils.setBackgroundLayerValues(this.container, {
+          radiusTopRight: this.enabled ? (this.radiusTopRight || 0) : null,
+          radiusTopLeft: this.enabled ? (this.radiusTopLeft || 0) : null,
+          radiusBottomRight: this.enabled ? (this.radiusBottomRight || 0) : null,
+          radiusBottomLeft: this.enabled ? (this.radiusBottomLeft || 0) : null,
+        });
+      }
       this.$emit('refresh');
     },
   },

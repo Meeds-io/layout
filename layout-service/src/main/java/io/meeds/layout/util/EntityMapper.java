@@ -167,7 +167,15 @@ public class EntityMapper {
                        || StringUtils.isNotBlank(layoutModel.getTextTitleColor())
                        || StringUtils.isNotBlank(layoutModel.getTextColor())
                        || StringUtils.isNotBlank(layoutModel.getTextHeaderColor())
-                       || StringUtils.isNotBlank(layoutModel.getTextSubtitleColor());
+                       || StringUtils.isNotBlank(layoutModel.getTextSubtitleColor())
+                       || StringUtils.isNotBlank(layoutModel.getTextTitleBackgroundColor())
+                       || StringUtils.isNotBlank(layoutModel.getTextTitleBackgroundImage())
+                       || StringUtils.isNotBlank(layoutModel.getTextHeaderBackgroundColor())
+                       || StringUtils.isNotBlank(layoutModel.getTextHeaderBackgroundImage())
+                       || StringUtils.isNotBlank(layoutModel.getTextBackgroundColor())
+                       || StringUtils.isNotBlank(layoutModel.getTextBackgroundImage())
+                       || StringUtils.isNotBlank(layoutModel.getTextSubtitleBackgroundColor())
+                       || StringUtils.isNotBlank(layoutModel.getTextSubtitleBackgroundImage());
     if (hasStyle) {
       cssStyle = new ModelStyle();
       cssStyle.setBorderColor(layoutModel.getBorderColor());
@@ -203,6 +211,38 @@ public class EntityMapper {
       cssStyle.setTextSubtitleFontSize(layoutModel.getTextSubtitleFontSize());
       cssStyle.setTextSubtitleFontWeight(layoutModel.getTextSubtitleFontWeight());
       cssStyle.setTextSubtitleFontStyle(layoutModel.getTextSubtitleFontStyle());
+      cssStyle.setTextTitleBackgroundColor(layoutModel.getTextTitleBackgroundColor());
+      cssStyle.setTextTitleBackgroundImage(layoutModel.getTextTitleBackgroundImage());
+      cssStyle.setTextTitleBackgroundEffect(layoutModel.getTextTitleBackgroundEffect());
+      cssStyle.setTextTitleBackgroundPosition(layoutModel.getTextTitleBackgroundPosition());
+      cssStyle.setTextTitleBackgroundSize(layoutModel.getTextTitleBackgroundSize());
+      cssStyle.setTextTitleBackgroundRepeat(layoutModel.getTextTitleBackgroundRepeat());
+      cssStyle.setTextTitleBackgroundPadding(layoutModel.getTextTitleBackgroundPadding());
+      cssStyle.setTextTitleBackgroundRadius(layoutModel.getTextTitleBackgroundRadius());
+      cssStyle.setTextHeaderBackgroundColor(layoutModel.getTextHeaderBackgroundColor());
+      cssStyle.setTextHeaderBackgroundImage(layoutModel.getTextHeaderBackgroundImage());
+      cssStyle.setTextHeaderBackgroundEffect(layoutModel.getTextHeaderBackgroundEffect());
+      cssStyle.setTextHeaderBackgroundPosition(layoutModel.getTextHeaderBackgroundPosition());
+      cssStyle.setTextHeaderBackgroundSize(layoutModel.getTextHeaderBackgroundSize());
+      cssStyle.setTextHeaderBackgroundRepeat(layoutModel.getTextHeaderBackgroundRepeat());
+      cssStyle.setTextHeaderBackgroundPadding(layoutModel.getTextHeaderBackgroundPadding());
+      cssStyle.setTextHeaderBackgroundRadius(layoutModel.getTextHeaderBackgroundRadius());
+      cssStyle.setTextBackgroundColor(layoutModel.getTextBackgroundColor());
+      cssStyle.setTextBackgroundImage(layoutModel.getTextBackgroundImage());
+      cssStyle.setTextBackgroundEffect(layoutModel.getTextBackgroundEffect());
+      cssStyle.setTextBackgroundPosition(layoutModel.getTextBackgroundPosition());
+      cssStyle.setTextBackgroundSize(layoutModel.getTextBackgroundSize());
+      cssStyle.setTextBackgroundRepeat(layoutModel.getTextBackgroundRepeat());
+      cssStyle.setTextBackgroundPadding(layoutModel.getTextBackgroundPadding());
+      cssStyle.setTextBackgroundRadius(layoutModel.getTextBackgroundRadius());
+      cssStyle.setTextSubtitleBackgroundColor(layoutModel.getTextSubtitleBackgroundColor());
+      cssStyle.setTextSubtitleBackgroundImage(layoutModel.getTextSubtitleBackgroundImage());
+      cssStyle.setTextSubtitleBackgroundEffect(layoutModel.getTextSubtitleBackgroundEffect());
+      cssStyle.setTextSubtitleBackgroundPosition(layoutModel.getTextSubtitleBackgroundPosition());
+      cssStyle.setTextSubtitleBackgroundSize(layoutModel.getTextSubtitleBackgroundSize());
+      cssStyle.setTextSubtitleBackgroundRepeat(layoutModel.getTextSubtitleBackgroundRepeat());
+      cssStyle.setTextSubtitleBackgroundPadding(layoutModel.getTextSubtitleBackgroundPadding());
+      cssStyle.setTextSubtitleBackgroundRadius(layoutModel.getTextSubtitleBackgroundRadius());
     }
     return cssStyle;
   }
