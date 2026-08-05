@@ -25,8 +25,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.io.FileUtils;
@@ -56,6 +59,10 @@ import org.exoplatform.upload.UploadResource;
 import org.exoplatform.upload.UploadService;
 
 import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.plugin.attachment.LayoutTextBodyBackgroundAttachmentPlugin;
+import io.meeds.layout.plugin.attachment.LayoutTextHeaderBackgroundAttachmentPlugin;
+import io.meeds.layout.plugin.attachment.LayoutTextSubtitleBackgroundAttachmentPlugin;
+import io.meeds.layout.plugin.attachment.LayoutTextTitleBackgroundAttachmentPlugin;
 import io.meeds.layout.util.EntityMapper;
 
 import lombok.SneakyThrows;
@@ -64,6 +71,25 @@ import lombok.SneakyThrows;
 public class ContainerLayoutService {
 
   private static final String    CONTAINER_BACKGROUND_IMAGE_URI = String.format("/%s/", OBJECT_TYPE);
+
+  private record TextBackgroundImageField(Function<ModelStyle, String> getter,
+                                           BiConsumer<ModelStyle, String> setter,
+                                           String objectType) {
+  }
+
+  private static final List<TextBackgroundImageField> TEXT_BACKGROUND_IMAGE_FIELDS = List.of(
+      new TextBackgroundImageField(ModelStyle::getTextTitleBackgroundImage,
+                                    ModelStyle::setTextTitleBackgroundImage,
+                                    LayoutTextTitleBackgroundAttachmentPlugin.OBJECT_TYPE),
+      new TextBackgroundImageField(ModelStyle::getTextHeaderBackgroundImage,
+                                    ModelStyle::setTextHeaderBackgroundImage,
+                                    LayoutTextHeaderBackgroundAttachmentPlugin.OBJECT_TYPE),
+      new TextBackgroundImageField(ModelStyle::getTextBackgroundImage,
+                                    ModelStyle::setTextBackgroundImage,
+                                    LayoutTextBodyBackgroundAttachmentPlugin.OBJECT_TYPE),
+      new TextBackgroundImageField(ModelStyle::getTextSubtitleBackgroundImage,
+                                    ModelStyle::setTextSubtitleBackgroundImage,
+                                    LayoutTextSubtitleBackgroundAttachmentPlugin.OBJECT_TYPE));
 
   @Autowired
   private AttachmentService      attachmentService;
@@ -138,11 +164,30 @@ public class ContainerLayoutService {
         appBackgroundStyle.setBackgroundImage(clonedBackgroundImageUrl);
       }
     }
+    if (cssStyle != null) {
+      for (TextBackgroundImageField field : TEXT_BACKGROUND_IMAGE_FIELDS) {
+        String textBackgroundImage = field.getter().apply(cssStyle);
+        if (StringUtils.isNotBlank(textBackgroundImage)) {
+          String clonedBackgroundImageUrl = null;
+          try {
+            clonedBackgroundImageUrl = cloneBackgroundUrl(container, page, textBackgroundImage, field.objectType());
+          } finally {
+            // Even in case of exception thrown, set null
+            field.setter().accept(cssStyle, clonedBackgroundImageUrl);
+          }
+        }
+      }
+    }
   }
 
   public String cloneBackgroundUrl(ModelObject container, Page page, String backgroundImageUrl) throws Exception { // NOSONAR
+    return cloneBackgroundUrl(container, page, backgroundImageUrl, OBJECT_TYPE);
+  }
+
+  public String cloneBackgroundUrl(ModelObject container, Page page, String backgroundImageUrl, String objectType) throws Exception { // NOSONAR
     String clonedBackgroundImageUrl = null;
-    if (StringUtils.contains(backgroundImageUrl, CONTAINER_BACKGROUND_IMAGE_URI)) {
+    String backgroundImageUri = String.format("/%s/", objectType);
+    if (StringUtils.contains(backgroundImageUrl, backgroundImageUri)) {
       String[] backgroundImageUrlParts = backgroundImageUrl.split("/");
       String fileIdString = backgroundImageUrlParts[backgroundImageUrlParts.length - 1];
       if (StringUtils.isNotBlank(fileIdString) && NumberUtils.isCreatable(fileIdString)) {
@@ -150,9 +195,9 @@ public class ContainerLayoutService {
         if (file != null) {
           String objectId = getObjectId(container, page);
           UploadResource uploadResource = createUploadResource(file);
-          ObjectAttachmentDetail attachment = saveAttachment(objectId, uploadResource);
+          ObjectAttachmentDetail attachment = saveAttachment(objectId, uploadResource, objectType);
           if (attachment != null) {
-            clonedBackgroundImageUrl = buildBackgroundUrl(objectId, attachment);
+            clonedBackgroundImageUrl = buildBackgroundUrl(objectId, attachment, objectType);
           }
         }
       }
@@ -167,21 +212,30 @@ public class ContainerLayoutService {
   }
 
   private String buildBackgroundUrl(String objectId, ObjectAttachmentDetail attachment) {
+    return buildBackgroundUrl(objectId, attachment, OBJECT_TYPE);
+  }
+
+  private String buildBackgroundUrl(String objectId, ObjectAttachmentDetail attachment, String objectType) {
     return String.format("/portal/rest/v1/social/attachments/%s/%s/%s",
-                         OBJECT_TYPE,
+                         objectType,
                          objectId,
                          attachment.getId());
   }
 
   @SneakyThrows
   private ObjectAttachmentDetail saveAttachment(String objectId, UploadResource uploadResource) {
+    return saveAttachment(objectId, uploadResource, OBJECT_TYPE);
+  }
+
+  @SneakyThrows
+  private ObjectAttachmentDetail saveAttachment(String objectId, UploadResource uploadResource, String objectType) {
     UploadedAttachmentDetail attachmentDetail = new UploadedAttachmentDetail(uploadResource);
     attachmentService.saveAttachment(attachmentDetail,
-                                     OBJECT_TYPE,
+                                     objectType,
                                      objectId,
                                      null,
                                      getSuperUserIdentityId());
-    ObjectAttachmentList attachmentList = attachmentService.getAttachments(OBJECT_TYPE, objectId);
+    ObjectAttachmentList attachmentList = attachmentService.getAttachments(objectType, objectId);
     if (attachmentList != null && CollectionUtils.isNotEmpty(attachmentList.getAttachments())) {
       return attachmentList.getAttachments().get(0);
     } else {

@@ -24,9 +24,9 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
-public class LayoutBackgroundAttachmentPlugin extends AbstractLayoutAttachmentPlugin {
+public class LayoutTextTitleBackgroundAttachmentPlugin extends AbstractLayoutAttachmentPlugin {
 
-  public static final String OBJECT_TYPE = "containerBackground";
+  public static final String OBJECT_TYPE = "containerTextTitleBackground";
 
   @Override
   public String getObjectType() {
