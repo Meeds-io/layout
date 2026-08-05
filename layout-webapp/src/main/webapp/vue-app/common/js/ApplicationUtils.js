@@ -135,6 +135,110 @@ export function getStyle(container, options) {
   if (container.textSubtitleFontStyle) {
     style['--appTextSubtitleFontStyle'] = container.textSubtitleFontStyle;
   }
+  if (container.textTitleBackgroundColor) {
+    style['--appTextTitleBackgroundColor'] = container.textTitleBackgroundColor;
+  }
+  if (container.textTitleBackgroundImage) {
+    style['--appTextTitleBackgroundImage'] = `url(${container.textTitleBackgroundImage})`;
+  }
+  if (container.textTitleBackgroundEffect) {
+    style['--appTextTitleBackgroundImage'] = container.textTitleBackgroundImage
+      ? `url(${container.textTitleBackgroundImage}),${container.textTitleBackgroundEffect}`
+      : container.textTitleBackgroundEffect;
+  }
+  if (container.textTitleBackgroundPosition) {
+    style['--appTextTitleBackgroundPosition'] = container.textTitleBackgroundPosition;
+  }
+  if (container.textTitleBackgroundSize) {
+    style['--appTextTitleBackgroundSize'] = container.textTitleBackgroundSize;
+  }
+  if (container.textTitleBackgroundRepeat) {
+    style['--appTextTitleBackgroundRepeat'] = container.textTitleBackgroundRepeat;
+  }
+  if (container.textTitleBackgroundPadding) {
+    setTextBackgroundPaddingSides(style, 'appTextTitleBackgroundPadding', container.textTitleBackgroundPadding);
+  }
+  if (container.textTitleBackgroundRadius) {
+    style['--appTextTitleBackgroundRadius'] = container.textTitleBackgroundRadius;
+  }
+  if (container.textHeaderBackgroundColor) {
+    style['--appTextHeaderBackgroundColor'] = container.textHeaderBackgroundColor;
+  }
+  if (container.textHeaderBackgroundImage) {
+    style['--appTextHeaderBackgroundImage'] = `url(${container.textHeaderBackgroundImage})`;
+  }
+  if (container.textHeaderBackgroundEffect) {
+    style['--appTextHeaderBackgroundImage'] = container.textHeaderBackgroundImage
+      ? `url(${container.textHeaderBackgroundImage}),${container.textHeaderBackgroundEffect}`
+      : container.textHeaderBackgroundEffect;
+  }
+  if (container.textHeaderBackgroundPosition) {
+    style['--appTextHeaderBackgroundPosition'] = container.textHeaderBackgroundPosition;
+  }
+  if (container.textHeaderBackgroundSize) {
+    style['--appTextHeaderBackgroundSize'] = container.textHeaderBackgroundSize;
+  }
+  if (container.textHeaderBackgroundRepeat) {
+    style['--appTextHeaderBackgroundRepeat'] = container.textHeaderBackgroundRepeat;
+  }
+  if (container.textHeaderBackgroundPadding) {
+    setTextBackgroundPaddingSides(style, 'appTextHeaderBackgroundPadding', container.textHeaderBackgroundPadding);
+  }
+  if (container.textHeaderBackgroundRadius) {
+    style['--appTextHeaderBackgroundRadius'] = container.textHeaderBackgroundRadius;
+  }
+  if (container.textBackgroundColor) {
+    style['--appTextBackgroundColor'] = container.textBackgroundColor;
+  }
+  if (container.textBackgroundImage) {
+    style['--appTextBackgroundImage'] = `url(${container.textBackgroundImage})`;
+  }
+  if (container.textBackgroundEffect) {
+    style['--appTextBackgroundImage'] = container.textBackgroundImage
+      ? `url(${container.textBackgroundImage}),${container.textBackgroundEffect}`
+      : container.textBackgroundEffect;
+  }
+  if (container.textBackgroundPosition) {
+    style['--appTextBackgroundPosition'] = container.textBackgroundPosition;
+  }
+  if (container.textBackgroundSize) {
+    style['--appTextBackgroundSize'] = container.textBackgroundSize;
+  }
+  if (container.textBackgroundRepeat) {
+    style['--appTextBackgroundRepeat'] = container.textBackgroundRepeat;
+  }
+  if (container.textBackgroundPadding) {
+    setTextBackgroundPaddingSides(style, 'appTextBackgroundPadding', container.textBackgroundPadding);
+  }
+  if (container.textBackgroundRadius) {
+    style['--appTextBackgroundRadius'] = container.textBackgroundRadius;
+  }
+  if (container.textSubtitleBackgroundColor) {
+    style['--appTextSubtitleBackgroundColor'] = container.textSubtitleBackgroundColor;
+  }
+  if (container.textSubtitleBackgroundImage) {
+    style['--appTextSubtitleBackgroundImage'] = `url(${container.textSubtitleBackgroundImage})`;
+  }
+  if (container.textSubtitleBackgroundEffect) {
+    style['--appTextSubtitleBackgroundImage'] = container.textSubtitleBackgroundImage
+      ? `url(${container.textSubtitleBackgroundImage}),${container.textSubtitleBackgroundEffect}`
+      : container.textSubtitleBackgroundEffect;
+  }
+  if (container.textSubtitleBackgroundPosition) {
+    style['--appTextSubtitleBackgroundPosition'] = container.textSubtitleBackgroundPosition;
+  }
+  if (container.textSubtitleBackgroundSize) {
+    style['--appTextSubtitleBackgroundSize'] = container.textSubtitleBackgroundSize;
+  }
+  if (container.textSubtitleBackgroundRepeat) {
+    style['--appTextSubtitleBackgroundRepeat'] = container.textSubtitleBackgroundRepeat;
+  }
+  if (container.textSubtitleBackgroundPadding) {
+    setTextBackgroundPaddingSides(style, 'appTextSubtitleBackgroundPadding', container.textSubtitleBackgroundPadding);
+  }
+  if (container.textSubtitleBackgroundRadius) {
+    style['--appTextSubtitleBackgroundRadius'] = container.textSubtitleBackgroundRadius;
+  }
   if (!options.onlyBackgroundStyle) {
     if (container.height) {
       if (options.appStyle) {
@@ -589,4 +693,18 @@ function cloneScriptElement(node) {
 
 function hasUnit(length) {
   return Number.isNaN(Number(length));
+}
+
+// The text background "Margin" option insets the background layer away from
+// the text edges without moving the text itself (same intent as the
+// dedicated app/section background layer from EXIP-88427), so it's painted
+// on a ::before positioned behind the text via negative top/right/bottom/left
+// offsets - which needs each side split out instead of the single CSS
+// padding shorthand string the value is stored/edited as.
+function setTextBackgroundPaddingSides(style, cssVarPrefix, padding) {
+  const [top, right, bottom, left] = padding.trim().split(/\s+/);
+  style[`--${cssVarPrefix}Top`] = top;
+  style[`--${cssVarPrefix}Right`] = right;
+  style[`--${cssVarPrefix}Bottom`] = bottom;
+  style[`--${cssVarPrefix}Left`] = left;
 }
