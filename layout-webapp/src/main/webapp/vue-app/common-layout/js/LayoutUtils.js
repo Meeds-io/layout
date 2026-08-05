@@ -109,6 +109,38 @@ export const containerModel = {
   textSubtitleFontSize: null,
   textSubtitleFontWeight: null,
   textSubtitleFontStyle: null,
+  textTitleBackgroundColor: null,
+  textTitleBackgroundImage: null,
+  textTitleBackgroundEffect: null,
+  textTitleBackgroundPosition: null,
+  textTitleBackgroundSize: null,
+  textTitleBackgroundRepeat: null,
+  textTitleBackgroundPadding: null,
+  textTitleBackgroundRadius: null,
+  textHeaderBackgroundColor: null,
+  textHeaderBackgroundImage: null,
+  textHeaderBackgroundEffect: null,
+  textHeaderBackgroundPosition: null,
+  textHeaderBackgroundSize: null,
+  textHeaderBackgroundRepeat: null,
+  textHeaderBackgroundPadding: null,
+  textHeaderBackgroundRadius: null,
+  textBackgroundColor: null,
+  textBackgroundImage: null,
+  textBackgroundEffect: null,
+  textBackgroundPosition: null,
+  textBackgroundSize: null,
+  textBackgroundRepeat: null,
+  textBackgroundPadding: null,
+  textBackgroundRadius: null,
+  textSubtitleBackgroundColor: null,
+  textSubtitleBackgroundImage: null,
+  textSubtitleBackgroundEffect: null,
+  textSubtitleBackgroundPosition: null,
+  textSubtitleBackgroundSize: null,
+  textSubtitleBackgroundRepeat: null,
+  textSubtitleBackgroundPadding: null,
+  textSubtitleBackgroundRadius: null,
   // Used to specify whether the block should be displayed or not
   // when an addon is present
   profiles: null,
@@ -170,6 +202,38 @@ export const applicationModel = {
   textSubtitleFontSize: null,
   textSubtitleFontWeight: null,
   textSubtitleFontStyle: null,
+  textTitleBackgroundColor: null,
+  textTitleBackgroundImage: null,
+  textTitleBackgroundEffect: null,
+  textTitleBackgroundPosition: null,
+  textTitleBackgroundSize: null,
+  textTitleBackgroundRepeat: null,
+  textTitleBackgroundPadding: null,
+  textTitleBackgroundRadius: null,
+  textHeaderBackgroundColor: null,
+  textHeaderBackgroundImage: null,
+  textHeaderBackgroundEffect: null,
+  textHeaderBackgroundPosition: null,
+  textHeaderBackgroundSize: null,
+  textHeaderBackgroundRepeat: null,
+  textHeaderBackgroundPadding: null,
+  textHeaderBackgroundRadius: null,
+  textBackgroundColor: null,
+  textBackgroundImage: null,
+  textBackgroundEffect: null,
+  textBackgroundPosition: null,
+  textBackgroundSize: null,
+  textBackgroundRepeat: null,
+  textBackgroundPadding: null,
+  textBackgroundRadius: null,
+  textSubtitleBackgroundColor: null,
+  textSubtitleBackgroundImage: null,
+  textSubtitleBackgroundEffect: null,
+  textSubtitleBackgroundPosition: null,
+  textSubtitleBackgroundSize: null,
+  textSubtitleBackgroundRepeat: null,
+  textSubtitleBackgroundPadding: null,
+  textSubtitleBackgroundRadius: null,
   accessPermissions: ['Everyone'],
 };
 
@@ -386,6 +450,38 @@ export function applyContainerStyle(container, containerStyle) {
   Vue.set(container, 'textSubtitleFontSize', containerStyle.textSubtitleFontSize || null);
   Vue.set(container, 'textSubtitleFontWeight', containerStyle.textSubtitleFontWeight || null);
   Vue.set(container, 'textSubtitleFontStyle', containerStyle.textSubtitleFontStyle || null);
+  Vue.set(container, 'textTitleBackgroundColor', containerStyle.textTitleBackgroundColor || null);
+  Vue.set(container, 'textTitleBackgroundImage', containerStyle.textTitleBackgroundImage || null);
+  Vue.set(container, 'textTitleBackgroundEffect', containerStyle.textTitleBackgroundEffect || null);
+  Vue.set(container, 'textTitleBackgroundPosition', containerStyle.textTitleBackgroundPosition || null);
+  Vue.set(container, 'textTitleBackgroundSize', containerStyle.textTitleBackgroundSize || null);
+  Vue.set(container, 'textTitleBackgroundRepeat', containerStyle.textTitleBackgroundRepeat || null);
+  Vue.set(container, 'textTitleBackgroundPadding', containerStyle.textTitleBackgroundPadding || null);
+  Vue.set(container, 'textTitleBackgroundRadius', containerStyle.textTitleBackgroundRadius || null);
+  Vue.set(container, 'textHeaderBackgroundColor', containerStyle.textHeaderBackgroundColor || null);
+  Vue.set(container, 'textHeaderBackgroundImage', containerStyle.textHeaderBackgroundImage || null);
+  Vue.set(container, 'textHeaderBackgroundEffect', containerStyle.textHeaderBackgroundEffect || null);
+  Vue.set(container, 'textHeaderBackgroundPosition', containerStyle.textHeaderBackgroundPosition || null);
+  Vue.set(container, 'textHeaderBackgroundSize', containerStyle.textHeaderBackgroundSize || null);
+  Vue.set(container, 'textHeaderBackgroundRepeat', containerStyle.textHeaderBackgroundRepeat || null);
+  Vue.set(container, 'textHeaderBackgroundPadding', containerStyle.textHeaderBackgroundPadding || null);
+  Vue.set(container, 'textHeaderBackgroundRadius', containerStyle.textHeaderBackgroundRadius || null);
+  Vue.set(container, 'textBackgroundColor', containerStyle.textBackgroundColor || null);
+  Vue.set(container, 'textBackgroundImage', containerStyle.textBackgroundImage || null);
+  Vue.set(container, 'textBackgroundEffect', containerStyle.textBackgroundEffect || null);
+  Vue.set(container, 'textBackgroundPosition', containerStyle.textBackgroundPosition || null);
+  Vue.set(container, 'textBackgroundSize', containerStyle.textBackgroundSize || null);
+  Vue.set(container, 'textBackgroundRepeat', containerStyle.textBackgroundRepeat || null);
+  Vue.set(container, 'textBackgroundPadding', containerStyle.textBackgroundPadding || null);
+  Vue.set(container, 'textBackgroundRadius', containerStyle.textBackgroundRadius || null);
+  Vue.set(container, 'textSubtitleBackgroundColor', containerStyle.textSubtitleBackgroundColor || null);
+  Vue.set(container, 'textSubtitleBackgroundImage', containerStyle.textSubtitleBackgroundImage || null);
+  Vue.set(container, 'textSubtitleBackgroundEffect', containerStyle.textSubtitleBackgroundEffect || null);
+  Vue.set(container, 'textSubtitleBackgroundPosition', containerStyle.textSubtitleBackgroundPosition || null);
+  Vue.set(container, 'textSubtitleBackgroundSize', containerStyle.textSubtitleBackgroundSize || null);
+  Vue.set(container, 'textSubtitleBackgroundRepeat', containerStyle.textSubtitleBackgroundRepeat || null);
+  Vue.set(container, 'textSubtitleBackgroundPadding', containerStyle.textSubtitleBackgroundPadding || null);
+  Vue.set(container, 'textSubtitleBackgroundRadius', containerStyle.textSubtitleBackgroundRadius || null);
 }
 
 export function parseSite(layout) {

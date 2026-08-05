@@ -118,6 +118,14 @@ export default {
       type: Boolean,
       default: false,
     },
+    // When set, margin is read/written as a plain "T R B L" CSS shorthand
+    // string on container[field] instead of an opaque cssClass token
+    // (used for per-text-type backgrounds, which don't need the separate
+    // background-layer positioning that the opaque tokens exist for).
+    field: {
+      type: String,
+      default: null,
+    },
   },
   data: () => ({
     container: null,
@@ -175,7 +183,18 @@ export default {
   },
   created() {
     this.container = this.value;
-    const values = this.$applicationUtils.parseBackgroundLayerValues(this.container.cssClass) || {};
+    let values;
+    if (this.field) {
+      const parts = (this.container[this.field] || '').trim().split(/\s+/).map(v => parseInt(v) || 0);
+      values = {
+        marginTop: parts[0] || 0,
+        marginRight: parts[1] || 0,
+        marginBottom: parts[2] || 0,
+        marginLeft: parts[3] || 0,
+      };
+    } else {
+      values = this.$applicationUtils.parseBackgroundLayerValues(this.container.cssClass) || {};
+    }
     this.marginTop = values.marginTop || 0;
     this.marginRight = values.marginRight || 0;
     this.marginBottom = values.marginBottom || 0;
@@ -184,17 +203,23 @@ export default {
       this.marginTop === this.marginRight
       && this.marginRight === this.marginLeft
       && this.marginLeft === this.marginBottom ? 'same' : 'different';
-    this.enabled = this.marginChoice !== 'same' || this.marginTop !== 0;
+    this.enabled = this.field ? !!this.container[this.field] : (this.marginChoice !== 'same' || this.marginTop !== 0);
     this.$nextTick().then(() => this.initialized = true);
   },
   methods: {
     save() {
-      this.$applicationUtils.setBackgroundLayerValues(this.container, {
-        marginTop: this.enabled ? (this.marginTop || 0) : null,
-        marginRight: this.enabled ? (this.marginRight || 0) : null,
-        marginBottom: this.enabled ? (this.marginBottom || 0) : null,
-        marginLeft: this.enabled ? (this.marginLeft || 0) : null,
-      });
+      if (this.field) {
+        this.$set(this.container, this.field, this.enabled
+          ? `${this.marginTop || 0}px ${this.marginRight || 0}px ${this.marginBottom || 0}px ${this.marginLeft || 0}px`
+          : null);
+      } else {
+        this.$applicationUtils.setBackgroundLayerValues(this.container, {
+          marginTop: this.enabled ? (this.marginTop || 0) : null,
+          marginRight: this.enabled ? (this.marginRight || 0) : null,
+          marginBottom: this.enabled ? (this.marginBottom || 0) : null,
+          marginLeft: this.enabled ? (this.marginLeft || 0) : null,
+        });
+      }
       this.$emit('refresh');
     },
   },
