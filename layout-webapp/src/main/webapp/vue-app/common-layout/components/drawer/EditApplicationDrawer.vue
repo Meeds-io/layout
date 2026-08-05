@@ -268,6 +268,38 @@ export default {
         textSubtitleFontSize: this.container?.textSubtitleFontSize || null,
         textSubtitleFontWeight: this.container?.textSubtitleFontWeight || null,
         textSubtitleFontStyle: this.container?.textSubtitleFontStyle || null,
+        textTitleBackgroundColor: this.container?.textTitleBackgroundColor || null,
+        textTitleBackgroundImage: this.container?.textTitleBackgroundImage || null,
+        textTitleBackgroundEffect: this.container?.textTitleBackgroundEffect || null,
+        textTitleBackgroundPosition: this.container?.textTitleBackgroundPosition || null,
+        textTitleBackgroundSize: this.container?.textTitleBackgroundSize || null,
+        textTitleBackgroundRepeat: this.container?.textTitleBackgroundRepeat || null,
+        textTitleBackgroundPadding: this.container?.textTitleBackgroundPadding || null,
+        textTitleBackgroundRadius: this.container?.textTitleBackgroundRadius || null,
+        textHeaderBackgroundColor: this.container?.textHeaderBackgroundColor || null,
+        textHeaderBackgroundImage: this.container?.textHeaderBackgroundImage || null,
+        textHeaderBackgroundEffect: this.container?.textHeaderBackgroundEffect || null,
+        textHeaderBackgroundPosition: this.container?.textHeaderBackgroundPosition || null,
+        textHeaderBackgroundSize: this.container?.textHeaderBackgroundSize || null,
+        textHeaderBackgroundRepeat: this.container?.textHeaderBackgroundRepeat || null,
+        textHeaderBackgroundPadding: this.container?.textHeaderBackgroundPadding || null,
+        textHeaderBackgroundRadius: this.container?.textHeaderBackgroundRadius || null,
+        textBackgroundColor: this.container?.textBackgroundColor || null,
+        textBackgroundImage: this.container?.textBackgroundImage || null,
+        textBackgroundEffect: this.container?.textBackgroundEffect || null,
+        textBackgroundPosition: this.container?.textBackgroundPosition || null,
+        textBackgroundSize: this.container?.textBackgroundSize || null,
+        textBackgroundRepeat: this.container?.textBackgroundRepeat || null,
+        textBackgroundPadding: this.container?.textBackgroundPadding || null,
+        textBackgroundRadius: this.container?.textBackgroundRadius || null,
+        textSubtitleBackgroundColor: this.container?.textSubtitleBackgroundColor || null,
+        textSubtitleBackgroundImage: this.container?.textSubtitleBackgroundImage || null,
+        textSubtitleBackgroundEffect: this.container?.textSubtitleBackgroundEffect || null,
+        textSubtitleBackgroundPosition: this.container?.textSubtitleBackgroundPosition || null,
+        textSubtitleBackgroundSize: this.container?.textSubtitleBackgroundSize || null,
+        textSubtitleBackgroundRepeat: this.container?.textSubtitleBackgroundRepeat || null,
+        textSubtitleBackgroundPadding: this.container?.textSubtitleBackgroundPadding || null,
+        textSubtitleBackgroundRadius: this.container?.textSubtitleBackgroundRadius || null,
         height: this.container?.height || null,
         ...this.backgroundProperties,
         hiddenOnMobile: this.viewOption === 'hideMobile',
@@ -307,7 +339,16 @@ export default {
   methods: {
     open(section, container, applicationTitle) {
       this.initialized = false;
-      Object.assign(container, Object.assign({...this.$layoutUtils.applicationModel}, container));
+      // Vue.set (not Object.assign) so that fields introduced after this
+      // container/application was first made reactive (e.g. by an older
+      // saved layout predating a newer applicationModel field) are properly
+      // tracked - Object.assign adding a brand new key to an already
+      // observed object doesn't make Vue react to further changes on it.
+      Object.keys(this.$layoutUtils.applicationModel).forEach(key => {
+        if (!Object.hasOwn(container, key)) {
+          this.$set(container, key, this.$layoutUtils.applicationModel[key]);
+        }
+      });
       this.section = section;
       this.container = container;
       this.section = section;
