@@ -38,7 +38,7 @@
         v-show="hover"
         :aria-label="$t('layout.add')"
         :class="$vuetify.rtl && 'l-0' || 'r-0'"
-        class="position-absolute t-0 mt-4 me-4"
+        class="position-absolute t-0 mt-4 me-4 z-index-one"
         icon
         @click.stop="$emit('add')">
         <v-icon size="24" color="primary">fa-plus</v-icon>
