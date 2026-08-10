@@ -707,15 +707,4 @@ function setTextBackgroundPaddingSides(style, cssVarPrefix, padding) {
   style[`--${cssVarPrefix}Right`] = right;
   style[`--${cssVarPrefix}Bottom`] = bottom;
   style[`--${cssVarPrefix}Left`] = left;
-  // Elements this background paints on can also carry Vuetify's
-  // .text-truncate (overflow: hidden, for ellipsis), which clips the
-  // ::before layer above whenever a margin pushes it outside the box
-  // (EXIP-88488). The CSS side switches that to overflow: clip with an
-  // overflow-clip-margin sized to the largest configured side, computed
-  // here rather than via a CSS max()/var() expression because
-  // overflow-clip-margin doesn't reliably resolve a computed max() of
-  // multiple custom properties across browsers - a single pre-resolved
-  // var() substitution is the best-supported shape for that property.
-  const clipMargin = Math.max(0, parseFloat(top) || 0, parseFloat(right) || 0, parseFloat(bottom) || 0, parseFloat(left) || 0);
-  style[`--${cssVarPrefix}ClipMargin`] = `${clipMargin}px`;
 }

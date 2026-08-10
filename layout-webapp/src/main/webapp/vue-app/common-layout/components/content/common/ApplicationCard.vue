@@ -46,14 +46,17 @@
       <div class="d-flex flex-column border-box-sizing full-height full-width pa-5">
         <div
           :title="name"
-          class="flex-grow-0 flex-shrink-0 subtitle-1 text-truncate-2 text-color">
-          {{ name }}
+          class="flex-grow-0 flex-shrink-0 subtitle-1 text-color">
+          <span class="text-truncate-2">{{ name }}</span>
         </div>
         <div
           v-if="description"
-          v-sanitized-html="description"
           :title="$utils.htmlToText(description)"
-          class="flex-grow-0 flex-shrink-0 text-truncate-2 pt-0 text-subtitle"></div>
+          class="flex-grow-0 flex-shrink-0 pt-0 text-subtitle">
+          <span
+            v-sanitized-html="description"
+            class="text-truncate-2"></span>
+        </div>
         <div class="d-flex flex-grow-1 flex-shrink-1 justify-center mt-2 overflow-hidden">
           <layout-image-illustration
             ref="illustration"
