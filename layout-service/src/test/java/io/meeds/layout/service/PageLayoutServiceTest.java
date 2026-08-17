@@ -67,6 +67,7 @@ import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.pom.spi.portlet.Portlet;
+import org.exoplatform.services.listener.ListenerService;
 
 import io.meeds.layout.model.PageCreateModel;
 import io.meeds.layout.model.PageTemplate;
@@ -109,6 +110,9 @@ public class PageLayoutServiceTest {
 
   @MockBean
   private PortletInstanceService  portletInstanceService;
+
+  @MockBean
+  private ListenerService         listenerService;
 
   @Autowired
   private PageLayoutService       pageLayoutService;
@@ -320,6 +324,7 @@ public class PageLayoutServiceTest {
                                argThat(p -> p.getAccessPermissions()[0].equals(sitePermission)
                                             && p.getEditPermission().equals(siteEditPermission)
                                             && p.getTitle().equals(pageTitle)));
+    verify(listenerService).broadcast(eq(PageLayoutService.PAGE_UPDATED_EVENT), eq(TEST_USER), any());
 
     String pagePermission = "page permission";
     when(pageModel.getAccessPermissions()).thenReturn(new String[] { pagePermission });
@@ -414,6 +419,7 @@ public class PageLayoutServiceTest {
 
     pageLayoutService.updatePageApplicationPreferences(PAGE_KEY, 2l, preferences, TEST_USER);
     verify(layoutService).save(eq(state), argThat(prefs -> prefs.getValue("name").equals("value")));
+    verify(listenerService).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, PAGE_KEY.format());
   }
 
   @Test
@@ -508,6 +514,7 @@ public class PageLayoutServiceTest {
     verify(pageState).setEditPermission(editPermission);
     verify(pageContext).setState(pageState);
     verify(layoutService).save(pageContext);
+    verify(listenerService).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, PAGE_KEY.format());
   }
 
   @Test
