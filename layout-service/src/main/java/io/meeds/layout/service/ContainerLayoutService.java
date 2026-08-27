@@ -70,8 +70,6 @@ import lombok.SneakyThrows;
 @Service
 public class ContainerLayoutService {
 
-  private static final String    CONTAINER_BACKGROUND_IMAGE_URI = String.format("/%s/", OBJECT_TYPE);
-
   private record TextBackgroundImageField(Function<ModelStyle, String> getter,
                                            BiConsumer<ModelStyle, String> setter,
                                            String objectType) {
@@ -209,10 +207,6 @@ public class ContainerLayoutService {
     return String.format("%s_%s",
                          page.getStorageId().replace("page_", ""),
                          container.getStorageId());
-  }
-
-  private String buildBackgroundUrl(String objectId, ObjectAttachmentDetail attachment) {
-    return buildBackgroundUrl(objectId, attachment, OBJECT_TYPE);
   }
 
   private String buildBackgroundUrl(String objectId, ObjectAttachmentDetail attachment, String objectType) {

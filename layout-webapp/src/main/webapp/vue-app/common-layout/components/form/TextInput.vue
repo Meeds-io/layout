@@ -146,11 +146,6 @@
           class="my-auto" />
       </v-list-item-action>
     </v-list-item>
-    <layout-editor-text-background-input
-      v-if="enabled"
-      v-model="container"
-      type-prefix=""
-      class="mb-4" />
     <v-list-item
       v-if="enabled"
       class="pa-0"
@@ -186,11 +181,6 @@
           class="my-auto" />
       </v-list-item-action>
     </v-list-item>
-    <layout-editor-text-background-input
-      v-if="enabled"
-      v-model="container"
-      type-prefix="Subtitle"
-      class="mb-4" />
   </div>
 </template>
 <script>

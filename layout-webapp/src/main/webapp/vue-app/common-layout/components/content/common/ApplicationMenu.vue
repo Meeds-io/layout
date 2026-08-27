@@ -20,77 +20,75 @@
 
 -->
 <template>
-  <div>
-    <v-fade-transition>
+  <v-fade-transition>
+    <div
+      v-show="menu"
+      class="position-sticky t-20 z-index-drawer mx-auto">
       <div
-        v-show="menu"
-        class="position-sticky t-20 z-index-drawer mx-auto">
-        <div
-          ref="menu"
-          class="layout-no-multi-select absolute-horizontal-center z-index-drawer t-0 mt-n4">
-          <v-chip color="white" class="elevation-2 no-border">
-            <v-tooltip bottom>
-              <template #activator="{on, attrs}">
-                <v-btn
-                  v-show="$root.desktopDisplayMode"
-                  v-on="on"
-                  v-bind="attrs"
-                  :aria-label="$t('layout.moveCell')"
-                  :width="iconSize"
-                  :height="iconSize"
-                  class="draggable-cell ms-2"
-                  icon
-                  @mousedown="dragStart"
-                  @mouseup="dragEnd">
-                  <v-icon :size="iconSize" class="icon-default-color">fa-arrows-alt</v-icon>
-                </v-btn>
-              </template>
-              {{ $t('layout.moveCell') }}
-            </v-tooltip>
-            <v-tooltip bottom>
-              <template #activator="{on, attrs}">
-                <v-btn
-                  v-on="on"
-                  v-bind="attrs"
-                  :aria-label="$t('layout.editApplication')"
-                  :width="iconSize"
-                  :height="iconSize"
-                  class="mx-4"
-                  icon
-                  @click.prevent.stop="$root.$emit('layout-edit-application', sectionId, container, applicationTitle)">
-                  <v-icon :size="iconSize" class="icon-default-color">fa-edit</v-icon>
-                </v-btn>
-              </template>
-              {{ $t('layout.editApplication') }}
-            </v-tooltip>
-            <v-tooltip bottom>
-              <template #activator="{on, attrs}">
-                <v-btn
-                  v-on="on"
-                  v-bind="attrs"
-                  :aria-label="$t('layout.deleteApplication')"
-                  :width="iconSize"
-                  :height="iconSize"
-                  class="me-2"
-                  icon
-                  @click.prevent.stop="deleteApplication">
-                  <v-icon :size="iconSize" class="icon-default-color">fa-trash</v-icon>
-                </v-btn>
-              </template>
-              {{ $t('layout.deleteApplication') }}
-            </v-tooltip>
-          </v-chip>
-        </div>
+        ref="menu"
+        class="layout-no-multi-select absolute-horizontal-center z-index-drawer t-0 mt-n4">
+        <v-chip color="white" class="elevation-2 no-border">
+          <v-tooltip bottom>
+            <template #activator="{on, attrs}">
+              <v-btn
+                v-show="$root.desktopDisplayMode"
+                v-on="on"
+                v-bind="attrs"
+                :aria-label="$t('layout.moveCell')"
+                :width="iconSize"
+                :height="iconSize"
+                class="draggable-cell ms-2"
+                icon
+                @mousedown="dragStart"
+                @mouseup="dragEnd">
+                <v-icon :size="iconSize" class="icon-default-color">fa-arrows-alt</v-icon>
+              </v-btn>
+            </template>
+            {{ $t('layout.moveCell') }}
+          </v-tooltip>
+          <v-tooltip bottom>
+            <template #activator="{on, attrs}">
+              <v-btn
+                v-on="on"
+                v-bind="attrs"
+                :aria-label="$t('layout.editApplication')"
+                :width="iconSize"
+                :height="iconSize"
+                class="mx-4"
+                icon
+                @click.prevent.stop="$root.$emit('layout-edit-application', sectionId, container, applicationTitle)">
+                <v-icon :size="iconSize" class="icon-default-color">fa-edit</v-icon>
+              </v-btn>
+            </template>
+            {{ $t('layout.editApplication') }}
+          </v-tooltip>
+          <v-tooltip bottom>
+            <template #activator="{on, attrs}">
+              <v-btn
+                v-on="on"
+                v-bind="attrs"
+                :aria-label="$t('layout.deleteApplication')"
+                :width="iconSize"
+                :height="iconSize"
+                class="me-2"
+                icon
+                @click.prevent.stop="deleteApplication">
+                <v-icon :size="iconSize" class="icon-default-color">fa-trash</v-icon>
+              </v-btn>
+            </template>
+            {{ $t('layout.deleteApplication') }}
+          </v-tooltip>
+        </v-chip>
       </div>
-    </v-fade-transition>
-    <exo-confirm-dialog
-      ref="deleteApplicationConfirmDialog"
-      :title="$t('layout.deleteApplicationConfirmTitle')"
-      :message="$t('layout.deleteApplicationConfirmMessage')"
-      :ok-label="$t('layout.confirm')"
-      :cancel-label="$t('layout.cancel')"
-      @ok="emitDeleteApplication" />
-  </div>
+      <exo-confirm-dialog
+        ref="deleteApplicationConfirmDialog"
+        :title="$t('layout.deleteApplicationConfirmTitle')"
+        :message="$t('layout.deleteApplicationConfirmMessage')"
+        :ok-label="$t('layout.confirm')"
+        :cancel-label="$t('layout.cancel')"
+        @ok="emitDeleteApplication" />
+    </div>
+  </v-fade-transition>
 </template>
 <script>
 export default {
