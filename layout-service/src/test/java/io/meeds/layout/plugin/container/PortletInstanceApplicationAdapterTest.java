@@ -35,7 +35,7 @@ import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.application.PortalRequestContext;
@@ -56,7 +56,7 @@ public class PortletInstanceApplicationAdapterTest {
 
   private static final String               USERNAME = "username";
 
-  @MockBean
+  @MockitoBean
   private PortletInstanceService            portletInstanceService;
 
   @Mock

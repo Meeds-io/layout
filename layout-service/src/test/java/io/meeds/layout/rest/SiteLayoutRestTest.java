@@ -36,10 +36,10 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureWebMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureWebMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.SecurityFilterChain;
@@ -103,13 +103,13 @@ public class SiteLayoutRestTest {
   private static final String   RESTORE_LAYOUT_PARAMS         = "siteType=DRAFT&siteName=" + SITE_NAME +
       "&importMode=INSERT&siteLayout=true&pagesLayout=true&navigation=true";
 
-  @MockBean
+  @MockitoBean
   private SiteLayoutService     siteLayoutService;
 
-  @MockBean
+  @MockitoBean
   private LayoutService         layoutService;
 
-  @MockBean
+  @MockitoBean
   private UserPortalConfigService portalConfigService;
 
   @Autowired

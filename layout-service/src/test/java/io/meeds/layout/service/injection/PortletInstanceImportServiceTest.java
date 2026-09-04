@@ -25,7 +25,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.commons.api.settings.SettingService;
 import org.exoplatform.container.configuration.ConfigurationManager;
@@ -39,25 +39,25 @@ import io.meeds.layout.service.PortletService;
 @ExtendWith(MockitoExtension.class)
 public class PortletInstanceImportServiceTest {
 
-  @MockBean
+  @MockitoBean
   private LayoutAclService               layoutAclService;
 
-  @MockBean
+  @MockitoBean
   private LayoutTranslationImportService layoutTranslationService;
 
-  @MockBean
+  @MockitoBean
   private AttachmentService              attachmentService;
 
-  @MockBean
+  @MockitoBean
   private PortletInstanceService         portletInstanceService;
 
-  @MockBean
+  @MockitoBean
   private PortletService                 portletService;
 
-  @MockBean
+  @MockitoBean
   private SettingService                 settingService;
 
-  @MockBean
+  @MockitoBean
   private ConfigurationManager           configurationManager;
 
   @Autowired
