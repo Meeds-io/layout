@@ -77,13 +77,17 @@ export default {
   },
   methods: {
     async initDraftSite() {
-      if (this.$root.draftSiteId) {
-        this.$root.draftSite = await this.$siteLayoutService.getSiteById(this.$root.draftSiteId);
-      } else {
-        this.$root.draftSite = await this.$siteLayoutService.createDraftSite(this.$root.siteType, this.$root.siteName);
+      try {
+        if (this.$root.draftSiteId) {
+          this.$root.draftSite = await this.$siteLayoutService.getSiteById(this.$root.draftSiteId);
+        } else {
+          this.$root.draftSite = await this.$siteLayoutService.createDraftSite(this.$root.siteType, this.$root.siteName);
+        }
+        this.$root.draftSiteId = this.$root.draftSite.siteId;
+        this.layout = await this.$siteLayoutService.getSiteLayout(this.$root.draftSiteType, this.$root.draftSiteName, 'contentId');
+      } catch (e) {
+        this.handleLoadError(e);
       }
-      this.$root.draftSiteId = this.$root.draftSite.siteId;
-      this.layout = await this.$siteLayoutService.getSiteLayout(this.$root.draftSiteType, this.$root.draftSiteName, 'contentId');
     },
     cancelEditSite() {
       this.stopLoading();
@@ -91,6 +95,10 @@ export default {
     },
     stopLoading() {
       document.dispatchEvent(new CustomEvent('hideTopBarLoading'));
+    },
+    handleLoadError(e) {
+      this.$root.$emit('alert-message', this.$te(e?.message) ? this.$t(e.message) : this.$t('layout.siteSavingError'), 'error');
+      this.stopLoading();
     },
     deleteDraft() {
       this.$root.$emit('coediting-remove-revision');

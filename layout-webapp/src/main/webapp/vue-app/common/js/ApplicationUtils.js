@@ -17,6 +17,11 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+// Tracks whether getStyle() itself has overridden the site-level --allPagesBackground*
+// custom properties on <body>, so it only clears them when reverting its own override,
+// never when the site simply never had a background (see getStyle's siteStyle branch).
+let siteBackgroundOverridden = false;
+
 export function installApplication(navUri, applicationStorageId, applicationElement, applicationMode, showSite, fullRender) {
   return getApplicationContent(navUri, applicationStorageId, applicationMode, showSite, fullRender)
     .then(applicationContent => handleApplicationContent(applicationContent, applicationElement, applicationMode));
@@ -24,6 +29,10 @@ export function installApplication(navUri, applicationStorageId, applicationElem
 
 export function getStyle(container, options) {
   const style = {};
+  const backgroundLayerValues = !options.noBackgroundStyle && parseBackgroundLayerValues(container.cssClass);
+  if (backgroundLayerValues) {
+    style.position = 'relative';
+  }
   if (container.marginTop === 0
     || container.marginTop
     || container.marginBottom === 0
@@ -126,6 +135,110 @@ export function getStyle(container, options) {
   if (container.textSubtitleFontStyle) {
     style['--appTextSubtitleFontStyle'] = container.textSubtitleFontStyle;
   }
+  if (container.textTitleBackgroundColor) {
+    style['--appTextTitleBackgroundColor'] = container.textTitleBackgroundColor;
+  }
+  if (container.textTitleBackgroundImage) {
+    style['--appTextTitleBackgroundImage'] = `url(${container.textTitleBackgroundImage})`;
+  }
+  if (container.textTitleBackgroundEffect) {
+    style['--appTextTitleBackgroundImage'] = container.textTitleBackgroundImage
+      ? `url(${container.textTitleBackgroundImage}),${container.textTitleBackgroundEffect}`
+      : container.textTitleBackgroundEffect;
+  }
+  if (container.textTitleBackgroundPosition) {
+    style['--appTextTitleBackgroundPosition'] = container.textTitleBackgroundPosition;
+  }
+  if (container.textTitleBackgroundSize) {
+    style['--appTextTitleBackgroundSize'] = container.textTitleBackgroundSize;
+  }
+  if (container.textTitleBackgroundRepeat) {
+    style['--appTextTitleBackgroundRepeat'] = container.textTitleBackgroundRepeat;
+  }
+  if (container.textTitleBackgroundPadding) {
+    setTextBackgroundPaddingSides(style, 'appTextTitleBackgroundPadding', container.textTitleBackgroundPadding);
+  }
+  if (container.textTitleBackgroundRadius) {
+    style['--appTextTitleBackgroundRadius'] = container.textTitleBackgroundRadius;
+  }
+  if (container.textHeaderBackgroundColor) {
+    style['--appTextHeaderBackgroundColor'] = container.textHeaderBackgroundColor;
+  }
+  if (container.textHeaderBackgroundImage) {
+    style['--appTextHeaderBackgroundImage'] = `url(${container.textHeaderBackgroundImage})`;
+  }
+  if (container.textHeaderBackgroundEffect) {
+    style['--appTextHeaderBackgroundImage'] = container.textHeaderBackgroundImage
+      ? `url(${container.textHeaderBackgroundImage}),${container.textHeaderBackgroundEffect}`
+      : container.textHeaderBackgroundEffect;
+  }
+  if (container.textHeaderBackgroundPosition) {
+    style['--appTextHeaderBackgroundPosition'] = container.textHeaderBackgroundPosition;
+  }
+  if (container.textHeaderBackgroundSize) {
+    style['--appTextHeaderBackgroundSize'] = container.textHeaderBackgroundSize;
+  }
+  if (container.textHeaderBackgroundRepeat) {
+    style['--appTextHeaderBackgroundRepeat'] = container.textHeaderBackgroundRepeat;
+  }
+  if (container.textHeaderBackgroundPadding) {
+    setTextBackgroundPaddingSides(style, 'appTextHeaderBackgroundPadding', container.textHeaderBackgroundPadding);
+  }
+  if (container.textHeaderBackgroundRadius) {
+    style['--appTextHeaderBackgroundRadius'] = container.textHeaderBackgroundRadius;
+  }
+  if (container.textBackgroundColor) {
+    style['--appTextBackgroundColor'] = container.textBackgroundColor;
+  }
+  if (container.textBackgroundImage) {
+    style['--appTextBackgroundImage'] = `url(${container.textBackgroundImage})`;
+  }
+  if (container.textBackgroundEffect) {
+    style['--appTextBackgroundImage'] = container.textBackgroundImage
+      ? `url(${container.textBackgroundImage}),${container.textBackgroundEffect}`
+      : container.textBackgroundEffect;
+  }
+  if (container.textBackgroundPosition) {
+    style['--appTextBackgroundPosition'] = container.textBackgroundPosition;
+  }
+  if (container.textBackgroundSize) {
+    style['--appTextBackgroundSize'] = container.textBackgroundSize;
+  }
+  if (container.textBackgroundRepeat) {
+    style['--appTextBackgroundRepeat'] = container.textBackgroundRepeat;
+  }
+  if (container.textBackgroundPadding) {
+    setTextBackgroundPaddingSides(style, 'appTextBackgroundPadding', container.textBackgroundPadding);
+  }
+  if (container.textBackgroundRadius) {
+    style['--appTextBackgroundRadius'] = container.textBackgroundRadius;
+  }
+  if (container.textSubtitleBackgroundColor) {
+    style['--appTextSubtitleBackgroundColor'] = container.textSubtitleBackgroundColor;
+  }
+  if (container.textSubtitleBackgroundImage) {
+    style['--appTextSubtitleBackgroundImage'] = `url(${container.textSubtitleBackgroundImage})`;
+  }
+  if (container.textSubtitleBackgroundEffect) {
+    style['--appTextSubtitleBackgroundImage'] = container.textSubtitleBackgroundImage
+      ? `url(${container.textSubtitleBackgroundImage}),${container.textSubtitleBackgroundEffect}`
+      : container.textSubtitleBackgroundEffect;
+  }
+  if (container.textSubtitleBackgroundPosition) {
+    style['--appTextSubtitleBackgroundPosition'] = container.textSubtitleBackgroundPosition;
+  }
+  if (container.textSubtitleBackgroundSize) {
+    style['--appTextSubtitleBackgroundSize'] = container.textSubtitleBackgroundSize;
+  }
+  if (container.textSubtitleBackgroundRepeat) {
+    style['--appTextSubtitleBackgroundRepeat'] = container.textSubtitleBackgroundRepeat;
+  }
+  if (container.textSubtitleBackgroundPadding) {
+    setTextBackgroundPaddingSides(style, 'appTextSubtitleBackgroundPadding', container.textSubtitleBackgroundPadding);
+  }
+  if (container.textSubtitleBackgroundRadius) {
+    style['--appTextSubtitleBackgroundRadius'] = container.textSubtitleBackgroundRadius;
+  }
   if (!options.onlyBackgroundStyle) {
     if (container.height) {
       if (options.appStyle) {
@@ -196,9 +309,13 @@ export function getStyle(container, options) {
     }
   }
   if (!options.noBackgroundStyle
+    && !backgroundLayerValues
     && (container.backgroundImage
       || container.backgroundColor
       || container.backgroundEffect)) {
+    if (options.siteStyle) {
+      siteBackgroundOverridden = true;
+    }
     if (container.backgroundColor) {
       if (options.siteStyle) {
         document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
@@ -295,12 +412,30 @@ export function getStyle(container, options) {
         }
       }
     }
-  } else if (!options.noBackgroundStyle && options.siteStyle) {
+  } else if (backgroundLayerValues && options.isApplicationBackground) {
+    // The real visible application background paints on the descendant
+    // .PORTLET-FRAGMENT element (via these inherited custom properties, per
+    // the platform-ui-skin LESS rules), not on this element itself. Leaving
+    // them merely unset lets that descendant fall back to its own opaque
+    // default background, hiding the new background layer behind it -
+    // these must be explicitly cleared instead.
+    style['--appBackgroundColor'] = 'transparent';
+    style['--appBackgroundImage'] = 'none';
+    style['--appBackgroundRepeat'] = 'no-repeat';
+    style['--appBackgroundSize'] = 'unset';
+    style['--appBackgroundPosition'] = 'unset';
+  } else if (!options.noBackgroundStyle && !backgroundLayerValues && options.siteStyle && siteBackgroundOverridden) {
+    // Only clear these when a previous call on this same page actually set them:
+    // the server (UIPortalApplication.gtmpl) writes them as inline <body> style from
+    // the branding admin's default page background, and blindly removing them here
+    // on every render with no site-level override would wipe out that branding
+    // default instead of letting it show through.
     document.body.style.removeProperty('--allPagesBackgroundColor');
     document.body.style.removeProperty('--allPagesBackgroundImage');
     document.body.style.removeProperty('--allPagesBackgroundRepeat');
     document.body.style.removeProperty('--allPagesBackgroundSize');
     document.body.style.removeProperty('--allPagesBackgroundPosition');
+    siteBackgroundOverridden = false;
   }
   if (container.appBackgroundColor) {
     style['--appBackgroundColor'] = container.appBackgroundColor;
@@ -334,6 +469,97 @@ export function getStyle(container, options) {
   }
   if (container.radiusBottomLeft || container.radiusBottomLeft === 0) {
     style['--appBorderRadiusBottomLeft'] = `${container.radiusBottomLeft}px`;
+  }
+  return style;
+}
+
+// Background margin/radius (EXIP-88427) can't be stored as dedicated ModelStyle
+// fields since ModelStyle is an external org.exoplatform.portal class we can't
+// extend from this repo, so the 8 values are opaquely encoded as cssClass tokens
+// (same pattern already used to mirror marginTop/radiusTopRight into mt-/brtr-
+// classes, under a prefix that can't collide with those).
+const BACKGROUND_LAYER_TOKEN_PREFIXES = {
+  marginTop: 'layout-bg-margin-top',
+  marginRight: 'layout-bg-margin-right',
+  marginBottom: 'layout-bg-margin-bottom',
+  marginLeft: 'layout-bg-margin-left',
+  radiusTopRight: 'layout-bg-radius-tr',
+  radiusTopLeft: 'layout-bg-radius-tl',
+  radiusBottomRight: 'layout-bg-radius-br',
+  radiusBottomLeft: 'layout-bg-radius-bl',
+};
+
+export function parseBackgroundLayerValues(cssClass) {
+  if (!cssClass) {
+    return null;
+  }
+  const values = {};
+  let found = false;
+  Object.entries(BACKGROUND_LAYER_TOKEN_PREFIXES).forEach(([key, prefix]) => {
+    const match = cssClass.match(new RegExp(`(?:^| )${prefix}-([0-9]+)(?: |$)`));
+    if (match) {
+      values[key] = parseInt(match[1]);
+      found = true;
+    }
+  });
+  return found ? values : null;
+}
+
+export function setBackgroundLayerValues(container, partialValues) {
+  // Merge with whatever's already encoded so that the margin component's
+  // writes never clobber the radius component's tokens (and vice-versa) -
+  // each only knows about its own 4 values, not the other's.
+  const values = { ...parseBackgroundLayerValues(container.cssClass), ...partialValues };
+  const prefixesPattern = Object.values(BACKGROUND_LAYER_TOKEN_PREFIXES).join('|');
+  let cssClass = (container.cssClass || '').replace(new RegExp(`(^| )(${prefixesPattern})-[0-9]+`, 'g'), '').replace(/ {2,}/g, ' ').trim();
+  Object.entries(BACKGROUND_LAYER_TOKEN_PREFIXES).forEach(([key, prefix]) => {
+    if (values[key] || values[key] === 0) {
+      cssClass += ` ${prefix}-${values[key]}`;
+    }
+  });
+  container.cssClass = cssClass.trim();
+}
+
+export function getBackgroundLayerStyle(container, options) {
+  if (options?.noBackgroundStyle) {
+    return null;
+  }
+  const values = parseBackgroundLayerValues(container?.cssClass);
+  if (!values) {
+    return null;
+  }
+  const style = {
+    position: 'absolute',
+    top: `${values.marginTop || 0}px`,
+    right: `${values.marginRight || 0}px`,
+    bottom: `${values.marginBottom || 0}px`,
+    left: `${values.marginLeft || 0}px`,
+    'border-radius': `${values.radiusTopLeft || 0}px ${values.radiusTopRight || 0}px ${values.radiusBottomRight || 0}px ${values.radiusBottomLeft || 0}px`,
+    'z-index': -1,
+    'pointer-events': 'none',
+  };
+  if (container.backgroundColor) {
+    style['background-color'] = container.backgroundColor.includes?.('@') ? container.backgroundColor.split('@')[0] : container.backgroundColor;
+  } else if (container.backgroundEffect || container.backgroundImage) {
+    style['background-color'] = 'transparent';
+  }
+  if (container.backgroundEffect && container.backgroundImage) {
+    style['background-image'] = `url(${container.backgroundImage}),${container.backgroundEffect}`;
+  } else if (container.backgroundImage) {
+    style['background-image'] = `url(${container.backgroundImage})`;
+  } else if (container.backgroundEffect) {
+    style['background-image'] = container.backgroundEffect;
+  }
+  if (container.backgroundImage) {
+    if (container.backgroundRepeat) {
+      style['background-repeat'] = container.backgroundRepeat;
+    }
+    if (container.backgroundSize) {
+      style['background-size'] = container.backgroundSize;
+    }
+    if (container.backgroundPosition) {
+      style['background-position'] = container.backgroundPosition;
+    }
   }
   return style;
 }
@@ -467,4 +693,18 @@ function cloneScriptElement(node) {
 
 function hasUnit(length) {
   return Number.isNaN(Number(length));
+}
+
+// The text background "Margin" option insets the background layer away from
+// the text edges without moving the text itself (same intent as the
+// dedicated app/section background layer from EXIP-88427), so it's painted
+// on a ::before positioned behind the text via negative top/right/bottom/left
+// offsets - which needs each side split out instead of the single CSS
+// padding shorthand string the value is stored/edited as.
+function setTextBackgroundPaddingSides(style, cssVarPrefix, padding) {
+  const [top, right, bottom, left] = padding.trim().split(/\s+/);
+  style[`--${cssVarPrefix}Top`] = top;
+  style[`--${cssVarPrefix}Right`] = right;
+  style[`--${cssVarPrefix}Bottom`] = bottom;
+  style[`--${cssVarPrefix}Left`] = left;
 }

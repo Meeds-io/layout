@@ -22,7 +22,10 @@ import BorderRadiusSelector from './components/form/BorderRadiusSelector.vue';
 import ColorPicker from './components/form/ColorPicker.vue';
 import BackgroundImageAttachment from './components/form/BackgroundImageAttachment.vue';
 import BackgroundInput from './components/form/BackgroundInput.vue';
+import BackgroundMarginInput from './components/form/BackgroundMarginInput.vue';
+import BackgroundRadiusInput from './components/form/BackgroundRadiusInput.vue';
 import TextInput from './components/form/TextInput.vue';
+import TextBackgroundInput from './components/form/TextBackgroundInput.vue';
 import MarginInput from './components/form/MarginInput.vue';
 import SectionMarginInput from './components/form/SectionMarginInput.vue';
 import BorderInput from './components/form/BorderInput.vue';
@@ -84,7 +87,10 @@ const components = {
   'layout-editor-portlet-edit-dialog': EditPortletDialog,
   'layout-editor-background-image-attachment': BackgroundImageAttachment,
   'layout-editor-background-input': BackgroundInput,
+  'layout-editor-background-margin-input': BackgroundMarginInput,
+  'layout-editor-background-radius-input': BackgroundRadiusInput,
   'layout-editor-text-input': TextInput,
+  'layout-editor-text-background-input': TextBackgroundInput,
   'layout-editor-margin-input': MarginInput,
   'layout-editor-section-margin-input': SectionMarginInput,
   'layout-editor-border-input': BorderInput,

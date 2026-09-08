@@ -20,7 +20,7 @@
 
 -->
 <template>
-  <v-hover v-model="hoverButton" :disabled="$root.mobileDisplayMode">
+  <v-hover v-model="hoverButton">
     <div
       v-show="display || hoverButton"
       :style="rightButtonStyle"
@@ -44,7 +44,7 @@
             </template>
             {{ $t('layout.editSection') }}
           </v-tooltip>
-          <v-tooltip v-if="$root.isAdministrator" bottom>
+          <v-tooltip bottom>
             <template #activator="{on, attrs}">
               <div
                 v-on="on"
@@ -123,7 +123,7 @@ export default {
     },
     rightButtonStyle() {
       return {
-        right: 'calc(50% - min(50%, var(--allPagesWidth, 1320px) / 2) - 16px)',
+        right: this.$root.pageFullWindow && '4px' || 'calc(50% - min(50%, var(--allPagesWidth, 1320px) / 2) - 16px)',
       };
     },
   },

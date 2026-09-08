@@ -50,8 +50,11 @@
             class="white--text mb-1 font-weight-regular text-truncate-2"></p>
           <p
             v-if="description"
-            v-sanitized-html="description"
-            class="white--text mb-0 text-subtitle text-truncate-3"></p>
+            class="white--text mb-0 text-subtitle">
+            <span
+              v-sanitized-html="description"
+              class="text-truncate-3"></span>
+          </p>
           <div class="d-flex flex-grow-1 align-end justify-end">
             <v-btn
               small

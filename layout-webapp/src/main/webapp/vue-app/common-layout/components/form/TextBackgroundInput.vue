@@ -21,12 +21,8 @@
 <template>
   <div>
     <div class="d-flex align-center">
-      <slot v-if="$slots.title" name="title"></slot>
-      <div
-        v-else
-        :class="textBold && 'font-weight-bold' || 'text-header'"
-        class="me-auto">
-        {{ $t('layout.background') }}
+      <div class="me-auto">
+        {{ $t('layout.textBackground') }}
       </div>
       <v-switch
         v-model="enabled"
@@ -126,29 +122,19 @@
         </v-radio-group>
       </v-list-item-content>
       <v-list-item-action
-        :class="choice === 'color' && !scrollColor && 'mb-auto' || 'my-auto'"
+        :class="choice === 'color' && 'mb-auto' || 'my-auto'"
         class="me-0 ms-auto">
         <layout-editor-color-picker
-          v-if="choice === 'color' && !scrollColor"
-          v-model="container.backgroundColor"
+          v-if="choice === 'color'"
+          v-model="color"
           class="my-auto" />
-        <div v-else-if="choice === 'color' && scrollColor">
-          <layout-editor-color-picker
-            v-model="backgroundScrollTop"
-            :label="$t('layout.scrollTopColor')"
-            class="my-auto" />
-          <layout-editor-color-picker
-            v-model="backgroundScrollMiddle"
-            :label="$t('layout.scrollMiddleColor')"
-            class="my-auto" />
-        </div>
         <div v-else-if="isGradient">
           <layout-editor-color-picker
-            v-model="backgroundGradientFrom"
+            v-model="gradientFrom"
             :label="$t('layout.gradientFrom')"
             class="my-auto" />
           <layout-editor-color-picker
-            v-model="backgroundGradientTo"
+            v-model="gradientTo"
             :label="$t('layout.gradientTo')"
             class="my-auto" />
         </div>
@@ -188,16 +174,17 @@
       </v-list-item-content>
       <v-list-item-action class="my-auto me-0 ms-auto">
         <layout-editor-background-image-attachment
-          v-model="container.backgroundImage"
+          v-model="container[imageField]"
           ref="backgroundImage"
           :storage-id="objectId"
-          :immediate-save="immediateSave"
+          :object-type="objectType"
+          immediate-save
           class="my-auto" />
       </v-list-item-action>
     </v-list-item>
-    <div v-if="container.backgroundImage" class="d-flex">
+    <div v-if="container[imageField]" class="d-flex">
       <v-radio-group
-        v-model="backgroundImageStyle"
+        v-model="imageStyle"
         class="my-auto text-no-wrap flex-grow-1 flex-shrink-0"
         mandatory>
         <v-radio
@@ -230,7 +217,7 @@
         </v-radio>
       </v-radio-group>
       <v-radio-group
-        v-model="container.backgroundPosition"
+        v-model="container[positionField]"
         class="my-auto text-no-wrap flex-grow-1 flex-shrink-0"
         mandatory>
         <v-radio
@@ -266,10 +253,13 @@
     <layout-editor-background-margin-input
       v-if="enabled"
       :value="container"
+      :field="paddingField"
+      :min="-400"
       class="my-auto" />
     <layout-editor-background-radius-input
       v-if="enabled"
       :value="container"
+      :field="radiusField"
       class="my-auto" />
   </div>
 </template>
@@ -280,62 +270,59 @@ export default {
       type: Object,
       default: null,
     },
-    defaultBackgroundColor: {
+    // 'Title' | 'Header' | '' (Body) | 'Subtitle'
+    typePrefix: {
       type: String,
-      default: () => '#FFFFFFFF',
-    },
-    immediateSave: {
-      type: Boolean,
-      default: false,
-    },
-    scrollColor: {
-      type: Boolean,
-      default: false,
-    },
-    textBold: {
-      type: Boolean,
-      default: false,
+      default: '',
     },
   },
   data: () => ({
     container: null,
     enabled: false,
     choice: null,
-    backgroundImageStyle: null,
-    backgroundScrollTop: null,
-    backgroundScrollMiddle: null,
-    backgroundGradientFrom: null,
-    backgroundGradientTo: null,
+    imageStyle: null,
+    color: null,
+    gradientFrom: null,
+    gradientTo: null,
     gradientDirection: null,
     gradientCorner: null,
     gradientRatio: null,
     initialized: false,
   }),
   computed: {
+    colorField() {
+      return `text${this.typePrefix}BackgroundColor`;
+    },
+    imageField() {
+      return `text${this.typePrefix}BackgroundImage`;
+    },
+    effectField() {
+      return `text${this.typePrefix}BackgroundEffect`;
+    },
+    positionField() {
+      return `text${this.typePrefix}BackgroundPosition`;
+    },
+    sizeField() {
+      return `text${this.typePrefix}BackgroundSize`;
+    },
+    repeatField() {
+      return `text${this.typePrefix}BackgroundRepeat`;
+    },
+    paddingField() {
+      return `text${this.typePrefix}BackgroundPadding`;
+    },
+    radiusField() {
+      return `text${this.typePrefix}BackgroundRadius`;
+    },
+    objectType() {
+      return `containerText${this.typePrefix || 'Body'}Background`;
+    },
     isGradient() {
       return this.choice === 'linear' || this.choice === 'radial' || this.choice === 'angular';
     },
-    id() {
-      return this.container.storageId || this.container.id;
-    },
     objectId() {
-      return this.$root.isSiteLayout ? `site_${this.$root.siteId}_${this.id}` : `page_${this.$root.pageId}_${this.id}`;
-    },
-    backgroundColor() {
-      return this.container.backgroundColor;
-    },
-    backgroundColorChoice() {
-      if (!this.enabled) {
-        return null;
-      } else if (this.choice === 'color'
-        && !this.scrollColor) {
-        return this.backgroundColor?.includes?.('@') ? this.backgroundColor.split('@')[0] : this.backgroundColor;
-      } else if (this.choice === 'color'
-        && this.scrollColor) {
-        return `${this.backgroundScrollTop}@${this.backgroundScrollMiddle}`;
-      } else {
-        return '#FFFFFF00';
-      }
+      const id = this.container.storageId || this.container.id;
+      return this.$root.isSiteLayout ? `site_${this.$root.siteId}_${id}` : `page_${this.$root.pageId}_${id}`;
     },
     angularStartAngle() {
       return {
@@ -346,29 +333,23 @@ export default {
       }[this.gradientCorner] || '0deg';
     },
     angularReversed() {
-      // The gradient line always sweeps clockwise from angularStartAngle. For
-      // these 2 corners, that start angle lands on the edge opposite to the
-      // corner's own name (e.g. "top right" starts at its right edge), so the
-      // From/To colors must be swapped for From to appear next to that edge.
       return this.gradientCorner === 'top right' || this.gradientCorner === 'bottom left';
     },
     backgroundEffect() {
-      if (!this.backgroundGradientFrom || !this.backgroundGradientTo) {
+      if (!this.gradientFrom || !this.gradientTo) {
         return null;
       }
       const ratio = this.gradientRatio ?? 50;
       if (this.choice === 'linear') {
-        const stops = `${this.backgroundGradientFrom} 0%, ${this.backgroundGradientFrom} ${ratio}%, ${this.backgroundGradientTo} 100%`;
+        const stops = `${this.gradientFrom} 0%, ${this.gradientFrom} ${ratio}%, ${this.gradientTo} 100%`;
         return this.gradientDirection === 'to right' ?
           `linear-gradient(to right, ${stops})` :
           `linear-gradient(${stops})`;
       } else if (this.choice === 'radial') {
-        return `radial-gradient(${this.backgroundGradientFrom} 0%, ${this.backgroundGradientFrom} ${ratio}%, ${this.backgroundGradientTo} 100%)`;
+        return `radial-gradient(${this.gradientFrom} 0%, ${this.gradientFrom} ${ratio}%, ${this.gradientTo} 100%)`;
       } else if (this.choice === 'angular') {
-        const edgeColor = this.angularReversed ? this.backgroundGradientTo : this.backgroundGradientFrom;
-        const farColor = this.angularReversed ? this.backgroundGradientFrom : this.backgroundGradientTo;
-        // The plateau (ratio-sized block of solid color) always sits next
-        // to From's own edge, whichever end of the stop list that is.
+        const edgeColor = this.angularReversed ? this.gradientTo : this.gradientFrom;
+        const farColor = this.angularReversed ? this.gradientFrom : this.gradientTo;
         const midPercent = this.angularReversed ? (100 - ratio) : ratio;
         const midAngle = (midPercent / 100 * 90).toFixed(2);
         return this.angularReversed ?
@@ -388,44 +369,34 @@ export default {
         }
       },
     },
-    scrollColor() {
-      if (this.initialized) {
-        this.container.backgroundColor = this.enabled && this.defaultBackgroundColor || null;
-        this.backgroundScrollTop = this.enabled && this.scrollColor && this.defaultBackgroundColor || null;
-        this.backgroundScrollMiddle = this.enabled && this.scrollColor && this.defaultBackgroundColor || null;
-      }
-    },
     enabled() {
       if (this.initialized) {
-        this.container.backgroundImage = null;
-        this.backgroundImageStyle = null;
-
-        this.container.backgroundColor = this.enabled && this.defaultBackgroundColor || null;
-        this.backgroundScrollTop = this.enabled && this.scrollColor && this.defaultBackgroundColor || null;
-        this.backgroundScrollMiddle = this.enabled && this.scrollColor && this.defaultBackgroundColor || null;
-        this.backgroundGradientFrom = null;
-        this.backgroundGradientTo = null;
+        this.container[this.imageField] = null;
+        this.imageStyle = null;
+        this.color = this.enabled ? '#FFFFFFFF' : null;
+        this.gradientFrom = null;
+        this.gradientTo = null;
         this.gradientDirection = null;
         this.gradientCorner = null;
         this.gradientRatio = null;
       }
     },
-    backgroundImageStyle() {
+    imageStyle() {
       if (this.initialized) {
-        if (this.backgroundImageStyle === 'cover' || this.backgroundImageStyle === 'contain') {
-          this.container.backgroundSize = this.backgroundImageStyle;
-          this.container.backgroundRepeat = null;
+        if (this.imageStyle === 'cover' || this.imageStyle === 'contain') {
+          this.container[this.sizeField] = this.imageStyle;
+          this.container[this.repeatField] = null;
         } else {
-          this.container.backgroundSize = null;
-          this.container.backgroundRepeat = this.backgroundImageStyle;
+          this.container[this.sizeField] = null;
+          this.container[this.repeatField] = this.imageStyle;
         }
       }
     },
-    backgroundColorChoice: {
+    color: {
       immediate: true,
       handler(newVal, oldVal) {
         if (this.initialized && newVal !== oldVal) {
-          this.container.backgroundColor = this.backgroundColorChoice;
+          this.container[this.colorField] = this.enabled && this.choice === 'color' ? this.color : (this.enabled ? '#FFFFFF00' : null);
         }
       },
     },
@@ -433,78 +404,76 @@ export default {
       immediate: true,
       handler(newVal, oldVal) {
         if (this.initialized && newVal !== oldVal) {
-          this.container.backgroundEffect = this.backgroundEffect;
+          this.container[this.effectField] = this.backgroundEffect;
         }
       },
     },
     choice() {
       if (this.initialized) {
         if (this.choice === 'color') {
-          this.backgroundGradientFrom = null;
-          this.backgroundGradientTo = null;
+          this.gradientFrom = null;
+          this.gradientTo = null;
           this.gradientDirection = null;
           this.gradientCorner = null;
           this.gradientRatio = null;
-          this.container.backgroundColor = this.enabled && this.defaultBackgroundColor || null;
-          this.backgroundScrollTop = this.enabled && this.scrollColor && this.defaultBackgroundColor || null;
-          this.backgroundScrollMiddle = this.enabled && this.scrollColor && this.defaultBackgroundColor || null;
+          this.container[this.colorField] = this.enabled ? (this.color || '#FFFFFFFF') : null;
+          this.container[this.effectField] = null;
         } else {
-          this.backgroundGradientFrom = this.backgroundGradientFrom || this.defaultBackgroundColor;
-          this.backgroundGradientTo = this.backgroundGradientTo || '#999999FF';
+          this.gradientFrom = this.gradientFrom || this.color || '#FFFFFFFF';
+          this.gradientTo = this.gradientTo || '#999999FF';
           this.gradientRatio = this.gradientRatio ?? 50;
           if (this.choice === 'linear') {
             this.gradientDirection = this.gradientDirection || 'to bottom';
           } else if (this.choice === 'angular') {
             this.gradientCorner = this.gradientCorner || 'top left';
           }
-          this.container.backgroundColor = '#FFFFFF00';
-          this.backgroundScrollTop = null;
-          this.backgroundScrollMiddle = null;
+          this.container[this.colorField] = '#FFFFFF00';
         }
       }
     },
   },
   created() {
     this.container = this.value;
-    if (this.container.backgroundSize || this.container.backgroundRepeat) {
-      if (this.container.backgroundSize === 'cover'
-          || this.container.backgroundSize === 'contain') {
-        this.backgroundImageStyle = this.container.backgroundSize;
+    if (this.container[this.sizeField] || this.container[this.repeatField]) {
+      if (this.container[this.sizeField] === 'cover'
+          || this.container[this.sizeField] === 'contain') {
+        this.imageStyle = this.container[this.sizeField];
       } else {
-        this.backgroundImageStyle = this.container.backgroundRepeat;
+        this.imageStyle = this.container[this.repeatField];
       }
     }
-    if (this.container.backgroundEffect?.startsWith('radial-gradient(')) {
+    const effect = this.container[this.effectField];
+    if (effect?.startsWith('radial-gradient(')) {
       this.choice = 'radial';
-      const stops = this.container.backgroundEffect.replace('radial-gradient(', '').replace(/\)$/, '').split(',').map(s => s.trim());
-      this.backgroundGradientFrom = stops[0].split(' ')[0];
+      const stops = effect.replace('radial-gradient(', '').replace(/\)$/, '').split(',').map(s => s.trim());
+      this.gradientFrom = stops[0].split(' ')[0];
       if (stops.length === 3) {
         this.gradientRatio = parseFloat(stops[1].split(' ')[1]);
-        this.backgroundGradientTo = stops[2].split(' ')[0];
+        this.gradientTo = stops[2].split(' ')[0];
       } else {
         this.gradientRatio = 50;
-        this.backgroundGradientTo = stops[stops.length - 1].split(' ')[0];
+        this.gradientTo = stops[stops.length - 1].split(' ')[0];
       }
-    } else if (this.container.backgroundEffect?.startsWith('conic-gradient(')) {
+    } else if (effect?.startsWith('conic-gradient(')) {
       this.choice = 'angular';
-      const inner = this.container.backgroundEffect.replace('conic-gradient(', '').replace(/\)$/, '');
+      const inner = effect.replace('conic-gradient(', '').replace(/\)$/, '');
       const cornerMatch = inner.match(/at (top left|top right|bottom left|bottom right)/);
       this.gradientCorner = cornerMatch ? cornerMatch[1] : 'top left';
       const reversed = this.gradientCorner === 'top right' || this.gradientCorner === 'bottom left';
       const stops = inner.substring(inner.indexOf(',') + 1).split(',').map(s => s.trim());
       const firstColor = stops[0].split(' ')[0];
       const lastColor = stops[stops.length - 1].split(' ')[0];
-      this.backgroundGradientFrom = reversed ? lastColor : firstColor;
-      this.backgroundGradientTo = reversed ? firstColor : lastColor;
+      this.gradientFrom = reversed ? lastColor : firstColor;
+      this.gradientTo = reversed ? firstColor : lastColor;
       if (stops.length === 3) {
         const midPercent = Math.round(parseFloat(stops[1].split(' ')[1]) / 90 * 100);
         this.gradientRatio = reversed ? (100 - midPercent) : midPercent;
       } else {
         this.gradientRatio = 50;
       }
-    } else if (this.container.backgroundEffect?.startsWith('linear-gradient(')) {
+    } else if (effect?.startsWith('linear-gradient(')) {
       this.choice = 'linear';
-      const inner = this.container.backgroundEffect.replace('linear-gradient(', '').replace(/\)$/, '');
+      const inner = effect.replace('linear-gradient(', '').replace(/\)$/, '');
       const parts = inner.split(',').map(s => s.trim());
       let stops = parts;
       if (parts[0].startsWith('to ')) {
@@ -513,49 +482,24 @@ export default {
       } else {
         this.gradientDirection = 'to bottom';
       }
-      this.backgroundGradientFrom = stops[0].split(' ')[0];
+      this.gradientFrom = stops[0].split(' ')[0];
       if (stops.length === 3) {
         this.gradientRatio = parseFloat(stops[1].split(' ')[1]);
-        this.backgroundGradientTo = stops[2].split(' ')[0];
+        this.gradientTo = stops[2].split(' ')[0];
       } else {
         this.gradientRatio = 50;
-        this.backgroundGradientTo = stops[stops.length - 1].split(' ')[0];
+        this.gradientTo = stops[stops.length - 1].split(' ')[0];
       }
     } else {
       this.choice = 'color';
     }
 
-    this.enabled = !!this.container.backgroundColor || !!this.container.backgroundImage;
-    if (this.enabled) {
-      if (!this.container.backgroundColor) {
-        this.container.backgroundColor = this.defaultBackgroundColor;
-      } else if (this.scrollColor) {
-        if (this.backgroundColor?.includes?.('@')) {
-          this.backgroundScrollTop = this.container.backgroundColor.split('@')[0];
-          this.backgroundScrollMiddle = this.container.backgroundColor.split('@')[1];
-        } else {
-          this.backgroundScrollTop = this.container.backgroundColor;
-          this.backgroundScrollMiddle = this.container.backgroundColor;
-        }
-      } else {
-        this.backgroundScrollTop = null;
-        this.backgroundScrollMiddle = null;
-      }
+    this.color = this.container[this.colorField];
+    this.enabled = !!this.container[this.colorField] || !!this.container[this.imageField];
+    if (this.enabled && !this.color && this.choice === 'color') {
+      this.color = '#FFFFFFFF';
     }
     this.$nextTick().then(() => this.initialized = true);
-  },
-  methods: {
-    async apply() {
-      if (this.enabled && this.$refs.backgroundImage) {
-        const backgroundImage = await this.$refs.backgroundImage.save();
-        if (backgroundImage) {
-          this.container.backgroundImage = backgroundImage;
-        }
-      } else {
-        this.container.backgroundImage = null;
-      }
-      return this.container;
-    },
   },
 };
 </script>

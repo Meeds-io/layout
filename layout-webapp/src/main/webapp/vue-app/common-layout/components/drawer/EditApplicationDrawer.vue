@@ -145,13 +145,30 @@
             }) }}</span>
           </div>
         </template>
-        <div class="d-flex align-center ms-n1">
-          <v-checkbox
-            v-model="hiddenOnMobile"
-            :label="$t('layout.hiddenOnMobile')"
-            on-icon="fa-check-square"
-            off-icon="far fa-square"
-            class="my-0 ml-n2px" />
+        <div class="d-flex align-center mt-2">
+          {{ $t('layout.viewOptions') }}
+        </div>
+        <div class="d-flex flex-column justify-center">
+          <v-radio-group
+            v-model="viewOption"
+            class="my-auto text-no-wrap ms-n1 mt-2"
+            mandatory>
+            <v-radio value="both" class="mx-0">
+              <template #label>
+                <span class="text-font-size text-color">{{ $t('layout.appDisplayBoth') }}</span>
+              </template>
+            </v-radio>
+            <v-radio value="hideDesktop" class="mx-0">
+              <template #label>
+                <span class="text-font-size text-color">{{ $t('layout.appHiddenOnDesktop') }}</span>
+              </template>
+            </v-radio>
+            <v-radio value="hideMobile" class="mx-0">
+              <template #label>
+                <span class="text-font-size text-color">{{ $t('layout.hiddenOnMobile') }}</span>
+              </template>
+            </v-radio>
+          </v-radio-group>
         </div>
       </v-card>
     </template>
@@ -168,7 +185,7 @@ export default {
     minHeight: 10,
     maxHeight: 1000,
     invalidCustomHeight: false,
-    hiddenOnMobile: false,
+    viewOption: 'both',
     section: null,
     container: null,
     backgroundProperties: null,
@@ -251,9 +268,42 @@ export default {
         textSubtitleFontSize: this.container?.textSubtitleFontSize || null,
         textSubtitleFontWeight: this.container?.textSubtitleFontWeight || null,
         textSubtitleFontStyle: this.container?.textSubtitleFontStyle || null,
+        textTitleBackgroundColor: this.container?.textTitleBackgroundColor || null,
+        textTitleBackgroundImage: this.container?.textTitleBackgroundImage || null,
+        textTitleBackgroundEffect: this.container?.textTitleBackgroundEffect || null,
+        textTitleBackgroundPosition: this.container?.textTitleBackgroundPosition || null,
+        textTitleBackgroundSize: this.container?.textTitleBackgroundSize || null,
+        textTitleBackgroundRepeat: this.container?.textTitleBackgroundRepeat || null,
+        textTitleBackgroundPadding: this.container?.textTitleBackgroundPadding || null,
+        textTitleBackgroundRadius: this.container?.textTitleBackgroundRadius || null,
+        textHeaderBackgroundColor: this.container?.textHeaderBackgroundColor || null,
+        textHeaderBackgroundImage: this.container?.textHeaderBackgroundImage || null,
+        textHeaderBackgroundEffect: this.container?.textHeaderBackgroundEffect || null,
+        textHeaderBackgroundPosition: this.container?.textHeaderBackgroundPosition || null,
+        textHeaderBackgroundSize: this.container?.textHeaderBackgroundSize || null,
+        textHeaderBackgroundRepeat: this.container?.textHeaderBackgroundRepeat || null,
+        textHeaderBackgroundPadding: this.container?.textHeaderBackgroundPadding || null,
+        textHeaderBackgroundRadius: this.container?.textHeaderBackgroundRadius || null,
+        textBackgroundColor: this.container?.textBackgroundColor || null,
+        textBackgroundImage: this.container?.textBackgroundImage || null,
+        textBackgroundEffect: this.container?.textBackgroundEffect || null,
+        textBackgroundPosition: this.container?.textBackgroundPosition || null,
+        textBackgroundSize: this.container?.textBackgroundSize || null,
+        textBackgroundRepeat: this.container?.textBackgroundRepeat || null,
+        textBackgroundPadding: this.container?.textBackgroundPadding || null,
+        textBackgroundRadius: this.container?.textBackgroundRadius || null,
+        textSubtitleBackgroundColor: this.container?.textSubtitleBackgroundColor || null,
+        textSubtitleBackgroundImage: this.container?.textSubtitleBackgroundImage || null,
+        textSubtitleBackgroundEffect: this.container?.textSubtitleBackgroundEffect || null,
+        textSubtitleBackgroundPosition: this.container?.textSubtitleBackgroundPosition || null,
+        textSubtitleBackgroundSize: this.container?.textSubtitleBackgroundSize || null,
+        textSubtitleBackgroundRepeat: this.container?.textSubtitleBackgroundRepeat || null,
+        textSubtitleBackgroundPadding: this.container?.textSubtitleBackgroundPadding || null,
+        textSubtitleBackgroundRadius: this.container?.textSubtitleBackgroundRadius || null,
         height: this.container?.height || null,
         ...this.backgroundProperties,
-        hiddenOnMobile: this.hiddenOnMobile,
+        hiddenOnMobile: this.viewOption === 'hideMobile',
+        hiddenOnDesktop: this.viewOption === 'hideDesktop',
       } || null;
     },
   },
@@ -289,18 +339,34 @@ export default {
   methods: {
     open(section, container, applicationTitle) {
       this.initialized = false;
-      Object.assign(container, Object.assign({...this.$layoutUtils.applicationModel}, container));
+      // Vue.set (not Object.assign) so that fields introduced after this
+      // container/application was first made reactive (e.g. by an older
+      // saved layout predating a newer applicationModel field) are properly
+      // tracked - Object.assign adding a brand new key to an already
+      // observed object doesn't make Vue react to further changes on it.
+      Object.keys(this.$layoutUtils.applicationModel).forEach(key => {
+        if (!Object.hasOwn(container, key)) {
+          this.$set(container, key, this.$layoutUtils.applicationModel[key]);
+        }
+      });
       this.section = section;
       this.container = container;
       this.section = section;
       this.height = container.height;
-      this.hiddenOnMobile = container.cssClass?.includes?.('hidden-sm-and-down') || false;
+      if (container.cssClass?.includes?.('hidden-sm-and-down')) {
+        this.viewOption = 'hideMobile';
+      } else if (container.cssClass?.includes?.('hidden-md-and-up')) {
+        this.viewOption = 'hideDesktop';
+      } else {
+        this.viewOption = 'both';
+      }
       this.fixedHeight = !!this.height;
       this.applicationTitle = applicationTitle;
       this.$layoutUtils.parseContainerStyle(this.container);
 
       this.backgroundProperties = {
         storageId: this.container.storageId,
+        cssClass: this.container.cssClass || '',
         backgroundColor: this.container.backgroundColor || null,
         backgroundImage: this.container.backgroundImage || null,
         backgroundEffect: this.container.backgroundEffect || null,
@@ -319,7 +385,7 @@ export default {
         this.minHeight = 10;
         this.maxHeight = 1000;
         this.invalidCustomHeight = false;
-        this.hiddenOnMobile = false;
+        this.viewOption = 'both';
         this.section = null;
         this.container = null;
         this.backgroundProperties = null;

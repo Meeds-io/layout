@@ -72,7 +72,7 @@
                 :height="iconSize"
                 class="me-2"
                 icon
-                @click.prevent.stop="$root.$emit('layout-delete-application', sectionId, container)">
+                @click.prevent.stop="deleteApplication">
                 <v-icon :size="iconSize" class="icon-default-color">fa-trash</v-icon>
               </v-btn>
             </template>
@@ -80,6 +80,13 @@
           </v-tooltip>
         </v-chip>
       </div>
+      <exo-confirm-dialog
+        ref="deleteApplicationConfirmDialog"
+        :title="$t('layout.deleteApplicationConfirmTitle')"
+        :message="$t('layout.deleteApplicationConfirmMessage')"
+        :ok-label="$t('layout.confirm')"
+        :cancel-label="$t('layout.cancel')"
+        @ok="emitDeleteApplication" />
     </div>
   </v-fade-transition>
 </template>
@@ -118,6 +125,12 @@ export default {
     },
     drawerOpened() {
       return this.$root.drawerOpened;
+    },
+    portlet() {
+      return this.$root.portlets?.find?.(p => p?.contentId === this.container?.contentId);
+    },
+    editablePortlet() {
+      return this.portlet?.editable || false;
     },
   },
   watch: {
@@ -160,6 +173,16 @@ export default {
         event.stopPropagation();
       }
       this.$emit('move-start', event, 'drag', this.container);
+    },
+    deleteApplication() {
+      if (this.editablePortlet) {
+        this.$refs.deleteApplicationConfirmDialog.open();
+      } else {
+        this.emitDeleteApplication();
+      }
+    },
+    emitDeleteApplication() {
+      this.$root.$emit('layout-delete-application', this.sectionId, this.container);
     },
   },
 };

@@ -23,6 +23,10 @@
     :id="id"
     :class="cssClass"
     :style="cssStyle">
+    <div
+      v-if="backgroundLayerStyle"
+      class="layout-background-layer"
+      :style="backgroundLayerStyle"></div>
     <slot name="header"></slot>
     <template v-if="hasChildren">
       <page-layout-container-extension
@@ -110,6 +114,11 @@ export default {
     },
     cssClass() {
       return this.container?.cssClass || '';
+    },
+    backgroundLayerStyle() {
+      return this.$applicationUtils.getBackgroundLayerStyle(this.container, {
+        noBackgroundStyle: this.noBackgroundStyle,
+      });
     },
   },
   methods: {

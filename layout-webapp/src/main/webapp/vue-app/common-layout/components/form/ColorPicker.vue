@@ -28,7 +28,7 @@
       <v-list-item
         class="pa-0"
         dense>
-        <v-list-item-action class="my-0 me-2">
+        <v-list-item-action class="my-0 me-2 layout-color-picker-swatch">
           <v-card
             :color="value"
             height="36px"

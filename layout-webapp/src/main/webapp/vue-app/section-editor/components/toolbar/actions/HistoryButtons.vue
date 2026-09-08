@@ -66,21 +66,37 @@ export default {
   },
   methods: {
     undo() {
-      const section = this.$root.sectionHistory.pop();
-      const parentContainer = this.$layoutUtils.getParentContainer(this.$root.layout);
-      const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
-      if (index >= 0) {
-        this.$root.sectionRedo.push(parentContainer.children[index]);
-        parentContainer.children.splice(index, 1, section);
+      const entry = this.$root.sectionHistory.pop();
+      if (entry.orderContainerId) {
+        const container = this.$layoutUtils.getContainerById(this.$root.layout, entry.orderContainerId);
+        if (container) {
+          this.$root.sectionRedo.push({orderContainerId: entry.orderContainerId, order: container.children.map(c => c.storageId)});
+          this.$layoutUtils.reorderChildren(container, entry.order);
+        }
+      } else {
+        const parentContainer = this.$layoutUtils.getParentContainer(this.$root.layout);
+        const index = parentContainer.children.findIndex(c => c.storageId === entry.storageId);
+        if (index >= 0) {
+          this.$root.sectionRedo.push(parentContainer.children[index]);
+          parentContainer.children.splice(index, 1, entry);
+        }
       }
     },
     redo() {
-      const section = this.$root.sectionRedo.pop();
-      const parentContainer = this.$layoutUtils.getParentContainer(this.$root.layout);
-      const index = parentContainer.children.findIndex(c => c.storageId === section.storageId);
-      if (index >= 0) {
-        this.$root.sectionHistory.push(parentContainer.children[index]);
-        parentContainer.children.splice(index, 1, section);
+      const entry = this.$root.sectionRedo.pop();
+      if (entry.orderContainerId) {
+        const container = this.$layoutUtils.getContainerById(this.$root.layout, entry.orderContainerId);
+        if (container) {
+          this.$root.sectionHistory.push({orderContainerId: entry.orderContainerId, order: container.children.map(c => c.storageId)});
+          this.$layoutUtils.reorderChildren(container, entry.order);
+        }
+      } else {
+        const parentContainer = this.$layoutUtils.getParentContainer(this.$root.layout);
+        const index = parentContainer.children.findIndex(c => c.storageId === entry.storageId);
+        if (index >= 0) {
+          this.$root.sectionHistory.push(parentContainer.children[index]);
+          parentContainer.children.splice(index, 1, entry);
+        }
       }
     },
   },

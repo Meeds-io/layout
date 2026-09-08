@@ -19,7 +19,7 @@
 
 -->
 <template>
-  <v-hover v-model="hover" :disabled="$root.mobileDisplayMode">
+  <v-hover v-model="hover">
     <component
       v-model="children"
       v-bind="draggable && {
@@ -34,6 +34,10 @@
       :class="cssClass"
       :style="cssStyle"
       :data-storage-id="storageId">
+      <div
+        v-if="backgroundLayerStyle"
+        class="layout-background-layer"
+        :style="backgroundLayerStyle"></div>
       <!-- Added in a template on purpose to workaround a 'draggable' component bug -->
       <template v-if="$slots.header">
         <slot name="header"></slot>
@@ -148,6 +152,10 @@ export default {
   data: () => ({
     hover: false,
     dragged: false,
+    autoScrollElement: null,
+    autoScrollY: null,
+    autoScrollInterval: null,
+    movingOrder: null,
   }),
   computed: {
     children: {
@@ -196,6 +204,11 @@ export default {
         dynamicWidth: this.dynamicWidth,
       });
     },
+    backgroundLayerStyle() {
+      return this.$applicationUtils.getBackgroundLayerStyle(this.container, {
+        noBackgroundStyle: this.noBackgroundStyle,
+      });
+    },
     containerCssClass() {
       return this.$root.mobileDisplayMode ? this.container.cssClass?.replace?.('d-md-grid', '') : this.container.cssClass;
     },
@@ -234,6 +247,8 @@ export default {
         chosenClass: 'layout-moving-chosen-container',
         handle: this.dragSelectionClass,
         dataIdAttr: 'data-storage-id',
+        forceFallback: true,
+        fallbackOnBody: true,
       };
     },
   },
@@ -258,6 +273,7 @@ export default {
   },
   beforeDestroy() {
     this.$root.$off('layout-editor-moving-end', this.refreshChildren);
+    this.stopAutoScroll();
   },
   methods: {
     refreshChildren() {
@@ -278,14 +294,31 @@ export default {
       this.$root.movingParentId = this.parentId;
       const section = this.$layoutUtils.getContainerById(this.$root.layout, this.parentId);
       this.$root.movingParentDynamic = section?.template === this.$layoutUtils.flexTemplate;
+      this.startAutoScroll();
+      // Captured here (before the 'draggable' component's v-model reorders
+      // this.container.children on its own) so the history entry reflects
+      // the order that was in place before the move, not after it.
+      this.movingOrder = !this.isCell && this.container.children?.map(c => c.storageId) || null;
     },
     endMoving(event) {
       this.dragged = false;
       this.$root.movingParentId = null;
+      this.stopAutoScroll();
+      const movingOrder = this.movingOrder;
+      this.movingOrder = null;
 
       const fromCell = this.$layoutUtils.getContainerById(this.$root.layout, event.from.getAttribute('data-storage-id'));
       const toCell = this.$layoutUtils.getContainerById(this.$root.layout, event.to.getAttribute('data-storage-id'));
       const application = this.$layoutUtils.getContainerById(this.$root.layout, event.item.getAttribute('data-storage-id'));
+
+      // Section items (Section.vue) don't carry a 'data-storage-id' on their
+      // own root element like cells/applications do, so 'application' can't
+      // be resolved for a section-level (non-cell) reorder. Order history only
+      // needs fromCell/toCell (resolved from the list container itself), so
+      // it's handled independently of whether the dragged item itself resolved.
+      if (!this.isCell && movingOrder && fromCell && toCell && fromCell.storageId === toCell.storageId) {
+        this.$root.$emit('layout-section-order-history-add', fromCell.storageId, movingOrder);
+      }
 
       if (fromCell && toCell && application) {
         if (this.isCell) {
@@ -301,6 +334,44 @@ export default {
         if (toIndex < 0) {
           toCell.children.splice(event.newIndex, 0, application);
         }
+      }
+    },
+    startAutoScroll() {
+      this.autoScrollElement = document.querySelector('.site-scroll-parent');
+      if (!this.autoScrollElement) {
+        return;
+      }
+      this.autoScrollY = null;
+      document.addEventListener('dragover', this.trackAutoScrollPosition);
+      document.addEventListener('mousemove', this.trackAutoScrollPosition);
+      this.autoScrollInterval = window.setInterval(this.applyAutoScroll, 16);
+    },
+    stopAutoScroll() {
+      document.removeEventListener('dragover', this.trackAutoScrollPosition);
+      document.removeEventListener('mousemove', this.trackAutoScrollPosition);
+      if (this.autoScrollInterval) {
+        window.clearInterval(this.autoScrollInterval);
+        this.autoScrollInterval = null;
+      }
+      this.autoScrollElement = null;
+      this.autoScrollY = null;
+    },
+    trackAutoScrollPosition(event) {
+      this.autoScrollY = event.clientY;
+    },
+    applyAutoScroll() {
+      if (!this.autoScrollElement || this.autoScrollY === null) {
+        return;
+      }
+      const rect = this.autoScrollElement.getBoundingClientRect();
+      const threshold = 60;
+      const maxSpeed = 15;
+      if (this.autoScrollY < rect.top + threshold) {
+        const speed = Math.ceil((rect.top + threshold - this.autoScrollY) / threshold * maxSpeed);
+        this.autoScrollElement.scrollBy(0, -speed);
+      } else if (this.autoScrollY > rect.bottom - threshold) {
+        const speed = Math.ceil((this.autoScrollY - (rect.bottom - threshold)) / threshold * maxSpeed);
+        this.autoScrollElement.scrollBy(0, speed);
       }
     },
   },

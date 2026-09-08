@@ -23,11 +23,19 @@
   <div
     ref="section"
     :style="cssStyle"
-    :class="mobileInColumns && 'layout-section-mobile-pages' || ''"
+    :class="{
+      'layout-section-mobile-pages': mobileInColumns,
+      'hidden-sm-and-down': isHiddenOnMobile,
+      'hidden-md-and-up': isHiddenOnDesktop,
+    }"
     class="position-relative layout-section"
     v-on="!isDynamicSection && {
       'mousedown': startSelection,
     }">
+    <div
+      v-if="backgroundLayerStyle"
+      class="layout-background-layer"
+      :style="backgroundLayerStyle"></div>
     <layout-editor-section-menu-top
       v-model="hoverButton1"
       :display="hoverSectionMenu"
@@ -42,7 +50,7 @@
       @mouseup="$emit('move-end')"
       @mouseout="$emit('move-end')"
       @focusout="$emit('move-end')" />
-    <v-hover v-model="hover" :disabled="$root.mobileDisplayMode">
+    <v-hover v-model="hover">
       <layout-editor-section-menu
         :container="container"
         :hover="hoverSectionMenu"
@@ -149,10 +157,19 @@ export default {
         sectionStyle: true,
       });
     },
+    backgroundLayerStyle() {
+      return this.$applicationUtils.getBackgroundLayerStyle(this.container, {});
+    },
     mobileInColumns() {
       return this.isDynamicSection
         && this.$root.mobileDisplayMode
         && this.container?.cssClass?.includes?.('layout-mobile-columns');
+    },
+    isHiddenOnMobile() {
+      return this.container?.cssClass?.includes?.('hidden-sm-and-down');
+    },
+    isHiddenOnDesktop() {
+      return this.container?.cssClass?.includes?.('hidden-md-and-up');
     },
     displayMoveButton() {
       return this.length > 1;
