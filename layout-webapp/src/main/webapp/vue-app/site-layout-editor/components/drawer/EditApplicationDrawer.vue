@@ -554,6 +554,8 @@ export default {
         backgroundEffect: this.container.backgroundEffect || null,
         backgroundRepeat: this.container.backgroundRepeat || null,
         backgroundSize: this.container.backgroundSize || null,
+        backgroundPosition: this.container.backgroundPosition || null,
+        backgroundAttachment: this.container.backgroundAttachment || null,
       };
 
       this.$nextTick(() => this.$refs.drawer.open());

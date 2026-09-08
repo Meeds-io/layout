@@ -195,74 +195,124 @@
           class="my-auto" />
       </v-list-item-action>
     </v-list-item>
-    <div v-if="container.backgroundImage" class="d-flex">
+    <template v-if="container.backgroundImage">
+      <div class="text-subtitle mt-1">{{ $t('layout.imageSizeTitle') }}</div>
       <v-radio-group
-        v-model="backgroundImageStyle"
-        class="my-auto text-no-wrap flex-grow-1 flex-shrink-0"
-        mandatory>
-        <v-radio
-          value="cover"
-          class="mx-0">
-          <template #label>
-            <span>{{ $t('layout.imageSizeCover') }}</span>
-          </template>
-        </v-radio>
-        <v-radio
-          value="contain"
-          class="mx-0">
-          <template #label>
-            <span>{{ $t('layout.imageSizeContain') }}</span>
-          </template>
-        </v-radio>
-        <v-radio
-          value="repeat"
-          class="mx-0">
-          <template #label>
-            <span>{{ $t('layout.imageRepeat') }}</span>
-          </template>
-        </v-radio>
-        <v-radio
-          value="no-repeat"
-          class="mx-0">
-          <template #label>
-            <span>{{ $t('layout.imageNoRepeat') }}</span>
-          </template>
-        </v-radio>
+        v-model="container.backgroundSize"
+        class="my-0 text-no-wrap"
+        mandatory
+        hide-details>
+        <div class="d-flex flex-wrap">
+          <v-radio
+            value="cover"
+            class="col-6 pa-0 mx-0 my-1">
+            <template #label>
+              <span>{{ $t('layout.imageSizeCover') }}</span>
+            </template>
+          </v-radio>
+          <v-radio
+            value="contain"
+            class="col-6 pa-0 mx-0 my-1">
+            <template #label>
+              <span>{{ $t('layout.imageSizeContain') }}</span>
+            </template>
+          </v-radio>
+        </div>
       </v-radio-group>
+
+      <div class="text-subtitle mt-2">{{ $t('layout.imagePositionTitle') }}</div>
       <v-radio-group
         v-model="container.backgroundPosition"
-        class="my-auto text-no-wrap flex-grow-1 flex-shrink-0"
-        mandatory>
-        <v-radio
-          value="top left"
-          class="mx-0">
-          <template #label>
-            <span>{{ $t('layout.imagePositionTopLeft') }}</span>
-          </template>
-        </v-radio>
-        <v-radio
-          value="top right"
-          class="mx-0">
-          <template #label>
-            <span>{{ $t('layout.imagePositionTopRight') }}</span>
-          </template>
-        </v-radio>
-        <v-radio
-          value="bottom left"
-          class="mx-0">
-          <template #label>
-            <span>{{ $t('layout.imagePositionBottomLeft') }}</span>
-          </template>
-        </v-radio>
-        <v-radio
-          value="bottom right"
-          class="mx-0">
-          <template #label>
-            <span>{{ $t('layout.imagePositionBottomRight') }}</span>
-          </template>
-        </v-radio>
+        class="my-0 text-no-wrap"
+        mandatory
+        hide-details>
+        <div class="d-flex flex-wrap">
+          <v-radio
+            value="center"
+            class="col-12 pa-0 mx-0 my-1">
+            <template #label>
+              <span>{{ $t('layout.imagePositionCenter') }}</span>
+            </template>
+          </v-radio>
+          <v-radio
+            value="top right"
+            class="col-6 pa-0 mx-0 my-1">
+            <template #label>
+              <span>{{ $t('layout.imagePositionTopRight') }}</span>
+            </template>
+          </v-radio>
+          <v-radio
+            value="top left"
+            class="col-6 pa-0 mx-0 my-1">
+            <template #label>
+              <span>{{ $t('layout.imagePositionTopLeft') }}</span>
+            </template>
+          </v-radio>
+          <v-radio
+            value="bottom right"
+            class="col-6 pa-0 mx-0 my-1">
+            <template #label>
+              <span>{{ $t('layout.imagePositionBottomRight') }}</span>
+            </template>
+          </v-radio>
+          <v-radio
+            value="bottom left"
+            class="col-6 pa-0 mx-0 my-1">
+            <template #label>
+              <span>{{ $t('layout.imagePositionBottomLeft') }}</span>
+            </template>
+          </v-radio>
+        </div>
       </v-radio-group>
-    </div>
+
+      <div class="text-subtitle mt-2">{{ $t('layout.imageScrollingTitle') }}</div>
+      <v-radio-group
+        v-model="container.backgroundAttachment"
+        class="my-0 text-no-wrap"
+        mandatory
+        hide-details>
+        <div class="d-flex flex-wrap">
+          <v-radio
+            value="fixed"
+            class="col-6 pa-0 mx-0 my-1">
+            <template #label>
+              <span>{{ $t('layout.imageScrollingFixed') }}</span>
+            </template>
+          </v-radio>
+          <v-radio
+            value="scroll"
+            class="col-6 pa-0 mx-0 my-1">
+            <template #label>
+              <span>{{ $t('layout.imageScrollingScroll') }}</span>
+            </template>
+          </v-radio>
+        </div>
+      </v-radio-group>
+
+      <div class="text-subtitle mt-2">{{ $t('layout.imageRepeatTitle') }}</div>
+      <v-radio-group
+        v-model="container.backgroundRepeat"
+        class="my-0 text-no-wrap"
+        mandatory
+        hide-details>
+        <div class="d-flex flex-wrap">
+          <v-radio
+            value="no-repeat"
+            class="col-6 pa-0 mx-0 my-1">
+            <template #label>
+              <span>{{ $t('layout.imageNoRepeat') }}</span>
+            </template>
+          </v-radio>
+          <v-radio
+            value="repeat"
+            class="col-6 pa-0 mx-0 my-1">
+            <template #label>
+              <span>{{ $t('layout.imageRepeat') }}</span>
+            </template>
+          </v-radio>
+        </div>
+      </v-radio-group>
+    </template>
     <layout-editor-background-margin-input
       v-if="enabled"
       :value="container"
@@ -301,7 +351,6 @@ export default {
     container: null,
     enabled: false,
     choice: null,
-    backgroundImageStyle: null,
     backgroundScrollTop: null,
     backgroundScrollMiddle: null,
     backgroundGradientFrom: null,
@@ -398,7 +447,7 @@ export default {
     enabled() {
       if (this.initialized) {
         this.container.backgroundImage = null;
-        this.backgroundImageStyle = null;
+        this.resetImageOptions();
 
         this.container.backgroundColor = this.enabled && this.defaultBackgroundColor || null;
         this.backgroundScrollTop = this.enabled && this.scrollColor && this.defaultBackgroundColor || null;
@@ -410,15 +459,12 @@ export default {
         this.gradientRatio = null;
       }
     },
-    backgroundImageStyle() {
-      if (this.initialized) {
-        if (this.backgroundImageStyle === 'cover' || this.backgroundImageStyle === 'contain') {
-          this.container.backgroundSize = this.backgroundImageStyle;
-          this.container.backgroundRepeat = null;
-        } else {
-          this.container.backgroundSize = null;
-          this.container.backgroundRepeat = this.backgroundImageStyle;
-        }
+    'container.backgroundImage'(newVal) {
+      if (this.initialized && !newVal) {
+        // The 4 image options below are meaningless without an image, and a
+        // stale 'fixed'/'repeat' left behind would be re-applied as soon as
+        // another image is picked.
+        this.resetImageOptions();
       }
     },
     backgroundColorChoice: {
@@ -466,14 +512,6 @@ export default {
   },
   created() {
     this.container = this.value;
-    if (this.container.backgroundSize || this.container.backgroundRepeat) {
-      if (this.container.backgroundSize === 'cover'
-          || this.container.backgroundSize === 'contain') {
-        this.backgroundImageStyle = this.container.backgroundSize;
-      } else {
-        this.backgroundImageStyle = this.container.backgroundRepeat;
-      }
-    }
     if (this.container.backgroundEffect?.startsWith('radial-gradient(')) {
       this.choice = 'radial';
       const stops = this.container.backgroundEffect.replace('radial-gradient(', '').replace(/\)$/, '').split(',').map(s => s.trim());
@@ -545,6 +583,12 @@ export default {
     this.$nextTick().then(() => this.initialized = true);
   },
   methods: {
+    resetImageOptions() {
+      this.container.backgroundSize = null;
+      this.container.backgroundPosition = null;
+      this.container.backgroundAttachment = null;
+      this.container.backgroundRepeat = null;
+    },
     async apply() {
       if (this.enabled && this.$refs.backgroundImage) {
         const backgroundImage = await this.$refs.backgroundImage.save();

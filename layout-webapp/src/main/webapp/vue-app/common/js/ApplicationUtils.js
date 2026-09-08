@@ -371,16 +371,19 @@ export function getStyle(container, options) {
         document.body.style.setProperty('--allPagesBackgroundRepeat', 'no-repeat');
         document.body.style.setProperty('--allPagesBackgroundSize', 'unset');
         document.body.style.setProperty('--allPagesBackgroundPosition', 'unset');
+        document.body.style.setProperty('--allPagesBackgroundAttachment', 'scroll');
       } else if (options.pageStyle) {
         style['--pageBodyBackgroundImage'] = 'none';
         style['--pageBodyBackgroundRepeat'] = 'no-repeat';
         style['--pageBodyBackgroundSize'] = 'unset';
         style['--pageBodyBackgroundPosition'] = 'unset';
+        style['--pageBodyBackgroundAttachment'] = 'scroll';
       } else {
         style[options.isApplicationBackground && '--appBackgroundImage' || 'background-image'] = 'none';
         style[options.isApplicationBackground && '--appBackgroundRepeat' || 'background-repeat'] = 'no-repeat';
         style[options.isApplicationBackground && '--appBackgroundSize' || 'background-size'] = 'unset';
         style[options.isApplicationBackground && '--appBackgroundPosition' || 'background-position'] = 'unset';
+        style[options.isApplicationBackground && '--appBackgroundAttachment' || 'background-attachment'] = 'scroll';
       }
     }
     if (container.backgroundImage) {
@@ -411,6 +414,15 @@ export function getStyle(container, options) {
           style[options.isApplicationBackground && '--appBackgroundPosition' || 'background-position'] = container.backgroundPosition;
         }
       }
+      if (container.backgroundAttachment) {
+        if (options.siteStyle) {
+          document.body.style.setProperty('--allPagesBackgroundAttachment', container.backgroundAttachment);
+        } else if (options.pageStyle) {
+          style['--pageBodyBackgroundAttachment'] = container.backgroundAttachment;
+        } else {
+          style[options.isApplicationBackground && '--appBackgroundAttachment' || 'background-attachment'] = container.backgroundAttachment;
+        }
+      }
     }
   } else if (backgroundLayerValues && options.isApplicationBackground) {
     // The real visible application background paints on the descendant
@@ -424,6 +436,7 @@ export function getStyle(container, options) {
     style['--appBackgroundRepeat'] = 'no-repeat';
     style['--appBackgroundSize'] = 'unset';
     style['--appBackgroundPosition'] = 'unset';
+    style['--appBackgroundAttachment'] = 'scroll';
   } else if (!options.noBackgroundStyle && !backgroundLayerValues && options.siteStyle && siteBackgroundOverridden) {
     // Only clear these when a previous call on this same page actually set them:
     // the server (UIPortalApplication.gtmpl) writes them as inline <body> style from
@@ -435,6 +448,7 @@ export function getStyle(container, options) {
     document.body.style.removeProperty('--allPagesBackgroundRepeat');
     document.body.style.removeProperty('--allPagesBackgroundSize');
     document.body.style.removeProperty('--allPagesBackgroundPosition');
+    document.body.style.removeProperty('--allPagesBackgroundAttachment');
     siteBackgroundOverridden = false;
   }
   if (container.appBackgroundColor) {
@@ -456,6 +470,9 @@ export function getStyle(container, options) {
     }
     if (container.appBackgroundPosition) {
       style['--appBackgroundPosition'] = container.appBackgroundPosition;
+    }
+    if (container.appBackgroundAttachment) {
+      style['--appBackgroundAttachment'] = container.appBackgroundAttachment;
     }
   }
   if (container.radiusTopRight || container.radiusTopRight === 0) {
@@ -559,6 +576,9 @@ export function getBackgroundLayerStyle(container, options) {
     }
     if (container.backgroundPosition) {
       style['background-position'] = container.backgroundPosition;
+    }
+    if (container.backgroundAttachment) {
+      style['background-attachment'] = container.backgroundAttachment;
     }
   }
   return style;
