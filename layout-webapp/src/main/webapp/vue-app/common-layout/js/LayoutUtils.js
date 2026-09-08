@@ -87,12 +87,14 @@ export const containerModel = {
   backgroundPosition: null,
   backgroundSize: null,
   backgroundRepeat: null,
+  backgroundAttachment: null,
   appBackgroundColor: null,
   appBackgroundImage: null,
   appBackgroundEffect: null,
   appBackgroundPosition: null,
   appBackgroundSize: null,
   appBackgroundRepeat: null,
+  appBackgroundAttachment: null,
   textTitleColor: null,
   textTitleFontSize: null,
   textTitleFontWeight: null,
@@ -186,6 +188,7 @@ export const applicationModel = {
   backgroundPosition: null,
   backgroundSize: null,
   backgroundRepeat: null,
+  backgroundAttachment: null,
   textTitleColor: null,
   textTitleFontSize: null,
   textTitleFontWeight: null,
@@ -428,12 +431,14 @@ export function applyContainerStyle(container, containerStyle) {
   Vue.set(container, 'appBackgroundPosition', containerStyle.appBackgroundPosition || null);
   Vue.set(container, 'appBackgroundSize', containerStyle.appBackgroundSize || null);
   Vue.set(container, 'appBackgroundRepeat', containerStyle.appBackgroundRepeat || null);
+  Vue.set(container, 'appBackgroundAttachment', containerStyle.appBackgroundAttachment || null);
   Vue.set(container, 'backgroundColor', containerStyle.backgroundColor || null);
   Vue.set(container, 'backgroundImage', containerStyle.backgroundImage || null);
   Vue.set(container, 'backgroundEffect', containerStyle.backgroundEffect || null);
   Vue.set(container, 'backgroundPosition', containerStyle.backgroundPosition || null);
   Vue.set(container, 'backgroundSize', containerStyle.backgroundSize || null);
   Vue.set(container, 'backgroundRepeat', containerStyle.backgroundRepeat || null);
+  Vue.set(container, 'backgroundAttachment', containerStyle.backgroundAttachment || null);
   Vue.set(container, 'textTitleColor', containerStyle.textTitleColor || null);
   Vue.set(container, 'textTitleFontSize', containerStyle.textTitleFontSize || null);
   Vue.set(container, 'textTitleFontWeight', containerStyle.textTitleFontWeight || null);
