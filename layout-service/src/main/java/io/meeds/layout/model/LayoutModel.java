@@ -116,6 +116,8 @@ public class LayoutModel {
 
   private String                          backgroundRepeat;
 
+  private String                          backgroundAttachment;
+
   private String                          appBackgroundColor;
 
   private String                          appBackgroundImage;
@@ -127,6 +129,8 @@ public class LayoutModel {
   private String                          appBackgroundSize;
 
   private String                          appBackgroundRepeat;
+
+  private String                          appBackgroundAttachment;
 
   private String                          textTitleColor;
 
@@ -291,6 +295,7 @@ public class LayoutModel {
       this.backgroundPosition = cssStyle.getBackgroundPosition();
       this.backgroundSize = cssStyle.getBackgroundSize();
       this.backgroundRepeat = cssStyle.getBackgroundRepeat();
+      this.backgroundAttachment = cssStyle.getBackgroundAttachment();
       this.textTitleColor = cssStyle.getTextTitleColor();
       this.textTitleFontSize = cssStyle.getTextTitleFontSize();
       this.textTitleFontWeight = cssStyle.getTextTitleFontWeight();
@@ -373,6 +378,7 @@ public class LayoutModel {
         this.appBackgroundPosition = appCssStyle.getBackgroundPosition();
         this.appBackgroundSize = appCssStyle.getBackgroundSize();
         this.appBackgroundRepeat = appCssStyle.getBackgroundRepeat();
+        this.appBackgroundAttachment = appCssStyle.getBackgroundAttachment();
       }
       if (model instanceof Page page) {
         this.editPermission = page.getEditPermission();

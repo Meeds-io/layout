@@ -195,6 +195,7 @@ public class EntityMapper {
       cssStyle.setBackgroundPosition(layoutModel.getBackgroundPosition());
       cssStyle.setBackgroundSize(layoutModel.getBackgroundSize());
       cssStyle.setBackgroundRepeat(layoutModel.getBackgroundRepeat());
+      cssStyle.setBackgroundAttachment(layoutModel.getBackgroundAttachment());
       cssStyle.setTextTitleColor(layoutModel.getTextTitleColor());
       cssStyle.setTextTitleFontSize(layoutModel.getTextTitleFontSize());
       cssStyle.setTextTitleFontWeight(layoutModel.getTextTitleFontWeight());
@@ -258,6 +259,7 @@ public class EntityMapper {
       cssStyle.setBackgroundPosition(layoutModel.getAppBackgroundPosition());
       cssStyle.setBackgroundSize(layoutModel.getAppBackgroundSize());
       cssStyle.setBackgroundRepeat(layoutModel.getAppBackgroundRepeat());
+      cssStyle.setBackgroundAttachment(layoutModel.getAppBackgroundAttachment());
     }
     return cssStyle;
   }

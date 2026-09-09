@@ -269,6 +269,8 @@ export default {
         backgroundEffect: this.pageContainer.appBackgroundEffect || null,
         backgroundRepeat: this.pageContainer.appBackgroundRepeat || null,
         backgroundSize: this.pageContainer.appBackgroundSize || null,
+        backgroundPosition: this.pageContainer.appBackgroundPosition || null,
+        backgroundAttachment: this.pageContainer.appBackgroundAttachment || null,
       };
       this.$refs.drawer.open();
     },
@@ -284,6 +286,8 @@ export default {
         this.$set(this.originalPageContainer, 'appBackgroundEffect', this.appBackgroundProperties.backgroundEffect);
         this.$set(this.originalPageContainer, 'appBackgroundRepeat', this.appBackgroundProperties.backgroundRepeat);
         this.$set(this.originalPageContainer, 'appBackgroundSize', this.appBackgroundProperties.backgroundSize);
+        this.$set(this.originalPageContainer, 'appBackgroundPosition', this.appBackgroundProperties.backgroundPosition);
+        this.$set(this.originalPageContainer, 'appBackgroundAttachment', this.appBackgroundProperties.backgroundAttachment);
         this.$set(this.originalPageContainer, 'width', this.width);
 
         if (this.pageContainer.marginTop === this.defaultMarginTop) {
