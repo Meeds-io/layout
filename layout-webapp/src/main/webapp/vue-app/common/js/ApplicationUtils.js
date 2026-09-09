@@ -416,7 +416,7 @@ export function getStyle(container, options) {
       }
       if (container.backgroundAttachment) {
         if (options.siteStyle) {
-          document.body.style.setProperty('--allPagesBackgroundAttachment', container.backgroundAttachment);
+          document.body.style.setProperty('--allPagesBackgroundAttachment', siteBackgroundAttachment(container.backgroundAttachment));
         } else if (options.pageStyle) {
           style['--pageBodyBackgroundAttachment'] = container.backgroundAttachment;
         } else {
@@ -535,6 +535,16 @@ export function setBackgroundLayerValues(container, partialValues) {
     }
   });
   container.cssClass = cssClass.trim();
+}
+
+// The site background paints on the scroll container itself (see the
+// .site-scroll-parent rule in platform-ui's reset.less), where 'scroll' means
+// "fixed with regard to that box" and so looks identical to 'fixed'. 'local' is
+// the value that makes the background follow the scrolled content there. Page,
+// section and app backgrounds paint on elements *inside* that scroller, which
+// physically move, so they keep 'scroll' untranslated.
+function siteBackgroundAttachment(attachment) {
+  return attachment === 'scroll' ? 'local' : attachment;
 }
 
 export function getBackgroundLayerStyle(container, options) {
