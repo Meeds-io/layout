@@ -79,6 +79,7 @@ export default {
         return {
           position: 'relative',
           flex: '0 0 420px',
+          zIndex: '0',
         };
       }
       return null;
