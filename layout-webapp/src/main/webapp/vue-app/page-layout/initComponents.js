@@ -30,6 +30,7 @@ import Container from './components/container/Container.vue';
 import Application from './components/container/Application.vue';
 
 import PageBody from './components/container/PageBody.vue';
+import StuckPanelAnchor from './components/container/StuckPanelAnchor.vue';
 import Site from './components/container/Site.vue';
 import SiteBannerCell from './components/container/SiteBannerCell.vue';
 import SiteBannerSection from './components/container/SiteBannerSection.vue';
@@ -54,6 +55,7 @@ const components = {
   'page-layout-site-middle-container': SiteMiddle,
   'page-layout-site-middle-center-container': SiteMiddleCenter,
   'page-layout-page-body-container': PageBody,
+  'page-layout-stuck-panel-anchor': StuckPanelAnchor,
   'page-layout-banner-cell': SiteBannerCell,
   'page-layout-banner-section': SiteBannerSection,
   'page-layout-sidebar-cell': SiteSidebarCell,
