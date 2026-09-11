@@ -20,11 +20,15 @@
 
 -->
 <template>
-  <page-layout-container-base
-    :container="container"
-    :parent-id="parentId"
-    class="d-flex flex-row site-middle-center-container"
-    page-style />
+  <div class="d-flex flex-row full-width layout-site-middle-center-row">
+    <page-layout-stuck-panel-anchor side="left" />
+    <page-layout-container-base
+      :container="container"
+      :parent-id="parentId"
+      class="d-flex flex-row site-middle-center-container flex-grow-1 flex-shrink-1"
+      page-style />
+    <page-layout-stuck-panel-anchor side="right" />
+  </div>
 </template>
 <script>
 export default {
@@ -37,6 +41,11 @@ export default {
       type: String,
       default: null,
     },
+  },
+  provide: {
+    // the stuck panel anchors live at this site level: the page body below
+    // must not render its own pair, the anchor ids are unique in the page
+    hasSitePanelAnchors: true,
   },
 };
 </script>
