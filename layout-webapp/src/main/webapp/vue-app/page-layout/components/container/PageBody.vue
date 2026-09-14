@@ -20,15 +20,11 @@
 
 -->
 <template>
-  <div class="d-flex flex-row full-width layout-page-body-row">
-    <page-layout-stuck-panel-anchor v-if="!hasSitePanelAnchors" side="left" />
-    <page-layout-container-base
-      :container="container"
-      :parent-id="parentId"
-      class="layout-page-parent flex-grow-1 flex-shrink-1"
-      page-style />
-    <page-layout-stuck-panel-anchor v-if="!hasSitePanelAnchors" side="right" />
-  </div>
+  <page-layout-container-base
+    :container="container"
+    :parent-id="parentId"
+    class="layout-page-parent"
+    page-style />
 </template>
 <script>
 export default {
@@ -40,14 +36,6 @@ export default {
     parentId: {
       type: String,
       default: null,
-    },
-  },
-  inject: {
-    // set by the site middle center container: when the site tree hosts the
-    // anchors at the site body edge, the page body keeps none (legacy pages
-    // rendered without a site tree still get the page-level pair)
-    hasSitePanelAnchors: {
-      default: false,
     },
   },
   mounted() {
