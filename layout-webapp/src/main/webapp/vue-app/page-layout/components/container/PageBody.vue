@@ -38,5 +38,8 @@ export default {
       default: null,
     },
   },
+  mounted() {
+    document.dispatchEvent(new CustomEvent('page-layout-rendered'));
+  },
 };
 </script>
