@@ -485,15 +485,18 @@ export function getStyle(container, options) {
   // Margins are custom properties at every level, on the platform scale (20 = no extra margin), rendered by one
   // skin rule: calc(var(--appMargin*, var(--allPagesAppMargin*, 20px)) - 20px). The stored attribute travels as is:
   // a legacy application (spacing tokens) is converted once, server-side, by LayoutModel before it reaches here.
-  // Page level: default margins of the applications of the page (appMargin*), inherited by every application below.
-  // Application level: its own margins (margin*), on its own element.
-  const applicationMargins = options.appStyle && !options.pageStyle;
-  ['Top', 'Right', 'Bottom', 'Left'].forEach(side => {
-    const margin = applicationMargins ? container[`margin${side}`] : container[`appMargin${side}`];
-    if (margin === 0 || margin) {
-      style[`--appMargin${side}`] = `${Number(margin)}px`;
-    }
-  });
+  // Page level (pageStyle): default margins of the applications of the page (appMargin*), inherited by every
+  // application below. Application level (applicationMargins, set by the application renderers only): its own
+  // margins (margin*), on its own element. Sections, cells and the site container carry margin* fields of their
+  // own scale and must not write --appMargin*, which their applications would inherit.
+  if (options.applicationMargins || options.pageStyle) {
+    ['Top', 'Right', 'Bottom', 'Left'].forEach(side => {
+      const margin = options.applicationMargins ? container[`margin${side}`] : container[`appMargin${side}`];
+      if (margin === 0 || margin) {
+        style[`--appMargin${side}`] = `${Number(margin)}px`;
+      }
+    });
+  }
   if (container.appBackgroundColor) {
     style['--appBackgroundColor'] = container.appBackgroundColor;
   }

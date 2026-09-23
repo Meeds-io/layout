@@ -68,6 +68,7 @@ export default {
         isApplicationBackground: true,
         isApplicationScroll: true,
         appStyle: true,
+        applicationMargins: true,
       });
     },
     backgroundLayerStyle() {
