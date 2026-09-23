@@ -69,9 +69,6 @@
       <module>stylingUtils</module>
     </depends>
     <depends>
-      <module>stylingInputs</module>
-    </depends>
-    <depends>
       <module>translationField</module>
     </depends>
     <depends>
@@ -207,6 +204,9 @@
         <module>commonLayoutComponents</module>
       </depends>
       <depends>
+        <module>stylingInputs</module>
+      </depends>
+      <depends>
         <module>vueDraggable</module>
       </depends>
       <depends>
@@ -251,6 +251,9 @@
         <module>commonLayoutComponents</module>
       </depends>
       <depends>
+        <module>stylingInputs</module>
+      </depends>
+      <depends>
         <module>vueDraggable</module>
       </depends>
       <depends>
@@ -293,6 +296,9 @@
       </depends>
       <depends>
         <module>commonLayoutComponents</module>
+      </depends>
+      <depends>
+        <module>stylingInputs</module>
       </depends>
       <depends>
         <module>vueDraggable</module>
@@ -402,6 +408,9 @@
         <module>commonLayoutComponents</module>
       </depends>
       <depends>
+        <module>stylingInputs</module>
+      </depends>
+      <depends>
         <module>attachImage</module>
       </depends>
       <depends>
@@ -431,6 +440,9 @@
       </depends>
       <depends>
         <module>commonLayoutComponents</module>
+      </depends>
+      <depends>
+        <module>stylingInputs</module>
       </depends>
       <depends>
         <module>attachImage</module>
@@ -477,6 +489,9 @@
       </depends>
       <depends>
         <module>commonLayoutComponents</module>
+      </depends>
+      <depends>
+        <module>stylingInputs</module>
       </depends>
       <depends>
         <module>attachImage</module>
@@ -546,6 +561,9 @@
       </depends>
       <depends>
         <module>commonLayoutComponents</module>
+      </depends>
+      <depends>
+        <module>stylingInputs</module>
       </depends>
       <depends>
         <module>attachImage</module>
