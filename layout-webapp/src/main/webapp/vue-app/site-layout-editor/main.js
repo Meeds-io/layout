@@ -46,7 +46,8 @@ const lang = eXo?.env.portal.language || 'en';
 const url = `/layout/i18n/locale.portlet.LayoutEditor?lang=${lang}`;
 
 export function init() {
-  exoi18n.loadLanguageAsync(lang, url)
+  // the shared styling inputs (social stylingInputs module) load their own labels: wait for both bundles
+  Promise.all([exoi18n.loadLanguageAsync(lang, url), window.stylingInputsI18n]).then(([i18n]) => i18n)
     .then(i18n => {
       // init Vue app when locale ressources are ready
       Vue.createApp({

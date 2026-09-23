@@ -140,6 +140,13 @@
             {{ $t('layout.applicationStyling') }}
           </div>
         </div>
+        <layout-editor-margin-input
+          ref="appMarginInput"
+          v-model="pageContainer"
+          :min="0"
+          :max="80"
+          field-prefix="app"
+          class="mt-4" />
         <layout-editor-border-input
           ref="appBorderInput"
           v-model="pageContainer"

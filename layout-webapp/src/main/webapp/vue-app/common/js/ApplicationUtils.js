@@ -27,6 +27,24 @@ export function installApplication(navUri, applicationStorageId, applicationElem
     .then(applicationContent => handleApplicationContent(applicationContent, applicationElement, applicationMode));
 }
 
+const GRADIENT_COLOR_PATTERN = /#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)/;
+
+export function isTopBanner(container) {
+  return !!container?.cssClass?.includes?.('layout-banner-top-section');
+}
+
+export function firstGradientColor(effect) {
+  const match = effect?.match?.(GRADIENT_COLOR_PATTERN);
+  return match ? match[0] : null;
+}
+
+export function isTransparentColor(color) {
+  return color === 'transparent' || (color?.length === 9 && color.toUpperCase().endsWith('00'));
+}
+
+// Margins are rendered through --appMargin* custom properties (getStyle); the Vuetify spacing classes that
+// older layouts stored for the same margins are dropped at render time so that they do not apply twice
+
 export function getStyle(container, options) {
   const style = {};
   const backgroundLayerValues = !options.noBackgroundStyle && parseBackgroundLayerValues(container.cssClass);
@@ -298,14 +316,17 @@ export function getStyle(container, options) {
         style['--appWidthScroll'] = 'auto';
       }
     }
+    // Application and page levels write the applications' border variables (a page's "Application styling > Border"
+    // is the default of its applications, inherited by custom property); sections paint their own border
+    const applicationBorder = options.appStyle || options.pageStyle;
     if (container.borderColor) {
-      style[options.appStyle && '--appBorderColor' || 'border-color'] = container.borderColor;
+      style[applicationBorder && '--appBorderColor' || 'border-color'] = container.borderColor;
       if (container.borderSize) {
-        style[options.appStyle && '--appBorderSize' || 'border-size'] = `${container.borderSize}px`;
+        style[applicationBorder && '--appBorderSize' || 'border-size'] = `${container.borderSize}px`;
       }
     }
     if (container.boxShadow === 'true') {
-      style[options.appStyle && '--appBoxShadow' || 'box-shadow'] = '0px 3px 3px -2px rgba(0, 0, 0, 0.2), 0px 3px 4px 0px rgba(0, 0, 0, 0.14), 0px 1px 8px 0px rgba(0, 0, 0, 0.12)';
+      style[applicationBorder && '--appBoxShadow' || 'box-shadow'] = '0px 3px 3px -2px rgba(0, 0, 0, 0.2), 0px 3px 4px 0px rgba(0, 0, 0, 0.14), 0px 1px 8px 0px rgba(0, 0, 0, 0.12)';
     }
   }
   if (!options.noBackgroundStyle
@@ -330,9 +351,18 @@ export function getStyle(container, options) {
           style['--sectionBackgroundColorScroll'] = colors[1];
         } else {
           style['background-color'] = container.backgroundColor;
-          if (container.cssClass?.includes?.('layout-sticky-section')) {
-            style['--sectionBackgroundColorScroll'] = container.backgroundColor;
-          }
+          // Colour kept once the section is fixed on scroll: the section's own, whether it is fixed by its
+          // own option or by the platform-wide Topbar default (body.topbar-sticky); a no-op when nothing is sticky
+          style['--sectionBackgroundColorScroll'] = container.backgroundColor;
+        }
+        if (isTopBanner(container) && container.backgroundEffect) {
+          // eXIP 7.3.0.30: the gradient option is removed from the Topbar. A stored gradient is ignored, never
+          // rewritten: its first colour is shown, otherwise the platform Topbar colour
+          const fallbackColor = firstGradientColor(container.backgroundEffect)
+            || (container.backgroundColor && !isTransparentColor(container.backgroundColor) && container.backgroundColor)
+            || 'var(--allPagesTopBarBackgroundColor)';
+          style['background-color'] = fallbackColor;
+          style['--sectionBackgroundColorScroll'] = fallbackColor;
         }
       }
     } else if (container.backgroundEffect || container.backgroundImage) {
@@ -347,8 +377,9 @@ export function getStyle(container, options) {
       }
     }
 
-    if (container.backgroundEffect && container.backgroundImage) {
-      style[options.isApplicationBackground && '--appBackgroundImage' || 'background-image'] = `url(${container.backgroundImage}),${container.backgroundEffect}`;
+    const backgroundEffect = isTopBanner(container) ? null : container.backgroundEffect;
+    if (backgroundEffect && container.backgroundImage) {
+      style[options.isApplicationBackground && '--appBackgroundImage' || 'background-image'] = `url(${container.backgroundImage}),${backgroundEffect}`;
     } else if (container.backgroundImage) {
       if (options.siteStyle) {
         document.body.style.setProperty('--allPagesBackgroundImage', `url(${container.backgroundImage})`);
@@ -357,7 +388,7 @@ export function getStyle(container, options) {
       } else {
         style[options.isApplicationBackground && '--appBackgroundImage' || 'background-image'] = `url(${container.backgroundImage})`;
       }
-    } else if (container.backgroundEffect) {
+    } else if (backgroundEffect) {
       if (options.siteStyle) {
         document.body.style.setProperty('--allPagesBackgroundImage', container.backgroundEffect);
       } else if (options.pageStyle) {
@@ -451,6 +482,18 @@ export function getStyle(container, options) {
     document.body.style.removeProperty('--allPagesBackgroundAttachment');
     siteBackgroundOverridden = false;
   }
+  // Margins are custom properties at every level, on the platform scale (20 = no extra margin), rendered by one
+  // skin rule: calc(var(--appMargin*, var(--allPagesAppMargin*, 20px)) - 20px). The stored attribute travels as is:
+  // a legacy application (spacing tokens) is converted once, server-side, by LayoutModel before it reaches here.
+  // Page level: default margins of the applications of the page (appMargin*), inherited by every application below.
+  // Application level: its own margins (margin*), on its own element.
+  const applicationMargins = options.appStyle && !options.pageStyle;
+  ['Top', 'Right', 'Bottom', 'Left'].forEach(side => {
+    const margin = applicationMargins ? container[`margin${side}`] : container[`appMargin${side}`];
+    if (margin === 0 || margin) {
+      style[`--appMargin${side}`] = `${Number(margin)}px`;
+    }
+  });
   if (container.appBackgroundColor) {
     style['--appBackgroundColor'] = container.appBackgroundColor;
   }
@@ -490,51 +533,14 @@ export function getStyle(container, options) {
   return style;
 }
 
-// Background margin/radius (EXIP-88427) can't be stored as dedicated ModelStyle
-// fields since ModelStyle is an external org.exoplatform.portal class we can't
-// extend from this repo, so the 8 values are opaquely encoded as cssClass tokens
-// (same pattern already used to mirror marginTop/radiusTopRight into mt-/brtr-
-// classes, under a prefix that can't collide with those).
-const BACKGROUND_LAYER_TOKEN_PREFIXES = {
-  marginTop: 'layout-bg-margin-top',
-  marginRight: 'layout-bg-margin-right',
-  marginBottom: 'layout-bg-margin-bottom',
-  marginLeft: 'layout-bg-margin-left',
-  radiusTopRight: 'layout-bg-radius-tr',
-  radiusTopLeft: 'layout-bg-radius-tl',
-  radiusBottomRight: 'layout-bg-radius-br',
-  radiusBottomLeft: 'layout-bg-radius-bl',
-};
-
+// The cssClass token helpers of the background layer (EXIP-88427) live in social's shared 'stylingUtils'
+// module (Vue.prototype.$stylingUtils), consumed by the styling inputs and by this renderer
 export function parseBackgroundLayerValues(cssClass) {
-  if (!cssClass) {
-    return null;
-  }
-  const values = {};
-  let found = false;
-  Object.entries(BACKGROUND_LAYER_TOKEN_PREFIXES).forEach(([key, prefix]) => {
-    const match = cssClass.match(new RegExp(`(?:^| )${prefix}-([0-9]+)(?: |$)`));
-    if (match) {
-      values[key] = parseInt(match[1]);
-      found = true;
-    }
-  });
-  return found ? values : null;
+  return Vue.prototype.$stylingUtils.parseBackgroundLayerValues(cssClass);
 }
 
 export function setBackgroundLayerValues(container, partialValues) {
-  // Merge with whatever's already encoded so that the margin component's
-  // writes never clobber the radius component's tokens (and vice-versa) -
-  // each only knows about its own 4 values, not the other's.
-  const values = { ...parseBackgroundLayerValues(container.cssClass), ...partialValues };
-  const prefixesPattern = Object.values(BACKGROUND_LAYER_TOKEN_PREFIXES).join('|');
-  let cssClass = (container.cssClass || '').replace(new RegExp(`(^| )(${prefixesPattern})-[0-9]+`, 'g'), '').replace(/ {2,}/g, ' ').trim();
-  Object.entries(BACKGROUND_LAYER_TOKEN_PREFIXES).forEach(([key, prefix]) => {
-    if (values[key] || values[key] === 0) {
-      cssClass += ` ${prefix}-${values[key]}`;
-    }
-  });
-  container.cssClass = cssClass.trim();
+  return Vue.prototype.$stylingUtils.setBackgroundLayerValues(container, partialValues);
 }
 
 // The site background paints on the scroll container itself (see the
