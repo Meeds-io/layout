@@ -50,14 +50,18 @@ import EditSectionDrawer from './components/drawer/EditSectionDrawer.vue';
 
 import EditPortletDialog from './components/dialog/EditPortletDialog.vue';
 
-// eXIP 7.3.0.30: the styling inputs live in social's shared 'stylingInputs' module (this module depends on it);
-// they stay reachable under their historical layout-editor-* tags
+// eXIP 7.3.0.30: the styling inputs live in social's shared 'stylingInputs' module, a dependency of the editor
+// portlets only (the view-time page renderer loads this module too and must not download them). They stay
+// reachable under their historical layout-editor-* tags through async components resolved at first mount.
 function sharedStylingInput(tag) {
-  const component = Vue.options.components[tag];
-  if (!component) {
-    throw new Error(`Shared styling input '${tag}' is not registered: the stylingInputs module must be loaded first`);
-  }
-  return component;
+  return (resolve, reject) => {
+    const component = Vue.options.components[tag];
+    if (component) {
+      resolve(component);
+    } else {
+      reject(new Error(`Shared styling input '${tag}' is not registered: the stylingInputs module must be loaded by this portlet`));
+    }
+  };
 }
 
 const components = {
