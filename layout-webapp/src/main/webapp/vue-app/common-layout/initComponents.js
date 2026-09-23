@@ -18,18 +18,6 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-import BorderRadiusSelector from './components/form/BorderRadiusSelector.vue';
-import ColorPicker from './components/form/ColorPicker.vue';
-import BackgroundImageAttachment from './components/form/BackgroundImageAttachment.vue';
-import BackgroundInput from './components/form/BackgroundInput.vue';
-import BackgroundMarginInput from './components/form/BackgroundMarginInput.vue';
-import BackgroundRadiusInput from './components/form/BackgroundRadiusInput.vue';
-import TextInput from './components/form/TextInput.vue';
-import TextBackgroundInput from './components/form/TextBackgroundInput.vue';
-import MarginInput from './components/form/MarginInput.vue';
-import SectionMarginInput from './components/form/SectionMarginInput.vue';
-import BorderInput from './components/form/BorderInput.vue';
-import BorderRadiusInput from './components/form/BorderRadiusInput.vue';
 import SectionTemplate from './components/form/SectionTemplate.vue';
 
 import ContainerExtension from './components/content/base/ContainerExtension.vue';
@@ -62,9 +50,19 @@ import EditSectionDrawer from './components/drawer/EditSectionDrawer.vue';
 
 import EditPortletDialog from './components/dialog/EditPortletDialog.vue';
 
+// eXIP 7.3.0.30: the styling inputs live in social's shared 'stylingInputs' module (this module depends on it);
+// they stay reachable under their historical layout-editor-* tags
+function sharedStylingInput(tag) {
+  const component = Vue.options.components[tag];
+  if (!component) {
+    throw new Error(`Shared styling input '${tag}' is not registered: the stylingInputs module must be loaded first`);
+  }
+  return component;
+}
+
 const components = {
-  'layout-editor-color-picker': ColorPicker,
-  'layout-editor-border-radius-selector': BorderRadiusSelector,
+  'layout-editor-color-picker': sharedStylingInput('styling-color-picker'),
+  'layout-editor-border-radius-selector': sharedStylingInput('styling-border-radius-selector'),
   'layout-editor-container': Container,
   'layout-editor-container-extension': ContainerExtension,
   'layout-editor-container-base': ContainerBase,
@@ -85,16 +83,16 @@ const components = {
   'layout-editor-page-edit-drawer': EditPageDrawer,
   'layout-editor-section-edit-drawer': EditSectionDrawer,
   'layout-editor-portlet-edit-dialog': EditPortletDialog,
-  'layout-editor-background-image-attachment': BackgroundImageAttachment,
-  'layout-editor-background-input': BackgroundInput,
-  'layout-editor-background-margin-input': BackgroundMarginInput,
-  'layout-editor-background-radius-input': BackgroundRadiusInput,
-  'layout-editor-text-input': TextInput,
-  'layout-editor-text-background-input': TextBackgroundInput,
-  'layout-editor-margin-input': MarginInput,
-  'layout-editor-section-margin-input': SectionMarginInput,
-  'layout-editor-border-input': BorderInput,
-  'layout-editor-border-radius-input': BorderRadiusInput,
+  'layout-editor-background-image-attachment': sharedStylingInput('styling-background-image-attachment'),
+  'layout-editor-background-input': sharedStylingInput('styling-background-input'),
+  'layout-editor-background-margin-input': sharedStylingInput('styling-background-margin-input'),
+  'layout-editor-background-radius-input': sharedStylingInput('styling-background-radius-input'),
+  'layout-editor-text-input': sharedStylingInput('styling-text-input'),
+  'layout-editor-text-background-input': sharedStylingInput('styling-text-background-input'),
+  'layout-editor-margin-input': sharedStylingInput('styling-margin-input'),
+  'layout-editor-section-margin-input': sharedStylingInput('styling-section-margin-input'),
+  'layout-editor-border-input': sharedStylingInput('styling-border-input'),
+  'layout-editor-border-radius-input': sharedStylingInput('styling-border-radius-input'),
   'layout-editor-application-card': ApplicationCard,
   'layout-editor-application-category-card': ApplicationCategoryCard,
   'layout-editor-application-menu': ApplicationMenu,
