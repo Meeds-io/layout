@@ -251,7 +251,11 @@ public class EntityMapper {
   private static ApplicationBackgroundStyle mapToAppStyle(LayoutModel layoutModel) {
     ApplicationBackgroundStyle cssStyle = null;
     if (StringUtils.isNotBlank(layoutModel.getAppBackgroundColor())
-        || StringUtils.isNotBlank(layoutModel.getAppBackgroundImage())) {
+        || StringUtils.isNotBlank(layoutModel.getAppBackgroundImage())
+        || layoutModel.getAppMarginTop() != null
+        || layoutModel.getAppMarginRight() != null
+        || layoutModel.getAppMarginBottom() != null
+        || layoutModel.getAppMarginLeft() != null) {
       cssStyle = new ApplicationBackgroundStyle();
       cssStyle.setBackgroundColor(layoutModel.getAppBackgroundColor());
       cssStyle.setBackgroundImage(layoutModel.getAppBackgroundImage());
@@ -260,6 +264,10 @@ public class EntityMapper {
       cssStyle.setBackgroundSize(layoutModel.getAppBackgroundSize());
       cssStyle.setBackgroundRepeat(layoutModel.getAppBackgroundRepeat());
       cssStyle.setBackgroundAttachment(layoutModel.getAppBackgroundAttachment());
+      cssStyle.setMarginTop(layoutModel.getAppMarginTop());
+      cssStyle.setMarginRight(layoutModel.getAppMarginRight());
+      cssStyle.setMarginBottom(layoutModel.getAppMarginBottom());
+      cssStyle.setMarginLeft(layoutModel.getAppMarginLeft());
     }
     return cssStyle;
   }

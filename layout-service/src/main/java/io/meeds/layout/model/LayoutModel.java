@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -29,6 +31,8 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonProperty.Access;
+
+import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.ApplicationBackgroundStyle;
@@ -131,6 +135,14 @@ public class LayoutModel {
   private String                          appBackgroundRepeat;
 
   private String                          appBackgroundAttachment;
+
+  private Integer                         appMarginTop;
+
+  private Integer                         appMarginRight;
+
+  private Integer                         appMarginBottom;
+
+  private Integer                         appMarginLeft;
 
   private String                          textTitleColor;
 
@@ -272,6 +284,42 @@ public class LayoutModel {
     init(model, portletInstanceService, portletInstanceContext);
   }
 
+  /**
+   * eXIP 7.3.0.30: application margins are custom properties on the platform
+   * scale where 20 means "no extra margin". Applications stored before that
+   * version carry Vuetify spacing tokens in their cssClass, written either by
+   * the editors from a 0-neutral attribute or by ModelStyle at import from a
+   * 20-neutral page-XML attribute: the two attributes disagree, the tokens do
+   * not (mt-n1 rendered -4px in both). The token is therefore the source of a
+   * legacy margin: value = N x 4 + 20, and the tokens are stripped from the
+   * class exposed to every Vue consumer (view-time layout and editors).
+   */
+  private static final Pattern SPACING_TOKEN_PATTERN = Pattern.compile("(^| )(mt|mr|mb|ml|ms|me)-((md|lg|xl)-)?(n?)(\\d{1,2})(?= |$)");
+
+  private static final int     MARGIN_NEUTRAL        = 20;
+
+  private void convertLegacyMarginTokens() {
+    if (StringUtils.isBlank(this.cssClass)) {
+      return;
+    }
+    Matcher matcher = SPACING_TOKEN_PATTERN.matcher(this.cssClass);
+    boolean legacy = false;
+    while (matcher.find()) {
+      legacy = true;
+      int value = Integer.parseInt(matcher.group(6)) * 4 * ("n".equals(matcher.group(5)) ? -1 : 1) + MARGIN_NEUTRAL;
+      switch (matcher.group(2)) {
+      case "mt" -> this.marginTop = value;
+      case "mb" -> this.marginBottom = value;
+      case "me", "mr" -> this.marginRight = value;
+      default -> this.marginLeft = value;
+      }
+    }
+    if (legacy) {
+      String stripped = SPACING_TOKEN_PATTERN.matcher(this.cssClass).replaceAll(" ").replaceAll(" {2,}", " ").trim();
+      this.cssClass = StringUtils.isBlank(stripped) ? null : stripped;
+    }
+  }
+
   private void init(ModelObject model, PortletInstanceService portletInstanceService, PortletInstanceContext portletInstanceContext) { // NOSONAR
     ModelStyle cssStyle = model.getCssStyle();
     if (cssStyle != null) {
@@ -379,6 +427,10 @@ public class LayoutModel {
         this.appBackgroundSize = appCssStyle.getBackgroundSize();
         this.appBackgroundRepeat = appCssStyle.getBackgroundRepeat();
         this.appBackgroundAttachment = appCssStyle.getBackgroundAttachment();
+        this.appMarginTop = appCssStyle.getMarginTop();
+        this.appMarginRight = appCssStyle.getMarginRight();
+        this.appMarginBottom = appCssStyle.getMarginBottom();
+        this.appMarginLeft = appCssStyle.getMarginLeft();
       }
       if (model instanceof Page page) {
         this.editPermission = page.getEditPermission();
@@ -400,6 +452,7 @@ public class LayoutModel {
       this.width = application.getWidth();
       this.height = application.getHeight();
       this.cssClass = application.getCssClass();
+      convertLegacyMarginTokens();
       this.showInfoBar = application.getShowInfoBar();
       this.showApplicationState = application.getShowApplicationState();
       this.showApplicationMode = application.getShowApplicationMode();
