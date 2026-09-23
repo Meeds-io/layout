@@ -132,6 +132,12 @@ export default {
       type: Boolean,
       default: false,
     },
+    // Page editor: the page container is rendered with the site style but must preview the applications' default
+    // margins set in Edit Page (appMargin*), as the view-time page style does
+    pageAppMargins: {
+      type: Boolean,
+      default: false,
+    },
     pageStyle: {
       type: Boolean,
       default: false,
@@ -199,6 +205,7 @@ export default {
         noBackgroundStyle: this.noBackgroundStyle,
         siteStyle: this.siteStyle,
         pageStyle: this.pageStyle,
+        pageAppMargins: this.pageAppMargins,
         sectionStyle: this.sectionStyle,
         appStyle: !this.noApplicationStyle,
         dynamicWidth: this.dynamicWidth,
