@@ -489,7 +489,9 @@ export function getStyle(container, options) {
   // application below. Application level (applicationMargins, set by the application renderers only): its own
   // margins (margin*), on its own element. Sections, cells and the site container carry margin* fields of their
   // own scale and must not write --appMargin*, which their applications would inherit.
-  if (options.applicationMargins || options.pageStyle) {
+  // pageAppMargins: the page editor renders the page container with the site style and passes this option so that
+  // the Edit Page margins preview there as they render at view time (pageStyle).
+  if (options.applicationMargins || options.pageStyle || options.pageAppMargins) {
     ['Top', 'Right', 'Bottom', 'Left'].forEach(side => {
       const margin = options.applicationMargins ? container[`margin${side}`] : container[`appMargin${side}`];
       if (margin === 0 || margin) {
