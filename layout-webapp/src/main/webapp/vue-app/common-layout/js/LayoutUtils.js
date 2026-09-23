@@ -95,6 +95,10 @@ export const containerModel = {
   appBackgroundSize: null,
   appBackgroundRepeat: null,
   appBackgroundAttachment: null,
+  appMarginTop: null,
+  appMarginRight: null,
+  appMarginBottom: null,
+  appMarginLeft: null,
   textTitleColor: null,
   textTitleFontSize: null,
   textTitleFontWeight: null,
@@ -354,15 +358,10 @@ export function applyContainerStyle(container, containerStyle) {
     Vue.set(container, 'marginBottom', containerStyle.marginBottom === 0 || containerStyle.marginBottom ? containerStyle.marginBottom : null);
     Vue.set(container, 'marginLeft', containerStyle.marginLeft === 0 || containerStyle.marginLeft ? containerStyle.marginLeft : null);
   } else {
+    // eXIP 7.3.0.30: margins are rendered through --appMargin* custom properties from the stored margin attributes;
+    // the Vuetify spacing classes older layouts carry are stripped (and never written again)
     container.cssClass = container.cssClass.replace(new RegExp('(^| )(mt|mr|mb|ml|ms|me)-((md|lg|xl)-)?n?[0-9]{1,2}', 'g'), '').replace(/  +/g, ' ');
-    if (containerStyle.marginTop === 0 || containerStyle.marginTop) {
-      container.cssClass += ` mt-${containerStyle.marginTop >= 0 ? '' : 'n'}${Math.abs(parseInt(Math.max(-64, Math.min(containerStyle.marginTop || 0, 64)) / 4))}`;
-      container.cssClass += ` me-${containerStyle.marginRight >= 0 ? '' : 'n'}${Math.abs(parseInt(Math.max(-64, Math.min(containerStyle.marginRight || 0, 64)) / 4))}`;
-      container.cssClass += ` mb-${containerStyle.marginBottom >= 0 ? '' : 'n'}${Math.abs(parseInt(Math.max(-64, Math.min(containerStyle.marginBottom || 0, 64)) / 4))}`;
-      container.cssClass += ` ms-${containerStyle.marginLeft >= 0 ? '' : 'n'}${Math.abs(parseInt(Math.max(-64, Math.min(containerStyle.marginLeft || 0, 64)) / 4))}`;
-    }
   }
-
   container.cssClass = container.cssClass.replace(new RegExp('(^| )(brtr|brtl|brbr|brbl)-[0-9]', 'g'), '').replace(/  +/g, ' ');
   Vue.set(container, 'cssClass', container.cssClass);
 
@@ -432,6 +431,10 @@ export function applyContainerStyle(container, containerStyle) {
   Vue.set(container, 'appBackgroundSize', containerStyle.appBackgroundSize || null);
   Vue.set(container, 'appBackgroundRepeat', containerStyle.appBackgroundRepeat || null);
   Vue.set(container, 'appBackgroundAttachment', containerStyle.appBackgroundAttachment || null);
+  Vue.set(container, 'appMarginTop', containerStyle.appMarginTop === 0 ? 0 : containerStyle.appMarginTop || null);
+  Vue.set(container, 'appMarginRight', containerStyle.appMarginRight === 0 ? 0 : containerStyle.appMarginRight || null);
+  Vue.set(container, 'appMarginBottom', containerStyle.appMarginBottom === 0 ? 0 : containerStyle.appMarginBottom || null);
+  Vue.set(container, 'appMarginLeft', containerStyle.appMarginLeft === 0 ? 0 : containerStyle.appMarginLeft || null);
   Vue.set(container, 'backgroundColor', containerStyle.backgroundColor || null);
   Vue.set(container, 'backgroundImage', containerStyle.backgroundImage || null);
   Vue.set(container, 'backgroundEffect', containerStyle.backgroundEffect || null);
@@ -1025,18 +1028,8 @@ export function parseContainerStyle(container) {
     && container.template !== sidebarTemplate
     && container.template !== pageBodyTemplate
     && container.template !== sectionsParentTemplate) {
-    const marginMatches = container?.cssClass?.match?.(new RegExp('(^| )(mt|mr|mb|ml|ms|me)-((md|lg|xl)-)?n?[0-9]{1,2}', 'g')) || [];
-    if (marginMatches?.length) {
-      container.marginTop = parseInt(marginMatches.find(c => c.search(/mt-n?\d+/) >= 0)?.replace?.('mt-n', '-')?.replace?.('mt-', '') || 0) * 4;
-      container.marginRight = parseInt(marginMatches.find(c => c.search(/me-n?\d+/) >= 0)?.replace?.('me-n', '-')?.replace?.('me-', '') || 0) * 4;
-      container.marginBottom = parseInt(marginMatches.find(c => c.search(/mb-n?\d+/) >= 0)?.replace?.('mb-n', '-')?.replace?.('mb-', '') || 0) * 4;
-      container.marginLeft = parseInt(marginMatches.find(c => c.search(/ms-n?\d+/) >= 0)?.replace?.('ms-n', '-')?.replace?.('ms-', '') || 0) * 4;
-    } else {
-      container.marginTop = null;
-      container.marginRight = null;
-      container.marginBottom = null;
-      container.marginLeft = null;
-    }
+    // eXIP 7.3.0.30: margins live in the margin attributes only, on the platform scale (20 = no extra margin);
+    // a legacy application is converted once, server-side, by LayoutModel, so the attributes are the source of truth
   }
 
   const radiusMatches = container?.cssClass?.match?.(new RegExp('(^| )(brtr|brtl|brbr|brbl)-[0-9]', 'g')) || [];

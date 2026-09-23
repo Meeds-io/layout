@@ -148,6 +148,7 @@
           ref="backgroundInput"
           v-model="container"
           :scroll-color="stickySection"
+          :no-gradient="isTopContainer"
           class="mb-2"
           text-bold />
         <layout-editor-text-input
