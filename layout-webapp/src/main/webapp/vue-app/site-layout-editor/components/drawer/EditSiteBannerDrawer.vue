@@ -136,21 +136,38 @@
         <div class="text-header mb-4">
           {{ $t('layout.editSiteSidebarSection.label.updateStyle') }}
         </div>
-        <div v-if="isTopContainer" class="d-flex align-center mb-2">
-          <div class="me-auto mb-2">
-            {{ $t('layout.fixPositionWhenScrolling') }}
-          </div>
-          <v-switch
-            v-model="stickySection"
-            class="ms-auto my-auto me-n2" />
-        </div>
         <layout-editor-background-input
           ref="backgroundInput"
           v-model="container"
           :scroll-color="stickySection"
           :no-gradient="isTopContainer"
           class="mb-2"
-          text-bold />
+          text-bold>
+          <template v-if="isTopContainer" #after-color>
+            <v-list-item
+              class="pa-0"
+              dense>
+              <v-list-item-content class="my-auto">
+                {{ $t('layout.fixPositionWhenScrolling') }}
+              </v-list-item-content>
+              <v-list-item-action class="my-auto me-0 ms-auto">
+                <v-switch
+                  v-model="stickySection"
+                  class="my-auto me-n2" />
+              </v-list-item-action>
+            </v-list-item>
+          </template>
+        </layout-editor-background-input>
+        <div
+          v-if="isTopContainer && !backgroundEnabled"
+          class="d-flex align-center mb-2">
+          <div class="me-auto">
+            {{ $t('layout.fixPositionWhenScrolling') }}
+          </div>
+          <v-switch
+            v-model="stickySection"
+            class="ms-auto my-auto me-n2" />
+        </div>
         <layout-editor-text-input
           ref="textInput"
           v-model="container"
@@ -208,6 +225,11 @@ export default {
     saving: false,
   }),
   computed: {
+    // The shared background input renders its after-colour slot only while a background is set: the fix-position
+    // option then sits under the Colour field as in Branding and Theme; without background it stays reachable below
+    backgroundEnabled() {
+      return !!this.container?.backgroundColor || !!this.container?.backgroundImage;
+    },
     isTopContainer() {
       return this.container?.cssClass?.includes?.('layout-banner-top-section');
     },
