@@ -28,7 +28,7 @@ import org.exoplatform.portal.config.model.ModelStyle;
 import org.exoplatform.portal.config.model.TransientApplicationState;
 
 /**
- * eXIP 7.3.0.30: legacy application margins are read once, server-side, from
+ * Legacy application margins are read once, server-side, from
  * the Vuetify spacing tokens still stored in the cssClass (value = N x 4 + 20
  * on the platform scale), whatever scale the stored attribute used, and the
  * tokens are stripped from the class exposed to the Vue consumers.

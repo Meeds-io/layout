@@ -358,7 +358,7 @@ export function applyContainerStyle(container, containerStyle) {
     Vue.set(container, 'marginBottom', containerStyle.marginBottom === 0 || containerStyle.marginBottom ? containerStyle.marginBottom : null);
     Vue.set(container, 'marginLeft', containerStyle.marginLeft === 0 || containerStyle.marginLeft ? containerStyle.marginLeft : null);
   } else {
-    // eXIP 7.3.0.30: margins are rendered through --appMargin* custom properties from the stored margin attributes;
+    // margins are rendered through --appMargin* custom properties from the stored margin attributes;
     // the Vuetify spacing classes older layouts carry are stripped (and never written again)
     container.cssClass = container.cssClass.replace(new RegExp('(^| )(mt|mr|mb|ml|ms|me)-((md|lg|xl)-)?n?[0-9]{1,2}', 'g'), '').replace(/  +/g, ' ');
   }
@@ -1028,7 +1028,7 @@ export function parseContainerStyle(container) {
     && container.template !== sidebarTemplate
     && container.template !== pageBodyTemplate
     && container.template !== sectionsParentTemplate) {
-    // eXIP 7.3.0.30: margins live in the margin attributes only, on the platform scale (20 = no extra margin);
+    // margins live in the margin attributes only, on the platform scale (20 = no extra margin);
     // a legacy application is converted once, server-side, by LayoutModel, so the attributes are the source of truth
   }
 

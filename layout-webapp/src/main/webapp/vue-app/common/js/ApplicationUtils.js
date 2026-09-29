@@ -356,7 +356,7 @@ export function getStyle(container, options) {
           style['--sectionBackgroundColorScroll'] = container.backgroundColor;
         }
         if (isTopBanner(container) && container.backgroundEffect) {
-          // eXIP 7.3.0.30: the gradient option is removed from the Topbar. A stored gradient is ignored, never
+          // The Topbar background offers no gradient option. A stored gradient is ignored, never
           // rewritten: its first colour is shown, otherwise the platform Topbar colour
           const fallbackColor = firstGradientColor(container.backgroundEffect)
             || (container.backgroundColor && !isTransparentColor(container.backgroundColor) && container.backgroundColor)
