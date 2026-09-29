@@ -50,7 +50,7 @@ import EditSectionDrawer from './components/drawer/EditSectionDrawer.vue';
 
 import EditPortletDialog from './components/dialog/EditPortletDialog.vue';
 
-// eXIP 7.3.0.30: the styling inputs live in social's shared 'stylingInputs' module, a dependency of the editor
+// The styling inputs live in social's shared 'stylingInputs' module, a dependency of the editor
 // portlets only (the view-time page renderer loads this module too and must not download them). They stay
 // reachable under their historical layout-editor-* tags through async components resolved at first mount.
 function sharedStylingInput(tag) {

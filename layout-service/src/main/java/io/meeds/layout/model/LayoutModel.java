@@ -285,9 +285,9 @@ public class LayoutModel {
   }
 
   /**
-   * eXIP 7.3.0.30: application margins are custom properties on the platform
-   * scale where 20 means "no extra margin". Applications stored before that
-   * version carry Vuetify spacing tokens in their cssClass, written either by
+   * Application margins are custom properties on the platform scale where 20
+   * means "no extra margin". An application whose cssClass still carries
+   * Vuetify spacing tokens in their cssClass, written either by
    * the editors from a 0-neutral attribute or by ModelStyle at import from a
    * 20-neutral page-XML attribute: the two attributes disagree, the tokens do
    * not (mt-n1 rendered -4px in both). The token is therefore the source of a
