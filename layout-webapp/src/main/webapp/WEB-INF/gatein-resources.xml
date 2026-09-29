@@ -34,6 +34,7 @@
     <portlet-name>LayoutEditor</portlet-name>
     <skin-name>Enterprise</skin-name>
     <additional-module>LayoutEditor</additional-module>
+    <additional-module>StylingInputs</additional-module>
   </portlet-skin>
 
   <portlet-skin>
@@ -41,6 +42,7 @@
     <portlet-name>SiteLayoutEditor</portlet-name>
     <skin-name>Enterprise</skin-name>
     <additional-module>LayoutEditor</additional-module>
+    <additional-module>StylingInputs</additional-module>
   </portlet-skin>
 
   <portlet-skin>
@@ -48,6 +50,7 @@
     <portlet-name>SectionEditor</portlet-name>
     <skin-name>Enterprise</skin-name>
     <additional-module>LayoutEditor</additional-module>
+    <additional-module>StylingInputs</additional-module>
   </portlet-skin>
 
   <portlet-skin>
@@ -55,6 +58,28 @@
     <portlet-name>SectionTemplates</portlet-name>
     <skin-name>Enterprise</skin-name>
     <additional-module>LayoutEditor</additional-module>
+    <additional-module>StylingInputs</additional-module>
+  </portlet-skin>
+
+  <portlet-skin>
+    <application-name>layout</application-name>
+    <portlet-name>PageTemplatesManagement</portlet-name>
+    <skin-name>Enterprise</skin-name>
+    <additional-module>StylingInputs</additional-module>
+  </portlet-skin>
+
+  <portlet-skin>
+    <application-name>layout</application-name>
+    <portlet-name>Portlets</portlet-name>
+    <skin-name>Enterprise</skin-name>
+    <additional-module>StylingInputs</additional-module>
+  </portlet-skin>
+
+  <portlet-skin>
+    <application-name>layout</application-name>
+    <portlet-name>PortletEditor</portlet-name>
+    <skin-name>Enterprise</skin-name>
+    <additional-module>StylingInputs</additional-module>
   </portlet-skin>
 
   <module>
