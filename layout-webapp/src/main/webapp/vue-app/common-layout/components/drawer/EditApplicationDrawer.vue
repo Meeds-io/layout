@@ -78,6 +78,7 @@
           ref="textInput"
           v-model="container"
           class="mt-4"
+          custom-icon
           @refresh="refresh++" />
         <div class="d-flex align-center mt-4">
           <div class="text-title mb-2">
@@ -268,6 +269,7 @@ export default {
         textSubtitleFontSize: this.container?.textSubtitleFontSize || null,
         textSubtitleFontWeight: this.container?.textSubtitleFontWeight || null,
         textSubtitleFontStyle: this.container?.textSubtitleFontStyle || null,
+        iconColor: this.container?.iconColor || null,
         textTitleBackgroundColor: this.container?.textTitleBackgroundColor || null,
         textTitleBackgroundImage: this.container?.textTitleBackgroundImage || null,
         textTitleBackgroundEffect: this.container?.textTitleBackgroundEffect || null,

@@ -172,6 +172,7 @@
           ref="textInput"
           v-model="container"
           class="mb-2"
+          custom-icon
           text-bold />
         <layout-editor-section-margin-input
           ref="marginInput"
