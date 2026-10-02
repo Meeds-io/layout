@@ -77,6 +77,7 @@
           ref="textInput"
           v-model="container"
           class="mb-4"
+          custom-icon
           text-bold />
         <layout-editor-section-margin-input
           ref="marginInput"
