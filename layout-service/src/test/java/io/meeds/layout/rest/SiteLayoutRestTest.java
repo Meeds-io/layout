@@ -394,6 +394,21 @@ public class SiteLayoutRestTest {
 
   @Test
   @SneakyThrows
+  void updateSiteLayoutWhenInvalidStyle() {
+    // a refused style value (the icon colour hex check, the generic css check) is a 400, never a 500
+    doThrow(new IllegalArgumentException("Invalid icon color input red")).when(siteLayoutService)
+                                                                        .updateSiteLayout(eq(SITE_KEY),
+                                                                                          any(),
+                                                                                          anyBoolean(),
+                                                                                          eq(SIMPLE_USER));
+    ResultActions response = mockMvc.perform(put(LAYOUT_REST_PATH_WITH_PARAMS).content("{}")
+                                                                              .contentType(MediaType.APPLICATION_JSON)
+                                                                              .with(testSimpleUser()));
+    response.andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @SneakyThrows
   void updateSiteLayoutWhenIllegalAccess() {
     doThrow(IllegalAccessException.class).when(siteLayoutService)
                                          .updateSiteLayout(eq(SITE_KEY), any(), anyBoolean(), eq(SIMPLE_USER));

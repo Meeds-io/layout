@@ -48,6 +48,8 @@ import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.resources.LocaleContextInfo;
 
+import io.meeds.layout.util.LayoutStyleValidator;
+
 import lombok.SneakyThrows;
 
 @Service
@@ -264,6 +266,7 @@ public class SiteLayoutService {
                                                      siteKey,
                                                      username));
     }
+    LayoutStyleValidator.validate(site.getPortalLayout());
     portalConfig.setPortalLayout(site.getPortalLayout());
     try {
       if (publish) {

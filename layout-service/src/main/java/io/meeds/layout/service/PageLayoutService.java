@@ -19,7 +19,6 @@
 package io.meeds.layout.service;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
@@ -31,8 +30,6 @@ import org.apache.commons.lang3.StringUtils;
 import org.exoplatform.portal.config.model.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
-import com.google.javascript.jscomp.jarjar.com.google.re2j.Pattern;
 
 import org.exoplatform.commons.addons.AddOnService;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -59,6 +56,7 @@ import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.util.EntityMapper;
 import io.meeds.layout.util.JsonUtils;
+import io.meeds.layout.util.LayoutStyleValidator;
 
 import lombok.SneakyThrows;
 
@@ -74,8 +72,6 @@ public class PageLayoutService {
   private static final String    ADDON_CONTAINER_FACTORY_ID      = "addonContainer";
 
   private static final Log       LOG                             = ExoLogger.getLogger(PageLayoutService.class);
-
-  private static final Pattern   GENERIC_STYLE_MATCHER_VALIDATOR = Pattern.compile("[#0-9a-zA-Z\\(\\),\\./\"'\\-%_ ]+");
 
   private static final String    PAGE_NOT_EXISTS_MESSAGE         = "Page with key %s doesn't exist";
 
@@ -248,7 +244,7 @@ public class PageLayoutService {
                                                                   portalConfig.getEditPermission() :
                                                                   pageModel.getEditPermission();
     page.setEditPermission(editPermission);
-    validateCSSInputs(page);
+    LayoutStyleValidator.validate(page);
     layoutService.save(new PageContext(page.getPageKey(), Utils.toPageState(page)), page);
     listenerService.broadcast(PAGE_UPDATED_EVENT, username, page.getPageKey().format());
     return layoutService.getPageContext(page.getPageKey());
@@ -359,7 +355,7 @@ public class PageLayoutService {
       LOG.debug("Error while accessing page applications storage information", e);
       throw new IllegalStateException("layout.pageOutdatedError");
     }
-    validateCSSInputs(page);
+    LayoutStyleValidator.validate(page);
     existingPage.setChildren(page.getChildren());
     layoutService.save(existingPage);
     listenerService.broadcast(PAGE_UPDATED_EVENT, username, pageKey.format());
@@ -542,51 +538,6 @@ public class PageLayoutService {
       replaced = true;
     }
     return replaced;
-  }
-
-  private void validateCSSInputs(ModelObject modelObject) { // NOSONAR
-    ModelStyle cssStyle = modelObject.getCssStyle();
-    Arrays.asList(modelObject.getHeight(),
-                  modelObject.getWidth(),
-                  cssStyle == null ? null : cssStyle.getBorderColor(),
-                  cssStyle == null ? null : cssStyle.getBorderSize(),
-                  cssStyle == null ? null : cssStyle.getBoxShadow(),
-                  cssStyle == null ? null : cssStyle.getBackgroundColor(),
-                  cssStyle == null ? null : cssStyle.getBackgroundImage(),
-                  cssStyle == null ? null : cssStyle.getBackgroundEffect(),
-                  cssStyle == null ? null : cssStyle.getBackgroundPosition(),
-                  cssStyle == null ? null : cssStyle.getBackgroundSize(),
-                  cssStyle == null ? null : cssStyle.getBackgroundRepeat(),
-                  cssStyle == null ? null : cssStyle.getTextTitleColor(),
-                  cssStyle == null ? null : cssStyle.getTextTitleFontSize(),
-                  cssStyle == null ? null : cssStyle.getTextTitleFontWeight(),
-                  cssStyle == null ? null : cssStyle.getTextTitleFontStyle(),
-                  cssStyle == null ? null : cssStyle.getTextColor(),
-                  cssStyle == null ? null : cssStyle.getTextFontSize(),
-                  cssStyle == null ? null : cssStyle.getTextFontWeight(),
-                  cssStyle == null ? null : cssStyle.getTextFontStyle(),
-                  cssStyle == null ? null : cssStyle.getTextHeaderColor(),
-                  cssStyle == null ? null : cssStyle.getTextHeaderFontSize(),
-                  cssStyle == null ? null : cssStyle.getTextHeaderFontWeight(),
-                  cssStyle == null ? null : cssStyle.getTextHeaderFontStyle(),
-                  cssStyle == null ? null : cssStyle.getTextSubtitleColor(),
-                  cssStyle == null ? null : cssStyle.getTextSubtitleFontSize(),
-                  cssStyle == null ? null : cssStyle.getTextSubtitleFontWeight(),
-                  cssStyle == null ? null : cssStyle.getTextSubtitleFontStyle())
-          .forEach(this::validateCSSStyleValue);
-    if (modelObject instanceof Container container && !CollectionUtils.isEmpty(container.getChildren())) {
-      container.getChildren().forEach(this::validateCSSInputs);
-    }
-  }
-
-  private void validateCSSStyleValue(String value) {
-    if (StringUtils.isNotBlank(value)
-        && (!GENERIC_STYLE_MATCHER_VALIDATOR.matches(value)
-            || value.contains("javascript")
-            || value.contains("eval"))) {
-      throw new IllegalArgumentException(String.format("Invalid css value input %s",
-                                                       value));
-    }
   }
 
   private ModelObject filterByPermission(ModelObject modelObject, String username) {

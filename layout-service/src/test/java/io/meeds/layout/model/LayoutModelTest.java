@@ -19,13 +19,17 @@
 package io.meeds.layout.model;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import org.junit.jupiter.api.Test;
 
 import org.exoplatform.portal.config.model.Application;
+import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.ModelStyle;
 import org.exoplatform.portal.config.model.TransientApplicationState;
+
+import io.meeds.layout.util.EntityMapper;
 
 /**
  * eXIP 7.3.0.30: legacy application margins are read once, server-side, from
@@ -75,6 +79,35 @@ public class LayoutModelTest {
     assertEquals(28, model.getMarginRight());
     assertEquals(24, model.getMarginLeft());
     assertNull(model.getCssClass());
+  }
+
+  @Test
+  public void shouldRoundTripIconColorThroughModelAndMapper() {
+    // eXIP 7.3.0.31: the page/app icon colour rides ModelStyle -> LayoutModel -> ModelStyle like the text colour
+    Application application = application(null, null, null, null, null);
+    application.getCssStyle().setTextColor("#20282C");
+    application.getCssStyle().setIconColor("#AABBCC");
+
+    LayoutModel model = new LayoutModel(application);
+    assertEquals("#20282C", model.getTextColor());
+    assertEquals("#AABBCC", model.getIconColor());
+
+    ModelObject mapped = EntityMapper.toModelObject(model);
+    assertNotNull(mapped.getCssStyle());
+    assertEquals("#20282C", mapped.getCssStyle().getTextColor());
+    assertEquals("#AABBCC", mapped.getCssStyle().getIconColor());
+  }
+
+  @Test
+  public void shouldMapStyleWhenIconColorIsTheOnlyStyledValue() {
+    // an application whose only custom value is the icon colour still gets a css-style, else the colour is dropped on save
+    LayoutModel model = new LayoutModel(application(null, null, null, null, null));
+    model.setIconColor("#AABBCC");
+    assertNull(EntityMapper.toModelObject(new LayoutModel(application(null, null, null, null, null))).getCssStyle());
+
+    ModelObject mapped = EntityMapper.toModelObject(model);
+    assertNotNull(mapped.getCssStyle());
+    assertEquals("#AABBCC", mapped.getCssStyle().getIconColor());
   }
 
   private Application application(Integer top, Integer bottom, Integer right, Integer left, String cssClass) {
