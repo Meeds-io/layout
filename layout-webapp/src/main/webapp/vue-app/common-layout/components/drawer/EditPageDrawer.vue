@@ -167,6 +167,7 @@
           ref="appTextInput"
           v-model="pageContainer"
           class="mt-4"
+          custom-icon
           page-style />
       </v-card>
     </template>

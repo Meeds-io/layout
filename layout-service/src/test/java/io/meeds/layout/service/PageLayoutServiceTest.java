@@ -489,6 +489,22 @@ public class PageLayoutServiceTest {
     when(applicationCssStyle.getBorderColor()).thenReturn(borderColor);
 
     assertDoesNotThrow(() -> pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER));
+
+    // eXIP 7.3.0.31: the icon colour passes a hex-only check, stricter than the generic character class
+    when(cssStyle.getIconColor()).thenReturn("rgb(1, 2, 3)");
+    assertThrows(IllegalArgumentException.class,
+                 () -> pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER));
+    when(cssStyle.getIconColor()).thenReturn("initial");
+    assertThrows(IllegalArgumentException.class,
+                 () -> pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER));
+    when(cssStyle.getIconColor()).thenReturn("#AABBCCDD");
+    assertDoesNotThrow(() -> pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER));
+
+    when(applicationCssStyle.getIconColor()).thenReturn("#GGHHII");
+    assertThrows(IllegalArgumentException.class,
+                 () -> pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER));
+    when(applicationCssStyle.getIconColor()).thenReturn("#abc");
+    assertDoesNotThrow(() -> pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER));
   }
 
   @Test

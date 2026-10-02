@@ -115,6 +115,7 @@ export const containerModel = {
   textSubtitleFontSize: null,
   textSubtitleFontWeight: null,
   textSubtitleFontStyle: null,
+  iconColor: null,
   textTitleBackgroundColor: null,
   textTitleBackgroundImage: null,
   textTitleBackgroundEffect: null,
@@ -209,6 +210,7 @@ export const applicationModel = {
   textSubtitleFontSize: null,
   textSubtitleFontWeight: null,
   textSubtitleFontStyle: null,
+  iconColor: null,
   textTitleBackgroundColor: null,
   textTitleBackgroundImage: null,
   textTitleBackgroundEffect: null,
@@ -458,6 +460,7 @@ export function applyContainerStyle(container, containerStyle) {
   Vue.set(container, 'textSubtitleFontSize', containerStyle.textSubtitleFontSize || null);
   Vue.set(container, 'textSubtitleFontWeight', containerStyle.textSubtitleFontWeight || null);
   Vue.set(container, 'textSubtitleFontStyle', containerStyle.textSubtitleFontStyle || null);
+  Vue.set(container, 'iconColor', containerStyle.iconColor || null);
   Vue.set(container, 'textTitleBackgroundColor', containerStyle.textTitleBackgroundColor || null);
   Vue.set(container, 'textTitleBackgroundImage', containerStyle.textTitleBackgroundImage || null);
   Vue.set(container, 'textTitleBackgroundEffect', containerStyle.textTitleBackgroundEffect || null);

@@ -120,6 +120,9 @@ export function getStyle(container, options) {
   if (container.textColor) {
     style['--appTextColor'] = container.textColor;
   }
+  if (container.iconColor) {
+    style['--appIconColor'] = container.iconColor;
+  }
   if (container.textFontSize) {
     style['--appTextFontSize'] = container.textFontSize;
   }

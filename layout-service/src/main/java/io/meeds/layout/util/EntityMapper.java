@@ -168,6 +168,7 @@ public class EntityMapper {
                        || StringUtils.isNotBlank(layoutModel.getTextColor())
                        || StringUtils.isNotBlank(layoutModel.getTextHeaderColor())
                        || StringUtils.isNotBlank(layoutModel.getTextSubtitleColor())
+                       || StringUtils.isNotBlank(layoutModel.getIconColor())
                        || StringUtils.isNotBlank(layoutModel.getTextTitleBackgroundColor())
                        || StringUtils.isNotBlank(layoutModel.getTextTitleBackgroundImage())
                        || StringUtils.isNotBlank(layoutModel.getTextHeaderBackgroundColor())
@@ -212,6 +213,7 @@ public class EntityMapper {
       cssStyle.setTextSubtitleFontSize(layoutModel.getTextSubtitleFontSize());
       cssStyle.setTextSubtitleFontWeight(layoutModel.getTextSubtitleFontWeight());
       cssStyle.setTextSubtitleFontStyle(layoutModel.getTextSubtitleFontStyle());
+      cssStyle.setIconColor(layoutModel.getIconColor());
       cssStyle.setTextTitleBackgroundColor(layoutModel.getTextTitleBackgroundColor());
       cssStyle.setTextTitleBackgroundImage(layoutModel.getTextTitleBackgroundImage());
       cssStyle.setTextTitleBackgroundEffect(layoutModel.getTextTitleBackgroundEffect());

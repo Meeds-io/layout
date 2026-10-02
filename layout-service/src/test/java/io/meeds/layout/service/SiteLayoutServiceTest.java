@@ -31,6 +31,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -47,7 +48,10 @@ import org.exoplatform.commons.ObjectAlreadyExistsException;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserPortalConfig;
 import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.portal.config.model.Container;
+import org.exoplatform.portal.config.model.ModelStyle;
 import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.config.serialize.model.SiteLayout;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.importer.ImportMode;
 import org.exoplatform.portal.mop.service.LayoutService;
@@ -248,6 +252,63 @@ public class SiteLayoutServiceTest {
                                             true,
                                             false,
                                             true);
+  }
+
+  @Test
+  @SneakyThrows
+  public void updateSiteLayoutValidatesStyles() {
+    // eXIP 7.3.0.31: the site layout save path validates its style values like the page one, icon colour hex-only
+    PortalConfig site = mock(PortalConfig.class);
+    SiteLayout siteLayout = new SiteLayout();
+    ModelStyle style = new ModelStyle();
+    siteLayout.setCssStyle(style);
+    when(site.getPortalLayout()).thenReturn(siteLayout);
+
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+
+    style.setTextColor("eval('alert(`XSS in site text CSS style`)')");
+    assertThrows(IllegalArgumentException.class,
+                 () -> siteLayoutService.updateSiteLayout(SITE_KEY, site, false, TEST_USER));
+    style.setTextColor("#20282C");
+
+    style.setIconColor("rgb(1, 2, 3)");
+    assertThrows(IllegalArgumentException.class,
+                 () -> siteLayoutService.updateSiteLayout(SITE_KEY, site, false, TEST_USER));
+    verify(layoutService, never()).save(any(PortalConfig.class));
+
+    style.setIconColor("#AABBCC");
+    siteLayoutService.updateSiteLayout(SITE_KEY, site, false, TEST_USER);
+    verify(portalConfig).setPortalLayout(siteLayout);
+    verify(layoutService).save(portalConfig);
+  }
+
+  @Test
+  @SneakyThrows
+  public void updateSiteLayoutAcceptsStickySectionScrollColors() {
+    // a sticky Topbar or Sidebar stores its two on-scroll colours as one "<top>@<middle>" background value
+    PortalConfig site = mock(PortalConfig.class);
+    SiteLayout siteLayout = new SiteLayout();
+    Container stickySection = new Container();
+    ModelStyle style = new ModelStyle();
+    stickySection.setCssStyle(style);
+    siteLayout.setChildren(new ArrayList<>(List.of(stickySection)));
+    when(site.getPortalLayout()).thenReturn(siteLayout);
+
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+
+    style.setBackgroundColor("#FFF@eval(1)");
+    assertThrows(IllegalArgumentException.class,
+                 () -> siteLayoutService.updateSiteLayout(SITE_KEY, site, false, TEST_USER));
+    style.setBackgroundColor("#FFFFFF@#20282C@#000000");
+    assertThrows(IllegalArgumentException.class,
+                 () -> siteLayoutService.updateSiteLayout(SITE_KEY, site, false, TEST_USER));
+    verify(layoutService, never()).save(any(PortalConfig.class));
+
+    style.setBackgroundColor("#FFFFFF@#20282C");
+    siteLayoutService.updateSiteLayout(SITE_KEY, site, false, TEST_USER);
+    verify(layoutService).save(portalConfig);
   }
 
   @Test
