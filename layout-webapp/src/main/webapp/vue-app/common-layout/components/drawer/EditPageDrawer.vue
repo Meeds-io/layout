@@ -166,6 +166,7 @@
         <layout-editor-text-input
           ref="appTextInput"
           v-model="pageContainer"
+          :icon-placeholder="inheritedIconColor"
           class="mt-4"
           custom-icon
           page-style />
@@ -192,6 +193,7 @@
 <script>
 export default {
   data: () => ({
+    inheritedIconColor: null,
     pagePreview: '/layout/images/page-templates/DefaultPreview.webp',
     defaultBackgroundColor: '#F2F2F2FF',
     layout: null,
@@ -251,6 +253,10 @@ export default {
   },
   methods: {
     open(pageContainer, parentContainer) {
+      // The Icon row shows what the page inherits while it stores nothing: the platform's Page & Apps icon colour, read at
+      // the document root. A colour the site stores on its own page area is not read: the editor renders the page alone,
+      // outside the site layout that carries that colour
+      this.inheritedIconColor = this.$applicationUtils.getThemeColor('--allPagesAppIconColor');
       this.originalParentContainer = parentContainer;
       this.originalPageContainer = pageContainer;
       this.parentContainer = parentContainer && Object.assign({...this.$layoutUtils.containerModel}, JSON.parse(JSON.stringify(parentContainer)));
