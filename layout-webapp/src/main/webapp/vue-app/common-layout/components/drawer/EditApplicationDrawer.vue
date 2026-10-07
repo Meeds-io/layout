@@ -77,6 +77,7 @@
           v-if="initialized"
           ref="textInput"
           v-model="container"
+          :icon-placeholder="inheritedIconColor"
           class="mt-4"
           custom-icon
           @refresh="refresh++" />
@@ -178,6 +179,7 @@
 <script>
 export default {
   data: () => ({
+    inheritedIconColor: null,
     drawer: false,
     initialized: false,
     fixedHeight: false,
@@ -340,6 +342,10 @@ export default {
   },
   methods: {
     open(section, container, applicationTitle) {
+      // The Icon row shows what the application inherits while it stores nothing: the page's icon colour, else the
+      // platform's (a colour the site stores on its page area is not read, see EditPageDrawer)
+      this.inheritedIconColor = this.$layoutUtils.getParentContainer(this.$root.layout)?.iconColor
+        || this.$applicationUtils.getThemeColor('--allPagesAppIconColor');
       this.initialized = false;
       // Vue.set (not Object.assign) so that fields introduced after this
       // container/application was first made reactive (e.g. by an older

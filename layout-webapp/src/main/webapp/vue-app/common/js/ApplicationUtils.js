@@ -33,6 +33,18 @@ export function isTopBanner(container) {
   return !!container?.cssClass?.includes?.('layout-banner-top-section');
 }
 
+/**
+ * Value of a branding theme variable (--allPages…) as the browser computes it at the document root, null when the
+ * branding stylesheet left it unset: it then emits 'initial', the guaranteed-invalid value, which computes to an empty
+ * string. Lets an editor show the colour a level inherits without storing it.
+ *
+ * @param {string} name the custom property, e.g. '--allPagesAppIconColor'
+ * @returns {string|null} the computed value, null when unset
+ */
+export function getThemeColor(name) {
+  return window.getComputedStyle?.(document.documentElement)?.getPropertyValue?.(name)?.trim?.() || null;
+}
+
 export function firstGradientColor(effect) {
   const match = effect?.match?.(GRADIENT_COLOR_PATTERN);
   return match ? match[0] : null;
