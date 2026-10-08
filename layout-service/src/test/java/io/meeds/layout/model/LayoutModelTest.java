@@ -83,7 +83,7 @@ public class LayoutModelTest {
 
   @Test
   public void shouldRoundTripIconColorThroughModelAndMapper() {
-    // eXIP 7.3.0.31: the page/app icon colour rides ModelStyle -> LayoutModel -> ModelStyle like the text colour
+    // The page/app icon colour rides ModelStyle -> LayoutModel -> ModelStyle like the text colour
     Application application = application(null, null, null, null, null);
     application.getCssStyle().setTextColor("#20282C");
     application.getCssStyle().setIconColor("#AABBCC");
