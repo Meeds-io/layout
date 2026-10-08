@@ -490,7 +490,7 @@ public class PageLayoutServiceTest {
 
     assertDoesNotThrow(() -> pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER));
 
-    // eXIP 7.3.0.31: the icon colour passes a hex-only check, stricter than the generic character class
+    // The icon colour passes a hex-only check, stricter than the generic character class
     when(cssStyle.getIconColor()).thenReturn("rgb(1, 2, 3)");
     assertThrows(IllegalArgumentException.class,
                  () -> pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER));
