@@ -257,7 +257,7 @@ public class SiteLayoutServiceTest {
   @Test
   @SneakyThrows
   public void updateSiteLayoutValidatesStyles() {
-    // eXIP 7.3.0.31: the site layout save path validates its style values like the page one, icon colour hex-only
+    // The site layout save path validates its style values like the page one, icon colour hex-only
     PortalConfig site = mock(PortalConfig.class);
     SiteLayout siteLayout = new SiteLayout();
     ModelStyle style = new ModelStyle();
