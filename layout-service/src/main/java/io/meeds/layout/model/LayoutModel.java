@@ -176,6 +176,8 @@ public class LayoutModel {
 
   private String                          textSubtitleFontStyle;
 
+  private String                          iconColor;
+
   private String                          textTitleBackgroundColor;
 
   private String                          textTitleBackgroundImage;
@@ -360,6 +362,7 @@ public class LayoutModel {
       this.textSubtitleFontSize = cssStyle.getTextSubtitleFontSize();
       this.textSubtitleFontWeight = cssStyle.getTextSubtitleFontWeight();
       this.textSubtitleFontStyle = cssStyle.getTextSubtitleFontStyle();
+      this.iconColor = cssStyle.getIconColor();
       this.textTitleBackgroundColor = cssStyle.getTextTitleBackgroundColor();
       this.textTitleBackgroundImage = cssStyle.getTextTitleBackgroundImage();
       this.textTitleBackgroundEffect = cssStyle.getTextTitleBackgroundEffect();

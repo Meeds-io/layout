@@ -113,8 +113,6 @@
             <v-icon
               v-on="on"
               v-bind="attrs"
-              color="grey"
-              dark
               size="20"
               class="px-2">
               {{ visibilityIcon.icon }}
@@ -129,8 +127,6 @@
             <v-icon
               v-on="on"
               v-bind="attrs"
-              color="grey"
-              dark
               size="20"
               class="px-2">
               {{ accessIcon.icon }}
