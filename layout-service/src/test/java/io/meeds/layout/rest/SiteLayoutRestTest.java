@@ -18,6 +18,7 @@
  */
 package io.meeds.layout.rest;
 
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.doThrow;
@@ -65,10 +66,12 @@ import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.rest.util.RestEntityBuilder;
 import io.meeds.layout.service.SiteLayoutService;
+import io.meeds.layout.service.SiteLayoutUnresolvedException;
 import io.meeds.spring.web.security.PortalAuthenticationManager;
 import io.meeds.spring.web.security.WebSecurityConfiguration;
 
 import jakarta.servlet.Filter;
+import jakarta.servlet.ServletException;
 import lombok.SneakyThrows;
 
 @SpringBootTest(classes = { SiteLayoutRest.class, PortalAuthenticationManager.class, })
@@ -192,6 +195,14 @@ public class SiteLayoutRestTest {
                                           .getSiteLayout(SITE_KEY, SIMPLE_USER);
     ResultActions response = mockMvc.perform(get(LAYOUT_REST_PATH_WITH_PARAMS).with(testSimpleUser()));
     response.andExpect(status().isNotFound());
+  }
+
+  @Test
+  void getSiteLayoutWhenTheSiteLayoutIsUnresolved() throws Exception {
+    doThrow(SiteLayoutUnresolvedException.class).when(siteLayoutService)
+                                                 .getSiteLayout(SITE_KEY, SIMPLE_USER);
+    ResultActions response = mockMvc.perform(get(LAYOUT_REST_PATH_WITH_PARAMS).with(testSimpleUser()));
+    response.andExpect(status().isConflict());
   }
 
   @Test
@@ -329,6 +340,28 @@ public class SiteLayoutRestTest {
 
   @Test
   @SneakyThrows
+  void createSiteWhenTheTemplateLayoutIsUnresolved() {
+    doThrow(SiteLayoutUnresolvedException.class).when(siteLayoutService)
+                                                 .createSite(any(), eq(SIMPLE_USER));
+    ResultActions response = mockMvc.perform(post(REST_PATH).content("{}")
+                                                            .contentType(MediaType.APPLICATION_JSON)
+                                                            .with(testSimpleUser()));
+    response.andExpect(status().isConflict());
+  }
+
+  @Test
+  @SneakyThrows
+  void createSiteWhenAnotherIllegalStateIsThrown() {
+    doThrow(IllegalStateException.class).when(siteLayoutService)
+                                        .createSite(any(), eq(SIMPLE_USER));
+    assertThrows(ServletException.class,
+                 () -> mockMvc.perform(post(REST_PATH).content("{}")
+                                                      .contentType(MediaType.APPLICATION_JSON)
+                                                      .with(testSimpleUser())));
+  }
+
+  @Test
+  @SneakyThrows
   void createSiteWhenIllegalAccess() {
     doThrow(IllegalAccessException.class).when(siteLayoutService)
                                          .createSite(any(), eq(SIMPLE_USER));
@@ -363,6 +396,15 @@ public class SiteLayoutRestTest {
                                          .createDraftSite(SITE_KEY, SIMPLE_USER);
     ResultActions response = mockMvc.perform(post(CREATE_DRAFT_LAYOUT_REST_PATH).with(testSimpleUser()));
     response.andExpect(status().isForbidden());
+  }
+
+  @Test
+  @SneakyThrows
+  void createDraftSiteWhenTheSiteLayoutIsUnresolved() {
+    doThrow(SiteLayoutUnresolvedException.class).when(siteLayoutService)
+                                                 .createDraftSite(SITE_KEY, SIMPLE_USER);
+    ResultActions response = mockMvc.perform(post(CREATE_DRAFT_LAYOUT_REST_PATH).with(testSimpleUser()));
+    response.andExpect(status().isConflict());
   }
 
   @Test

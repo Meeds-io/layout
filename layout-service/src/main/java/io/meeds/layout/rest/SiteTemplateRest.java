@@ -37,6 +37,7 @@ import org.exoplatform.commons.ObjectAlreadyExistsException;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 import io.meeds.layout.model.SiteTemplate;
+import io.meeds.layout.service.SiteLayoutUnresolvedException;
 import io.meeds.layout.service.SiteTemplateService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -126,7 +127,7 @@ public class SiteTemplateRest {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
     } catch (IllegalAccessException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
-    } catch (ObjectAlreadyExistsException e) {
+    } catch (ObjectAlreadyExistsException | SiteLayoutUnresolvedException e) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
     }
   }
