@@ -57,7 +57,6 @@
           </div>
         </div>
         <v-toolbar
-          color="white"
           flat
           dense>
           <span
