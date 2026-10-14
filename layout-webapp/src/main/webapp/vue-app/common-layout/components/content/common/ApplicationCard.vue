@@ -29,7 +29,7 @@
       :max-height="height"
       :width="width"
       :max-width="width"
-      class="border-color card-border-radius overflow-hidden position-relative"
+      class="no-background border-color card-border-radius overflow-hidden position-relative"
       v-on="illustrationId && {
         click: () => preview()
       }"
