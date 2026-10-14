@@ -24,7 +24,7 @@
       :aria-label="$utils.htmlToText(categoryLabel)"
       :title="$utils.htmlToText(categoryLabel)"
       :elevation="hover && 2 || 0"
-      class="d-flex flex-column border-color border-radius overflow-hidden mt-4 align-center justify-center aspect-ratio-1"
+      class="no-background d-flex flex-column border-color border-radius overflow-hidden mt-4 align-center justify-center aspect-ratio-1"
       min-width="110px"
       width="calc(33% - 8px)"
       max-width="120px"
