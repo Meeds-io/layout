@@ -46,7 +46,7 @@
       <v-card
         :class="expanded && 'flex-wrap' || 'flex-column'"
         max-width="100%"
-        class="d-flex justify-center ma-4 overflow-hidden"
+        class="transparent d-flex justify-center ma-4 overflow-hidden"
         flat>
         <layout-editor-application-card
           v-for="application in filteredPortletInstances"
