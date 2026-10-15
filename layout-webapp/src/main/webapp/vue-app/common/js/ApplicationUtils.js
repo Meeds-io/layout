@@ -54,31 +54,36 @@ export function isTransparentColor(color) {
   return color === 'transparent' || (color?.length === 9 && color.toUpperCase().endsWith('00'));
 }
 
-const SITE_LAYOUT_TEMPLATE = 'system:/groovy/portal/webui/container/UISiteLayout.gtmpl';
-
 /**
- * Whether the Topbar background lets what is behind it show through, before or after the page is scrolled: the colours
- * of the site layout's top banner when the layout has one with a colour of its own, the Branding Topbar colours
- * otherwise. A site layout replaces the shared layout, so without a top banner it displays no Topbar. A stored banner
- * gradient is resolved as the banner renders it (getStyle).
+ * Whether a Topbar displayed above the page lets what is behind it show through, before or after the page is scrolled.
+ * A page may display the site layout's top banner, the shared layout's Topbar, both or none: whether the shared layout
+ * is shown depends on the site and the page, not on the layout (UISharedLayout), so a space site's layout renders under
+ * the shared Topbar while a site layout may also render without it, and a site layout may have no top banner. The top
+ * banner shows its own colours when it has some, the Branding Topbar colours otherwise, as the shared Topbar always
+ * does. A stored banner gradient is resolved as the banner renders it (getStyle).
  *
  * @param {object} layout the displayed layout (site layout or page layout)
- * @returns {boolean} true when one of those colours has an alpha below 1
+ * @returns {boolean} true when a colour of a displayed Topbar has an alpha below 1
  */
 export function hasTopBarTransparency(layout) {
   const topBanner = findTopBanner(layout);
-  if (!topBanner && layout?.template === SITE_LAYOUT_TEMPLATE) {
-    return false;
-  }
-  const colors = getTopBannerColors(topBanner) || [
+  // The On Scroll colour paints only on a sticky Topbar: the shared layout one always is, a top banner when it has the
+  // sticky option of its own or the platform-wide one (body.topbar-sticky)
+  return (!!topBanner
+      && hasTransparentColor(getTopBannerColors(topBanner) || getBrandingTopBarColors(),
+        isStickySection(topBanner) || document.body.classList.contains('topbar-sticky')))
+    || (!!document.getElementById('UITopBarContainerParent')
+      && hasTransparentColor(getBrandingTopBarColors(), true));
+}
+
+function getBrandingTopBarColors() {
+  return [
     getThemeColor('--allPagesTopBarBackgroundColor'),
     getThemeColor('--allPagesTopBarBackgroundScrollColor'),
   ];
-  // The On Scroll colour paints only on a sticky Topbar: the shared layout one always is, a top banner when it has the
-  // sticky option of its own or the platform-wide one (body.topbar-sticky)
-  const sticky = !topBanner
-    || isStickySection(topBanner)
-    || document.body.classList.contains('topbar-sticky');
+}
+
+function hasTransparentColor(colors, sticky) {
   return colors.slice(0, sticky ? 2 : 1).some(hasTransparency);
 }
 
