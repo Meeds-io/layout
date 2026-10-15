@@ -30,7 +30,7 @@
       max-width="335px"
       width="100%"
       flat>
-      <div class="d-flex full-width light-grey-background-color">
+      <div class="d-flex full-width page-background">
         <v-card
           :width="leftSidebar && 50"
           class="flex-grow-0 flex-shrink-0 grey-lighten1-background opacity-7 no-border-radius"
