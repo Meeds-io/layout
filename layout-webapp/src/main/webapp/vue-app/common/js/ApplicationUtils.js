@@ -54,35 +54,64 @@ export function isTransparentColor(color) {
   return color === 'transparent' || (color?.length === 9 && color.toUpperCase().endsWith('00'));
 }
 
+const SITE_LAYOUT_TEMPLATE = 'system:/groovy/portal/webui/container/UISiteLayout.gtmpl';
+
 /**
- * Whether the Topbar background lets what is behind it show through: the colour of the site layout's top banner when
- * the layout has one with a colour of its own, the Branding Topbar colour otherwise. A stored banner gradient is
- * resolved as the banner renders it (getStyle).
+ * Whether the Topbar background lets what is behind it show through, before or after the page is scrolled: the colours
+ * of the site layout's top banner when the layout has one with a colour of its own, the Branding Topbar colours
+ * otherwise. A site layout replaces the shared layout, so without a top banner it displays no Topbar. A stored banner
+ * gradient is resolved as the banner renders it (getStyle).
  *
  * @param {object} layout the displayed layout (site layout or page layout)
- * @returns {boolean} true when that colour has an alpha below 1
+ * @returns {boolean} true when one of those colours has an alpha below 1
  */
 export function hasTopBarTransparency(layout) {
-  return hasTransparency(getTopBannerColor(findTopBanner(layout)) || getThemeColor('--allPagesTopBarBackgroundColor'));
+  const topBanner = findTopBanner(layout);
+  if (!topBanner && layout?.template === SITE_LAYOUT_TEMPLATE) {
+    return false;
+  }
+  const colors = getTopBannerColors(topBanner) || [
+    getThemeColor('--allPagesTopBarBackgroundColor'),
+    getThemeColor('--allPagesTopBarBackgroundScrollColor'),
+  ];
+  // The On Scroll colour paints only on a sticky Topbar: the shared layout one always is, a top banner when it has the
+  // sticky option of its own or the platform-wide one (body.topbar-sticky)
+  const sticky = !topBanner
+    || isStickySection(topBanner)
+    || document.body.classList.contains('topbar-sticky');
+  return colors.slice(0, sticky ? 2 : 1).some(hasTransparency);
 }
 
-// The background colour getStyle renders for the top banner (sectionStyle), null when it renders none of its own.
-// A banner background with margin or radius values is an inset layer (getBackgroundLayerStyle) painted over the banner
-// element, which keeps the Branding Topbar colour of the skin: that colour is the one that can let the page through.
-function getTopBannerColor(topBanner) {
+// The background colours getStyle renders for the top banner (sectionStyle), before and after the page is scrolled,
+// null when it renders none of its own: the skin then paints the Branding Topbar colours. A banner background with
+// margin or radius values is an inset layer (getBackgroundLayerStyle) painted over the banner element, which keeps the
+// Branding Topbar colours of the skin: those are the ones that can let the page through.
+function getTopBannerColors(topBanner) {
   if (!topBanner || parseBackgroundLayerValues(topBanner.cssClass)) {
     return null;
   } else if (topBanner.backgroundColor) {
     if (topBanner.backgroundEffect) {
-      return firstGradientColor(topBanner.backgroundEffect)
-        || (!isTransparentColor(topBanner.backgroundColor) && topBanner.backgroundColor)
-        || null;
+      const color = getTopBannerGradientColor(topBanner) || getThemeColor('--allPagesTopBarBackgroundColor');
+      return [color, color];
     }
-    return topBanner.backgroundColor.split('@')[0];
+    const [color, scrollColor] = topBanner.backgroundColor.split('@');
+    return [color, scrollColor || color];
   } else if (topBanner.backgroundEffect || topBanner.backgroundImage) {
-    return 'transparent';
+    return ['transparent'];
   }
   return null;
+}
+
+// The Topbar background offers no gradient option. A stored gradient is ignored, never rewritten: its first colour is
+// shown, otherwise the Topbar colour, null when neither is usable (the platform Topbar colour is shown then)
+function getTopBannerGradientColor(topBanner) {
+  return firstGradientColor(topBanner.backgroundEffect)
+    || (topBanner.backgroundColor && !isTransparentColor(topBanner.backgroundColor) && topBanner.backgroundColor)
+    || null;
+}
+
+function isStickySection(container) {
+  return !!container?.cssClass?.includes?.('layout-sticky-section');
 }
 
 function findTopBanner(container) {
@@ -449,11 +478,7 @@ export function getStyle(container, options) {
           style['--sectionBackgroundColorScroll'] = container.backgroundColor;
         }
         if (isTopBanner(container) && container.backgroundEffect) {
-          // The Topbar background offers no gradient option. A stored gradient is ignored, never
-          // rewritten: its first colour is shown, otherwise the platform Topbar colour
-          const fallbackColor = firstGradientColor(container.backgroundEffect)
-            || (container.backgroundColor && !isTransparentColor(container.backgroundColor) && container.backgroundColor)
-            || 'var(--allPagesTopBarBackgroundColor)';
+          const fallbackColor = getTopBannerGradientColor(container) || 'var(--allPagesTopBarBackgroundColor)';
           style['background-color'] = fallbackColor;
           style['--sectionBackgroundColorScroll'] = fallbackColor;
         }
