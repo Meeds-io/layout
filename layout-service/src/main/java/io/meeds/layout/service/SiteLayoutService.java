@@ -165,7 +165,13 @@ public class SiteLayoutService {
     PortalConfig draftSite = site.clone();
     draftSite.setType(PortalConfig.DRAFT);
     draftSite.setName(clonedSiteName);
-    LayoutModel siteLayoutModel = new LayoutModel(site.getPortalLayout(), portletInstanceService, new PortletInstanceContext(false, null));
+    // The draft is published back over the same site: a preference plugin
+    // that reads the draft property keeps a window's own setting there
+    LayoutModel siteLayoutModel = new LayoutModel(site.getPortalLayout(),
+                                                  portletInstanceService,
+                                                  new PortletInstanceContext(false,
+                                                                             Map.of(PortletInstanceContext.DRAFT_PROPERTY,
+                                                                                    "true")));
     siteLayoutModel.resetStorage();
     draftSite.setPortalLayout(siteLayoutModel.toSite().getPortalLayout());
     SiteKey draftSiteKey = new SiteKey(draftSite.getType(), draftSite.getName());
