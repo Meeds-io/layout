@@ -60,6 +60,9 @@ export function init(pageRef, siteId) {
       isMobile() {
         return this.$vuetify.breakpoint.smAndDown;
       },
+      topBarTransparency() {
+        return this.$applicationUtils.hasTopBarTransparency(this.layout);
+      },
     },
     async created() {
       document.addEventListener('extension-page-layout-container-updated', this.refreshContainerTypes);

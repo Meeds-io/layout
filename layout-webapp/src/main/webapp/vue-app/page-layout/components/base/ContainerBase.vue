@@ -107,6 +107,8 @@ export default {
         noBackgroundStyle: this.noBackgroundStyle,
         siteStyle: this.siteStyle,
         pageStyle: this.pageStyle,
+        topBarTransparency: this.$root.topBarTransparency,
+        pageBodyBackground: this.pageStyle && this.$root.topBarTransparency,
         sectionStyle: this.sectionStyle,
         appStyle: !this.noApplicationStyle,
         dynamicWidth: this.dynamicWidth,

@@ -54,10 +54,83 @@ export function isTransparentColor(color) {
   return color === 'transparent' || (color?.length === 9 && color.toUpperCase().endsWith('00'));
 }
 
+/**
+ * Whether the Topbar background lets what is behind it show through: the colour of the site layout's top banner when
+ * the layout has one with a colour of its own, the Branding Topbar colour otherwise. A stored banner gradient is
+ * resolved as the banner renders it (getStyle).
+ *
+ * @param {object} layout the displayed layout (site layout or page layout)
+ * @returns {boolean} true when that colour has an alpha below 1
+ */
+export function hasTopBarTransparency(layout) {
+  return hasTransparency(getTopBannerColor(findTopBanner(layout)) || getThemeColor('--allPagesTopBarBackgroundColor'));
+}
+
+// The background colour getStyle renders for the top banner (sectionStyle), null when it renders none of its own.
+// A banner background with margin or radius values is an inset layer (getBackgroundLayerStyle) painted over the banner
+// element, which keeps the Branding Topbar colour of the skin: that colour is the one that can let the page through.
+function getTopBannerColor(topBanner) {
+  if (!topBanner || parseBackgroundLayerValues(topBanner.cssClass)) {
+    return null;
+  } else if (topBanner.backgroundColor) {
+    if (topBanner.backgroundEffect) {
+      return firstGradientColor(topBanner.backgroundEffect)
+        || (!isTransparentColor(topBanner.backgroundColor) && topBanner.backgroundColor)
+        || null;
+    }
+    return topBanner.backgroundColor.split('@')[0];
+  } else if (topBanner.backgroundEffect || topBanner.backgroundImage) {
+    return 'transparent';
+  }
+  return null;
+}
+
+function findTopBanner(container) {
+  if (!container || isTopBanner(container)) {
+    return container || null;
+  }
+  for (const child of container.children || []) {
+    const topBanner = findTopBanner(child);
+    if (topBanner) {
+      return topBanner;
+    }
+  }
+  return null;
+}
+
+function hasTransparency(color) {
+  return getColorAlpha(color) < 1;
+}
+
+// Alpha of a colour between 0 and 1, 1 when the colour has none or is not given
+function getColorAlpha(color) {
+  const value = color?.trim?.()?.toLowerCase?.();
+  if (!value) {
+    return 1;
+  } else if (value === 'transparent') {
+    return 0;
+  } else if (/^#[0-9a-f]{4}$/.test(value)) {
+    return parseInt(value[4], 16) / 15;
+  } else if (/^#[0-9a-f]{8}$/.test(value)) {
+    return parseInt(value.slice(7), 16) / 255;
+  }
+  // Only a fourth component is an alpha: rgb(r, g, b), rgba(r, g, b, a), rgb(r g b / a), and the same for hsl
+  const alpha = value.match(/^(?:rgb|hsl)a?\(\s*[^,/\s]+[\s,]+[^,/\s]+[\s,]+[^,/\s]+\s*[,/]\s*([\d.]+)(%?)\s*\)$/);
+  return alpha ? parseFloat(alpha[1]) / (alpha[2] ? 100 : 1) : 1;
+}
+
 // Margins are rendered through --appMargin* custom properties (getStyle); the Vuetify spacing classes that
 // older layouts stored for the same margins are dropped at render time so that they do not apply twice
 
 export function getStyle(container, options) {
+  if (options.pageBodyBackground && container.backgroundColor && getColorAlpha(container.backgroundColor) === 0) {
+    // A fully transparent page colour (stored with a gradient, for instance) is no colour of its own: the body keeps
+    // the site or branding colour, which still shows behind the Topbar
+    container = {
+      ...container,
+      backgroundColor: null,
+    };
+  }
   const style = {};
   const backgroundLayerValues = !options.noBackgroundStyle && parseBackgroundLayerValues(container.cssClass);
   if (backgroundLayerValues) {
@@ -344,16 +417,21 @@ export function getStyle(container, options) {
       style[applicationBorder && '--appBoxShadow' || 'box-shadow'] = '0px 3px 3px -2px rgba(0, 0, 0, 0.2), 0px 3px 4px 0px rgba(0, 0, 0, 0.14), 0px 1px 8px 0px rgba(0, 0, 0, 0.12)';
     }
   }
+  // The site background, and the page background when the page is displayed under a transparent Topbar
+  // (pageBodyBackground), are written as the body-level --allPagesBackground* properties: they then also paint behind
+  // the Topbar and the banners, which sit outside the page body, so the Topbar shows the background of the current page.
+  // The page containers render after the site container, so a page background overrides the site one.
+  const bodyBackground = options.siteStyle || options.pageBodyBackground;
   if (!options.noBackgroundStyle
     && !backgroundLayerValues
     && (container.backgroundImage
       || container.backgroundColor
       || container.backgroundEffect)) {
-    if (options.siteStyle) {
+    if (bodyBackground) {
       siteBackgroundOverridden = true;
     }
     if (container.backgroundColor) {
-      if (options.siteStyle) {
+      if (bodyBackground) {
         document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
       } else if (options.pageStyle) {
         style['--pageBodyBackgroundColor'] = container.backgroundColor;
@@ -381,8 +459,11 @@ export function getStyle(container, options) {
         }
       }
     } else if (container.backgroundEffect || container.backgroundImage) {
-      if (options.siteStyle) {
-        document.body.style.setProperty('--allPagesBackgroundColor', 'transparent');
+      if (bodyBackground) {
+        // Without a colour of its own, a page leaves the site or branding colour, which still shows behind the Topbar
+        if (!options.pageBodyBackground) {
+          document.body.style.setProperty('--allPagesBackgroundColor', 'transparent');
+        }
       } else if (options.pageStyle) {
         style['--pageBodyBackgroundColor'] = 'transparent';
       } else if (options.sectionStyle) {
@@ -394,9 +475,14 @@ export function getStyle(container, options) {
 
     const backgroundEffect = isTopBanner(container) ? null : container.backgroundEffect;
     if (backgroundEffect && container.backgroundImage) {
-      style[options.isApplicationBackground && '--appBackgroundImage' || 'background-image'] = `url(${container.backgroundImage}),${backgroundEffect}`;
+      // Behind a transparent Topbar the site layer is the body, under the page background that overrides it there
+      if (options.pageBodyBackground || (options.siteStyle && options.topBarTransparency)) {
+        document.body.style.setProperty('--allPagesBackgroundImage', `url(${container.backgroundImage}),${backgroundEffect}`);
+      } else {
+        style[options.isApplicationBackground && '--appBackgroundImage' || 'background-image'] = `url(${container.backgroundImage}),${backgroundEffect}`;
+      }
     } else if (container.backgroundImage) {
-      if (options.siteStyle) {
+      if (bodyBackground) {
         document.body.style.setProperty('--allPagesBackgroundImage', `url(${container.backgroundImage})`);
       } else if (options.pageStyle) {
         style['--pageBodyBackgroundImage'] = `url(${container.backgroundImage})`;
@@ -404,7 +490,7 @@ export function getStyle(container, options) {
         style[options.isApplicationBackground && '--appBackgroundImage' || 'background-image'] = `url(${container.backgroundImage})`;
       }
     } else if (backgroundEffect) {
-      if (options.siteStyle) {
+      if (bodyBackground) {
         document.body.style.setProperty('--allPagesBackgroundImage', container.backgroundEffect);
       } else if (options.pageStyle) {
         style['--pageBodyBackgroundImage'] = container.backgroundEffect;
@@ -412,7 +498,7 @@ export function getStyle(container, options) {
         style[options.isApplicationBackground && '--appBackgroundImage' || 'background-image'] = container.backgroundEffect;
       }
     } else if (container.backgroundColor) {
-      if (options.siteStyle) {
+      if (bodyBackground) {
         document.body.style.setProperty('--allPagesBackgroundImage', 'none');
         document.body.style.setProperty('--allPagesBackgroundRepeat', 'no-repeat');
         document.body.style.setProperty('--allPagesBackgroundSize', 'unset');
@@ -432,9 +518,16 @@ export function getStyle(container, options) {
         style[options.isApplicationBackground && '--appBackgroundAttachment' || 'background-attachment'] = 'scroll';
       }
     }
+    if (options.pageBodyBackground && (container.backgroundImage || backgroundEffect)) {
+      // The body may hold the site's image properties: an unset page property takes the page body defaults
+      document.body.style.setProperty('--allPagesBackgroundRepeat', 'no-repeat');
+      document.body.style.setProperty('--allPagesBackgroundSize', 'unset');
+      document.body.style.setProperty('--allPagesBackgroundPosition', 'unset');
+      document.body.style.setProperty('--allPagesBackgroundAttachment', siteBackgroundAttachment('scroll'));
+    }
     if (container.backgroundImage) {
       if (container.backgroundRepeat) {
-        if (options.siteStyle) {
+        if (bodyBackground) {
           document.body.style.setProperty('--allPagesBackgroundRepeat', container.backgroundRepeat);
         } else if (options.pageStyle) {
           style['--pageBodyBackgroundRepeat'] = container.backgroundRepeat;
@@ -443,7 +536,7 @@ export function getStyle(container, options) {
         }
       }
       if (container.backgroundSize) {
-        if (options.siteStyle) {
+        if (bodyBackground) {
           document.body.style.setProperty('--allPagesBackgroundSize', container.backgroundSize);
         } else if (options.pageStyle) {
           style['--pageBodyBackgroundSize'] = container.backgroundSize;
@@ -452,7 +545,7 @@ export function getStyle(container, options) {
         }
       }
       if (container.backgroundPosition) {
-        if (options.siteStyle) {
+        if (bodyBackground) {
           document.body.style.setProperty('--allPagesBackgroundPosition', container.backgroundPosition);
         } else if (options.pageStyle) {
           style['--pageBodyBackgroundPosition'] = container.backgroundPosition;
@@ -461,7 +554,7 @@ export function getStyle(container, options) {
         }
       }
       if (container.backgroundAttachment) {
-        if (options.siteStyle) {
+        if (bodyBackground) {
           document.body.style.setProperty('--allPagesBackgroundAttachment', siteBackgroundAttachment(container.backgroundAttachment));
         } else if (options.pageStyle) {
           style['--pageBodyBackgroundAttachment'] = container.backgroundAttachment;
