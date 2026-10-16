@@ -26,7 +26,7 @@
       :loading="loadingSuggestions"
       hide-no-data
       append-icon=""
-      menu-props="closeOnClick, closeOnContentClick, maxHeight = 100"
+      :menu-props="{ closeOnClick: true, closeOnContentClick: true, contentClass: 'application-menu layout-drawer' }"
       class="identitySuggester identitySuggesterInputStyle mt-0"
       content-class="identitySuggesterContent"
       width="100%"
