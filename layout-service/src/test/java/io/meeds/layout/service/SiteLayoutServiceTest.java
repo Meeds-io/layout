@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -196,6 +197,63 @@ public class SiteLayoutServiceTest {
     verify(portalConfig).setEditPermission("editPermission");
     verify(portalConfig).setDisplayed(false);
     verify(portalConfig).setDisplayOrder(0);
+  }
+
+  @Test
+  @SneakyThrows
+  public void createSiteWhenTheTemplateLayoutIsUnresolved() {
+    SiteCreateModel createModel = mock(SiteCreateModel.class);
+    when(createModel.getPortalConfig()).thenReturn(portalConfig);
+    when(portalConfig.getName()).thenReturn(SITE_KEY.getName());
+    when(aclService.canAddSite(TEST_USER)).thenReturn(true);
+    when(createModel.getSiteId()).thenReturn(7l);
+    PortalConfig templatePortalConfig = mock(PortalConfig.class);
+    when(layoutService.getPortalConfig(7l)).thenReturn(templatePortalConfig);
+    when(templatePortalConfig.isLayoutUnresolved()).thenReturn(true);
+    lenient().when(templatePortalConfig.getType()).thenReturn(PortalConfig.PORTAL_TEMPLATE);
+    lenient().when(templatePortalConfig.getName()).thenReturn("siteTemplate");
+
+    assertThrows(SiteLayoutUnresolvedException.class, () -> siteLayoutService.createSite(createModel, TEST_USER));
+
+    verify(portalConfigService, never()).createSiteFromTemplate(any(), any());
+  }
+
+  @Test
+  @SneakyThrows
+  public void getSiteLayout() {
+    when(aclService.canViewSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    SiteLayout siteLayout = new SiteLayout();
+    when(portalConfig.getPortalLayout()).thenReturn(siteLayout);
+
+    assertEquals(siteLayout, siteLayoutService.getSiteLayout(SITE_KEY, TEST_USER));
+  }
+
+  @Test
+  @SneakyThrows
+  public void getSiteLayoutWhenTheSiteLayoutIsUnresolved() {
+    when(aclService.canViewSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    when(portalConfig.isLayoutUnresolved()).thenReturn(true);
+    lenient().when(portalConfig.getPortalLayout()).thenReturn(new SiteLayout());
+
+    assertThrows(SiteLayoutUnresolvedException.class, () -> siteLayoutService.getSiteLayout(SITE_KEY, TEST_USER));
+  }
+
+  @Test
+  @SneakyThrows
+  public void createDraftSiteWhenTheSiteLayoutIsUnresolved() {
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(aclService.canViewSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    when(portalConfig.isLayoutUnresolved()).thenReturn(true);
+    lenient().when(portalConfig.clone()).thenReturn(mock(PortalConfig.class));
+    lenient().when(portalConfig.getPortalLayout()).thenReturn(new SiteLayout());
+
+    assertThrows(SiteLayoutUnresolvedException.class, () -> siteLayoutService.createDraftSite(SITE_KEY, TEST_USER));
+
+    verify(layoutService, never()).create(any(PortalConfig.class));
+    verify(layoutService, never()).remove(any(PortalConfig.class));
   }
 
   @Test
