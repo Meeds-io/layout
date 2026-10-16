@@ -29,6 +29,15 @@ import java.util.Map;
 @NoArgsConstructor
 public class PortletInstanceContext {
 
+  /**
+   * Property set to "true" when the preferences are generated for a draft of
+   * the same window, which the editor publishes back over it. A plugin that
+   * must keep the window's own setting in such a draft, instead of preparing
+   * a copy, reads it; a plugin that does not read it prepares a copy as for
+   * any other call.
+   */
+  public static final String  DRAFT_PROPERTY = "draft";
+
   private boolean             export;
 
   private Map<String, String> properties;
