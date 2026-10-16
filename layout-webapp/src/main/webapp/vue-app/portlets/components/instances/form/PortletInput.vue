@@ -42,6 +42,7 @@
       :disabled="disabled"
       :placeholder="$t('layout.portlet.placeholder')"
       class="portlet-instance-autocomplete ma-0 pa-0"
+      :menu-props="{ contentClass: 'application-menu layout-drawer' }"
       item-value="contentId"
       item-text="name"
       outlined
