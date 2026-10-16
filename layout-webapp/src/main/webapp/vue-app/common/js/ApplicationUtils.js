@@ -462,8 +462,8 @@ export function getStyle(container, options) {
   // (pageBodyBackground), are written as the body-level --allPagesBackground* properties: they then also paint behind
   // the Topbar and the banners, which sit outside the page body, so the Topbar shows the background of the current page.
   // The page containers render after the site container, so a page background overrides the site one.
-  // Under a transparent shared Topbar only (pageBodyBackgroundColor), only the page colour is written to the body as
-  // well: that Topbar is above the site scroller, where the body-level image never paints.
+  // Under a transparent shared Topbar only (pageBodyBackgroundColor), only an opaque page colour is written to the
+  // body as well: that Topbar is above the site scroller, where the body-level image never paints.
   const bodyBackground = options.siteStyle || options.pageBodyBackground;
   if (!options.noBackgroundStyle
     && !backgroundLayerValues
@@ -478,7 +478,9 @@ export function getStyle(container, options) {
         document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
       } else if (options.pageStyle) {
         style['--pageBodyBackgroundColor'] = container.backgroundColor;
-        if (options.pageBodyBackgroundColor && getColorAlpha(container.backgroundColor) > 0) {
+        // Only an opaque colour: the page body paints it again over the body, which would deepen a partly
+        // transparent one inside the page width
+        if (options.pageBodyBackgroundColor && getColorAlpha(container.backgroundColor) === 1) {
           siteBackgroundOverridden = true;
           document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
         }
