@@ -55,25 +55,30 @@ export function isTransparentColor(color) {
 }
 
 /**
- * Whether a Topbar displayed above the page lets what is behind it show through, before or after the page is scrolled.
+ * Which Topbar displayed above the page lets what is behind it show through, before or after the page is scrolled.
  * A page may display the site layout's top banner, the shared layout's Topbar, both or none: whether the shared layout
  * is shown depends on the site and the page, not on the layout (UISharedLayout), so a space site's layout renders under
  * the shared Topbar while a site layout may also render without it, and a site layout may have no top banner. The top
  * banner shows its own colours when it has some, the Branding Topbar colours otherwise, as the shared Topbar always
  * does. A stored banner gradient is resolved as the banner renders it (getStyle).
+ * The two are told apart because the body paints different layers behind them: the top banner is inside the site
+ * scroller, which paints the body-level image, while the shared Topbar is above it, where only the body colour shows.
  *
  * @param {object} layout the displayed layout (site layout or page layout)
- * @returns {boolean} true when a colour of a displayed Topbar has an alpha below 1
+ * @returns {{topBanner: boolean, sharedTopBar: boolean}} for each displayed Topbar, true when one of its colours has
+ *   an alpha below 1
  */
-export function hasTopBarTransparency(layout) {
+export function getTopBarTransparency(layout) {
   const topBanner = findTopBanner(layout);
   // The On Scroll colour paints only on a sticky Topbar: the shared layout one always is, a top banner when it has the
   // sticky option of its own or the platform-wide one (body.topbar-sticky)
-  return (!!topBanner
+  return {
+    topBanner: !!topBanner
       && hasTransparentColor(getTopBannerColors(topBanner) || getBrandingTopBarColors(),
-        isStickySection(topBanner) || document.body.classList.contains('topbar-sticky')))
-    || (!!document.getElementById('UITopBarContainerParent')
-      && hasTransparentColor(getBrandingTopBarColors(), true));
+        isStickySection(topBanner) || document.body.classList.contains('topbar-sticky')),
+    sharedTopBar: !!document.getElementById('UITopBarContainerParent')
+      && hasTransparentColor(getBrandingTopBarColors(), true),
+  };
 }
 
 function getBrandingTopBarColors() {
@@ -108,10 +113,12 @@ function getTopBannerColors(topBanner) {
 }
 
 // The Topbar background offers no gradient option. A stored gradient is ignored, never rewritten: its first colour is
-// shown, otherwise the Topbar colour, null when neither is usable (the platform Topbar colour is shown then)
+// shown, otherwise the Topbar colour (its colour at rest, when an On Scroll one is stored with it), null when neither
+// is usable (the platform Topbar colour is shown then)
 function getTopBannerGradientColor(topBanner) {
+  const color = topBanner.backgroundColor?.split?.('@')?.[0];
   return firstGradientColor(topBanner.backgroundEffect)
-    || (topBanner.backgroundColor && !isTransparentColor(topBanner.backgroundColor) && topBanner.backgroundColor)
+    || (color && !isTransparentColor(color) && color)
     || null;
 }
 
@@ -451,10 +458,12 @@ export function getStyle(container, options) {
       style[applicationBorder && '--appBoxShadow' || 'box-shadow'] = '0px 3px 3px -2px rgba(0, 0, 0, 0.2), 0px 3px 4px 0px rgba(0, 0, 0, 0.14), 0px 1px 8px 0px rgba(0, 0, 0, 0.12)';
     }
   }
-  // The site background, and the page background when the page is displayed under a transparent Topbar
+  // The site background, and the page background when the page is displayed under a transparent top banner
   // (pageBodyBackground), are written as the body-level --allPagesBackground* properties: they then also paint behind
   // the Topbar and the banners, which sit outside the page body, so the Topbar shows the background of the current page.
   // The page containers render after the site container, so a page background overrides the site one.
+  // Under a transparent shared Topbar only (pageBodyBackgroundColor), only the page colour is written to the body as
+  // well: that Topbar is above the site scroller, where the body-level image never paints.
   const bodyBackground = options.siteStyle || options.pageBodyBackground;
   if (!options.noBackgroundStyle
     && !backgroundLayerValues
@@ -469,6 +478,10 @@ export function getStyle(container, options) {
         document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
       } else if (options.pageStyle) {
         style['--pageBodyBackgroundColor'] = container.backgroundColor;
+        if (options.pageBodyBackgroundColor && getColorAlpha(container.backgroundColor) > 0) {
+          siteBackgroundOverridden = true;
+          document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
+        }
       } else if (options.isApplicationBackground) {
         style['--appBackgroundColor'] = container.backgroundColor;
       } else if (options.sectionStyle) {
@@ -505,8 +518,8 @@ export function getStyle(container, options) {
 
     const backgroundEffect = isTopBanner(container) ? null : container.backgroundEffect;
     if (backgroundEffect && container.backgroundImage) {
-      // Behind a transparent Topbar the site layer is the body, under the page background that overrides it there
-      if (options.pageBodyBackground || (options.siteStyle && options.topBarTransparency)) {
+      // Behind a transparent top banner the site layer is the body, under the page background that overrides it there
+      if (options.pageBodyBackground || (options.siteStyle && options.topBannerTransparency)) {
         document.body.style.setProperty('--allPagesBackgroundImage', `url(${container.backgroundImage}),${backgroundEffect}`);
       } else {
         style[options.isApplicationBackground && '--appBackgroundImage' || 'background-image'] = `url(${container.backgroundImage}),${backgroundEffect}`;

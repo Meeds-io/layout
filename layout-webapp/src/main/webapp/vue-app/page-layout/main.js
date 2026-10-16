@@ -61,7 +61,7 @@ export function init(pageRef, siteId) {
         return this.$vuetify.breakpoint.smAndDown;
       },
       topBarTransparency() {
-        return this.$applicationUtils.hasTopBarTransparency(this.layout);
+        return this.$applicationUtils.getTopBarTransparency(this.layout);
       },
     },
     async created() {
