@@ -26,6 +26,7 @@
       :items="sortedCategories"
       :placeholder="$t('layout.category.placeholder')"
       class="portlet-instance-category-autocomplete ma-0 pa-0"
+      :menu-props="{ contentClass: 'application-menu layout-drawer' }"
       item-value="id"
       item-text="name"
       outlined
