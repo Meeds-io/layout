@@ -58,6 +58,10 @@ public class LayoutAclService {
     if (portalConfig == null) {
       return false;
     }
+    return canEditSite(portalConfig, username);
+  }
+
+  public boolean canEditSite(PortalConfig portalConfig, String username) {
     return userAcl.hasEditPermission(portalConfig, userAcl.getUserIdentity(username));
   }
 

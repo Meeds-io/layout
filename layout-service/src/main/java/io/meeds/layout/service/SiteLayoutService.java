@@ -66,6 +66,8 @@ public class SiteLayoutService {
 
   private static final String     SITE_DOESNT_EXIST_MSG  = "Site %s doesn't exist";
 
+  private static final String     DRAFT_NAME_CONFLICT    = "layout.siteDraftNameConflict";
+
   private static final Log        LOG                    = ExoLogger.getLogger(SiteLayoutService.class);
 
   @Autowired
@@ -179,6 +181,11 @@ public class SiteLayoutService {
     PortalConfig draftSite = site.clone();
     draftSite.setType(PortalConfig.DRAFT);
     draftSite.setName(clonedSiteName);
+    if (!aclService.canEditSite(draftSite, username)) {
+      // The name could also be another existing user's draft of another site:
+      // the user couldn't open it, and replacing it could drop that user's draft
+      throw new IllegalArgumentException(DRAFT_NAME_CONFLICT);
+    }
     LayoutModel siteLayoutModel = new LayoutModel(site.getPortalLayout(), portletInstanceService, new PortletInstanceContext(false, null));
     siteLayoutModel.resetStorage();
     draftSite.setPortalLayout(siteLayoutModel.toSite().getPortalLayout());

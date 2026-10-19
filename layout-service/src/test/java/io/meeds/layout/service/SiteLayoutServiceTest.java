@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
@@ -87,6 +88,10 @@ public class SiteLayoutServiceTest {
 
   private static final SiteKey    SITE_KEY  = SiteKey.portal("test");
 
+  private static final String     DRAFT_SITE_NAME = "portal_test_draft_testuser";
+
+  private static final SiteKey    DRAFT_SITE_KEY  = new SiteKey(PortalConfig.DRAFT, DRAFT_SITE_NAME);
+
   @MockitoBean
   private LayoutService           layoutService;
 
@@ -137,6 +142,36 @@ public class SiteLayoutServiceTest {
     assertThrows(IllegalAccessException.class, () -> siteLayoutService.getSite(SITE_KEY, TEST_USER));
     when(aclService.canViewSite(SITE_KEY, TEST_USER)).thenReturn(true);
     assertEquals(portalConfig, siteLayoutService.getSite(SITE_KEY, TEST_USER));
+  }
+
+  @Test
+  @SneakyThrows
+  public void createDraftSite() {
+    PortalConfig existingDraftSite = mockDraftSiteCreation();
+    when(aclService.canEditSite(argThat((PortalConfig draftSite) -> DRAFT_SITE_NAME.equals(draftSite.getName())),
+                                eq(TEST_USER))).thenReturn(true);
+
+    assertEquals(DRAFT_SITE_KEY, siteLayoutService.createDraftSite(SITE_KEY, TEST_USER));
+    verify(layoutService).remove(existingDraftSite);
+    verify(layoutService).create(argThat((PortalConfig draftSite) -> DRAFT_SITE_NAME.equals(draftSite.getName())
+                                                                   && PortalConfig.DRAFT.equals(draftSite.getType())));
+  }
+
+  /**
+   * The draft's name could also be another existing user's draft of another
+   * site, so the user can't edit it: a draft of that name is kept, and none is
+   * created that the user couldn't open.
+   */
+  @Test
+  @SneakyThrows
+  public void createDraftSiteWhenItsNameIsAnotherUsersDraft() {
+    mockDraftSiteCreation();
+
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                                                      () -> siteLayoutService.createDraftSite(SITE_KEY, TEST_USER));
+    assertEquals("layout.siteDraftNameConflict", exception.getMessage());
+    verify(layoutService, never()).remove(any(PortalConfig.class));
+    verify(layoutService, never()).create(any(PortalConfig.class));
   }
 
   @Test
@@ -562,6 +597,20 @@ public class SiteLayoutServiceTest {
     assertEquals(2, siteLabels.getLabels().size());
     assertEquals("Test Description", siteLabels.getLabels().get(enLocaleConfig.getLocale().getLanguage()));
     assertEquals("Description pour le test", siteLabels.getLabels().get(frLocaleConfig.getLocale().getLanguage()));
+  }
+
+  private PortalConfig mockDraftSiteCreation() {
+    PortalConfig site = new PortalConfig(SITE_KEY.getTypeName(), SITE_KEY.getName());
+    Container portalLayout = new Container();
+    portalLayout.setTemplate("system:/groovy/portal/webui/container/UIContainer.gtmpl");
+    portalLayout.setChildren(new ArrayList<>());
+    site.setPortalLayout(portalLayout);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(site);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(aclService.canViewSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    PortalConfig existingDraftSite = new PortalConfig(PortalConfig.DRAFT, DRAFT_SITE_NAME);
+    when(layoutService.getPortalConfig(DRAFT_SITE_KEY)).thenReturn(existingDraftSite);
+    return existingDraftSite;
   }
 
 }

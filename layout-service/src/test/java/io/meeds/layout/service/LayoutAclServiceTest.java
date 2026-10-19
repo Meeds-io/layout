@@ -93,6 +93,13 @@ public class LayoutAclServiceTest {
   }
 
   @Test
+  public void canEditSiteNotStoredYet() {
+    assertFalse(layoutAclService.canEditSite(portalConfig, TEST_USER));
+    when(userAcl.hasEditPermission(portalConfig, aclIdentity)).thenReturn(true);
+    assertTrue(layoutAclService.canEditSite(portalConfig, TEST_USER));
+  }
+
+  @Test
   public void canViewSite() {
     assertFalse(layoutAclService.canViewSite(SITE_KEY, TEST_USER));
     when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
