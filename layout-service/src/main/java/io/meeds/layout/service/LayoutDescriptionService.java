@@ -154,7 +154,9 @@ public class LayoutDescriptionService {
 
   private static final Pattern   PIXELS                      = Pattern.compile("-?\\d+");
 
-  private static final SiteType[] LISTED_SITE_TYPES          = { SiteType.PORTAL, SiteType.GROUP };
+  public static final int        SITE_MATCH_LIMIT            = 50;
+
+  private static final int       SITE_NAME_PAGE              = 200;
 
   private static final Pattern   CONIC_STOP                  = Pattern.compile("^(#[0-9a-fA-F]{6,8})\\s+(-?\\d+(?:\\.\\d+)?)deg$");
 
@@ -271,27 +273,71 @@ public class LayoutDescriptionService {
 
   /**
    * @param  username the reader
-   * @return the portal and group sites the user can view, portal sites in
-   *         display order
+   * @param  keyword  null for the portal sites alone, as the sites
+   *                    administration lists them; otherwise the portal sites
+   *                    and the group sites whose name or label contains it,
+   *                    the group sites capped at SITE_MATCH_LIMIT
+   * @return the sites the user can view, portal sites in display order
    */
-  public List<SiteSummary> describeSites(String username) {
-    List<SiteSummary> sites = new ArrayList<>();
-    for (SiteType siteType : LISTED_SITE_TYPES) {
-      SiteFilter filter = new SiteFilter();
-      filter.setSiteType(siteType);
-      filter.setSortByDisplayOrder(siteType == SiteType.PORTAL);
-      layoutService.getSites(filter)
-                   .stream()
-                   .filter(site -> aclService.canViewSite(site.getSiteKey(), username))
-                   .map(site -> new SiteSummary(site.getId(),
-                                                site.getType(),
-                                                site.getName(),
-                                                StringUtils.defaultIfBlank(site.getLabel(), site.getName()),
-                                                site.getDescription(),
-                                                site.isDisplayed()))
-                   .forEach(sites::add);
+  public List<SiteSummary> describeSites(String username, String keyword) {
+    String needle = StringUtils.lowerCase(StringUtils.trimToNull(keyword));
+    SiteFilter filter = new SiteFilter();
+    filter.setSiteType(SiteType.PORTAL);
+    filter.setSortByDisplayOrder(true);
+    filter.setExcludeSpaceSites(needle == null);
+    List<SiteSummary> sites = new ArrayList<>(layoutService.getSites(filter)
+                                                           .stream()
+                                                           .filter(site -> needle == null || matches(site, needle))
+                                                           .filter(site -> aclService.canViewSite(site.getSiteKey(), username))
+                                                           .map(this::toSiteSummary)
+                                                           .toList());
+    if (needle != null) {
+      sites.addAll(describeGroupSites(username, needle));
     }
     return sites;
+  }
+
+  /**
+   * Group sites, the spaces' first, are matched on their name before any is
+   * loaded, so that a platform's spaces are never all read for one listing.
+   * The portal lists a space's site under SiteType.SPACE and the other group
+   * sites under SiteType.GROUP; both are stored as group sites.
+   */
+  private List<SiteSummary> describeGroupSites(String username, String needle) {
+    List<SiteSummary> sites = new ArrayList<>();
+    for (SiteType namesType : new SiteType[] { SiteType.SPACE, SiteType.GROUP }) {
+      int offset = 0;
+      List<String> names;
+      do {
+        names = layoutService.getSiteNames(namesType, offset, SITE_NAME_PAGE);
+        for (String name : names) {
+          if (sites.size() >= SITE_MATCH_LIMIT) {
+            return sites;
+          }
+          if (StringUtils.containsIgnoreCase(name, needle)) {
+            PortalConfig site = layoutService.getPortalConfig(SiteKey.group(name));
+            if (site != null && aclService.canViewSite(site.getSiteKey(), username)) {
+              sites.add(toSiteSummary(site));
+            }
+          }
+        }
+        offset += names.size();
+      } while (names.size() == SITE_NAME_PAGE);
+    }
+    return sites;
+  }
+
+  private SiteSummary toSiteSummary(PortalConfig site) {
+    return new SiteSummary(site.getId(),
+                           site.getType(),
+                           site.getName(),
+                           StringUtils.defaultIfBlank(site.getLabel(), site.getName()),
+                           site.getDescription(),
+                           site.isDisplayed());
+  }
+
+  private boolean matches(PortalConfig site, String needle) {
+    return StringUtils.containsIgnoreCase(site.getName(), needle) || StringUtils.containsIgnoreCase(site.getLabel(), needle);
   }
 
   /**

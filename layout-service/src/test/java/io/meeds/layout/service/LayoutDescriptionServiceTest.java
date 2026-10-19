@@ -24,11 +24,13 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -211,27 +213,76 @@ public class LayoutDescriptionServiceTest {
   }
 
   @Test
-  public void sitesAreListedForTheViewerInDisplayOrder() {
+  public void sitesAreThePortalSitesWithoutAKeyword() {
     PortalConfig visible = new PortalConfig("portal", "visible", "portal_1");
     visible.setLabel("Visible");
     PortalConfig forbidden = new PortalConfig("portal", "forbidden", "portal_2");
-    PortalConfig space = new PortalConfig("group", "/spaces/x", "group_3");
     when(layoutService.getSites(argThat((SiteFilter f) -> f != null && f.getSiteType() == SiteType.PORTAL))).thenReturn(List.of(visible, forbidden));
-    when(layoutService.getSites(argThat((SiteFilter f) -> f != null && f.getSiteType() == SiteType.GROUP))).thenReturn(List.of(space));
     when(aclService.canViewSite(visible.getSiteKey(), USER)).thenReturn(true);
     when(aclService.canViewSite(forbidden.getSiteKey(), USER)).thenReturn(false);
-    when(aclService.canViewSite(space.getSiteKey(), USER)).thenReturn(true);
 
-    List<SiteSummary> sites = descriptionService.describeSites(USER);
+    List<SiteSummary> sites = descriptionService.describeSites(USER, " ");
 
-    assertEquals(2, sites.size());
+    assertEquals(1, sites.size());
     assertEquals("visible", sites.get(0).name());
     assertEquals("Visible", sites.get(0).label());
-    assertEquals("/spaces/x", sites.get(1).name());
-    assertEquals("/spaces/x", sites.get(1).label());
+    assertEquals("portal", sites.get(0).type());
+    verify(layoutService).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.PORTAL && f.isSortByDisplayOrder()
+                                                            && f.isExcludeSpaceSites()));
+    verify(layoutService, never()).getSiteNames(any(), anyInt(), anyInt());
+  }
+
+  @Test
+  public void keywordAddsTheMatchingGroupSitesWithoutLoadingTheOthers() {
+    PortalConfig portal = new PortalConfig("portal", "intranet", "portal_1");
+    portal.setLabel("Marketing portal");
+    PortalConfig otherPortal = new PortalConfig("portal", "public", "portal_2");
+    when(layoutService.getSites(argThat((SiteFilter f) -> f != null && f.getSiteType() == SiteType.PORTAL))).thenReturn(List.of(portal, otherPortal));
+    when(layoutService.getSiteNames(SiteType.SPACE, 0, 200)).thenReturn(List.of("/spaces/marketing", "/spaces/sales", "/spaces/marketing_private"));
+    when(layoutService.getSiteNames(SiteType.GROUP, 0, 200)).thenReturn(List.of("/platform/marketing-team", "/platform/users"));
+    PortalConfig marketing = new PortalConfig("group", "/spaces/marketing", "group_3");
+    PortalConfig marketingPrivate = new PortalConfig("group", "/spaces/marketing_private", "group_4");
+    PortalConfig team = new PortalConfig("group", "/platform/marketing-team", "group_5");
+    when(layoutService.getPortalConfig(SiteKey.group("/spaces/marketing"))).thenReturn(marketing);
+    when(layoutService.getPortalConfig(SiteKey.group("/spaces/marketing_private"))).thenReturn(marketingPrivate);
+    when(layoutService.getPortalConfig(SiteKey.group("/platform/marketing-team"))).thenReturn(team);
+    when(aclService.canViewSite(portal.getSiteKey(), USER)).thenReturn(true);
+    when(aclService.canViewSite(marketing.getSiteKey(), USER)).thenReturn(true);
+    when(aclService.canViewSite(marketingPrivate.getSiteKey(), USER)).thenReturn(false);
+    when(aclService.canViewSite(team.getSiteKey(), USER)).thenReturn(true);
+
+    List<SiteSummary> sites = descriptionService.describeSites(USER, "MARKET");
+
+    assertEquals(3, sites.size());
+    assertEquals("intranet", sites.get(0).name());
+    assertEquals("/spaces/marketing", sites.get(1).name());
     assertEquals("group", sites.get(1).type());
-    verify(layoutService).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.PORTAL && f.isSortByDisplayOrder()));
-    verify(layoutService).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.GROUP && !f.isSortByDisplayOrder()));
+    assertEquals("/platform/marketing-team", sites.get(2).name());
+    verify(layoutService, never()).getPortalConfig(SiteKey.group("/spaces/sales"));
+    verify(layoutService, never()).getPortalConfig(SiteKey.group("/platform/users"));
+    verify(layoutService, never()).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.GROUP));
+    verify(layoutService).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.PORTAL && !f.isExcludeSpaceSites()));
+  }
+
+  @Test
+  public void groupSiteMatchesAreCappedAndPaged() {
+    when(layoutService.getSites(any())).thenReturn(List.of());
+    List<String> firstPage = new ArrayList<>();
+    for (int i = 0; i < 200; i++) {
+      firstPage.add("/spaces/team" + i);
+    }
+    when(layoutService.getSiteNames(SiteType.SPACE, 0, 200)).thenReturn(firstPage);
+    when(layoutService.getSiteNames(SiteType.SPACE, 200, 200)).thenReturn(List.of("/spaces/team200"));
+    when(layoutService.getSiteNames(SiteType.GROUP, 0, 200)).thenReturn(List.of());
+    when(layoutService.getPortalConfig(any(SiteKey.class))).thenAnswer(i -> new PortalConfig("group", i.getArgument(0, SiteKey.class).getName(), "group_1"));
+    when(aclService.canViewSite(any(), eq(USER))).thenReturn(true);
+
+    assertEquals(LayoutDescriptionService.SITE_MATCH_LIMIT, descriptionService.describeSites(USER, "team").size());
+
+    when(layoutService.getPortalConfig(any(SiteKey.class))).thenReturn(null);
+    assertTrue(descriptionService.describeSites(USER, "team").isEmpty());
+    verify(layoutService).getSiteNames(SiteType.SPACE, 200, 200);
+    verify(layoutService).getSiteNames(SiteType.GROUP, 0, 200);
   }
 
   @Test

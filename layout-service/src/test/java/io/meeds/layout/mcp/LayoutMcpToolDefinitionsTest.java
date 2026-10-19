@@ -53,7 +53,7 @@ public class LayoutMcpToolDefinitionsTest {
   private static final JsonHelper JSON_HELPER = new JsonHelper();
 
   private static final Map<String, String> SAMPLE_INPUTS = Map.of("list_sites",
-                                                                  "{}",
+                                                                  "{\"keyword\": \"marketing\"}",
                                                                   "get_site",
                                                                   "{\"site_id\": 3}",
                                                                   "list_site_pages",

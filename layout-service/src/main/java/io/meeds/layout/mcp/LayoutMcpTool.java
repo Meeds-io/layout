@@ -91,11 +91,12 @@ public class LayoutMcpTool implements McpToolPlugin {
   private LayoutDraftService       layoutDraftService;
 
   /**
-   * Lists the portal and group sites the current user can view, in display
-   * order for portal sites. Read-only.
+   * Lists the sites the current user can view: the portal sites in display
+   * order, and, when a keyword is given, the group sites (a space's site
+   * among them) whose name or label contains it. Read-only.
    */
-  public List<SiteSummary> listSites() {
-    return layoutDescriptionService.describeSites(getCurrentUserName());
+  public List<SiteSummary> listSites(String keyword) {
+    return layoutDescriptionService.describeSites(getCurrentUserName(), keyword);
   }
 
   /**
@@ -185,9 +186,17 @@ public class LayoutMcpTool implements McpToolPlugin {
     return layoutDescriptionService.describeApplications(categoryId, keyword, getCurrentUserName(), getCurrentUserLocale());
   }
 
+  /**
+   * A draft site is reached through its live site and the user's revision
+   * only, never by its own id
+   */
   private PortalConfig readSite(long siteId, String username) throws ObjectNotFoundException, IllegalAccessException {
     try {
-      return siteLayoutService.getSite(siteId, username);
+      PortalConfig site = siteLayoutService.getSite(siteId, username);
+      if (StringUtils.equalsIgnoreCase(site.getType(), PortalConfig.DRAFT)) {
+        throw new ObjectNotFoundException(SITE_NOT_FOUND);
+      }
+      return site;
     } catch (ObjectNotFoundException e) {
       throw new ObjectNotFoundException(SITE_NOT_FOUND);
     } catch (IllegalAccessException e) {

@@ -123,9 +123,9 @@ public class LayoutMcpToolTest {
   @Test
   public void listSitesIsDescribedAsTheCurrentUser() {
     List<SiteSummary> expected = List.of(new SiteSummary(1L, "portal", "test", "Test", null, true));
-    when(descriptionService.describeSites(USER)).thenReturn(expected);
+    when(descriptionService.describeSites(USER, "te")).thenReturn(expected);
 
-    assertEquals(expected, asUser(tool::listSites));
+    assertEquals(expected, asUser(() -> tool.listSites("te")));
   }
 
   @Test
@@ -138,6 +138,16 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.SITE_NOT_FOUND, assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.listSitePages(1L, null))).getMessage());
     assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, assertThrows(IllegalArgumentException.class, () -> asUser(() -> tool.getSite(null))).getMessage());
     assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, assertThrows(IllegalArgumentException.class, () -> asUser(() -> tool.listSitePages(0L, true))).getMessage());
+  }
+
+  @Test
+  public void draftSiteIsNotReachableByItsOwnId() throws Exception {
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_bob", "draft_9");
+    when(siteLayoutService.getSite(9L, USER)).thenReturn(draftSite);
+
+    assertEquals(LayoutMcpTool.SITE_NOT_FOUND, assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.getSite(9L))).getMessage());
+    assertEquals(LayoutMcpTool.SITE_NOT_FOUND, assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.listSitePages(9L, null))).getMessage());
+    verify(descriptionService, never()).toSiteDescription(any(), any(), any(), any(), any(Boolean.class));
   }
 
   @Test
