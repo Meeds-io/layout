@@ -37,6 +37,7 @@ import org.exoplatform.portal.branding.BrandingService;
 import org.exoplatform.portal.branding.model.Branding;
 
 import io.meeds.layout.mcp.constant.ThemePart;
+import io.meeds.layout.util.BrandingPageStyleValidator;
 import io.meeds.layout.util.ThemeOptions;
 
 /**
@@ -45,9 +46,10 @@ import io.meeds.layout.util.ThemeOptions;
  * merged into it, and the whole is submitted, so that every field the caller
  * did not name keeps its stored value although the branding service replaces
  * the whole. An untouched theme variable stored at its configured default is
- * submitted absent, so that it keeps following that default. The branding
- * service validates every value before its first write and refuses with its
- * own message code.
+ * submitted absent, so that it keeps following that default. A page field's
+ * value is validated here against the Page drawer's vocabulary; a theme
+ * variable's value by the branding service before its first write, which
+ * refuses with its own message code.
  */
 @Service
 public class ThemeUpdateService {
@@ -153,7 +155,8 @@ public class ThemeUpdateService {
     if (options != null) {
       options.forEach((option, value) -> {
         if (value != null) {
-          if (!accepted.contains(option) || StringUtils.isBlank(value)) {
+          if (!accepted.contains(option) || StringUtils.isBlank(value)
+              || (ThemeOptions.PAGE_FIELDS.contains(option) && !BrandingPageStyleValidator.isAccepted(option, value))) {
             throw new IllegalArgumentException(OPTIONS_NOT_ACCEPTED + ": " + option);
           }
           changes.put(option, value);

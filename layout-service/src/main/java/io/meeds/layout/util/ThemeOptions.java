@@ -28,7 +28,8 @@ import java.util.stream.Stream;
  * The option names each drawer of the Branding page writes: the theme
  * variables of the platform's branding configuration, grouped as the page
  * groups them, and the page fields of the branding. A variable the
- * configuration declares but no drawer writes is not an option.
+ * configuration declares but no drawer writes is not an option: the Topbar
+ * drawer offers no gradient, so the topbar has no background image option.
  */
 public final class ThemeOptions {
 
@@ -50,7 +51,11 @@ public final class ThemeOptions {
 
   public static final Set<String> FONT                       = Set.of("fontFamily");
 
-  public static final Set<String> TOPBAR                     = union(background("topBar"),
+  public static final Set<String> TOPBAR                     = union(suffixed("topBar",
+                                                                              "BackgroundColor",
+                                                                              "BackgroundPosition",
+                                                                              "BackgroundSize",
+                                                                              "BackgroundRepeat"),
                                                                      text("topBarText"),
                                                                      Set.of("topBarSticky", "topBarBackgroundScrollColor"));
 

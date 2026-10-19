@@ -210,6 +210,43 @@ public class ThemeUpdateServiceTest {
   }
 
   @Test
+  public void pageFieldValuesAreValidatedAgainstThePageDrawerVocabularyBeforeAnyWrite() throws Exception {
+    administrator();
+    loaded();
+
+    service.updateTheme(ThemePart.PAGE_AND_APPS,
+                        Map.of("pageWidth", "100%",
+                               "pageBackgroundColor", "#FFFFFFAA",
+                               "pageBackgroundEffect", "linear-gradient(90deg, #ffffff 0%, #000000 100%)",
+                               "pageBackgroundSize", "cover",
+                               "pageBackgroundPosition", "left top",
+                               "pageBackgroundRepeat", "no-repeat",
+                               "pageBackgroundAttachment", "fixed"),
+                        null,
+                        USER);
+    assertEquals("100%", submitted().getPageWidth());
+
+    Map<String, String> refused = Map.of("pageWidth", "1320px; background:url(https://x)",
+                                         "pageBackgroundColor", "red",
+                                         "pageBackgroundEffect", "url(https://x)",
+                                         "pageBackgroundSize", "cover; color: red",
+                                         "pageBackgroundAttachment", "javascript:alert(1)");
+    refused.forEach((field, value) -> assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": " + field,
+                                                   assertThrows(IllegalArgumentException.class,
+                                                                () -> service.updateTheme(ThemePart.PAGE_AND_APPS,
+                                                                                          Map.of(field, value),
+                                                                                          null,
+                                                                                          USER)).getMessage()));
+    assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": pageBackgroundEffect",
+                 assertThrows(IllegalArgumentException.class,
+                              () -> service.updateTheme(ThemePart.PAGE_AND_APPS,
+                                                        Map.of("pageBackgroundEffect", "linear-gradient(90deg, #fff, #000"),
+                                                        null,
+                                                        USER)).getMessage());
+    verify(brandingService).updateBrandingInformation(any());
+  }
+
+  @Test
   public void brandingServiceRefusalPassesThroughUnchanged() throws Exception {
     administrator();
     loaded();
@@ -246,7 +283,8 @@ public class ThemeUpdateServiceTest {
     }
     assertEquals(Set.of("primaryColor", "secondaryColor", "tertiaryColor"), ThemePart.COLORS.getThemeOptions());
     assertEquals(Set.of("fontFamily"), ThemePart.FONT.getThemeOptions());
-    assertTrue(ThemePart.TOPBAR.getThemeOptions().containsAll(Set.of("topBarSticky", "topBarBackgroundScrollColor", "topBarBackgroundImage")));
+    assertTrue(ThemePart.TOPBAR.getThemeOptions().containsAll(Set.of("topBarSticky", "topBarBackgroundScrollColor", "topBarBackgroundColor")));
+    assertFalse(ThemePart.TOPBAR.getThemeOptions().contains("topBarBackgroundImage"));
     assertTrue(ThemePart.PAGE_AND_APPS.getThemeOptions().containsAll(Set.of("borderRadius", "appTextHeaderBackgroundRadius", "pageMarginLeft")));
   }
 

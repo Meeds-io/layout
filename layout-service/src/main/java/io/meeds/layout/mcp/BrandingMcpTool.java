@@ -39,8 +39,9 @@ import io.meeds.mcp.server.plugin.McpToolPlugin;
 /**
  * The write tools of the Branding and Theme administration and of the
  * navigation settings: every public method is an MCP tool described in
- * ai-tool-definitions.json, applied once the user has confirmed it, as the
- * current user. A tool maps its arguments and calls the Services, whose
+ * ai-tool-definitions.json, applied as the current user to every user at
+ * once, after the platform's own approval step for a caller whose token
+ * carries it. A tool maps its arguments and calls the Services, whose
  * refusals carry the fixed texts the agent reads: {@code does not exist:
  * <object>}, {@code not allowed: administrators only}, {@code value is not
  * accepted for <option>}.
@@ -60,7 +61,8 @@ public class BrandingMcpTool implements McpToolPlugin {
    * page_and_apps, with the options its drawer offers: the named options are
    * set, the reset ones return to their default, every other keeps its
    * value. Applies at once to every user, as the Apply button does; not a
-   * draft. Returns the part as stored.
+   * draft. A page field is refused outside the Page drawer's vocabulary, a
+   * theme variable by the branding service. Returns the part as stored.
    */
   public ThemeDescription updateTheme(String part, Map<String, String> options, List<String> reset) throws IllegalAccessException {
     ThemePart themePart = ThemePart.parse(part);
