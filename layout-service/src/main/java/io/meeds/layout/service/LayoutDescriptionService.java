@@ -22,11 +22,13 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -275,8 +277,9 @@ public class LayoutDescriptionService {
    * @param  username the reader
    * @param  keyword  null for the portal sites alone, as the sites
    *                    administration lists them; otherwise the portal sites
-   *                    and the group sites whose name or label contains it,
-   *                    the group sites capped at SITE_MATCH_LIMIT
+   *                    whose name or label contains it, then the group sites
+   *                    whose own name (for a space, the group name it was
+   *                    created with, which a rename leaves as is) contains it
    * @return the sites the user can view, portal sites in display order
    */
   public List<SiteSummary> describeSites(String username, String keyword) {
@@ -298,27 +301,33 @@ public class LayoutDescriptionService {
   }
 
   /**
-   * Group sites, the spaces' first, are matched on their name before any is
-   * loaded, so that a platform's spaces are never all read for one listing.
-   * The portal lists a space's site under SiteType.SPACE and the other group
-   * sites under SiteType.GROUP; both are stored as group sites.
+   * Group sites are matched on the last segment of their name (a space site
+   * is named /spaces/&lt;name at creation&gt;, whatever the space is called
+   * since) before any is loaded, and at most
+   * SITE_MATCH_LIMIT of them are loaded, viewable or not, so that no listing
+   * reads every space's layout. The portal's SPACE and GROUP name listings
+   * overlap, so a name is considered once.
    */
   private List<SiteSummary> describeGroupSites(String username, String needle) {
     List<SiteSummary> sites = new ArrayList<>();
+    Set<String> considered = new HashSet<>();
+    int loaded = 0;
     for (SiteType namesType : new SiteType[] { SiteType.SPACE, SiteType.GROUP }) {
       int offset = 0;
       List<String> names;
       do {
         names = layoutService.getSiteNames(namesType, offset, SITE_NAME_PAGE);
         for (String name : names) {
-          if (sites.size() >= SITE_MATCH_LIMIT) {
+          if (!considered.add(name) || !StringUtils.containsIgnoreCase(StringUtils.substringAfterLast("/" + name, "/"), needle)) {
+            continue;
+          }
+          if (loaded >= SITE_MATCH_LIMIT) {
             return sites;
           }
-          if (StringUtils.containsIgnoreCase(name, needle)) {
-            PortalConfig site = layoutService.getPortalConfig(SiteKey.group(name));
-            if (site != null && aclService.canViewSite(site.getSiteKey(), username)) {
-              sites.add(toSiteSummary(site));
-            }
+          loaded++;
+          PortalConfig site = layoutService.getPortalConfig(SiteKey.group(name));
+          if (site != null && aclService.canViewSite(site.getSiteKey(), username)) {
+            sites.add(toSiteSummary(site));
           }
         }
         offset += names.size();

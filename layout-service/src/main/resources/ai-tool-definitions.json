@@ -3,13 +3,13 @@
     {
       "name": "list_sites",
       "title": "List the sites",
-      "description": "List the sites the current user can view, each with its site_id, type, name, label, description and whether it is displayed in the sites menu: the portal sites, and, when a keyword is given, also the group sites (a space's site among them) whose name or label contains it, up to 50. Use the site_id in get_site and list_site_pages.",
+      "description": "List the sites the current user can view, each with its site_id, type, name, label, description and whether it is displayed in the sites menu. Without a keyword: the portal sites. With a keyword: the portal sites whose name or label contains it, and the group sites whose own name contains it; a space's site is named after the group the space was created with (/spaces/<name at creation>), which a later rename of the space does not change, so a renamed space is found by its original name, not by its label (at most 50 group sites are looked up). Use the site_id in get_site and list_site_pages.",
       "input_schema": {
         "type": "object",
         "properties": {
           "keyword": {
             "type": "string",
-            "description": "A text the site name or label must contain; it is what lists a space's site. Omit for the portal sites alone"
+            "description": "A text the portal site's name or label, or the group site's name (for a space, the name it was created with), must contain; it is what lists a space's site. Omit for the portal sites alone"
           }
         },
         "required": []

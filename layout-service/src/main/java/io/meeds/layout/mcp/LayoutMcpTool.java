@@ -91,9 +91,10 @@ public class LayoutMcpTool implements McpToolPlugin {
   private LayoutDraftService       layoutDraftService;
 
   /**
-   * Lists the sites the current user can view: the portal sites in display
-   * order, and, when a keyword is given, the group sites (a space's site
-   * among them) whose name or label contains it. Read-only.
+   * Lists the sites the current user can view: without a keyword the portal
+   * sites, in display order; with one, the portal sites whose name or label
+   * contains it and the group sites, a space's site among them, whose own
+   * name contains it. Read-only.
    */
   public List<SiteSummary> listSites(String keyword) {
     return layoutDescriptionService.describeSites(getCurrentUserName(), keyword);

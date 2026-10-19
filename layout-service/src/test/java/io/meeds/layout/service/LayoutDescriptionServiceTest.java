@@ -31,6 +31,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -239,7 +240,7 @@ public class LayoutDescriptionServiceTest {
     PortalConfig otherPortal = new PortalConfig("portal", "public", "portal_2");
     when(layoutService.getSites(argThat((SiteFilter f) -> f != null && f.getSiteType() == SiteType.PORTAL))).thenReturn(List.of(portal, otherPortal));
     when(layoutService.getSiteNames(SiteType.SPACE, 0, 200)).thenReturn(List.of("/spaces/marketing", "/spaces/sales", "/spaces/marketing_private"));
-    when(layoutService.getSiteNames(SiteType.GROUP, 0, 200)).thenReturn(List.of("/platform/marketing-team", "/platform/users"));
+    when(layoutService.getSiteNames(SiteType.GROUP, 0, 200)).thenReturn(List.of("/spaces/marketing", "/platform/marketing-team", "/platform/users"));
     PortalConfig marketing = new PortalConfig("group", "/spaces/marketing", "group_3");
     PortalConfig marketingPrivate = new PortalConfig("group", "/spaces/marketing_private", "group_4");
     PortalConfig team = new PortalConfig("group", "/platform/marketing-team", "group_5");
@@ -260,12 +261,14 @@ public class LayoutDescriptionServiceTest {
     assertEquals("/platform/marketing-team", sites.get(2).name());
     verify(layoutService, never()).getPortalConfig(SiteKey.group("/spaces/sales"));
     verify(layoutService, never()).getPortalConfig(SiteKey.group("/platform/users"));
+    verify(layoutService, times(1)).getPortalConfig(SiteKey.group("/spaces/marketing"));
+    assertTrue(descriptionService.describeSites(USER, "spaces").stream().noneMatch(site -> "group".equals(site.type())));
     verify(layoutService, never()).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.GROUP));
-    verify(layoutService).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.PORTAL && !f.isExcludeSpaceSites()));
+    verify(layoutService, times(2)).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.PORTAL && !f.isExcludeSpaceSites()));
   }
 
   @Test
-  public void groupSiteMatchesAreCappedAndPaged() {
+  public void groupSiteLookupsAreCappedAndPagedWhateverTheUserMayView() {
     when(layoutService.getSites(any())).thenReturn(List.of());
     List<String> firstPage = new ArrayList<>();
     for (int i = 0; i < 200; i++) {
@@ -273,14 +276,19 @@ public class LayoutDescriptionServiceTest {
     }
     when(layoutService.getSiteNames(SiteType.SPACE, 0, 200)).thenReturn(firstPage);
     when(layoutService.getSiteNames(SiteType.SPACE, 200, 200)).thenReturn(List.of("/spaces/team200"));
-    when(layoutService.getSiteNames(SiteType.GROUP, 0, 200)).thenReturn(List.of());
+    when(layoutService.getSiteNames(SiteType.GROUP, 0, 200)).thenReturn(List.of("/spaces/team0", "/spaces/team1"));
     when(layoutService.getPortalConfig(any(SiteKey.class))).thenAnswer(i -> new PortalConfig("group", i.getArgument(0, SiteKey.class).getName(), "group_1"));
     when(aclService.canViewSite(any(), eq(USER))).thenReturn(true);
 
     assertEquals(LayoutDescriptionService.SITE_MATCH_LIMIT, descriptionService.describeSites(USER, "team").size());
+    verify(layoutService, times(LayoutDescriptionService.SITE_MATCH_LIMIT)).getPortalConfig(any(SiteKey.class));
 
-    when(layoutService.getPortalConfig(any(SiteKey.class))).thenReturn(null);
+    when(aclService.canViewSite(any(), eq(USER))).thenReturn(false);
     assertTrue(descriptionService.describeSites(USER, "team").isEmpty());
+    verify(layoutService, times(2 * LayoutDescriptionService.SITE_MATCH_LIMIT)).getPortalConfig(any(SiteKey.class));
+
+    when(aclService.canViewSite(any(), eq(USER))).thenReturn(true);
+    assertEquals(11, descriptionService.describeSites(USER, "team19").size());
     verify(layoutService).getSiteNames(SiteType.SPACE, 200, 200);
     verify(layoutService).getSiteNames(SiteType.GROUP, 0, 200);
   }
