@@ -20,12 +20,17 @@ package io.meeds.layout.service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
+import org.exoplatform.services.resources.ResourceBundleService;
 
 import io.meeds.layout.mcp.constant.SidebarDisplayMode;
 import io.meeds.layout.mcp.model.NavigationDisplayDescription;
@@ -45,7 +50,9 @@ import io.meeds.portal.navigation.service.NavigationConfigurationService;
  * given options are merged into it, and the whole is submitted with both
  * parts, since the navigation configuration service stores whatever it is
  * given and reads the sidebar after the write. The sidebar's items and the
- * users' own modes are never touched.
+ * users' own modes are never touched. A topbar application's stored name
+ * is the key the settings page translates: the label shown in the user's
+ * language is what the tool returns and matches a given name against.
  */
 @Service
 public class NavigationDisplayService {
@@ -64,12 +71,19 @@ public class NavigationDisplayService {
 
   public static final String             DEFAULT_MODE_NOT_ACCEPTED    = "value is not accepted for default_mode";
 
+  private static final Log               LOG                          = ExoLogger.getLogger(NavigationDisplayService.class);
+
+  private static final String[]          SETTINGS_BUNDLES             = { "locale.portlet.GeneralSettings", "locale.portlet.Portlets" };
+
   private static final String            ALLOWED_MODES_OPTION         = "allowed_modes";
 
   private static final String            DEFAULT_MODE_OPTION          = "default_mode";
 
   @Autowired
   private NavigationConfigurationService navigationConfigurationService;
+
+  @Autowired
+  private ResourceBundleService          resourceBundleService;
 
   @Autowired
   private LayoutAclService               aclService;
@@ -79,20 +93,25 @@ public class NavigationDisplayService {
    * @param  sidebar                 how the sidebar may be displayed, null to
    *                                   leave it
    * @param  username                the acting user
+   * @param  locale                  the user's locale, in which application
+   *                                   names are matched and returned
    * @return                         both parts as stored after the update
    * @throws ObjectNotFoundException  when no configuration is stored, or when
    *                                   an application named is not in the
    *                                   topbar
    * @throws IllegalAccessException   when the user is not an administrator
-   * @throws IllegalArgumentException when both parts are omitted, when a
-   *                                   mode is outside the vocabulary, or
+   * @throws IllegalArgumentException when both parts are omitted, when an
+   *                                   application entry names nothing or a
+   *                                   name shared by two applications, when
+   *                                   a mode is outside the vocabulary, or
    *                                   when the default mode would not be
    *                                   allowed
    */
   public NavigationDisplayDescription updateNavigationDisplay(TopbarDisplayOptions topbar,
                                                               SidebarDisplayOptions sidebar,
-                                                              String username) throws ObjectNotFoundException,
-                                                                               IllegalAccessException {
+                                                              String username,
+                                                              Locale locale) throws ObjectNotFoundException,
+                                                                             IllegalAccessException {
     if (!aclService.isAdministrator(username)) {
       throw new IllegalAccessException(ADMINISTRATORS_ONLY);
     } else if (topbar == null && sidebar == null) {
@@ -102,25 +121,27 @@ public class NavigationDisplayService {
     if (configuration == null || configuration.getTopbar() == null || configuration.getSidebar() == null) {
       throw new ObjectNotFoundException(CONFIGURATION_NOT_FOUND);
     }
-    mergeTopbar(configuration.getTopbar(), topbar);
+    mergeTopbar(configuration.getTopbar(), topbar, locale);
     mergeSidebar(configuration.getSidebar(), sidebar);
     navigationConfigurationService.updateConfiguration(configuration);
-    return describe(navigationConfigurationService.getConfiguration());
+    return describe(navigationConfigurationService.getConfiguration(), locale);
   }
 
   /**
    * @param  configuration a stored configuration
+   * @param  locale        the locale of the application names
    * @return               its display options, null for null
    */
-  public NavigationDisplayDescription describe(NavigationConfiguration configuration) {
+  public NavigationDisplayDescription describe(NavigationConfiguration configuration, Locale locale) {
     if (configuration == null) {
       return null;
     }
     TopbarConfiguration topbar = configuration.getTopbar();
     SidebarConfiguration sidebar = configuration.getSidebar();
+    ResourceBundle bundle = settingsBundle(locale);
     List<TopbarApplicationOption> applications = applications(topbar).stream()
                                                                      .map(app -> new TopbarApplicationOption(app.getId(),
-                                                                                                             app.getName(),
+                                                                                                             label(app, bundle),
                                                                                                              app.isEnabled(),
                                                                                                              app.isMobile()))
                                                                      .toList();
@@ -138,7 +159,7 @@ public class NavigationDisplayService {
                                                                       SidebarDisplayMode.valueOf(sidebar.getDefaultMode())));
   }
 
-  private void mergeTopbar(TopbarConfiguration stored, TopbarDisplayOptions given) throws ObjectNotFoundException {
+  private void mergeTopbar(TopbarConfiguration stored, TopbarDisplayOptions given, Locale locale) throws ObjectNotFoundException {
     if (given == null) {
       return;
     }
@@ -152,7 +173,7 @@ public class NavigationDisplayService {
       stored.setDisplayMobileCompanyLogo(given.displayMobileCompanyLogo());
     }
     if (given.applications() != null) {
-      stored.setApplications(mergeApplications(applications(stored), given.applications()));
+      stored.setApplications(mergeApplications(applications(stored), given.applications(), locale));
     }
   }
 
@@ -164,10 +185,12 @@ public class NavigationDisplayService {
    * are only known from this tool's own result.
    */
   private List<TopbarApplication> mergeApplications(List<TopbarApplication> stored,
-                                                    List<TopbarApplicationOption> given) throws ObjectNotFoundException {
+                                                    List<TopbarApplicationOption> given,
+                                                    Locale locale) throws ObjectNotFoundException {
     List<TopbarApplication> copies = stored.stream().map(this::copy).toList();
+    ResourceBundle bundle = settingsBundle(locale);
     for (TopbarApplicationOption option : given) {
-      TopbarApplication application = findApplication(copies, option);
+      TopbarApplication application = findApplication(copies, option, bundle);
       if (option.enabled() != null) {
         application.setEnabled(option.enabled());
       }
@@ -178,21 +201,26 @@ public class NavigationDisplayService {
     return copies;
   }
 
+  /**
+   * A name matches the label the settings page shows in the user's
+   * language, or the stored key itself, case-insensitive
+   */
   private TopbarApplication findApplication(List<TopbarApplication> applications,
-                                            TopbarApplicationOption option) throws ObjectNotFoundException {
+                                            TopbarApplicationOption option,
+                                            ResourceBundle bundle) throws ObjectNotFoundException {
     if (option == null || (StringUtils.isBlank(option.id()) && StringUtils.isBlank(option.name()))) {
       throw new IllegalArgumentException(APPLICATIONS_NOT_ACCEPTED);
     }
-    List<TopbarApplication> matches = StringUtils.isNotBlank(option.id()) ?
-                                                                          applications.stream()
-                                                                                      .filter(app -> StringUtils.equals(app.getId(),
-                                                                                                                        option.id().trim()))
-                                                                                      .toList() :
-                                                                          applications.stream()
-                                                                                      .filter(app -> StringUtils.equalsIgnoreCase(app.getName(),
-                                                                                                                                  option.name()
-                                                                                                                                        .trim()))
-                                                                                      .toList();
+    List<TopbarApplication> matches;
+    if (StringUtils.isNotBlank(option.id())) {
+      matches = applications.stream().filter(app -> StringUtils.equals(app.getId(), option.id().trim())).toList();
+    } else {
+      String name = option.name().trim();
+      matches = applications.stream()
+                            .filter(app -> StringUtils.equalsIgnoreCase(label(app, bundle), name)
+                                           || StringUtils.equalsIgnoreCase(app.getName(), name))
+                            .toList();
+    }
     if (matches.isEmpty()) {
       throw new ObjectNotFoundException(APPLICATION_NOT_FOUND);
     } else if (matches.size() > 1) {
@@ -226,6 +254,20 @@ public class NavigationDisplayService {
     if (defaultMode != null && allowedModes != null && !allowedModes.contains(defaultMode)) {
       throw new IllegalArgumentException(given.defaultMode() != null ? DEFAULT_MODE_NOT_ACCEPTED : ALLOWED_MODES_NOT_ACCEPTED);
     }
+  }
+
+  private ResourceBundle settingsBundle(Locale locale) {
+    try {
+      return resourceBundleService.getResourceBundle(SETTINGS_BUNDLES, locale == null ? Locale.ENGLISH : locale);
+    } catch (Exception e) {
+      LOG.debug("Settings bundles not readable for locale {}, application names kept as stored", locale, e);
+      return null;
+    }
+  }
+
+  private String label(TopbarApplication application, ResourceBundle bundle) {
+    String name = application.getName();
+    return bundle != null && name != null && bundle.containsKey(name) ? bundle.getString(name) : name;
   }
 
   private List<TopbarApplication> applications(TopbarConfiguration topbar) {

@@ -24,6 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -31,6 +33,9 @@ import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.ListResourceBundle;
+import java.util.Locale;
+import java.util.ResourceBundle;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,6 +45,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.services.resources.ResourceBundleService;
 
 import io.meeds.layout.mcp.model.NavigationDisplayDescription;
 import io.meeds.layout.mcp.model.SidebarDisplayOptions;
@@ -65,6 +71,9 @@ public class NavigationDisplayServiceTest {
   private NavigationConfigurationService navigationConfigurationService;
 
   @Mock
+  private ResourceBundleService          resourceBundleService;
+
+  @Mock
   private LayoutAclService               aclService;
 
   @InjectMocks
@@ -75,7 +84,7 @@ public class NavigationDisplayServiceTest {
     when(aclService.isAdministrator(USER)).thenReturn(false);
 
     IllegalAccessException refusal = assertThrows(IllegalAccessException.class,
-                                                  () -> service.updateNavigationDisplay(NO_TOPBAR, null, USER));
+                                                  () -> service.updateNavigationDisplay(NO_TOPBAR, null, USER, Locale.ENGLISH));
     assertEquals(NavigationDisplayService.ADMINISTRATORS_ONLY, refusal.getMessage());
     verify(navigationConfigurationService, never()).getConfiguration();
     verify(navigationConfigurationService, never()).updateConfiguration(any());
@@ -86,11 +95,11 @@ public class NavigationDisplayServiceTest {
     administrator();
 
     assertEquals(NavigationDisplayService.DISPLAY_OPTIONS_NOT_ACCEPTED,
-                 assertThrows(IllegalArgumentException.class, () -> service.updateNavigationDisplay(null, null, USER)).getMessage());
+                 assertThrows(IllegalArgumentException.class, () -> service.updateNavigationDisplay(null, null, USER, Locale.ENGLISH)).getMessage());
 
     when(navigationConfigurationService.getConfiguration()).thenReturn(null);
     assertEquals(NavigationDisplayService.CONFIGURATION_NOT_FOUND,
-                 assertThrows(ObjectNotFoundException.class, () -> service.updateNavigationDisplay(NO_TOPBAR, null, USER)).getMessage());
+                 assertThrows(ObjectNotFoundException.class, () -> service.updateNavigationDisplay(NO_TOPBAR, null, USER, Locale.ENGLISH)).getMessage());
     verify(navigationConfigurationService, never()).updateConfiguration(any());
   }
 
@@ -99,7 +108,7 @@ public class NavigationDisplayServiceTest {
     administrator();
     stored();
 
-    service.updateNavigationDisplay(new TopbarDisplayOptions(null, false, null, null), null, USER);
+    service.updateNavigationDisplay(new TopbarDisplayOptions(null, false, null, null), null, USER, Locale.ENGLISH);
 
     NavigationConfiguration submitted = submitted();
     assertEquals(stored(false).getSidebar(), submitted.getSidebar());
@@ -115,7 +124,7 @@ public class NavigationDisplayServiceTest {
     administrator();
     stored();
 
-    service.updateNavigationDisplay(null, new SidebarDisplayOptions(true, List.of("icon", "sticky", "icon"), "Sticky"), USER);
+    service.updateNavigationDisplay(null, new SidebarDisplayOptions(true, List.of("icon", "sticky", "icon"), "Sticky"), USER, Locale.ENGLISH);
 
     NavigationConfiguration submitted = submitted();
     assertEquals(stored(false).getTopbar(), submitted.getTopbar());
@@ -135,7 +144,8 @@ public class NavigationDisplayServiceTest {
                                                              null,
                                                              List.of(new TopbarApplicationOption(" notifications ", null, false, null))),
                                     null,
-                                    USER);
+                                    USER,
+                                    Locale.ENGLISH);
 
     List<TopbarApplication> applications = submitted().getTopbar().getApplications();
     assertEquals(List.of("search", "notifications"), applications.stream().map(TopbarApplication::getId).toList());
@@ -143,21 +153,22 @@ public class NavigationDisplayServiceTest {
     assertFalse(applications.get(0).isMobile());
     assertFalse(applications.get(1).isEnabled());
     assertTrue(applications.get(1).isMobile());
-    assertEquals("Notifications", applications.get(1).getName());
+    assertEquals("generalSettings.notifications.name", applications.get(1).getName());
   }
 
   @Test
   public void applicationsAreNamedByNameWhenNoIdentifierIsGiven() throws Exception {
     administrator();
     NavigationConfiguration read = stored();
-    read.getTopbar().getApplications().add(application("search-2", "Search", true, false));
+    read.getTopbar().getApplications().add(application("search-2", "generalSettings.search.name", true, false));
 
     service.updateNavigationDisplay(new TopbarDisplayOptions(null,
                                                              null,
                                                              null,
-                                                             List.of(new TopbarApplicationOption(null, " notifications ", null, false))),
+                                                             List.of(new TopbarApplicationOption(null, " NOTIFICATION ", null, false))),
                                     null,
-                                    USER);
+                                    USER,
+                                    Locale.ENGLISH);
     List<TopbarApplication> applications = submitted().getTopbar().getApplications();
     assertEquals(List.of("search", "notifications", "search-2"), applications.stream().map(TopbarApplication::getId).toList());
     assertTrue(applications.get(1).isEnabled());
@@ -165,16 +176,26 @@ public class NavigationDisplayServiceTest {
 
     TopbarDisplayOptions ambiguous = new TopbarDisplayOptions(null, null, null, List.of(new TopbarApplicationOption(null, "search", false, null)));
     assertEquals(NavigationDisplayService.APPLICATIONS_NOT_ACCEPTED,
-                 assertThrows(IllegalArgumentException.class, () -> service.updateNavigationDisplay(ambiguous, null, USER)).getMessage());
+                 assertThrows(IllegalArgumentException.class, () -> service.updateNavigationDisplay(ambiguous, null, USER, Locale.ENGLISH)).getMessage());
     TopbarDisplayOptions unknown = new TopbarDisplayOptions(null, null, null, List.of(new TopbarApplicationOption(null, "Chat", false, null)));
     assertEquals(NavigationDisplayService.APPLICATION_NOT_FOUND,
-                 assertThrows(ObjectNotFoundException.class, () -> service.updateNavigationDisplay(unknown, null, USER)).getMessage());
+                 assertThrows(ObjectNotFoundException.class, () -> service.updateNavigationDisplay(unknown, null, USER, Locale.ENGLISH)).getMessage());
+    TopbarDisplayOptions byKey = new TopbarDisplayOptions(null, null, null, List.of(new TopbarApplicationOption(null, "generalSettings.notifications.name", null, true)));
+    service.updateNavigationDisplay(byKey, null, USER, Locale.ENGLISH);
+    TopbarDisplayOptions noBundle = new TopbarDisplayOptions(null, null, null, List.of(new TopbarApplicationOption(null, "Notification", null, true)));
+    when(resourceBundleService.getResourceBundle(any(String[].class), eq(Locale.ENGLISH))).thenReturn(null);
+    assertEquals(NavigationDisplayService.APPLICATION_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> service.updateNavigationDisplay(noBundle, null, USER, Locale.ENGLISH)).getMessage());
+    when(resourceBundleService.getResourceBundle(any(String[].class), eq(Locale.ENGLISH))).thenThrow(new IllegalStateException("no container"));
+    assertEquals(NavigationDisplayService.APPLICATION_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> service.updateNavigationDisplay(noBundle, null, USER, Locale.ENGLISH)).getMessage());
     TopbarDisplayOptions idWins = new TopbarDisplayOptions(null, null, null, List.of(new TopbarApplicationOption("search-2", "Chat", false, null)));
-    service.updateNavigationDisplay(idWins, null, USER);
+    service.updateNavigationDisplay(idWins, null, USER, Locale.ENGLISH);
     ArgumentCaptor<NavigationConfiguration> captor = ArgumentCaptor.forClass(NavigationConfiguration.class);
-    verify(navigationConfigurationService, times(2)).updateConfiguration(captor.capture());
+    verify(navigationConfigurationService, times(3)).updateConfiguration(captor.capture());
     assertFalse(captor.getAllValues().get(1).getTopbar().getApplications().get(2).isEnabled());
     assertTrue(captor.getAllValues().get(1).getTopbar().getApplications().get(0).isEnabled());
+    assertTrue(captor.getAllValues().get(2).getTopbar().getApplications().get(1).isMobile());
   }
 
   @Test
@@ -188,12 +209,12 @@ public class NavigationDisplayServiceTest {
                                                                    new TopbarApplicationOption("missing", null, true, null)));
 
     assertEquals(NavigationDisplayService.APPLICATION_NOT_FOUND,
-                 assertThrows(ObjectNotFoundException.class, () -> service.updateNavigationDisplay(topbar, null, USER)).getMessage());
+                 assertThrows(ObjectNotFoundException.class, () -> service.updateNavigationDisplay(topbar, null, USER, Locale.ENGLISH)).getMessage());
     assertTrue(read.getTopbar().getApplications().get(0).isEnabled());
 
     TopbarDisplayOptions blank = new TopbarDisplayOptions(null, null, null, List.of(new TopbarApplicationOption(" ", null, false, null)));
     assertEquals(NavigationDisplayService.APPLICATIONS_NOT_ACCEPTED,
-                 assertThrows(IllegalArgumentException.class, () -> service.updateNavigationDisplay(blank, null, USER)).getMessage());
+                 assertThrows(IllegalArgumentException.class, () -> service.updateNavigationDisplay(blank, null, USER, Locale.ENGLISH)).getMessage());
     verify(navigationConfigurationService, never()).updateConfiguration(any());
   }
 
@@ -222,7 +243,7 @@ public class NavigationDisplayServiceTest {
     administrator();
     stored();
 
-    service.updateNavigationDisplay(NO_TOPBAR, new SidebarDisplayOptions(null, null, null), USER);
+    service.updateNavigationDisplay(NO_TOPBAR, new SidebarDisplayOptions(null, null, null), USER, Locale.ENGLISH);
 
     NavigationConfiguration submitted = submitted();
     assertEquals(stored(false).getTopbar(), submitted.getTopbar());
@@ -241,7 +262,8 @@ public class NavigationDisplayServiceTest {
 
     NavigationDisplayDescription result = service.updateNavigationDisplay(new TopbarDisplayOptions(null, false, null, null),
                                                                           null,
-                                                                          USER);
+                                                                          USER,
+                                                                          Locale.ENGLISH);
 
     assertEquals(new NavigationDisplayDescription(new TopbarDisplayOptions(true,
                                                                            false,
@@ -251,7 +273,7 @@ public class NavigationDisplayServiceTest {
                                                                                                                true,
                                                                                                                false),
                                                                                    new TopbarApplicationOption("notifications",
-                                                                                                               "Notifications",
+                                                                                                               "Notification",
                                                                                                                true,
                                                                                                                true))),
                                                   new SidebarDisplayOptions(false, List.of("icon", "sticky"), "icon")),
@@ -259,11 +281,23 @@ public class NavigationDisplayServiceTest {
   }
 
   private String refusal(SidebarDisplayOptions sidebar) {
-    return assertThrows(IllegalArgumentException.class, () -> service.updateNavigationDisplay(null, sidebar, USER)).getMessage();
+    return assertThrows(IllegalArgumentException.class, () -> service.updateNavigationDisplay(null, sidebar, USER, Locale.ENGLISH)).getMessage();
   }
 
+  /**
+   * The settings page's bundle, as the general-settings app loads it:
+   * generalSettings.search.name and generalSettings.notifications.name are
+   * the keys the stored applications carry
+   */
   private void administrator() {
     when(aclService.isAdministrator(USER)).thenReturn(true);
+    ResourceBundle bundle = new ListResourceBundle() {
+      @Override
+      protected Object[][] getContents() {
+        return new Object[][] { { "generalSettings.search.name", "Search" }, { "generalSettings.notifications.name", "Notification" } };
+      }
+    };
+    lenient().when(resourceBundleService.getResourceBundle(any(String[].class), eq(Locale.ENGLISH))).thenReturn(bundle);
   }
 
   private NavigationConfiguration stored() {
@@ -278,9 +312,8 @@ public class NavigationDisplayServiceTest {
     TopbarConfiguration topbar = new TopbarConfiguration(true,
                                                          true,
                                                          false,
-                                                         new ArrayList<>(List.of(application("search", "Search", true, false),
-                                                                                 application("notifications",
-                                                                                             "Notifications",
+                                                         new ArrayList<>(List.of(application("search", "generalSettings.search.name", true, false),
+                                                                                 application("notifications", "generalSettings.notifications.name",
                                                                                              true,
                                                                                              true))));
     SidebarItem item = new SidebarItem(SidebarItemType.SITE);

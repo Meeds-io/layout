@@ -72,12 +72,13 @@ public class BrandingMcpTool implements McpToolPlugin {
   /**
    * Updates what the topbar shows and how the sidebar may be displayed: a
    * field omitted keeps its value, the applications listed are merged by
-   * identifier, the allowed modes replace the list. Applies at once to every
-   * user; not a draft. Returns both parts as stored.
+   * identifier or by the name shown in the user's language, the allowed
+   * modes replace the list. Applies at once to every user; not a draft.
+   * Returns both parts as stored.
    */
   public NavigationDisplayDescription updateNavigationDisplay(TopbarDisplayOptions topbar,
                                                               SidebarDisplayOptions sidebar) throws ObjectNotFoundException,
                                                                                             IllegalAccessException {
-    return navigationDisplayService.updateNavigationDisplay(topbar, sidebar, getCurrentUserName());
+    return navigationDisplayService.updateNavigationDisplay(topbar, sidebar, getCurrentUserName(), getCurrentUserLocale());
   }
 }

@@ -27,6 +27,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
@@ -41,6 +42,7 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.localization.LocaleContextInfoUtils;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 
@@ -104,20 +106,21 @@ public class BrandingMcpToolTest {
     TopbarDisplayOptions topbar = new TopbarDisplayOptions(true, null, null, null);
     SidebarDisplayOptions sidebar = new SidebarDisplayOptions(null, List.of("icon"), "icon");
     NavigationDisplayDescription stored = new NavigationDisplayDescription(topbar, sidebar);
-    when(navigationDisplayService.updateNavigationDisplay(topbar, sidebar, USER)).thenReturn(stored);
+    when(navigationDisplayService.updateNavigationDisplay(topbar, sidebar, USER, Locale.FRENCH)).thenReturn(stored);
 
-    assertEquals(stored, asUser(() -> tool.updateNavigationDisplay(topbar, sidebar)));
+    assertEquals(stored, asUser(Locale.FRENCH, () -> tool.updateNavigationDisplay(topbar, sidebar)));
   }
 
   @Test
   public void serviceRefusalsPassUnchanged() throws Exception {
     when(themeUpdateService.updateTheme(ThemePart.FONT, null, null, USER)).thenThrow(new IllegalAccessException(ThemeUpdateService.ADMINISTRATORS_ONLY));
-    when(navigationDisplayService.updateNavigationDisplay(null, null, USER)).thenThrow(new ObjectNotFoundException(NavigationDisplayService.CONFIGURATION_NOT_FOUND));
+    when(navigationDisplayService.updateNavigationDisplay(null, null, USER, Locale.ENGLISH)).thenThrow(new ObjectNotFoundException(NavigationDisplayService.CONFIGURATION_NOT_FOUND));
 
     assertEquals(ThemeUpdateService.ADMINISTRATORS_ONLY,
                  assertThrows(IllegalAccessException.class, () -> asUser(() -> tool.updateTheme("font", null, null))).getMessage());
     assertEquals(NavigationDisplayService.CONFIGURATION_NOT_FOUND,
-                 assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.updateNavigationDisplay(null, null))).getMessage());
+                 assertThrows(ObjectNotFoundException.class,
+                              () -> asUser(Locale.ENGLISH, () -> tool.updateNavigationDisplay(null, null))).getMessage());
   }
 
   @SneakyThrows
@@ -125,6 +128,14 @@ public class BrandingMcpToolTest {
     try (MockedStatic<ConversationState> conversation = mockStatic(ConversationState.class)) {
       conversation.when(ConversationState::getCurrent).thenReturn(conversationState);
       return call.call();
+    }
+  }
+
+  @SneakyThrows
+  private <T> T asUser(Locale locale, Callable<T> call) {
+    try (MockedStatic<LocaleContextInfoUtils> locales = mockStatic(LocaleContextInfoUtils.class)) {
+      locales.when(() -> LocaleContextInfoUtils.getUserLocale(USER)).thenReturn(locale);
+      return asUser(call);
     }
   }
 }
