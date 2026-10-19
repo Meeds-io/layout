@@ -50,6 +50,7 @@ import org.exoplatform.portal.branding.model.Branding;
 import org.exoplatform.portal.branding.model.Logo;
 
 import io.meeds.layout.mcp.constant.ThemePart;
+import io.meeds.layout.util.BrandingPageStyleValidator;
 import io.meeds.layout.util.ThemeOptions;
 
 @ExtendWith(MockitoExtension.class)
@@ -217,7 +218,7 @@ public class ThemeUpdateServiceTest {
     service.updateTheme(ThemePart.PAGE_AND_APPS,
                         Map.of("pageWidth", "100%",
                                "pageBackgroundColor", "#FFFFFFAA",
-                               "pageBackgroundEffect", "linear-gradient(90deg, #ffffff 0%, #000000 100%)",
+                               "pageBackgroundEffect", "linear-gradient(90deg, rgba(255, 255, 255, 0.5) 0%, #000000 100%)",
                                "pageBackgroundSize", "cover",
                                "pageBackgroundPosition", "left top",
                                "pageBackgroundRepeat", "no-repeat",
@@ -225,12 +226,24 @@ public class ThemeUpdateServiceTest {
                         null,
                         USER);
     assertEquals("100%", submitted().getPageWidth());
+    assertTrue(BrandingPageStyleValidator.isAccepted("pageWidth", "100px"));
+    assertTrue(BrandingPageStyleValidator.isAccepted("pageWidth", "3000px"));
+    assertTrue(BrandingPageStyleValidator.isAccepted("pageBackgroundColor", "#FFF"));
+    assertTrue(BrandingPageStyleValidator.isAccepted("pageBackgroundColor", "#FFFA"));
+    assertTrue(BrandingPageStyleValidator.isAccepted("pageBackgroundEffect", "none"));
 
     Map<String, String> refused = Map.of("pageWidth", "1320px; background:url(https://x)",
                                          "pageBackgroundColor", "red",
                                          "pageBackgroundEffect", "url(https://x)",
                                          "pageBackgroundSize", "cover; color: red",
                                          "pageBackgroundAttachment", "javascript:alert(1)");
+    Map.of("pageWidth", List.of("0px", "99px", "3001px", "9999px", "5%", "1320"),
+           "pageBackgroundColor", List.of("#12345", "#1234567", "#GGGGGG"),
+           "pageBackgroundEffect", List.of("linear-gradient(#fff 0%, #000 100%), url(evil.png)",
+                                           "linear-gradient(#fff, #000)), url(evil.png",
+                                           "linear-gradient(90deg, #fff, #000"))
+       .forEach((field, values) -> values.forEach(value -> assertFalse(BrandingPageStyleValidator.isAccepted(field, value),
+                                                                       field + " " + value)));
     refused.forEach((field, value) -> assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": " + field,
                                                    assertThrows(IllegalArgumentException.class,
                                                                 () -> service.updateTheme(ThemePart.PAGE_AND_APPS,

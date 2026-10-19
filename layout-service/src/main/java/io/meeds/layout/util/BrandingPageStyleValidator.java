@@ -18,24 +18,32 @@
  */
 package io.meeds.layout.util;
 
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * The vocabulary of the page fields of the branding, as the Page drawer
- * writes them: a width in pixels or a percentage, a colour, a gradient
- * effect, and keywords for the background options. Every page field is
+ * writes them: a width from 100 to 3000 pixels or the full width, a hex
+ * colour, one gradient function, and keywords for the background options.
+ * Every page field is
  * written into the style of every page's body, and the branding service
  * validates none of them against a grammar of its own.
  */
 public final class BrandingPageStyleValidator {
 
-  private static final Pattern WIDTH_PATTERN    = Pattern.compile("^(\\d{1,4}px|\\d{1,3}%|initial)$");
+  public static final int      MIN_WIDTH_PX    = 100;
 
-  private static final Pattern COLOR_PATTERN    = Pattern.compile("^(#[0-9a-fA-F]{3,8}|transparent|initial)$");
+  public static final int      MAX_WIDTH_PX    = 3000;
 
-  private static final Pattern EFFECT_PATTERN   = Pattern.compile("^(initial|none|(linear|radial|conic)-gradient\\([#0-9a-zA-Z(),.%\\s-]{1,300}\\))$");
+  public static final String   FULL_WIDTH      = "100%";
 
-  private static final Pattern KEYWORD_PATTERN  = Pattern.compile("^[a-zA-Z -]{1,30}$");
+  private static final Pattern WIDTH_PATTERN   = Pattern.compile("^(\\d{3,4})px$");
+
+  private static final Pattern COLOR_PATTERN   = Pattern.compile("^(#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|transparent)$");
+
+  private static final Pattern EFFECT_PATTERN  = Pattern.compile("^(none|(linear|radial|conic)-gradient\\([#0-9a-zA-Z(),.%\\s-]{1,300}\\))$");
+
+  private static final Pattern KEYWORD_PATTERN = Pattern.compile("^[a-zA-Z -]{1,30}$");
 
   private BrandingPageStyleValidator() {
   }
@@ -51,9 +59,9 @@ public final class BrandingPageStyleValidator {
       return false;
     }
     return switch (field) {
-      case ThemeOptions.PAGE_WIDTH -> WIDTH_PATTERN.matcher(value).matches();
+      case ThemeOptions.PAGE_WIDTH -> isAcceptedWidth(value);
       case ThemeOptions.PAGE_BACKGROUND_COLOR -> COLOR_PATTERN.matcher(value).matches();
-      case ThemeOptions.PAGE_BACKGROUND_EFFECT -> EFFECT_PATTERN.matcher(value).matches() && hasBalancedParentheses(value);
+      case ThemeOptions.PAGE_BACKGROUND_EFFECT -> EFFECT_PATTERN.matcher(value).matches() && isOneFunction(value);
       case ThemeOptions.PAGE_BACKGROUND_SIZE,
            ThemeOptions.PAGE_BACKGROUND_REPEAT,
            ThemeOptions.PAGE_BACKGROUND_POSITION,
@@ -62,14 +70,36 @@ public final class BrandingPageStyleValidator {
     };
   }
 
-  private static boolean hasBalancedParentheses(String value) {
+  /**
+   * The drawer writes a custom width from 100 to 3000 pixels, or the full
+   * width
+   */
+  private static boolean isAcceptedWidth(String value) {
+    if (FULL_WIDTH.equals(value)) {
+      return true;
+    }
+    Matcher matcher = WIDTH_PATTERN.matcher(value);
+    if (!matcher.matches()) {
+      return false;
+    }
+    int pixels = Integer.parseInt(matcher.group(1));
+    return pixels >= MIN_WIDTH_PX && pixels <= MAX_WIDTH_PX;
+  }
+
+  /**
+   * The drawer writes one gradient function: its parentheses are balanced
+   * and close for the last time on the last character, so that no second
+   * layer follows the function
+   */
+  private static boolean isOneFunction(String value) {
     int depth = 0;
-    for (char c : value.toCharArray()) {
+    for (int i = 0; i < value.length(); i++) {
+      char c = value.charAt(i);
       if (c == '(') {
         depth++;
       } else if (c == ')') {
         depth--;
-        if (depth < 0) {
+        if (depth < 0 || (depth == 0 && i < value.length() - 1)) {
           return false;
         }
       }
