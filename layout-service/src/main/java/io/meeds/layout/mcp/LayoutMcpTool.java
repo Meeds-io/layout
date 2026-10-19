@@ -51,8 +51,8 @@ import io.meeds.mcp.server.plugin.McpToolPlugin;
  * The read tools of the layout: every public method is an MCP tool described
  * in ai-tool-definitions.json. A tool maps its arguments, calls the Services
  * as the current user and translates their refusals into the fixed texts the
- * agent reads: "does not exist: <object>", "not allowed: <object>", "value is
- * not accepted for <option>".
+ * agent reads: {@code does not exist: <object>}, {@code not allowed: <object>},
+ * {@code value is not accepted for <option>}.
  */
 @Service
 @Profile("mcp-server")
