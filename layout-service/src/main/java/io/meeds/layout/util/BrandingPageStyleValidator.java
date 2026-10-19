@@ -18,6 +18,7 @@
  */
 package io.meeds.layout.util;
 
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -38,6 +39,8 @@ public final class BrandingPageStyleValidator {
   public static final int      MAX_WIDTH_PX    = 3000;
 
   public static final String   FULL_WIDTH      = "100%";
+
+  private static final String  URL_FUNCTION    = "url(";
 
   private static final Pattern WIDTH_PATTERN   = Pattern.compile("^(\\d{3,4})px$");
 
@@ -77,10 +80,12 @@ public final class BrandingPageStyleValidator {
    *                 page or of a theme area
    * @return       true when the value is none or exactly one gradient
    *               function, as the drawers' background input writes it: a
-   *               url layer in any case, or a second layer, is refused
+   *               url function anywhere in the value, in any case, or a
+   *               second layer, is refused
    */
   public static boolean isAcceptedEffect(String value) {
-    return value != null && EFFECT_PATTERN.matcher(value).matches() && isOneFunction(value);
+    return value != null && EFFECT_PATTERN.matcher(value).matches() && isOneFunction(value)
+           && !value.toLowerCase(Locale.ROOT).contains(URL_FUNCTION);
   }
 
   /**

@@ -208,6 +208,8 @@ public class ThemeUpdateServiceTest {
                                                         USER)).getMessage());
     List.of("linear-gradient(#fff, #000), url(https://cdn/x.png)",
             "linear-gradient(#fff, #000), URL(x.png)",
+            "linear-gradient(red, url(x.png))",
+            "linear-gradient(red, URL(x.png))",
             "linear-gradient(#fff, #000), linear-gradient(#000, #fff)",
             "initial")
         .forEach(value -> assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": appTextTitleBackgroundImage",
@@ -270,6 +272,8 @@ public class ThemeUpdateServiceTest {
            "pageBackgroundColor", List.of("#12345", "#1234567", "#GGGGGG"),
            "pageBackgroundEffect", List.of("linear-gradient(#fff 0%, #000 100%), url(evil.png)",
                                            "linear-gradient(#fff, #000)), url(evil.png",
+                                           "linear-gradient(red, url(evil.png))",
+                                           "linear-gradient(red, URL(evil.png))",
                                            "linear-gradient(90deg, #fff, #000"))
        .forEach((field, values) -> values.forEach(value -> assertFalse(BrandingPageStyleValidator.isAccepted(field, value),
                                                                        field + " " + value)));
