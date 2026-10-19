@@ -38,7 +38,7 @@ import org.exoplatform.portal.branding.model.Branding;
 
 import io.meeds.layout.mcp.constant.ThemePart;
 import io.meeds.layout.util.BrandingPageStyleValidator;
-import io.meeds.layout.util.ThemeOptions;
+import io.meeds.layout.mcp.constant.ThemeOptions;
 
 /**
  * Updates one part of the theme the way the Branding page's Apply button
@@ -76,9 +76,13 @@ public class ThemeUpdateService {
    *                                update
    * @throws IllegalAccessException   when the user is not an administrator
    * @throws IllegalArgumentException when an option is not one of the part,
-   *                                    when a value is blank, when nothing is
-   *                                    asked, or with the branding service's
-   *                                    message code when a value is refused
+   *                                    when a value is blank, a page value
+   *                                    outside the Page drawer's vocabulary
+   *                                    or a background image carrying a url
+   *                                    layer, when an option is both set and
+   *                                    reset, when nothing is asked, or with
+   *                                    the branding service's message code
+   *                                    when a value is refused
    */
   public Map<String, String> updateTheme(ThemePart part,
                                          Map<String, String> options,
@@ -90,7 +94,7 @@ public class ThemeUpdateService {
     Map<String, String> defaults = brandingService.getDefaultThemeStyle();
     Set<String> accepted = acceptedOptions(part, defaults.keySet());
     Map<String, String> changes = acceptedChanges(options, accepted);
-    Set<String> resets = acceptedResets(reset, accepted);
+    Set<String> resets = acceptedResets(reset, accepted, changes.keySet());
     if (changes.isEmpty() && resets.isEmpty()) {
       throw new IllegalArgumentException(OPTIONS_NOT_ACCEPTED);
     }
@@ -156,7 +160,8 @@ public class ThemeUpdateService {
       options.forEach((option, value) -> {
         if (value != null) {
           if (!accepted.contains(option) || StringUtils.isBlank(value)
-              || (ThemeOptions.PAGE_FIELDS.contains(option) && !BrandingPageStyleValidator.isAccepted(option, value))) {
+              || (ThemeOptions.PAGE_FIELDS.contains(option) && !BrandingPageStyleValidator.isAccepted(option, value))
+              || (option.endsWith(ThemeOptions.BACKGROUND_IMAGE_SUFFIX) && value.contains(ThemeOptions.URL_LAYER))) {
             throw new IllegalArgumentException(OPTIONS_NOT_ACCEPTED + ": " + option);
           }
           changes.put(option, value);
@@ -166,11 +171,11 @@ public class ThemeUpdateService {
     return changes;
   }
 
-  private Set<String> acceptedResets(List<String> reset, Set<String> accepted) {
+  private Set<String> acceptedResets(List<String> reset, Set<String> accepted, Set<String> changed) {
     Set<String> resets = new LinkedHashSet<>();
     if (reset != null) {
       reset.forEach(option -> {
-        if (!accepted.contains(option)) {
+        if (!accepted.contains(option) || changed.contains(option)) {
           throw new IllegalArgumentException(RESET_NOT_ACCEPTED + ": " + option);
         }
         resets.add(option);

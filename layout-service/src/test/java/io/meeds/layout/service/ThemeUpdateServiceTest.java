@@ -51,7 +51,7 @@ import org.exoplatform.portal.branding.model.Logo;
 
 import io.meeds.layout.mcp.constant.ThemePart;
 import io.meeds.layout.util.BrandingPageStyleValidator;
-import io.meeds.layout.util.ThemeOptions;
+import io.meeds.layout.mcp.constant.ThemeOptions;
 
 @ExtendWith(MockitoExtension.class)
 public class ThemeUpdateServiceTest {
@@ -59,21 +59,24 @@ public class ThemeUpdateServiceTest {
   private static final String      USER            = "john";
 
   /**
-   * The theme variables portal's branding-configuration.xml declares, copied
-   * from the file (exo.branding.theme.variables): every part's options must
-   * be in this list
+   * The theme variables portal's branding-configuration.xml declares
+   * (exo.branding.theme.variables), copied from the file at portal
+   * feature/meeds-qaui ab916dda65f4: every part's options must be in this
+   * list
    */
   private static final Set<String> DECLARED        = new HashSet<>(Arrays.asList(("""
       primaryColor secondaryColor tertiaryColor greyColorLighten1 textColor borderRadius fontFamily
-      topBarTextColor topBarTextFontSize topBarTextFontStyle topBarTextFontWeight
+      topBarTextColor topBarTextFontSize topBarTextFontStyle topBarTextFontWeight topBarIconColor
       topBarBackgroundColor topBarBackgroundPosition topBarBackgroundSize topBarBackgroundImage topBarBackgroundRepeat
       sideBarTextColor sideBarTextFontSize sideBarTextFontStyle sideBarTextFontWeight
       sideBarTextSubtitleColor sideBarTextSubtitleFontSize sideBarTextSubtitleFontStyle sideBarTextSubtitleFontWeight
+      sideBarIconColor
       sideBarBackgroundColor sideBarBackgroundPosition sideBarBackgroundSize sideBarBackgroundImage sideBarBackgroundRepeat
       drawerTextTitleColor drawerTextTitleFontSize drawerTextTitleFontStyle drawerTextTitleFontWeight
       drawerTextHeaderColor drawerTextHeaderFontSize drawerTextHeaderFontStyle drawerTextHeaderFontWeight
       drawerTextColor drawerTextFontSize drawerTextFontStyle drawerTextFontWeight
       drawerTextSubtitleColor drawerTextSubtitleFontSize drawerTextSubtitleFontStyle drawerTextSubtitleFontWeight
+      drawerIconColor
       drawerBackgroundColor drawerBackgroundPosition drawerBackgroundSize drawerBackgroundImage drawerBackgroundRepeat
       pageMarginTop pageMarginRight pageMarginBottom pageMarginLeft
       appMarginTop appMarginRight appMarginBottom appMarginLeft
@@ -84,6 +87,7 @@ public class ThemeUpdateServiceTest {
       appTextHeaderColor appTextHeaderFontSize appTextHeaderFontStyle appTextHeaderFontWeight
       appTextColor appTextFontSize appTextFontStyle appTextFontWeight
       appTextSubtitleColor appTextSubtitleFontSize appTextSubtitleFontStyle appTextSubtitleFontWeight
+      appIconColor
       appTextTitleBackgroundColor appTextTitleBackgroundImage appTextTitleBackgroundPosition appTextTitleBackgroundSize
       appTextTitleBackgroundRepeat appTextTitleBackgroundPaddingTop appTextTitleBackgroundPaddingRight
       appTextTitleBackgroundPaddingBottom appTextTitleBackgroundPaddingLeft appTextTitleBackgroundRadius
@@ -131,6 +135,7 @@ public class ThemeUpdateServiceTest {
 
     Branding submitted = submitted();
     assertSame(loaded, submitted);
+    assertTrue(BrandingPageStyleValidator.isAccepted("pageBackgroundEffect", "none"));
     assertEquals(Map.of("primaryColor", "#123456", "secondaryColor", "#111111", "topBarTextColor", "#222222"),
                  submitted.getThemeStyle());
     assertNull(submitted.getPageWidth());
@@ -189,6 +194,25 @@ public class ThemeUpdateServiceTest {
     assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED,
                  assertThrows(IllegalArgumentException.class,
                               () -> service.updateTheme(ThemePart.COLORS, Map.of(), List.of(), USER)).getMessage());
+    assertEquals(ThemeUpdateService.RESET_NOT_ACCEPTED + ": primaryColor",
+                 assertThrows(IllegalArgumentException.class,
+                              () -> service.updateTheme(ThemePart.COLORS,
+                                                        Map.of("primaryColor", "#123456"),
+                                                        List.of("primaryColor"),
+                                                        USER)).getMessage());
+    assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": sideBarBackgroundImage",
+                 assertThrows(IllegalArgumentException.class,
+                              () -> service.updateTheme(ThemePart.SIDEBARS,
+                                                        Map.of("sideBarBackgroundImage", "url(https://cdn/x.png)"),
+                                                        null,
+                                                        USER)).getMessage());
+    assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": appTextTitleBackgroundImage",
+                 assertThrows(IllegalArgumentException.class,
+                              () -> service.updateTheme(ThemePart.PAGE_AND_APPS,
+                                                        Map.of("appTextTitleBackgroundImage",
+                                                               "linear-gradient(#fff, #000), url(https://cdn/x.png)"),
+                                                        null,
+                                                        USER)).getMessage());
     verify(brandingService, never()).getBrandingInformation(anyBoolean());
     verify(brandingService, never()).updateBrandingInformation(any());
   }
@@ -296,8 +320,11 @@ public class ThemeUpdateServiceTest {
     }
     assertEquals(Set.of("primaryColor", "secondaryColor", "tertiaryColor"), ThemePart.COLORS.getThemeOptions());
     assertEquals(Set.of("fontFamily"), ThemePart.FONT.getThemeOptions());
-    assertTrue(ThemePart.TOPBAR.getThemeOptions().containsAll(Set.of("topBarSticky", "topBarBackgroundScrollColor", "topBarBackgroundColor")));
+    assertTrue(ThemePart.TOPBAR.getThemeOptions().containsAll(Set.of("topBarSticky", "topBarBackgroundScrollColor", "topBarBackgroundColor", "topBarIconColor")));
     assertFalse(ThemePart.TOPBAR.getThemeOptions().contains("topBarBackgroundImage"));
+    assertTrue(ThemePart.SIDEBARS.getThemeOptions().contains("sideBarIconColor"));
+    assertTrue(ThemePart.DRAWERS.getThemeOptions().contains("drawerIconColor"));
+    assertTrue(ThemePart.PAGE_AND_APPS.getThemeOptions().contains("appIconColor"));
     assertTrue(ThemePart.PAGE_AND_APPS.getThemeOptions().containsAll(Set.of("borderRadius", "appTextHeaderBackgroundRadius", "pageMarginLeft")));
   }
 

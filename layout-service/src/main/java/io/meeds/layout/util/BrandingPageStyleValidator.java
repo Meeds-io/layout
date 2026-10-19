@@ -21,6 +21,8 @@ package io.meeds.layout.util;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.meeds.layout.mcp.constant.ThemeOptions;
+
 /**
  * The vocabulary of the page fields of the branding, as the Page drawer
  * writes them: a width from 100 to 3000 pixels or the full width, a hex

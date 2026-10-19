@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-package io.meeds.layout.util;
+package io.meeds.layout.mcp.constant;
 
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -30,8 +30,15 @@ import java.util.stream.Stream;
  * groups them, and the page fields of the branding. A variable the
  * configuration declares but no drawer writes is not an option: the Topbar
  * drawer offers no gradient, so the topbar has no background image option.
+ * A background image option takes none or one gradient: the image file
+ * itself is uploaded in the drawer, and the branding service drops any url
+ * layer a caller sends.
  */
 public final class ThemeOptions {
+
+  public static final String      BACKGROUND_IMAGE_SUFFIX    = "BackgroundImage";
+
+  public static final String      URL_LAYER                  = "url(";
 
   public static final String      PAGE_WIDTH                 = "pageWidth";
 
@@ -57,17 +64,21 @@ public final class ThemeOptions {
                                                                               "BackgroundSize",
                                                                               "BackgroundRepeat"),
                                                                      text("topBarText"),
-                                                                     Set.of("topBarSticky", "topBarBackgroundScrollColor"));
+                                                                     Set.of("topBarIconColor",
+                                                                            "topBarSticky",
+                                                                            "topBarBackgroundScrollColor"));
 
   public static final Set<String> SIDEBARS                   = union(background("sideBar"),
                                                                      text("sideBarText"),
-                                                                     text("sideBarTextSubtitle"));
+                                                                     text("sideBarTextSubtitle"),
+                                                                     Set.of("sideBarIconColor"));
 
   public static final Set<String> DRAWERS                    = union(background("drawer"),
                                                                      text("drawerText"),
                                                                      text("drawerTextSubtitle"),
                                                                      text("drawerTextTitle"),
-                                                                     text("drawerTextHeader"));
+                                                                     text("drawerTextHeader"),
+                                                                     Set.of("drawerIconColor"));
 
   public static final Set<String> PAGE_FIELDS                = Set.of(PAGE_WIDTH,
                                                                       PAGE_BACKGROUND_COLOR,
@@ -86,6 +97,7 @@ public final class ThemeOptions {
                                                                      text("appTextTitle"),
                                                                      text("appTextHeader"),
                                                                      text("appTextSubtitle"),
+                                                                     Set.of("appIconColor"),
                                                                      textBackground("appTextTitleBackground"),
                                                                      textBackground("appTextHeaderBackground"));
 

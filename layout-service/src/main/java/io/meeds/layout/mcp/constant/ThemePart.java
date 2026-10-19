@@ -25,8 +25,6 @@ import org.apache.commons.lang3.StringUtils;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.meeds.layout.util.ThemeOptions;
-
 /**
  * A part of the Branding and Theme administration, one per drawer of the
  * Branding page: each part accepts exactly the options its drawer writes,
