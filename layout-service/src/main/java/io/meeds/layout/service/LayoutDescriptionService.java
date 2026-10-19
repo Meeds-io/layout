@@ -627,7 +627,14 @@ public class LayoutDescriptionService {
       pageState = pageContext == null ? null : pageContext.getState();
     }
     boolean link = pageState != null && PageType.LINK.name().equalsIgnoreCase(pageState.getType());
-    NavigationItemType type = pageRef == null ? NavigationItemType.GROUP : link ? NavigationItemType.LINK : NavigationItemType.PAGE;
+    NavigationItemType type;
+    if (pageRef == null) {
+      type = NavigationItemType.GROUP;
+    } else if (link) {
+      type = NavigationItemType.LINK;
+    } else {
+      type = NavigationItemType.PAGE;
+    }
     ScheduleDescription schedule = visibility == Visibility.TEMPORAL ?
                                                                      new ScheduleDescription(toInstant(state.getStartPublicationTime()),
                                                                                              toInstant(state.getEndPublicationTime())) :
@@ -748,7 +755,7 @@ public class LayoutDescriptionService {
       return new BackgroundBlock(false, null, null, null, null, null, null, null, null, null);
     }
     String scrollColor = null;
-    if (StringUtils.contains(color, "@")) {
+    if (color != null && color.contains("@")) {
       String[] parts = color.split("@", 2);
       color = parts[0];
       scrollColor = parts[1];

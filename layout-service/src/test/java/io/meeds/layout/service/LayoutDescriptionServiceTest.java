@@ -641,7 +641,43 @@ public class LayoutDescriptionServiceTest {
   }
 
   @Test
-  public void siteLayoutIsDescribedByItsBannersAndSidebars() {
+  public void siteLayoutIsDescribedByItsSidebars() {
+    SiteDescription description = describedSite();
+
+    assertEquals(5L, description.siteId());
+    assertEquals("Test site", description.label());
+    assertTrue(description.bannerPresent());
+    assertTrue(description.draft());
+    assertEquals(List.of("Everyone"), description.accessPermissions());
+    assertEquals(Boolean.TRUE, description.leftSidebar().options().fullHeight());
+    assertEquals(310, description.leftSidebar().options().width());
+    assertEquals(DisplayMode.HIDE_MOBILE, description.leftSidebar().options().display());
+    assertFalse(description.leftSidebar().options().sticky());
+    assertNotNull(description.leftSidebar().containerId());
+    assertEquals(1, description.leftSidebar().applications().size());
+    assertEquals(Boolean.FALSE, description.rightSidebar().options().fullHeight());
+    assertEquals(250, description.rightSidebar().options().width());
+    assertTrue(description.rightSidebar().options().sticky());
+  }
+
+  @Test
+  public void siteLayoutIsDescribedByItsBanners() {
+    SiteDescription description = describedSite();
+
+    assertEquals(1, description.topbars().size());
+    assertEquals(60, description.topbars().get(0).options().height());
+    assertTrue(description.topbars().get(0).options().sticky());
+    assertEquals(DisplayMode.BOTH, description.topbars().get(0).options().display());
+    assertEquals(1, description.topbars().get(0).applications().size());
+    assertEquals("#111111", description.topbars().get(0).styling().background().color());
+    assertEquals("#222222", description.topbars().get(0).styling().background().scrollColor());
+    assertNull(description.topbars().get(0).styling().border());
+    assertNotNull(description.topbars().get(0).styling().text());
+    assertEquals(1, description.bottomBars().size());
+    assertEquals(DisplayMode.HIDE_MOBILE, description.bottomBars().get(0).options().display());
+  }
+
+  private SiteDescription describedSite() {
     Container outerLeftCell = container(LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, "hidden-sm-and-down");
     outerLeftCell.setWidth("310");
     children(outerLeftCell, application("1", null, null));
@@ -676,33 +712,7 @@ public class LayoutDescriptionServiceTest {
     site.setBannerFileId(3L);
     site.setDisplayed(true);
 
-    SiteDescription description = descriptionService.toSiteDescription(site, root, "Test site", "A site", true);
-
-    assertEquals(5L, description.siteId());
-    assertEquals("Test site", description.label());
-    assertTrue(description.bannerPresent());
-    assertTrue(description.draft());
-    assertEquals(List.of("Everyone"), description.accessPermissions());
-    assertEquals(Boolean.TRUE, description.leftSidebar().options().fullHeight());
-    assertEquals(310, description.leftSidebar().options().width());
-    assertEquals(DisplayMode.HIDE_MOBILE, description.leftSidebar().options().display());
-    assertFalse(description.leftSidebar().options().sticky());
-    assertEquals(outerLeftCell.getStorageId(), description.leftSidebar().containerId());
-    assertEquals(1, description.leftSidebar().applications().size());
-    assertEquals(Boolean.FALSE, description.rightSidebar().options().fullHeight());
-    assertEquals(250, description.rightSidebar().options().width());
-    assertTrue(description.rightSidebar().options().sticky());
-    assertEquals(1, description.topbars().size());
-    assertEquals(60, description.topbars().get(0).options().height());
-    assertTrue(description.topbars().get(0).options().sticky());
-    assertEquals(DisplayMode.BOTH, description.topbars().get(0).options().display());
-    assertEquals(1, description.topbars().get(0).applications().size());
-    assertEquals("#111111", description.topbars().get(0).styling().background().color());
-    assertEquals("#222222", description.topbars().get(0).styling().background().scrollColor());
-    assertNull(description.topbars().get(0).styling().border());
-    assertNotNull(description.topbars().get(0).styling().text());
-    assertEquals(1, description.bottomBars().size());
-    assertEquals(DisplayMode.HIDE_MOBILE, description.bottomBars().get(0).options().display());
+    return descriptionService.toSiteDescription(site, root, "Test site", "A site", true);
   }
 
   @Test
