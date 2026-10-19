@@ -42,6 +42,7 @@
 	<properties>
 		<!-- 3rd party libraries versions -->
 		<io.meeds.social.version>7.3.x-meeds-qaui-SNAPSHOT</io.meeds.social.version>
+		<addon.meeds.mcp-server.version>7.3.x-meeds-qaui-SNAPSHOT</addon.meeds.mcp-server.version>
 
     <!-- Sonar properties -->
     <sonar.organization>meeds-io</sonar.organization>
@@ -54,6 +55,13 @@
 				<groupId>io.meeds.social</groupId>
 				<artifactId>social</artifactId>
 				<version>${io.meeds.social.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>io.meeds.mcp-server</groupId>
+				<artifactId>mcp-server</artifactId>
+				<version>${addon.meeds.mcp-server.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
