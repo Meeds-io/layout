@@ -26,8 +26,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * What the topbar shows: on input, a null field leaves its stored value and
- * the applications listed are merged by identifier into the stored list; on
- * output, every field as stored.
+ * the applications listed are merged into the stored list, each named by
+ * identifier or by the name shown in the user's language; on output, every
+ * field as stored, each application named in the user's language.
  */
 @JsonInclude(Include.NON_NULL)
 public record TopbarDisplayOptions(@JsonProperty("display_company_name") Boolean displayCompanyName,

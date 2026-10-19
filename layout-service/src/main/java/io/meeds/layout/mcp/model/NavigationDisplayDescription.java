@@ -22,7 +22,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * The display options of the topbar and the sidebar as stored after an
- * update.
+ * update, each topbar application named in the user's language.
  */
 public record NavigationDisplayDescription(@JsonProperty("topbar") TopbarDisplayOptions topbar,
                                            @JsonProperty("sidebar") SidebarDisplayOptions sidebar) {
