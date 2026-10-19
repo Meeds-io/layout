@@ -720,43 +720,52 @@ const SHARED_TOP_BAR_PAGE_IMAGE_PROPERTIES = ['background-image', 'background-re
 
 // Under a transparent shared Topbar the page image and gradient are painted by the body element itself: the shared
 // Topbar is above the site scroller, which paints the body-level image (--allPagesBackgroundImage) only below it.
-// The scroller and the page body then paint no image over it, and the page colour moves under it to the body. The
-// body does not scroll on a desktop, so the layer is sized and positioned against the viewport, whatever the page's
-// attachment. A page background without an image or a gradient removes the layer an earlier page container wrote.
+// The scroller and the page body then paint no image over it, and the page colour moves under it to the body: an
+// opaque one as the body colour (getStyle), a partly transparent one as the lowest layer, over the site or Branding
+// colour as the page body painted it. The layer is sized and positioned against the viewport, whatever the page's
+// attachment: it stays fixed on a desktop, where the body does not scroll, and scrolls with the content on a tablet
+// or a phone. A page background without an image or a gradient removes the layer an earlier page container wrote.
 function setSharedTopBarPageImage(container, style, topBannerTransparency) {
-  const image = getPageImageLayer(container);
-  if (!image) {
+  const layers = getPageImageLayers(container);
+  if (!layers.length) {
     removeSharedTopBarPageImage();
     return;
   }
-  siteBackgroundOverridden = true;
-  document.body.style.setProperty('background-image', image);
-  document.body.style.setProperty('background-repeat', container.backgroundImage && container.backgroundRepeat || 'no-repeat');
-  document.body.style.setProperty('background-size', container.backgroundImage && container.backgroundSize || 'unset');
-  document.body.style.setProperty('background-position', container.backgroundImage && container.backgroundPosition || 'unset');
-  document.body.style.setProperty('--allPagesBackgroundImage', 'none');
+  const repeat = container.backgroundImage && container.backgroundRepeat || 'no-repeat';
+  const size = container.backgroundImage && container.backgroundSize || 'auto';
+  const position = container.backgroundImage && container.backgroundPosition || '0% 0%';
+  const layerValues = layers.map(image => ({image, repeat, size, position}));
   if (!topBannerTransparency) {
     // Under a transparent top banner the colour is already on the body and the page body paints nothing
     style['--pageBodyBackgroundImage'] = 'none';
     style['--pageBodyBackgroundColor'] = 'transparent';
-    if (container.backgroundColor && getColorAlpha(container.backgroundColor) > 0) {
-      document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
+    const colorAlpha = container.backgroundColor && getColorAlpha(container.backgroundColor);
+    if (colorAlpha > 0 && colorAlpha < 1) {
+      layerValues.push({
+        image: `linear-gradient(${container.backgroundColor},${container.backgroundColor})`,
+        repeat: 'repeat',
+        size: 'auto',
+        position: '0% 0%',
+      });
     }
   }
+  siteBackgroundOverridden = true;
+  document.body.style.setProperty('background-image', layerValues.map(layer => layer.image).join(','));
+  document.body.style.setProperty('background-repeat', layerValues.map(layer => layer.repeat).join(','));
+  document.body.style.setProperty('background-size', layerValues.map(layer => layer.size).join(','));
+  document.body.style.setProperty('background-position', layerValues.map(layer => layer.position).join(','));
+  document.body.style.setProperty('--allPagesBackgroundImage', 'none');
 }
 
 function removeSharedTopBarPageImage() {
   SHARED_TOP_BAR_PAGE_IMAGE_PROPERTIES.forEach(property => document.body.style.removeProperty(property));
 }
 
-function getPageImageLayer(container) {
-  if (container.backgroundImage && container.backgroundEffect) {
-    return `url(${container.backgroundImage}),${container.backgroundEffect}`;
-  } else if (container.backgroundImage) {
-    return `url(${container.backgroundImage})`;
-  } else {
-    return container.backgroundEffect || null;
-  }
+function getPageImageLayers(container) {
+  return [
+    container.backgroundImage && `url(${container.backgroundImage})`,
+    container.backgroundEffect,
+  ].filter(layer => layer);
 }
 
 export function getBackgroundLayerStyle(container, options) {
