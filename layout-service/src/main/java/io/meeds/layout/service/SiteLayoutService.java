@@ -97,7 +97,7 @@ public class SiteLayoutService {
 
   public ModelObject getSiteLayout(SiteKey siteKey, String username) throws ObjectNotFoundException, IllegalAccessException {
     PortalConfig site = getSite(siteKey, username);
-    checkLayoutResolved(site);
+    SiteLayoutUnresolvedException.checkResolved(site);
     return site.getPortalLayout();
   }
 
@@ -127,7 +127,7 @@ public class SiteLayoutService {
       throw new ObjectNotFoundException(String.format("Site with id %s doesn't exist",
                                                       createModel.getSiteId()));
     }
-    checkLayoutResolved(templatePortalConfig);
+    SiteLayoutUnresolvedException.checkResolved(templatePortalConfig);
 
     String[] accessPermissions = portalConfig.getAccessPermissions() == null ?
                                                                              new String[] {
@@ -161,7 +161,7 @@ public class SiteLayoutService {
       throw new IllegalAccessException(String.format("Not allowed to edit site %s", siteKey));
     }
     PortalConfig site = getSite(siteKey, username);
-    checkLayoutResolved(site);
+    SiteLayoutUnresolvedException.checkResolved(site);
 
     String clonedSiteName = site.getType() + "_" + site.getName() + "_draft_" + username;
 
@@ -358,14 +358,6 @@ public class SiteLayoutService {
 
   private String getAdministratorsPermission() {
     return "*:" + aclService.getAdministratorsGroup();
-  }
-
-  private void checkLayoutResolved(PortalConfig site) {
-    if (site.isLayoutUnresolved()) {
-      // The site was read with an empty layout, which an edit or a copy would
-      // write over a stored site
-      throw new SiteLayoutUnresolvedException(site.getType(), site.getName());
-    }
   }
 
 }

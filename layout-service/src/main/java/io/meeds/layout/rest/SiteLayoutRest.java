@@ -379,6 +379,7 @@ public class SiteLayoutRest {
     @ApiResponse(responseCode = "400", description = "Invalid request input"),
     @ApiResponse(responseCode = "403", description = "Forbidden"),
     @ApiResponse(responseCode = "404", description = "Not found"),
+    @ApiResponse(responseCode = "409", description = "Site layout not readable"),
   })
   public ResponseEntity<LayoutModel> updateSiteLayout(
                                                       WebRequest webRequest,

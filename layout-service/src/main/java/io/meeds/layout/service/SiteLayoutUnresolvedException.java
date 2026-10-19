@@ -18,6 +18,8 @@
  */
 package io.meeds.layout.service;
 
+import org.exoplatform.portal.config.model.PortalConfig;
+
 /**
  * Thrown when the layout of a site couldn't be read: the site is read with an
  * empty layout, which an edit or a copy of the site would write over a stored
@@ -29,6 +31,17 @@ public class SiteLayoutUnresolvedException extends RuntimeException {
 
   public SiteLayoutUnresolvedException(String siteType, String siteName) {
     super(String.format("The layout of site %s:%s couldn't be read", siteType, siteName));
+  }
+
+  /**
+   * @param site a site that an edit or a copy is about to write elsewhere
+   * @throws SiteLayoutUnresolvedException when the site was read with an empty
+   *           layout, which the edit or the copy would write over a stored one
+   */
+  public static void checkResolved(PortalConfig site) {
+    if (site.isLayoutUnresolved()) {
+      throw new SiteLayoutUnresolvedException(site.getType(), site.getName());
+    }
   }
 
 }

@@ -155,10 +155,9 @@ public class SiteTemplateService {
       throw new ObjectNotFoundException(String.format("Site with id %s doesn't exists", siteId));
     } else if (!aclService.isAdministrator(username)) {
       throw new IllegalAccessException();
-    } else if (portalConfig.isLayoutUnresolved()) {
-      // The site was read with an empty layout, which the template would copy
-      throw new SiteLayoutUnresolvedException(portalConfig.getType(), portalConfig.getName());
-    } else if (layoutService.getPortalConfig(SiteKey.portalTemplate(siteTemplate.getLayout())) != null) {
+    }
+    SiteLayoutUnresolvedException.checkResolved(portalConfig);
+    if (layoutService.getPortalConfig(SiteKey.portalTemplate(siteTemplate.getLayout())) != null) {
       throw new ObjectAlreadyExistsException(String.format("Site Template with name %s already exists",
                                                            siteTemplate.getLayout()));
     }
