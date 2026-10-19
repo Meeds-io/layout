@@ -21,6 +21,7 @@ package io.meeds.layout.service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -280,18 +281,24 @@ public class LayoutDescriptionService {
    *                    whose name or label contains it, then the group sites
    *                    whose own name (for a space, the group name it was
    *                    created with, which a rename leaves as is) contains it
-   * @return the sites the user can view, portal sites in display order
+   * @return the sites the user can view, the portal sites by display order
+   *         then label, sorted here because the portal's site query is
+   *         cached by its predicates alone, the sort of its first caller
+   *         serving every later one
    */
   public List<SiteSummary> describeSites(String username, String keyword) {
     String needle = StringUtils.lowerCase(StringUtils.trimToNull(keyword));
     SiteFilter filter = new SiteFilter();
     filter.setSiteType(SiteType.PORTAL);
-    filter.setSortByDisplayOrder(true);
-    filter.setExcludeSpaceSites(needle == null);
+    filter.setExcludeSpaceSites(true);
     List<SiteSummary> sites = new ArrayList<>(layoutService.getSites(filter)
                                                            .stream()
                                                            .filter(site -> needle == null || matches(site, needle))
                                                            .filter(site -> aclService.canViewSite(site.getSiteKey(), username))
+                                                           .sorted(Comparator.comparingInt(PortalConfig::getDisplayOrder)
+                                                                             .thenComparing(site -> StringUtils.defaultIfBlank(site.getLabel(),
+                                                                                                                             site.getName()),
+                                                                                            String.CASE_INSENSITIVE_ORDER))
                                                            .map(this::toSiteSummary)
                                                            .toList());
     if (needle != null) {

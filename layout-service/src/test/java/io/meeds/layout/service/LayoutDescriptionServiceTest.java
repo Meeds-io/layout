@@ -217,19 +217,26 @@ public class LayoutDescriptionServiceTest {
   public void sitesAreThePortalSitesWithoutAKeyword() {
     PortalConfig visible = new PortalConfig("portal", "visible", "portal_1");
     visible.setLabel("Visible");
+    visible.setDisplayOrder(2);
     PortalConfig forbidden = new PortalConfig("portal", "forbidden", "portal_2");
-    when(layoutService.getSites(argThat((SiteFilter f) -> f != null && f.getSiteType() == SiteType.PORTAL))).thenReturn(List.of(visible, forbidden));
-    when(aclService.canViewSite(visible.getSiteKey(), USER)).thenReturn(true);
+    PortalConfig first = new PortalConfig("portal", "first", "portal_3");
+    first.setDisplayOrder(1);
+    PortalConfig alpha = new PortalConfig("portal", "alpha", "portal_4");
+    alpha.setLabel("Alpha");
+    alpha.setDisplayOrder(2);
+    when(layoutService.getSites(argThat((SiteFilter f) -> f != null && f.getSiteType() == SiteType.PORTAL))).thenReturn(List.of(visible,
+                                                                                                                                forbidden,
+                                                                                                                                alpha,
+                                                                                                                                first));
+    when(aclService.canViewSite(any(), eq(USER))).thenReturn(true);
     when(aclService.canViewSite(forbidden.getSiteKey(), USER)).thenReturn(false);
 
     List<SiteSummary> sites = descriptionService.describeSites(USER, " ");
 
-    assertEquals(1, sites.size());
-    assertEquals("visible", sites.get(0).name());
-    assertEquals("Visible", sites.get(0).label());
+    assertEquals(List.of("first", "alpha", "visible"), sites.stream().map(SiteSummary::name).toList());
+    assertEquals("Visible", sites.get(2).label());
     assertEquals("portal", sites.get(0).type());
-    verify(layoutService).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.PORTAL && f.isSortByDisplayOrder()
-                                                            && f.isExcludeSpaceSites()));
+    verify(layoutService).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.PORTAL && f.isExcludeSpaceSites()));
     verify(layoutService, never()).getSiteNames(any(), anyInt(), anyInt());
   }
 
@@ -264,7 +271,7 @@ public class LayoutDescriptionServiceTest {
     verify(layoutService, times(1)).getPortalConfig(SiteKey.group("/spaces/marketing"));
     assertTrue(descriptionService.describeSites(USER, "spaces").stream().noneMatch(site -> "group".equals(site.type())));
     verify(layoutService, never()).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.GROUP));
-    verify(layoutService, times(2)).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.PORTAL && !f.isExcludeSpaceSites()));
+    verify(layoutService, times(2)).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.PORTAL && f.isExcludeSpaceSites()));
   }
 
   @Test
