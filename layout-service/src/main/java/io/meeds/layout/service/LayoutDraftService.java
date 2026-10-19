@@ -64,15 +64,20 @@ public class LayoutDraftService {
    * @param  liveNodeId the navigation node of the live page
    * @param  username   the user whose draft is looked up
    * @return the key of the draft page the user's revision names, null when
-   *         the user has no draft of that page
+   *         the user has no draft of that page: the named node must be the
+   *         draft node the editor creates for this user and this live node
    */
   public PageKey getDraftPageKey(long liveNodeId, String username) {
     String revision = getRevision(username, NAVIGATION_OBJECT_TYPE, String.valueOf(liveNodeId));
     if (!NumberUtils.isDigits(revision)) {
       return null;
     }
+    NodeData liveNode = navigationService.getNodeById(liveNodeId);
     NodeData draftNode = navigationService.getNodeById(Long.parseLong(revision));
-    NodeState state = draftNode == null ? null : draftNode.getState();
+    if (liveNode == null || draftNode == null || !StringUtils.equals(draftNode.getName(), draftNodeName(liveNode.getName(), username))) {
+      return null;
+    }
+    NodeState state = draftNode.getState();
     PageKey draftPageKey = state == null ? null : state.getPageRef();
     return draftPageKey != null && layoutService.getPage(draftPageKey) != null ? draftPageKey : null;
   }
@@ -81,15 +86,23 @@ public class LayoutDraftService {
    * @param  siteId   the live site
    * @param  username the user whose draft is looked up
    * @return the key of the draft site the user's revision names, null when
-   *         the user has no draft of that site
+   *         the user has no draft of that site: the named site must be the
+   *         draft site the editor creates for this user and this live site
    */
   public SiteKey getDraftSiteKey(long siteId, String username) {
     String revision = getRevision(username, SITE_OBJECT_TYPE, String.valueOf(siteId));
     if (!NumberUtils.isDigits(revision)) {
       return null;
     }
+    PortalConfig liveSite = layoutService.getPortalConfig(siteId);
     PortalConfig draftSite = layoutService.getPortalConfig(Long.parseLong(revision));
-    return draftSite != null && StringUtils.equals(draftSite.getType(), PortalConfig.DRAFT) ? draftSite.getSiteKey() : null;
+    if (liveSite == null
+        || draftSite == null
+        || !StringUtils.equals(draftSite.getType(), PortalConfig.DRAFT)
+        || !StringUtils.equals(draftSite.getName(), draftSiteName(liveSite, username))) {
+      return null;
+    }
+    return draftSite.getSiteKey();
   }
 
   /**
@@ -105,6 +118,26 @@ public class LayoutDraftService {
 
   public boolean isDraftNode(String nodeName) {
     return StringUtils.contains(nodeName, DRAFT_NAME_MARKER);
+  }
+
+  /**
+   * @param  liveNodeName the live navigation node's name
+   * @param  username     the editing user
+   * @return the name NavigationLayoutService.createDraftNode gives that user's
+   *         draft node
+   */
+  public String draftNodeName(String liveNodeName, String username) {
+    return liveNodeName + DRAFT_NAME_MARKER + username;
+  }
+
+  /**
+   * @param  liveSite the live site
+   * @param  username the editing user
+   * @return the name SiteLayoutService.createDraftSite gives that user's draft
+   *         site
+   */
+  public String draftSiteName(PortalConfig liveSite, String username) {
+    return liveSite.getType() + "_" + liveSite.getName() + DRAFT_NAME_MARKER + username;
   }
 
   private NodeContext<NodeContext<Object>> findNodeByPage(NodeContext<NodeContext<Object>> node, PageKey pageKey) {

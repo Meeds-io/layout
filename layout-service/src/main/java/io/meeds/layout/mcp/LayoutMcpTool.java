@@ -18,14 +18,7 @@
  */
 package io.meeds.layout.mcp;
 
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,36 +28,22 @@ import org.springframework.stereotype.Service;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PortalConfig;
-import org.exoplatform.portal.mop.PageType;
-import org.exoplatform.portal.mop.SiteFilter;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
-import org.exoplatform.portal.mop.Visibility;
-import org.exoplatform.portal.mop.navigation.NodeContext;
-import org.exoplatform.portal.mop.navigation.NodeState;
-import org.exoplatform.portal.mop.page.PageContext;
 import org.exoplatform.portal.mop.page.PageKey;
-import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.LayoutService;
-import org.exoplatform.portal.mop.service.NavigationService;
 
 import io.meeds.layout.mcp.constant.LayoutVersion;
-import io.meeds.layout.mcp.constant.NavigationItemType;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
-import io.meeds.layout.mcp.model.ScheduleDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.mcp.model.SiteSummary;
 import io.meeds.layout.model.NodeLabel;
-import io.meeds.layout.model.PortletInstance;
-import io.meeds.layout.model.PortletInstanceCategory;
 import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
 import io.meeds.layout.service.LayoutDraftService;
-import io.meeds.layout.service.NavigationLayoutService;
 import io.meeds.layout.service.PageLayoutService;
-import io.meeds.layout.service.PortletInstanceService;
 import io.meeds.layout.service.SiteLayoutService;
 import io.meeds.mcp.server.plugin.McpToolPlugin;
 
@@ -79,72 +58,44 @@ import io.meeds.mcp.server.plugin.McpToolPlugin;
 @Profile("mcp-server")
 public class LayoutMcpTool implements McpToolPlugin {
 
-  public static final String        SITE_NOT_FOUND          = "does not exist: site";
+  public static final String       SITE_NOT_FOUND        = "does not exist: site";
 
-  public static final String        SITE_NOT_ALLOWED        = "not allowed: site";
+  public static final String       SITE_NOT_ALLOWED      = "not allowed: site";
 
-  public static final String        PAGE_NOT_FOUND          = "does not exist: page";
+  public static final String       PAGE_NOT_FOUND        = "does not exist: page";
 
-  public static final String        PAGE_NOT_ALLOWED        = "not allowed: page";
+  public static final String       PAGE_NOT_ALLOWED      = "not allowed: page";
 
-  public static final String        DRAFT_NOT_FOUND         = "does not exist: draft";
+  public static final String       DRAFT_NOT_FOUND       = "does not exist: draft";
 
-  public static final String        SITE_ID_NOT_ACCEPTED    = "value is not accepted for site_id";
+  public static final String       SITE_ID_NOT_ACCEPTED  = "value is not accepted for site_id";
 
-  public static final String        PAGE_REF_NOT_ACCEPTED   = "value is not accepted for page_ref";
-
-  private static final SiteType[]   LISTED_SITE_TYPES       = { SiteType.PORTAL, SiteType.GROUP };
+  public static final String       PAGE_REF_NOT_ACCEPTED = "value is not accepted for page_ref";
 
   @Autowired
-  private LayoutService             layoutService;
+  private LayoutService            layoutService;
 
   @Autowired
-  private NavigationService         navigationService;
+  private LayoutAclService         aclService;
 
   @Autowired
-  private LayoutAclService          aclService;
+  private SiteLayoutService        siteLayoutService;
 
   @Autowired
-  private SiteLayoutService         siteLayoutService;
+  private PageLayoutService        pageLayoutService;
 
   @Autowired
-  private PageLayoutService         pageLayoutService;
+  private LayoutDescriptionService layoutDescriptionService;
 
   @Autowired
-  private NavigationLayoutService   navigationLayoutService;
-
-  @Autowired
-  private PortletInstanceService    portletInstanceService;
-
-  @Autowired
-  private LayoutDescriptionService  layoutDescriptionService;
-
-  @Autowired
-  private LayoutDraftService        layoutDraftService;
+  private LayoutDraftService       layoutDraftService;
 
   /**
    * Lists the portal and group sites the current user can view, in display
    * order for portal sites. Read-only.
    */
   public List<SiteSummary> listSites() {
-    String username = getCurrentUserName();
-    List<SiteSummary> sites = new ArrayList<>();
-    for (SiteType siteType : LISTED_SITE_TYPES) {
-      SiteFilter filter = new SiteFilter();
-      filter.setSiteType(siteType);
-      filter.setSortByDisplayOrder(siteType == SiteType.PORTAL);
-      layoutService.getSites(filter)
-                   .stream()
-                   .filter(site -> aclService.canViewSite(site.getSiteKey(), username))
-                   .map(site -> new SiteSummary(site.getId(),
-                                                site.getType(),
-                                                site.getName(),
-                                                StringUtils.defaultIfBlank(site.getLabel(), site.getName()),
-                                                site.getDescription(),
-                                                site.isDisplayed()))
-                   .forEach(sites::add);
-    }
-    return sites;
+    return layoutDescriptionService.describeSites(getCurrentUserName());
   }
 
   /**
@@ -158,13 +109,15 @@ public class LayoutMcpTool implements McpToolPlugin {
     requireSiteId(siteId);
     String username = getCurrentUserName();
     PortalConfig site = readSite(siteId, username);
-    SiteKey draftSiteKey = layoutDraftService.getDraftSiteKey(siteId, username);
-    PortalConfig draftSite = draftSiteKey == null ? null : layoutService.getPortalConfig(draftSiteKey);
+    PortalConfig draftSite = readDraftSite(siteId, username);
     PortalConfig source = draftSite == null ? site : draftSite;
     ModelObject layout = layoutDescriptionService.filterAccessible(source.getPortalLayout(), username);
-    String label = resolveLabel(siteLayoutService.getSiteLabels(siteId, username),
-                                StringUtils.defaultIfBlank(site.getLabel(), site.getName()));
-    String description = resolveLabel(siteLayoutService.getSiteDescriptions(siteId, username), site.getDescription());
+    String label = StringUtils.defaultIfBlank(site.getLabel(), site.getName());
+    String description = site.getDescription();
+    if (StringUtils.equalsIgnoreCase(site.getType(), SiteType.PORTAL.getName())) {
+      label = resolveLabel(siteLayoutService.getSiteLabels(siteId, username), label);
+      description = resolveLabel(siteLayoutService.getSiteDescriptions(siteId, username), description);
+    }
     return layoutDescriptionService.toSiteDescription(site, layout, label, description, draftSite != null);
   }
 
@@ -180,10 +133,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     requireSiteId(siteId);
     String username = getCurrentUserName();
     PortalConfig site = readSite(siteId, username);
-    SiteKey siteKey = site.getSiteKey();
-    boolean withHidden = Boolean.TRUE.equals(includeHidden) && aclService.canEditNavigation(siteKey, username);
-    NodeContext<NodeContext<Object>> root = navigationService.loadNode(siteKey);
-    return root == null ? Collections.emptyList() : toNavigationItems(root, siteKey, withHidden, username);
+    return layoutDescriptionService.describeNavigation(site.getSiteKey(), Boolean.TRUE.equals(includeHidden), username);
   }
 
   /**
@@ -200,7 +150,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     PageKey pageKey = parsePageKey(pageRef);
     LayoutVersion requested = LayoutVersion.parse(version);
     String username = getCurrentUserName();
-    if (layoutService.getPage(pageKey) == null) {
+    if (layoutDraftService.isDraftNode(pageKey.getName()) || layoutService.getPage(pageKey) == null) {
       throw new ObjectNotFoundException(PAGE_NOT_FOUND);
     } else if (!aclService.canViewPage(pageKey, username) || !aclService.canViewSite(pageKey.getSite(), username)) {
       throw new IllegalAccessException(PAGE_NOT_ALLOWED);
@@ -232,105 +182,7 @@ public class LayoutMcpTool implements McpToolPlugin {
    * keyword to the names and descriptions containing it. Read-only.
    */
   public List<LayoutApplicationEntry> listLayoutApplications(Long categoryId, String keyword) {
-    String username = getCurrentUserName();
-    Locale locale = getCurrentUserLocale();
-    Map<Long, String> categories = portletInstanceService.getPortletInstanceCategories(username, locale, true)
-                                                         .stream()
-                                                         .collect(Collectors.toMap(PortletInstanceCategory::getId,
-                                                                                   c -> StringUtils.defaultString(c.getName()),
-                                                                                   (a, b) -> a));
-    String needle = StringUtils.lowerCase(StringUtils.trimToNull(keyword));
-    return portletInstanceService.getPortletInstances(categoryId == null ? 0 : categoryId, username, locale, true)
-                                 .stream()
-                                 .filter(instance -> !instance.isDisabled())
-                                 .filter(instance -> needle == null || matches(instance, needle))
-                                 .map(instance -> new LayoutApplicationEntry(instance.getId(),
-                                                                             instance.getContentId(),
-                                                                             instance.getName(),
-                                                                             instance.getDescription(),
-                                                                             categories.get(instance.getCategoryId()),
-                                                                             false,
-                                                                             null))
-                                 .toList();
-  }
-
-  private List<NavigationItemDescription> toNavigationItems(NodeContext<NodeContext<Object>> parent,
-                                                            SiteKey siteKey,
-                                                            boolean withHidden,
-                                                            String username) {
-    List<NavigationItemDescription> items = new ArrayList<>();
-    for (int i = 0; i < parent.getNodeCount(); i++) {
-      NodeContext<NodeContext<Object>> node = parent.get(i);
-      NodeState state = node.getState();
-      Visibility visibility = state == null ? Visibility.DISPLAYED : state.getVisibility();
-      boolean hidden = visibility == Visibility.HIDDEN || visibility == Visibility.SYSTEM;
-      if (layoutDraftService.isDraftNode(node.getName())
-          || visibility == Visibility.DRAFT
-          || (hidden && !withHidden)
-          || state == null
-          || !aclService.canViewNavigation(siteKey, state.getPageRef(), username)) {
-        continue;
-      }
-      items.add(toNavigationItem(node, state, hidden, siteKey, withHidden, username));
-    }
-    return items;
-  }
-
-  private NavigationItemDescription toNavigationItem(NodeContext<NodeContext<Object>> node, // NOSONAR
-                                                     NodeState state,
-                                                     boolean hidden,
-                                                     SiteKey siteKey,
-                                                     boolean withHidden,
-                                                     String username) {
-    long nodeId = Long.parseLong(node.getId());
-    Map<String, String> labels = readLabels(nodeId, username);
-    String name = labels.isEmpty() ? state.getLabel() : labels.values().iterator().next();
-    PageKey pageRef = state.getPageRef();
-    PageState pageState = null;
-    if (pageRef != null) {
-      PageContext pageContext = layoutService.getPageContext(pageRef);
-      pageState = pageContext == null ? null : pageContext.getState();
-    }
-    boolean link = pageState != null && PageType.LINK.name().equalsIgnoreCase(pageState.getType());
-    NavigationItemType type = pageRef == null ? NavigationItemType.GROUP : link ? NavigationItemType.LINK : NavigationItemType.PAGE;
-    ScheduleDescription schedule = visibility(state) == Visibility.TEMPORAL ?
-                                                                            new ScheduleDescription(toInstant(state.getStartPublicationTime()),
-                                                                                                    toInstant(state.getEndPublicationTime())) :
-                                                                            null;
-    return new NavigationItemDescription(nodeId,
-                                         name,
-                                         labels.isEmpty() ? null : labels,
-                                         node.getName(),
-                                         type,
-                                         pageRef == null ? null : pageRef.format(),
-                                         link ? pageState.getLink() : null,
-                                         link ? state.getTarget() : null,
-                                         state.getIcon(),
-                                         !hidden,
-                                         schedule,
-                                         pageState == null ? null : pageState.getAccessPermissions(),
-                                         pageState == null ? null : pageState.getEditPermission(),
-                                         toNavigationItems(node, siteKey, withHidden, username));
-  }
-
-  private Map<String, String> readLabels(long nodeId, String username) {
-    try {
-      NodeLabel nodeLabel = navigationLayoutService.getNodeLabels(nodeId, username);
-      Map<String, String> labels = nodeLabel == null ? null : nodeLabel.getLabels();
-      if (labels == null || labels.isEmpty()) {
-        return Collections.emptyMap();
-      }
-      String defaultLanguage = nodeLabel.getDefaultLanguage();
-      if (defaultLanguage != null && labels.containsKey(defaultLanguage)) {
-        Map<String, String> ordered = new LinkedHashMap<>();
-        ordered.put(defaultLanguage, labels.get(defaultLanguage));
-        ordered.putAll(labels);
-        return ordered;
-      }
-      return labels;
-    } catch (ObjectNotFoundException | IllegalAccessException e) {
-      return Collections.emptyMap();
-    }
+    return layoutDescriptionService.describeApplications(categoryId, keyword, getCurrentUserName(), getCurrentUserLocale());
   }
 
   private PortalConfig readSite(long siteId, String username) throws ObjectNotFoundException, IllegalAccessException {
@@ -340,6 +192,22 @@ public class LayoutMcpTool implements McpToolPlugin {
       throw new ObjectNotFoundException(SITE_NOT_FOUND);
     } catch (IllegalAccessException e) {
       throw new IllegalAccessException(SITE_NOT_ALLOWED);
+    }
+  }
+
+  /**
+   * The user's draft site, read under the owner rule UserACL applies to a
+   * draft site; null when the user has none or may not read the one named.
+   */
+  private PortalConfig readDraftSite(long siteId, String username) {
+    SiteKey draftSiteKey = layoutDraftService.getDraftSiteKey(siteId, username);
+    if (draftSiteKey == null) {
+      return null;
+    }
+    try {
+      return siteLayoutService.getSite(draftSiteKey, username);
+    } catch (ObjectNotFoundException | IllegalAccessException e) {
+      return null;
     }
   }
 
@@ -367,19 +235,6 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (RuntimeException e) {
       throw new IllegalArgumentException(PAGE_REF_NOT_ACCEPTED);
     }
-  }
-
-  private Visibility visibility(NodeState state) {
-    return state.getVisibility() == null ? Visibility.DISPLAYED : state.getVisibility();
-  }
-
-  private String toInstant(long time) {
-    return time > 0 ? Instant.ofEpochMilli(time).toString() : null;
-  }
-
-  private boolean matches(PortletInstance instance, String needle) {
-    return StringUtils.containsIgnoreCase(instance.getName(), needle)
-           || StringUtils.containsIgnoreCase(instance.getDescription(), needle);
   }
 
 }

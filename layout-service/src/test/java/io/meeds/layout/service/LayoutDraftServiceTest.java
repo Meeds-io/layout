@@ -82,11 +82,30 @@ public class LayoutDraftServiceTest {
   @Test
   public void draftPageIsTheOneTheRevisionNames() {
     revision(LayoutDraftService.NAVIGATION_OBJECT_TYPE, String.valueOf(LIVE_NODE), String.valueOf(DRAFT_NODE));
-    NodeData draftNode = node(DRAFT_PAGE);
+    NodeData liveNode = node("home", LIVE_PAGE);
+    NodeData draftNode = node("home_draft_john", DRAFT_PAGE);
+    when(navigationService.getNodeById(LIVE_NODE)).thenReturn(liveNode);
     when(navigationService.getNodeById(DRAFT_NODE)).thenReturn(draftNode);
     when(layoutService.getPage(DRAFT_PAGE)).thenReturn(new Page());
 
     assertEquals(DRAFT_PAGE, layoutDraftService.getDraftPageKey(LIVE_NODE, USER));
+  }
+
+  @Test
+  public void revisionNamingANodeThatIsNotThisUsersDraftOfThisPageReadsAsNoDraft() {
+    revision(LayoutDraftService.NAVIGATION_OBJECT_TYPE, String.valueOf(LIVE_NODE), String.valueOf(DRAFT_NODE));
+    NodeData liveNode = node("home", LIVE_PAGE);
+    when(navigationService.getNodeById(LIVE_NODE)).thenReturn(liveNode);
+
+    NodeData otherUsersDraft = node("home_draft_bob", PageKey.parse("portal::test::home_draft_bob"));
+    when(navigationService.getNodeById(DRAFT_NODE)).thenReturn(otherUsersDraft);
+    assertNull(layoutDraftService.getDraftPageKey(LIVE_NODE, USER));
+
+    NodeData liveNodeOfAnotherPage = node("other", PageKey.parse("portal::test::other"));
+    when(navigationService.getNodeById(DRAFT_NODE)).thenReturn(liveNodeOfAnotherPage);
+    assertNull(layoutDraftService.getDraftPageKey(LIVE_NODE, USER));
+
+    verify(layoutService, never()).getPage(any(PageKey.class));
   }
 
   @Test
@@ -101,7 +120,9 @@ public class LayoutDraftServiceTest {
   @Test
   public void revisionNamingAVanishedDraftReadsAsNoDraft() {
     revision(LayoutDraftService.NAVIGATION_OBJECT_TYPE, String.valueOf(LIVE_NODE), String.valueOf(DRAFT_NODE));
-    NodeData draftNode = node(DRAFT_PAGE);
+    NodeData liveNode = node("home", LIVE_PAGE);
+    NodeData draftNode = node("home_draft_john", DRAFT_PAGE);
+    when(navigationService.getNodeById(LIVE_NODE)).thenReturn(liveNode);
     when(navigationService.getNodeById(DRAFT_NODE)).thenReturn(draftNode);
     when(layoutService.getPage(DRAFT_PAGE)).thenReturn(null);
 
@@ -117,8 +138,9 @@ public class LayoutDraftServiceTest {
   }
 
   @Test
-  public void draftSiteIsTheDraftTypedSiteTheRevisionNames() {
+  public void draftSiteIsThisUsersDraftOfThisSite() {
     revision(LayoutDraftService.SITE_OBJECT_TYPE, String.valueOf(SITE_ID), "77");
+    when(layoutService.getPortalConfig(SITE_ID)).thenReturn(new PortalConfig("portal", "test"));
     PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john");
     when(layoutService.getPortalConfig(77L)).thenReturn(draftSite);
 
@@ -126,11 +148,24 @@ public class LayoutDraftServiceTest {
   }
 
   @Test
-  public void revisionNamingALiveSiteReadsAsNoDraft() {
+  public void revisionNamingALiveSiteOrAnotherUsersDraftReadsAsNoDraft() {
     revision(LayoutDraftService.SITE_OBJECT_TYPE, String.valueOf(SITE_ID), "77");
-    when(layoutService.getPortalConfig(77L)).thenReturn(new PortalConfig("portal", "test"));
+    when(layoutService.getPortalConfig(SITE_ID)).thenReturn(new PortalConfig("portal", "test"));
 
+    when(layoutService.getPortalConfig(77L)).thenReturn(new PortalConfig("portal", "test"));
     assertNull(layoutDraftService.getDraftSiteKey(SITE_ID, USER));
+
+    when(layoutService.getPortalConfig(77L)).thenReturn(new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_bob"));
+    assertNull(layoutDraftService.getDraftSiteKey(SITE_ID, USER));
+
+    when(layoutService.getPortalConfig(77L)).thenReturn(new PortalConfig(PortalConfig.DRAFT, "portal_other_draft_john"));
+    assertNull(layoutDraftService.getDraftSiteKey(SITE_ID, USER));
+  }
+
+  @Test
+  public void draftNamesFollowTheEditors() {
+    assertEquals("home_draft_john", layoutDraftService.draftNodeName("home", USER));
+    assertEquals("group_/spaces/x_draft_john", layoutDraftService.draftSiteName(new PortalConfig("group", "/spaces/x"), USER));
   }
 
   @Test
@@ -168,8 +203,9 @@ public class LayoutDraftServiceTest {
     when(coeditingService.getRevision(USER, new CoeditionObjectKey(type, id))).thenReturn(draft);
   }
 
-  private NodeData node(PageKey pageRef) {
+  private NodeData node(String name, PageKey pageRef) {
     NodeData nodeData = mock(NodeData.class);
+    lenient().when(nodeData.getName()).thenReturn(name);
     lenient().when(nodeData.getState()).thenReturn(new NodeState.Builder().pageRef(pageRef).build());
     return nodeData;
   }

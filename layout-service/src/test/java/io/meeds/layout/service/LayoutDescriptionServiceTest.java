@@ -25,13 +25,18 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,8 +46,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
@@ -50,22 +53,42 @@ import org.exoplatform.portal.config.model.ModelStyle;
 import org.exoplatform.portal.config.model.PageBody;
 import org.exoplatform.portal.config.model.PersistentApplicationState;
 import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.mop.SiteFilter;
+import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.SiteType;
+import org.exoplatform.portal.mop.Visibility;
+import org.exoplatform.portal.mop.navigation.NodeContext;
+import org.exoplatform.portal.mop.navigation.NodeState;
+import org.exoplatform.portal.mop.page.PageContext;
+import org.exoplatform.portal.mop.page.PageKey;
+import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.LayoutService;
+import org.exoplatform.portal.mop.service.NavigationService;
+
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 import io.meeds.layout.mcp.constant.BackgroundMode;
 import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
 import io.meeds.layout.mcp.constant.LayoutVersion;
+import io.meeds.layout.mcp.constant.NavigationItemType;
 import io.meeds.layout.mcp.constant.SectionType;
 import io.meeds.layout.mcp.model.ApplicationDescription;
 import io.meeds.layout.mcp.model.BackgroundBlock;
 import io.meeds.layout.mcp.model.CellDescription;
+import io.meeds.layout.mcp.model.LayoutApplicationEntry;
+import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
+import io.meeds.layout.mcp.model.SiteSummary;
 import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.model.NodeLabel;
+import io.meeds.layout.model.PortletInstance;
+import io.meeds.layout.model.PortletInstanceCategory;
 import io.meeds.layout.util.EntityMapper;
-import io.meeds.layout.util.JsonUtils;
 
 import lombok.SneakyThrows;
 
@@ -76,6 +99,10 @@ public class LayoutDescriptionServiceTest {
   private static final String      USER       = "john";
 
   private static final String      PAGE_REF   = "portal::test::home";
+
+  private static final JsonMapper  JSON       = JsonMapper.builder().build();
+
+  private static final SiteKey     SITE_KEY   = SiteKey.portal("test");
 
   private static final String      FLEX_CLASS =
                                               "d-flex flex-column d-md-grid layout-sticky-application grid-cols grid-cols-md-12 grid-cols-lg-12 grid-cols-xl-12";
@@ -88,6 +115,15 @@ public class LayoutDescriptionServiceTest {
 
   @MockitoBean
   private LayoutAclService         aclService;
+
+  @MockitoBean
+  private NavigationService        navigationService;
+
+  @MockitoBean
+  private NavigationLayoutService  navigationLayoutService;
+
+  @MockitoBean
+  private LayoutDraftService       layoutDraftService;
 
   @Autowired
   private LayoutDescriptionService descriptionService;
@@ -149,6 +185,162 @@ public class LayoutDescriptionServiceTest {
     CellDescription last = grid.cells().get(59);
     assertEquals(5, last.row());
     assertEquals(12, last.column());
+  }
+
+  @Test
+  public void gridCellApplicationHasNoHeightBlock() {
+    Container section = container(LayoutDescriptionService.GRID_TEMPLATE,
+                                  "d-flex flex-column d-md-grid grid-cols grid-cols-xl-1 grid-rows grid-rows-xl-1");
+    Container cell = cell("grid-cell");
+    Application application = application("42", null, null);
+    application.setHeight("300px");
+    children(cell, application);
+    children(section, cell);
+
+    ApplicationDescription description = descriptionService.toPageDescription(page(section), PAGE_REF, LayoutVersion.PUBLISHED)
+                                                            .sections()
+                                                            .get(0)
+                                                            .cells()
+                                                            .get(0)
+                                                            .application();
+
+    assertEquals("42", description.applicationId());
+    assertNull(description.styling().height());
+    assertNotNull(description.styling().border());
+    assertEquals(DisplayMode.BOTH, description.display());
+  }
+
+  @Test
+  public void sitesAreListedForTheViewerInDisplayOrder() {
+    PortalConfig visible = new PortalConfig("portal", "visible", "portal_1");
+    visible.setLabel("Visible");
+    PortalConfig forbidden = new PortalConfig("portal", "forbidden", "portal_2");
+    PortalConfig space = new PortalConfig("group", "/spaces/x", "group_3");
+    when(layoutService.getSites(argThat((SiteFilter f) -> f != null && f.getSiteType() == SiteType.PORTAL))).thenReturn(List.of(visible, forbidden));
+    when(layoutService.getSites(argThat((SiteFilter f) -> f != null && f.getSiteType() == SiteType.GROUP))).thenReturn(List.of(space));
+    when(aclService.canViewSite(visible.getSiteKey(), USER)).thenReturn(true);
+    when(aclService.canViewSite(forbidden.getSiteKey(), USER)).thenReturn(false);
+    when(aclService.canViewSite(space.getSiteKey(), USER)).thenReturn(true);
+
+    List<SiteSummary> sites = descriptionService.describeSites(USER);
+
+    assertEquals(2, sites.size());
+    assertEquals("visible", sites.get(0).name());
+    assertEquals("Visible", sites.get(0).label());
+    assertEquals("/spaces/x", sites.get(1).name());
+    assertEquals("/spaces/x", sites.get(1).label());
+    assertEquals("group", sites.get(1).type());
+    verify(layoutService).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.PORTAL && f.isSortByDisplayOrder()));
+    verify(layoutService).getSites(argThat((SiteFilter f) -> f.getSiteType() == SiteType.GROUP && !f.isSortByDisplayOrder()));
+  }
+
+  @Test
+  public void navigationIsDescribedAsTheViewerSeesIt() throws Exception {
+    PageKey homeKey = PageKey.parse("portal::test::home");
+    PageKey linkKey = PageKey.parse("portal::test::link");
+    PageKey secretKey = PageKey.parse("portal::test::secret");
+    PageKey childKey = PageKey.parse("portal::test::child");
+    NodeContext<NodeContext<Object>> root = node(0L, "default", null, Visibility.DISPLAYED);
+    NodeContext<NodeContext<Object>> home = node(1L, "home", homeKey, Visibility.DISPLAYED);
+    NodeContext<NodeContext<Object>> child = node(2L, "child", childKey, Visibility.TEMPORAL);
+    NodeContext<NodeContext<Object>> link = node(3L, "link", linkKey, Visibility.DISPLAYED);
+    NodeContext<NodeContext<Object>> hidden = node(4L, "hidden", homeKey, Visibility.HIDDEN);
+    NodeContext<NodeContext<Object>> draft = node(5L, "home_draft_john", homeKey, Visibility.DISPLAYED);
+    NodeContext<NodeContext<Object>> secret = node(6L, "secret", secretKey, Visibility.DISPLAYED);
+    NodeContext<NodeContext<Object>> group = node(7L, "group", null, Visibility.DISPLAYED);
+    nodes(root, home, link, hidden, draft, secret, group);
+    nodes(home, child);
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    when(layoutDraftService.isDraftNode(any())).thenAnswer(i -> i.getArgument(0, String.class).contains("_draft_"));
+    when(aclService.canEditNavigation(SITE_KEY, USER)).thenReturn(false);
+    when(aclService.canViewNavigation(eq(SITE_KEY), any(), eq(USER))).thenReturn(true);
+    when(aclService.canViewNavigation(SITE_KEY, secretKey, USER)).thenReturn(false);
+    when(navigationLayoutService.getNodeLabels(anyLong(), eq(USER))).thenReturn(nodeLabel("Label"));
+    when(navigationLayoutService.getNodeLabels(1L, USER)).thenReturn(nodeLabel("Home"));
+    when(navigationLayoutService.getNodeLabels(3L, USER)).thenThrow(new ObjectNotFoundException("gone"));
+    PageContext homeContext = new PageContext(homeKey, pageState("PAGE", null, "*:/platform/users", "Everyone"));
+    PageContext linkContext = new PageContext(linkKey, pageState("LINK", "https://meeds.io", "*:/platform/administrators"));
+    when(layoutService.getPageContext(homeKey)).thenReturn(homeContext);
+    when(layoutService.getPageContext(linkKey)).thenReturn(linkContext);
+    when(layoutService.getPageContext(childKey)).thenReturn(null);
+
+    List<NavigationItemDescription> items = descriptionService.describeNavigation(SITE_KEY, true, USER);
+
+    assertEquals(3, items.size());
+    NavigationItemDescription homeItem = items.get(0);
+    assertEquals(1L, homeItem.nodeId());
+    assertEquals("Home", homeItem.name());
+    assertEquals(Map.of("en", "Home"), homeItem.labels());
+    assertEquals("home", homeItem.urlName());
+    assertEquals(NavigationItemType.PAGE, homeItem.type());
+    assertEquals("portal::test::home", homeItem.pageRef());
+    assertTrue(homeItem.visible());
+    assertNull(homeItem.scheduled());
+    assertEquals(List.of("Everyone"), homeItem.accessPermissions());
+    assertEquals("*:/platform/users", homeItem.editPermission());
+    assertEquals(1, homeItem.children().size());
+    NavigationItemDescription childItem = homeItem.children().get(0);
+    assertEquals("1970-01-01T00:00:01Z", childItem.scheduled().start());
+    assertEquals("1970-01-01T00:00:02Z", childItem.scheduled().end());
+    assertNull(childItem.accessPermissions());
+    NavigationItemDescription linkItem = items.get(1);
+    assertEquals(NavigationItemType.LINK, linkItem.type());
+    assertEquals("Label", linkItem.name());
+    assertNull(linkItem.labels());
+    assertEquals("https://meeds.io", linkItem.url());
+    assertEquals("_blank", linkItem.target());
+    NavigationItemDescription groupItem = items.get(2);
+    assertEquals(NavigationItemType.GROUP, groupItem.type());
+    assertNull(groupItem.pageRef());
+    assertTrue(groupItem.children().isEmpty());
+  }
+
+  @Test
+  public void hiddenItemsAreDescribedToNavigationEditorsOnly() throws Exception {
+    PageKey pageKey = PageKey.parse("portal::test::home");
+    NodeContext<NodeContext<Object>> root = node(0L, "default", null, Visibility.DISPLAYED);
+    nodes(root, node(4L, "hidden", pageKey, Visibility.HIDDEN), node(8L, "system", pageKey, Visibility.SYSTEM));
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    when(aclService.canViewNavigation(eq(SITE_KEY), any(), eq(USER))).thenReturn(true);
+    lenient().when(navigationLayoutService.getNodeLabels(anyLong(), eq(USER))).thenReturn(nodeLabel("Label"));
+    PageContext pageContext = new PageContext(pageKey, pageState("PAGE", null, null));
+    lenient().when(layoutService.getPageContext(pageKey)).thenReturn(pageContext);
+
+    when(aclService.canEditNavigation(SITE_KEY, USER)).thenReturn(false);
+    assertTrue(descriptionService.describeNavigation(SITE_KEY, true, USER).isEmpty());
+
+    when(aclService.canEditNavigation(SITE_KEY, USER)).thenReturn(true);
+    assertTrue(descriptionService.describeNavigation(SITE_KEY, false, USER).isEmpty());
+    List<NavigationItemDescription> items = descriptionService.describeNavigation(SITE_KEY, true, USER);
+    assertEquals(2, items.size());
+    items.forEach(item -> assertFalse(item.visible()));
+    assertTrue(descriptionService.describeNavigation(SiteKey.portal("empty"), true, USER).isEmpty());
+  }
+
+  @Test
+  public void applicationsAreDescribedByKeywordAndCategory() {
+    PortletInstanceCategory category = new PortletInstanceCategory();
+    category.setId(1L);
+    category.setName("Content");
+    PortletInstance news = instance(10L, 1L, "News list", "Latest news", false);
+    PortletInstance disabled = instance(11L, 1L, "News archive", null, true);
+    PortletInstance links = instance(12L, 2L, "Links", "Useful links", false);
+    when(portletInstanceService.getPortletInstanceCategories(USER, Locale.FRENCH, true)).thenReturn(List.of(category));
+    when(portletInstanceService.getPortletInstances(0, USER, Locale.FRENCH, true)).thenReturn(List.of(news, disabled, links));
+    when(portletInstanceService.getPortletInstances(2L, USER, Locale.FRENCH, true)).thenReturn(List.of(links));
+
+    List<LayoutApplicationEntry> all = descriptionService.describeApplications(null, null, USER, Locale.FRENCH);
+    assertEquals(2, all.size());
+    assertEquals("Content", all.get(0).category());
+    assertNull(all.get(1).category());
+    assertFalse(all.get(0).configurable());
+
+    List<LayoutApplicationEntry> filtered = descriptionService.describeApplications(null, " NEWS ", USER, Locale.FRENCH);
+    assertEquals(1, filtered.size());
+    assertEquals(10L, filtered.get(0).instanceId());
+    assertEquals("content/NewsListView", filtered.get(0).contentId());
+
+    assertEquals(12L, descriptionService.describeApplications(2L, null, USER, Locale.FRENCH).get(0).instanceId());
   }
 
   @Test
@@ -308,9 +500,28 @@ public class LayoutDescriptionServiceTest {
     assertEquals(BackgroundMode.RADIAL, radial.mode());
     assertNull(radial.direction());
 
-    BackgroundBlock angular = background("conic-gradient(from 90deg at top left, #AAAAAAFF 0%, #AAAAAAFF 50%, #BBBBBBFF 100%)");
+    BackgroundBlock angular = background("conic-gradient(from 90deg at top left, #AAAAAAFF 0deg, #AAAAAAFF 22.50deg, #BBBBBBFF 90deg)");
     assertEquals(BackgroundMode.ANGULAR, angular.mode());
     assertEquals("top_left", angular.direction());
+    assertEquals("#AAAAAAFF", angular.from());
+    assertEquals("#BBBBBBFF", angular.to());
+    assertEquals(25, angular.ratio());
+
+    BackgroundBlock reversed = background("conic-gradient(from 180deg at top right, #BBBBBBFF 0deg, #AAAAAAFF 67.50deg, #AAAAAAFF 90deg)");
+    assertEquals(BackgroundMode.ANGULAR, reversed.mode());
+    assertEquals("top_right", reversed.direction());
+    assertEquals("#AAAAAAFF", reversed.from());
+    assertEquals("#BBBBBBFF", reversed.to());
+    assertEquals(25, reversed.ratio());
+
+    BackgroundBlock bottomLeft = background("conic-gradient(from 0deg at bottom left, #BBBBBBFF 0deg, #AAAAAAFF 45.00deg, #AAAAAAFF 90deg)");
+    assertEquals("bottom_left", bottomLeft.direction());
+    assertEquals("#AAAAAAFF", bottomLeft.from());
+    assertEquals(50, bottomLeft.ratio());
+
+    BackgroundBlock malformedConic = background("conic-gradient(from 0deg at bottom left, #BBBBBBFF 0%, #AAAAAAFF 100%)");
+    assertNull(malformedConic.mode());
+    assertEquals("conic-gradient(from 0deg at bottom left, #BBBBBBFF 0%, #AAAAAAFF 100%)", malformedConic.effect());
 
     BackgroundBlock unknown = background("url(/image.png)");
     assertTrue(unknown.enabled());
@@ -473,10 +684,10 @@ public class LayoutDescriptionServiceTest {
   @SneakyThrows
   private Container shippedSection(String nameId) {
     try (InputStream inputStream = getClass().getClassLoader().getResourceAsStream("section-templates.json")) {
-      JsonNode descriptors = JsonUtils.OBJECT_MAPPER.readTree(inputStream).get("descriptors");
+      JsonNode descriptors = JSON.readTree(inputStream).get("descriptors");
       for (JsonNode descriptor : descriptors) {
-        if (nameId.equals(descriptor.get("nameId").asText())) {
-          LayoutModel model = JsonUtils.fromJsonString(descriptor.get("content").asText(), LayoutModel.class);
+        if (nameId.equals(descriptor.get("nameId").asString())) {
+          LayoutModel model = JSON.readValue(descriptor.get("content").asString(), LayoutModel.class);
           return (Container) EntityMapper.toModelObject(model);
         }
       }
@@ -514,5 +725,54 @@ public class LayoutDescriptionServiceTest {
 
   private void children(Container container, ModelObject... children) {
     container.setChildren(new ArrayList<>(List.of(children)));
+  }
+
+  private NodeLabel nodeLabel(String english) {
+    NodeLabel nodeLabel = new NodeLabel();
+    nodeLabel.setDefaultLanguage("en");
+    nodeLabel.setLabels(Map.of("en", english));
+    return nodeLabel;
+  }
+
+  private PageState pageState(String type, String link, String editPermission, String... accessPermissions) {
+    PageState state = mock(PageState.class);
+    lenient().when(state.getType()).thenReturn(type);
+    lenient().when(state.getLink()).thenReturn(link);
+    lenient().when(state.getEditPermission()).thenReturn(editPermission);
+    lenient().when(state.getAccessPermissions()).thenReturn(accessPermissions.length == 0 ? null : List.of(accessPermissions));
+    return state;
+  }
+
+  private PortletInstance instance(long id, long categoryId, String name, String description, boolean disabled) {
+    PortletInstance instance = new PortletInstance();
+    instance.setId(id);
+    instance.setCategoryId(categoryId);
+    instance.setName(name);
+    instance.setDescription(description);
+    instance.setDisabled(disabled);
+    instance.setContentId(id == 10L ? "content/NewsListView" : "layout/Links");
+    return instance;
+  }
+
+  @SuppressWarnings("unchecked")
+  private NodeContext<NodeContext<Object>> node(long id, String name, PageKey pageRef, Visibility visibility) {
+    NodeContext<NodeContext<Object>> node = mock(NodeContext.class);
+    lenient().when(node.getId()).thenReturn(String.valueOf(id));
+    lenient().when(node.getName()).thenReturn(name);
+    NodeState.Builder builder = new NodeState.Builder().pageRef(pageRef).visibility(visibility).label("Label").target("_blank");
+    if (visibility == Visibility.TEMPORAL) {
+      builder.startPublicationTime(1000L).endPublicationTime(2000L);
+    }
+    lenient().when(node.getState()).thenReturn(builder.build());
+    lenient().when(node.getNodeCount()).thenReturn(0);
+    return node;
+  }
+
+  @SafeVarargs
+  private void nodes(NodeContext<NodeContext<Object>> parent, NodeContext<NodeContext<Object>>... children) {
+    when(parent.getNodeCount()).thenReturn(children.length);
+    for (int i = 0; i < children.length; i++) {
+      when(parent.get(i)).thenReturn(children[i]);
+    }
   }
 }

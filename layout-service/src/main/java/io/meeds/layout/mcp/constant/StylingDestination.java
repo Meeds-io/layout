@@ -27,6 +27,7 @@ public enum StylingDestination {
   DYNAMIC_SECTION(false, false, false, false, true),
   GRID_SECTION(false, false, false, false, false),
   APPLICATION(true, true, true, true, true),
+  GRID_CELL_APPLICATION(true, true, true, false, true),
   SITE_CONTAINER_APPLICATION(true, true, true, false, true),
   BANNER(false, false, true, false, true),
   SIDEBAR(false, false, true, false, true);

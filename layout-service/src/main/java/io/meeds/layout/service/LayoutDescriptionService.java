@@ -18,12 +18,16 @@
  */
 package io.meeds.layout.service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -37,13 +41,26 @@ import org.springframework.stereotype.Service;
 import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.mop.PageType;
+import org.exoplatform.portal.mop.SiteFilter;
+import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.SiteType;
+import org.exoplatform.portal.mop.Visibility;
+import org.exoplatform.portal.mop.navigation.NodeContext;
+import org.exoplatform.portal.mop.navigation.NodeState;
+import org.exoplatform.portal.mop.page.PageContext;
+import org.exoplatform.portal.mop.page.PageKey;
+import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.LayoutService;
+import org.exoplatform.portal.mop.service.NavigationService;
 
 import io.meeds.layout.mcp.constant.BackgroundMode;
 import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
 import io.meeds.layout.mcp.constant.LayoutVersion;
+import io.meeds.layout.mcp.constant.NavigationItemType;
 import io.meeds.layout.mcp.constant.SectionType;
 import io.meeds.layout.mcp.constant.StylingDestination;
 import io.meeds.layout.mcp.model.ApplicationDescription;
@@ -53,18 +70,25 @@ import io.meeds.layout.mcp.model.BorderBlock;
 import io.meeds.layout.mcp.model.CellDescription;
 import io.meeds.layout.mcp.model.CornersBlock;
 import io.meeds.layout.mcp.model.HeightBlock;
+import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.MarginsBlock;
+import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
+import io.meeds.layout.mcp.model.ScheduleDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.SidesBlock;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteContainerOptions;
 import io.meeds.layout.mcp.model.SiteDescription;
+import io.meeds.layout.mcp.model.SiteSummary;
 import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.mcp.model.TextBackgroundBlock;
 import io.meeds.layout.mcp.model.TextBlock;
 import io.meeds.layout.mcp.model.TextRoleBlock;
 import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.model.NodeLabel;
+import io.meeds.layout.model.PortletInstance;
+import io.meeds.layout.model.PortletInstanceCategory;
 import io.meeds.layout.util.EntityMapper;
 
 /**
@@ -130,6 +154,14 @@ public class LayoutDescriptionService {
 
   private static final Pattern   PIXELS                      = Pattern.compile("-?\\d+");
 
+  private static final SiteType[] LISTED_SITE_TYPES          = { SiteType.PORTAL, SiteType.GROUP };
+
+  private static final Pattern   CONIC_STOP                  = Pattern.compile("^(#[0-9a-fA-F]{6,8})\\s+(-?\\d+(?:\\.\\d+)?)deg$");
+
+  private static final Map<String, Pattern> TOKEN_PATTERNS   = new ConcurrentHashMap<>();
+
+  private static final Map<String, Pattern> BREAKPOINT_PATTERNS = new ConcurrentHashMap<>();
+
   @Autowired
   private LayoutService          layoutService;
 
@@ -138,6 +170,15 @@ public class LayoutDescriptionService {
 
   @Autowired
   private LayoutAclService       aclService;
+
+  @Autowired
+  private NavigationService      navigationService;
+
+  @Autowired
+  private NavigationLayoutService navigationLayoutService;
+
+  @Autowired
+  private LayoutDraftService     layoutDraftService;
 
   /**
    * Drops, recursively, every container and application the user has no
@@ -228,6 +269,75 @@ public class LayoutDescriptionService {
                                bottomBars);
   }
 
+  /**
+   * @param  username the reader
+   * @return the portal and group sites the user can view, portal sites in
+   *         display order
+   */
+  public List<SiteSummary> describeSites(String username) {
+    List<SiteSummary> sites = new ArrayList<>();
+    for (SiteType siteType : LISTED_SITE_TYPES) {
+      SiteFilter filter = new SiteFilter();
+      filter.setSiteType(siteType);
+      filter.setSortByDisplayOrder(siteType == SiteType.PORTAL);
+      layoutService.getSites(filter)
+                   .stream()
+                   .filter(site -> aclService.canViewSite(site.getSiteKey(), username))
+                   .map(site -> new SiteSummary(site.getId(),
+                                                site.getType(),
+                                                site.getName(),
+                                                StringUtils.defaultIfBlank(site.getLabel(), site.getName()),
+                                                site.getDescription(),
+                                                site.isDisplayed()))
+                   .forEach(sites::add);
+    }
+    return sites;
+  }
+
+  /**
+   * @param  siteKey       the site whose navigation is read; the caller has
+   *                         checked it can be viewed
+   * @param  includeHidden whether the hidden and system items are wanted;
+   *                         they are returned only to a user who can edit the
+   *                         site's navigation
+   * @param  username      the reader
+   * @return the navigation tree the user can view, draft items excluded
+   */
+  public List<NavigationItemDescription> describeNavigation(SiteKey siteKey, boolean includeHidden, String username) {
+    boolean withHidden = includeHidden && aclService.canEditNavigation(siteKey, username);
+    NodeContext<NodeContext<Object>> root = navigationService.loadNode(siteKey);
+    return root == null ? Collections.emptyList() : toNavigationItems(root, siteKey, withHidden, username);
+  }
+
+  /**
+   * @param  categoryId a category, null for every category
+   * @param  keyword    a text the name or description must contain, null for
+   *                      no filter
+   * @param  username   the reader
+   * @param  locale     the language of the names
+   * @return the enabled catalog instances the user may place
+   */
+  public List<LayoutApplicationEntry> describeApplications(Long categoryId, String keyword, String username, Locale locale) {
+    Map<Long, String> categories = portletInstanceService.getPortletInstanceCategories(username, locale, true)
+                                                         .stream()
+                                                         .collect(Collectors.toMap(PortletInstanceCategory::getId,
+                                                                                   c -> StringUtils.defaultString(c.getName()),
+                                                                                   (a, b) -> a));
+    String needle = StringUtils.lowerCase(StringUtils.trimToNull(keyword));
+    return portletInstanceService.getPortletInstances(categoryId == null ? 0 : categoryId, username, locale, true)
+                                 .stream()
+                                 .filter(instance -> !instance.isDisabled())
+                                 .filter(instance -> needle == null || matches(instance, needle))
+                                 .map(instance -> new LayoutApplicationEntry(instance.getId(),
+                                                                             instance.getContentId(),
+                                                                             instance.getName(),
+                                                                             instance.getDescription(),
+                                                                             categories.get(instance.getCategoryId()),
+                                                                             false,
+                                                                             null))
+                                 .toList();
+  }
+
   public DisplayMode toDisplay(String cssClass) {
     if (hasToken(cssClass, HIDE_DESKTOP_TOKEN)) {
       return DisplayMode.HIDE_DESKTOP;
@@ -249,7 +359,10 @@ public class LayoutDescriptionService {
     if (StringUtils.isBlank(cssClass)) {
       return 1;
     }
-    Matcher matcher = Pattern.compile("(^| )" + prefix + "-" + CURRENT_BREAKPOINT + "-(\\d{1,2})(?= |$)").matcher(cssClass);
+    Pattern pattern = BREAKPOINT_PATTERNS.computeIfAbsent(prefix,
+                                                          p -> Pattern.compile("(^| )" + Pattern.quote(p) + "-"
+                                                              + CURRENT_BREAKPOINT + "-(\\d{1,2})(?= |$)"));
+    Matcher matcher = pattern.matcher(cssClass);
     return matcher.find() ? Integer.parseInt(matcher.group(2)) : 1;
   }
 
@@ -314,7 +427,7 @@ public class LayoutDescriptionService {
           taken[row][col] = true;
         }
       }
-      List<ApplicationDescription> applications = toApplications(cell, contentIds, StylingDestination.APPLICATION);
+      List<ApplicationDescription> applications = toApplications(cell, contentIds, StylingDestination.GRID_CELL_APPLICATION);
       result.add(new CellDescription(cell.getStorageId(),
                                      rowIndex + 1,
                                      colIndex + 1,
@@ -412,6 +525,95 @@ public class LayoutDescriptionService {
                                       null,
                                       false,
                                       null);
+  }
+
+  private List<NavigationItemDescription> toNavigationItems(NodeContext<NodeContext<Object>> parent,
+                                                            SiteKey siteKey,
+                                                            boolean withHidden,
+                                                            String username) {
+    List<NavigationItemDescription> items = new ArrayList<>();
+    for (int i = 0; i < parent.getNodeCount(); i++) {
+      NodeContext<NodeContext<Object>> node = parent.get(i);
+      NodeState state = node.getState();
+      Visibility visibility = state == null || state.getVisibility() == null ? Visibility.DISPLAYED : state.getVisibility();
+      boolean hidden = visibility == Visibility.HIDDEN || visibility == Visibility.SYSTEM;
+      if (state == null
+          || layoutDraftService.isDraftNode(node.getName())
+          || visibility == Visibility.DRAFT
+          || (hidden && !withHidden)
+          || !aclService.canViewNavigation(siteKey, state.getPageRef(), username)) {
+        continue;
+      }
+      items.add(toNavigationItem(node, state, visibility, siteKey, withHidden, username));
+    }
+    return items;
+  }
+
+  private NavigationItemDescription toNavigationItem(NodeContext<NodeContext<Object>> node, // NOSONAR
+                                                     NodeState state,
+                                                     Visibility visibility,
+                                                     SiteKey siteKey,
+                                                     boolean withHidden,
+                                                     String username) {
+    long nodeId = Long.parseLong(node.getId());
+    Map<String, String> labels = readLabels(nodeId, username);
+    String name = labels.isEmpty() ? state.getLabel() : labels.values().iterator().next();
+    PageKey pageRef = state.getPageRef();
+    PageState pageState = null;
+    if (pageRef != null) {
+      PageContext pageContext = layoutService.getPageContext(pageRef);
+      pageState = pageContext == null ? null : pageContext.getState();
+    }
+    boolean link = pageState != null && PageType.LINK.name().equalsIgnoreCase(pageState.getType());
+    NavigationItemType type = pageRef == null ? NavigationItemType.GROUP : link ? NavigationItemType.LINK : NavigationItemType.PAGE;
+    ScheduleDescription schedule = visibility == Visibility.TEMPORAL ?
+                                                                     new ScheduleDescription(toInstant(state.getStartPublicationTime()),
+                                                                                             toInstant(state.getEndPublicationTime())) :
+                                                                     null;
+    boolean hidden = visibility == Visibility.HIDDEN || visibility == Visibility.SYSTEM;
+    return new NavigationItemDescription(nodeId,
+                                         name,
+                                         labels.isEmpty() ? null : labels,
+                                         node.getName(),
+                                         type,
+                                         pageRef == null ? null : pageRef.format(),
+                                         link ? pageState.getLink() : null,
+                                         link ? state.getTarget() : null,
+                                         state.getIcon(),
+                                         !hidden,
+                                         schedule,
+                                         pageState == null ? null : pageState.getAccessPermissions(),
+                                         pageState == null ? null : pageState.getEditPermission(),
+                                         toNavigationItems(node, siteKey, withHidden, username));
+  }
+
+  private Map<String, String> readLabels(long nodeId, String username) {
+    try {
+      NodeLabel nodeLabel = navigationLayoutService.getNodeLabels(nodeId, username);
+      Map<String, String> labels = nodeLabel == null ? null : nodeLabel.getLabels();
+      if (labels == null || labels.isEmpty()) {
+        return Collections.emptyMap();
+      }
+      String defaultLanguage = nodeLabel.getDefaultLanguage();
+      if (defaultLanguage != null && labels.containsKey(defaultLanguage)) {
+        Map<String, String> ordered = new LinkedHashMap<>();
+        ordered.put(defaultLanguage, labels.get(defaultLanguage));
+        ordered.putAll(labels);
+        return ordered;
+      }
+      return labels;
+    } catch (ObjectNotFoundException | IllegalAccessException e) {
+      return Collections.emptyMap();
+    }
+  }
+
+  private String toInstant(long time) {
+    return time > 0 ? Instant.ofEpochMilli(time).toString() : null;
+  }
+
+  private boolean matches(PortletInstance instance, String needle) {
+    return StringUtils.containsIgnoreCase(instance.getName(), needle)
+           || StringUtils.containsIgnoreCase(instance.getDescription(), needle);
   }
 
   private LayoutModel findSectionsParent(LayoutModel layout) {
@@ -542,11 +744,57 @@ public class LayoutDescriptionService {
     while (stopMatcher.find()) {
       stops.add(Integer.parseInt(stopMatcher.group(1)));
     }
+    if (mode == BackgroundMode.ANGULAR) {
+      return parseConicGradient(effect, direction);
+    }
     if (mode == null || colors.size() < 2) {
       return new BackgroundBlock(true, null, null, null, null, null, null, null, effect, null);
     }
     Integer ratio = stops.size() >= 3 ? stops.get(1) : null;
     return new BackgroundBlock(true, mode, null, colors.get(0), colors.get(colors.size() - 1), ratio, direction, null, null, null);
+  }
+
+  /**
+   * The editor writes conic-gradient(from &lt;angle&gt; at &lt;corner&gt;, E 0deg, X
+   * &lt;mid&gt;deg, F 90deg) with degree stops, the plateau next to the From
+   * colour's edge: for top right and bottom left the first stop is the To
+   * colour and the ratio is the complement of the middle angle's share.
+   */
+  private BackgroundBlock parseConicGradient(String effect, String direction) {
+    String inner = effect.substring("conic-gradient(".length()).replaceAll("\\)$", "");
+    int firstComma = inner.indexOf(',');
+    if (firstComma < 0) {
+      return new BackgroundBlock(true, null, null, null, null, null, null, null, effect, null);
+    }
+    List<Matcher> stops = new ArrayList<>();
+    for (String stop : inner.substring(firstComma + 1).split(",")) {
+      Matcher matcher = CONIC_STOP.matcher(stop.trim());
+      if (!matcher.matches()) {
+        return new BackgroundBlock(true, null, null, null, null, null, null, null, effect, null);
+      }
+      stops.add(matcher);
+    }
+    if (stops.size() < 2) {
+      return new BackgroundBlock(true, null, null, null, null, null, null, null, effect, null);
+    }
+    boolean reversed = "top_right".equals(direction) || "bottom_left".equals(direction);
+    String firstColor = stops.get(0).group(1);
+    String lastColor = stops.get(stops.size() - 1).group(1);
+    Integer ratio = null;
+    if (stops.size() == 3) {
+      int midPercent = (int) Math.round(Double.parseDouble(stops.get(1).group(2)) / 90 * 100);
+      ratio = reversed ? 100 - midPercent : midPercent;
+    }
+    return new BackgroundBlock(true,
+                               BackgroundMode.ANGULAR,
+                               null,
+                               reversed ? lastColor : firstColor,
+                               reversed ? firstColor : lastColor,
+                               ratio,
+                               direction,
+                               null,
+                               null,
+                               null);
   }
 
   private SidesBlock toImageMargins(String cssClass) {
@@ -703,7 +951,9 @@ public class LayoutDescriptionService {
 
   private boolean hasToken(String cssClass, String token) {
     return StringUtils.isNotBlank(cssClass)
-           && Pattern.compile("(^| )" + Pattern.quote(token) + "(?= |$)").matcher(cssClass).find();
+           && TOKEN_PATTERNS.computeIfAbsent(token, t -> Pattern.compile("(^| )" + Pattern.quote(t) + "(?= |$)"))
+                            .matcher(cssClass)
+                            .find();
   }
 
   private boolean isTemplate(LayoutModel model, String template) {
