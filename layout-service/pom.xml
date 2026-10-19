@@ -49,6 +49,10 @@
       <groupId>io.meeds.social</groupId>
       <artifactId>social-component-api</artifactId>
     </dependency>
+    <dependency>
+      <groupId>io.meeds.mcp-server</groupId>
+      <artifactId>mcp-server-tools</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.springframework.security</groupId>
@@ -86,5 +90,16 @@
   </dependencies>
   <build>
     <finalName>${project.artifactId}</finalName>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <compilerArgs>
+            <arg>-parameters</arg>
+          </compilerArgs>
+        </configuration>
+      </plugin>
+    </plugins>
   </build>
 </project>
