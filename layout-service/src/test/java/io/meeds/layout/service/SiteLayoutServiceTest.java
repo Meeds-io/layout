@@ -60,6 +60,7 @@ import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.config.serialize.model.SiteLayout;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.SiteType;
 import org.exoplatform.portal.mop.importer.ImportMode;
 import org.exoplatform.portal.mop.page.PageContext;
 import org.exoplatform.portal.mop.page.PageKey;
@@ -71,6 +72,7 @@ import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.resources.impl.LocaleConfigImpl;
 
+import io.meeds.common.ContainerTransactional;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.SiteCreateModel;
@@ -172,6 +174,67 @@ public class SiteLayoutServiceTest {
     assertEquals("layout.siteDraftNameConflict", exception.getMessage());
     verify(layoutService, never()).remove(any(PortalConfig.class));
     verify(layoutService, never()).create(any(PortalConfig.class));
+  }
+
+  /**
+   * The removal runs from a listener's thread, where only the annotation binds
+   * the container: the annotation-removed mutant passes every other test, which
+   * calls the un-advised seam.
+   */
+  @Test
+  @SneakyThrows
+  public void deleteUserDraftSitesBindsTheContainer() {
+    assertTrue(SiteLayoutService.class.getMethod("deleteUserDraftSites", String.class)
+                                      .isAnnotationPresent(ContainerTransactional.class));
+  }
+
+  /**
+   * The draft sites are listed unpaged: a page of the label order could skip
+   * a draft that shares its label with another one.
+   */
+  @Test
+  public void removeUserDraftSites() {
+    PortalConfig otherUserDraftSite = new PortalConfig(PortalConfig.DRAFT, "portal_x_draft_doe");
+    PortalConfig ownedDraftSite = new PortalConfig(PortalConfig.DRAFT, "portal_x_draft_john");
+    PortalConfig ambiguousDraftSite = new PortalConfig(PortalConfig.DRAFT, "portal_team_draft_draft_john");
+    PortalConfig suffixOwnerDraftSite = new PortalConfig(PortalConfig.DRAFT, "portal_x_draft_doe_john");
+    PortalConfig longerOwnerDraftSite = new PortalConfig(PortalConfig.DRAFT, "portal_x_draft_johnny");
+    when(layoutService.getSites(argThat(filter -> filter != null && filter.getSiteType() == SiteType.DRAFT
+                                                  && filter.getOffset() == 0 && filter.getLimit() == 0)))
+                                                                                                         .thenReturn(List.of(otherUserDraftSite,
+                                                                                                                             ownedDraftSite,
+                                                                                                                             ambiguousDraftSite,
+                                                                                                                             suffixOwnerDraftSite,
+                                                                                                                             longerOwnerDraftSite));
+
+    siteLayoutService.removeUserDraftSites("john");
+
+    verify(layoutService).remove(ownedDraftSite);
+    verify(layoutService).remove(ambiguousDraftSite);
+    verify(layoutService, never()).remove(otherUserDraftSite);
+    verify(layoutService, never()).remove(suffixOwnerDraftSite);
+    verify(layoutService, never()).remove(longerOwnerDraftSite);
+    verify(layoutService).getSites(any());
+  }
+
+  @Test
+  public void removeUserDraftSitesWhenOneRemovalFails() {
+    PortalConfig failingDraftSite = new PortalConfig(PortalConfig.DRAFT, "portal_x_draft_john");
+    PortalConfig otherDraftSite = new PortalConfig(PortalConfig.DRAFT, "portal_y_draft_john");
+    when(layoutService.getSites(any())).thenReturn(List.of(failingDraftSite, otherDraftSite));
+    doThrow(new IllegalStateException("store down")).when(layoutService).remove(failingDraftSite);
+
+    siteLayoutService.removeUserDraftSites("john");
+
+    verify(layoutService).remove(otherDraftSite);
+  }
+
+  @Test
+  public void removeUserDraftSitesWithoutUsername() {
+    siteLayoutService.removeUserDraftSites(null);
+    siteLayoutService.removeUserDraftSites("");
+
+    verify(layoutService, never()).getSites(any());
   }
 
   @Test
