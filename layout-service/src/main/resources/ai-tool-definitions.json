@@ -117,6 +117,124 @@
         "idempotentHint": true,
         "openWorldHint": false
       }
+    },
+    {
+      "name": "update_theme",
+      "title": "Update a part of the theme",
+      "description": "Update one part of the platform theme, as the corresponding drawer of the Branding and Theme administration does, for every user at once (not a draft): the user confirms it before it applies. options sets the named options to the given values (strings, as the drawer sends them: colours as #RRGGBB or #RRGGBBAA, sizes with their unit such as 16px, keywords such as normal or bold); reset returns the named options to their configured default; every other option keeps its stored value. Options per part. colors: primaryColor, secondaryColor, tertiaryColor. font: fontFamily, one of the platform's supported families. topbar: topBarBackgroundColor, topBarBackgroundImage (a CSS gradient, or none), topBarBackgroundPosition, topBarBackgroundSize, topBarBackgroundRepeat, topBarTextColor, topBarTextFontSize, topBarTextFontStyle, topBarTextFontWeight, topBarSticky (true or false), topBarBackgroundScrollColor (the colour once scrolled, when sticky). sidebars: sideBarBackgroundColor, sideBarBackgroundImage, sideBarBackgroundPosition, sideBarBackgroundSize, sideBarBackgroundRepeat, sideBarTextColor, sideBarTextFontSize, sideBarTextFontStyle, sideBarTextFontWeight, sideBarTextSubtitleColor, sideBarTextSubtitleFontSize, sideBarTextSubtitleFontStyle, sideBarTextSubtitleFontWeight. drawers: drawerBackgroundColor, drawerBackgroundImage, drawerBackgroundPosition, drawerBackgroundSize, drawerBackgroundRepeat, then Color, FontSize, FontStyle and FontWeight for each of drawerText, drawerTextSubtitle, drawerTextTitle and drawerTextHeader (for example drawerTextTitleColor). page_and_apps: pageWidth, pageBackgroundColor, pageBackgroundEffect (a CSS gradient), pageBackgroundSize, pageBackgroundRepeat, pageBackgroundPosition, pageBackgroundAttachment, pageMarginTop, pageMarginRight, pageMarginBottom, pageMarginLeft, appMarginTop, appMarginRight, appMarginBottom, appMarginLeft, appBorderColor, appBorderSize, appBoxShadow, borderRadius, appBorderRadiusTopLeft, appBorderRadiusTopRight, appBorderRadiusBottomLeft, appBorderRadiusBottomRight, appBackgroundColor, appBackgroundImage, appBackgroundPosition, appBackgroundSize, appBackgroundRepeat, then Color, FontSize, FontStyle and FontWeight for each of appText, appTextTitle, appTextHeader and appTextSubtitle, and Color, Image, Position, Size, Repeat, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft and Radius for each of appTextTitleBackground and appTextHeaderBackground. Images (logo, favicon, background files) are not theme options. A value the platform refuses is answered with its reason and nothing is changed. Returns the part's options as stored.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "part": {
+            "type": "string",
+            "enum": ["colors", "font", "topbar", "sidebars", "drawers", "page_and_apps"],
+            "description": "The part of the theme to update"
+          },
+          "options": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The options of the part to set, by name, with their values as strings; omit an option to leave it unchanged"
+          },
+          "reset": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The options of the part to return to their configured default; omit for none"
+          }
+        },
+        "required": ["part"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "update_navigation_display",
+      "title": "Update what the topbar and the sidebar show",
+      "description": "Update what the topbar shows and how the sidebar may be displayed, as the navigation settings page does, for every user at once (not a draft): the user confirms it before it applies. Every field omitted keeps its stored value. topbar: display_company_name, display_site_name, display_mobile_company_logo, and applications, a list of {id, enabled, mobile} merged by id into the topbar's applications (an id not in the topbar is refused; mobile also shows the application on mobile). sidebar: allow_user_custom_home, allowed_modes (replaces the list; hidden, icon or sticky, at least one), default_mode (one of the allowed modes). The sidebar's items are not changed by this tool. Returns both parts as stored, each topbar application with its id and name.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "topbar": {
+            "type": "object",
+            "description": "What the topbar shows; omit to leave the topbar unchanged",
+            "properties": {
+              "display_company_name": {
+                "type": "boolean",
+                "description": "Show the company name next to the logo on desktop"
+              },
+              "display_site_name": {
+                "type": "boolean",
+                "description": "Show the current site's name"
+              },
+              "display_mobile_company_logo": {
+                "type": "boolean",
+                "description": "Show the company logo on mobile"
+              },
+              "applications": {
+                "type": "array",
+                "description": "The topbar applications to change, merged by id; omit to leave them all",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "description": "The application identifier, as returned by this tool"
+                    },
+                    "enabled": {
+                      "type": "boolean",
+                      "description": "Show the application in the topbar"
+                    },
+                    "mobile": {
+                      "type": "boolean",
+                      "description": "Also show it on mobile"
+                    }
+                  },
+                  "required": ["id"]
+                }
+              }
+            }
+          },
+          "sidebar": {
+            "type": "object",
+            "description": "How the sidebar may be displayed; omit to leave the sidebar unchanged",
+            "properties": {
+              "allow_user_custom_home": {
+                "type": "boolean",
+                "description": "Let each user choose their own home page"
+              },
+              "allowed_modes": {
+                "type": "array",
+                "description": "The modes users may choose from, replacing the stored list; at least one",
+                "items": {
+                  "type": "string",
+                  "enum": ["hidden", "icon", "sticky"]
+                }
+              },
+              "default_mode": {
+                "type": "string",
+                "enum": ["hidden", "icon", "sticky"],
+                "description": "The mode a user gets before choosing one; must be an allowed mode"
+              }
+            }
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
     }
   ]
 }
