@@ -1,0 +1,117 @@
+{
+  "tools": [
+    {
+      "name": "list_sites",
+      "title": "List the sites",
+      "description": "List the portal and group sites the current user can view, each with its site_id, type, name, label, description and whether it is displayed in the sites menu. Use the site_id in get_site and list_site_pages.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_site",
+      "title": "Get a site and its layout",
+      "description": "Read a site's properties (label, description, banner, access and edit permissions) and its layout: left_sidebar, right_sidebar, topbars and bottom_bars, each with its container_id, options (height or width, sticky, display), styling and the applications it holds with their application_id. Returns the user's site draft when they have one (draft: true), the published layout otherwise.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites"
+          }
+        },
+        "required": ["site_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_site_pages",
+      "title": "List the pages of a site",
+      "description": "List the navigation items of a site as a tree. Each item carries its node_id, name and labels per language, url_name, type (page, link or group), page_ref, icon, visibility and schedule, the page's access_permissions and edit_permission, and its children. Draft items are never listed; hidden items are listed only when include_hidden is true and the user can edit the site's navigation. Use the page_ref in get_page_layout.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites"
+          },
+          "include_hidden": {
+            "type": "boolean",
+            "description": "Also list the hidden items; omit to list the visible ones only"
+          }
+        },
+        "required": ["site_id"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "get_page_layout",
+      "title": "Get the layout of a page",
+      "description": "Read the whole page in the shape set_page_layout takes: its ordered sections, each with its section_id and type (dynamic: columns and columns_content, one ordered list of applications per column; grid: rows, columns and cells with their cell_id, row, column, spans and application), the styling and display of sections and applications, and every application's application_id, content_id, instance_id and title. Returns the user's draft by default when they have one, the published layout otherwise; version selects one explicitly.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "page_ref": {
+            "type": "string",
+            "description": "The page reference, from list_site_pages (for example portal::mysite::home)"
+          },
+          "version": {
+            "type": "string",
+            "enum": ["draft", "published"],
+            "description": "draft reads the user's draft and fails when they have none; published reads the live layout; omit to read the draft when it exists, the published layout otherwise"
+          }
+        },
+        "required": ["page_ref"]
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "list_layout_applications",
+      "title": "List the applications that can be placed",
+      "description": "List the applications the current user can place on a page or in a site container, each with its instance_id, content_id, name, description, category and whether it is configurable through configure_layout_applications. category_id narrows the list to one category, keyword to the names and descriptions containing it.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "category_id": {
+            "type": "integer",
+            "description": "A category identifier; omit for every category"
+          },
+          "keyword": {
+            "type": "string",
+            "description": "A text the name or description must contain; omit for no filter"
+          }
+        },
+        "required": []
+      },
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    }
+  ]
+}
