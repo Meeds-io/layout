@@ -74,7 +74,8 @@ public class BrandingMcpTool implements McpToolPlugin {
    * field omitted keeps its value, the applications listed are merged by
    * identifier or by the name shown in the user's language, the allowed
    * modes replace the list. Applies at once to every user; not a draft.
-   * Returns both parts as stored.
+   * Returns both parts as stored, each application named in the user's
+   * language.
    */
   public NavigationDisplayDescription updateNavigationDisplay(TopbarDisplayOptions topbar,
                                                               SidebarDisplayOptions sidebar) throws ObjectNotFoundException,
