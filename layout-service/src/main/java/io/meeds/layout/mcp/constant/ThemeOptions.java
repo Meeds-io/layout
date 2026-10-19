@@ -31,14 +31,12 @@ import java.util.stream.Stream;
  * configuration declares but no drawer writes is not an option: the Topbar
  * drawer offers no gradient, so the topbar has no background image option.
  * A background image option takes none or one gradient: the image file
- * itself is uploaded in the drawer, and the branding service drops any url
- * layer a caller sends.
+ * itself is uploaded in the drawer, and the branding service drops a url
+ * layer a caller sends and stores any other extra layer.
  */
 public final class ThemeOptions {
 
   public static final String      BACKGROUND_IMAGE_SUFFIX    = "BackgroundImage";
-
-  public static final String      URL_LAYER                  = "url(";
 
   public static final String      PAGE_WIDTH                 = "pageWidth";
 

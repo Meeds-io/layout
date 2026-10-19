@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -143,6 +144,37 @@ public class NavigationDisplayServiceTest {
     assertFalse(applications.get(1).isEnabled());
     assertTrue(applications.get(1).isMobile());
     assertEquals("Notifications", applications.get(1).getName());
+  }
+
+  @Test
+  public void applicationsAreNamedByNameWhenNoIdentifierIsGiven() throws Exception {
+    administrator();
+    NavigationConfiguration read = stored();
+    read.getTopbar().getApplications().add(application("search-2", "Search", true, false));
+
+    service.updateNavigationDisplay(new TopbarDisplayOptions(null,
+                                                             null,
+                                                             null,
+                                                             List.of(new TopbarApplicationOption(null, " notifications ", null, false))),
+                                    null,
+                                    USER);
+    List<TopbarApplication> applications = submitted().getTopbar().getApplications();
+    assertEquals(List.of("search", "notifications", "search-2"), applications.stream().map(TopbarApplication::getId).toList());
+    assertTrue(applications.get(1).isEnabled());
+    assertFalse(applications.get(1).isMobile());
+
+    TopbarDisplayOptions ambiguous = new TopbarDisplayOptions(null, null, null, List.of(new TopbarApplicationOption(null, "search", false, null)));
+    assertEquals(NavigationDisplayService.APPLICATIONS_NOT_ACCEPTED,
+                 assertThrows(IllegalArgumentException.class, () -> service.updateNavigationDisplay(ambiguous, null, USER)).getMessage());
+    TopbarDisplayOptions unknown = new TopbarDisplayOptions(null, null, null, List.of(new TopbarApplicationOption(null, "Chat", false, null)));
+    assertEquals(NavigationDisplayService.APPLICATION_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> service.updateNavigationDisplay(unknown, null, USER)).getMessage());
+    TopbarDisplayOptions idWins = new TopbarDisplayOptions(null, null, null, List.of(new TopbarApplicationOption("search-2", "Chat", false, null)));
+    service.updateNavigationDisplay(idWins, null, USER);
+    ArgumentCaptor<NavigationConfiguration> captor = ArgumentCaptor.forClass(NavigationConfiguration.class);
+    verify(navigationConfigurationService, times(2)).updateConfiguration(captor.capture());
+    assertFalse(captor.getAllValues().get(1).getTopbar().getApplications().get(2).isEnabled());
+    assertTrue(captor.getAllValues().get(1).getTopbar().getApplications().get(0).isEnabled());
   }
 
   @Test

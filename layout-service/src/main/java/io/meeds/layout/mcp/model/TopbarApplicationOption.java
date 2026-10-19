@@ -24,8 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * One application of the topbar: on input, the identifier names the stored
- * application and a null field leaves its stored value; on output, every
- * field as stored, the name included.
+ * application, or its name when no identifier is given, and a null field
+ * leaves its stored value; on output, every field as stored.
  */
 @JsonInclude(Include.NON_NULL)
 public record TopbarApplicationOption(@JsonProperty("id") String id,

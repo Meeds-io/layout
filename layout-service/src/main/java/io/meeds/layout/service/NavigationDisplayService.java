@@ -20,9 +20,6 @@ package io.meeds.layout.service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -162,23 +159,15 @@ public class NavigationDisplayService {
   /**
    * The stored applications are copied before any change, since the
    * configuration service hands out the cached objects themselves: a refusal
-   * must leave the cache as it was.
+   * must leave the cache as it was. An entry names its application by
+   * identifier, or by name when it gives no identifier, since the identifiers
+   * are only known from this tool's own result.
    */
   private List<TopbarApplication> mergeApplications(List<TopbarApplication> stored,
                                                     List<TopbarApplicationOption> given) throws ObjectNotFoundException {
-    Map<String, TopbarApplication> copies = stored.stream()
-                                                  .map(this::copy)
-                                                  .collect(Collectors.toMap(TopbarApplication::getId,
-                                                                            Function.identity(),
-                                                                            (first, second) -> first));
+    List<TopbarApplication> copies = stored.stream().map(this::copy).toList();
     for (TopbarApplicationOption option : given) {
-      if (option == null || StringUtils.isBlank(option.id())) {
-        throw new IllegalArgumentException(APPLICATIONS_NOT_ACCEPTED);
-      }
-      TopbarApplication application = copies.get(option.id().trim());
-      if (application == null) {
-        throw new ObjectNotFoundException(APPLICATION_NOT_FOUND);
-      }
+      TopbarApplication application = findApplication(copies, option);
       if (option.enabled() != null) {
         application.setEnabled(option.enabled());
       }
@@ -186,7 +175,30 @@ public class NavigationDisplayService {
         application.setMobile(option.mobile());
       }
     }
-    return stored.stream().map(app -> copies.get(app.getId())).toList();
+    return copies;
+  }
+
+  private TopbarApplication findApplication(List<TopbarApplication> applications,
+                                            TopbarApplicationOption option) throws ObjectNotFoundException {
+    if (option == null || (StringUtils.isBlank(option.id()) && StringUtils.isBlank(option.name()))) {
+      throw new IllegalArgumentException(APPLICATIONS_NOT_ACCEPTED);
+    }
+    List<TopbarApplication> matches = StringUtils.isNotBlank(option.id()) ?
+                                                                          applications.stream()
+                                                                                      .filter(app -> StringUtils.equals(app.getId(),
+                                                                                                                        option.id().trim()))
+                                                                                      .toList() :
+                                                                          applications.stream()
+                                                                                      .filter(app -> StringUtils.equalsIgnoreCase(app.getName(),
+                                                                                                                                  option.name()
+                                                                                                                                        .trim()))
+                                                                                      .toList();
+    if (matches.isEmpty()) {
+      throw new ObjectNotFoundException(APPLICATION_NOT_FOUND);
+    } else if (matches.size() > 1) {
+      throw new IllegalArgumentException(APPLICATIONS_NOT_ACCEPTED);
+    }
+    return matches.get(0);
   }
 
   private void mergeSidebar(SidebarConfiguration stored, SidebarDisplayOptions given) {

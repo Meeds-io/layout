@@ -78,8 +78,9 @@ public class ThemeUpdateService {
    * @throws IllegalArgumentException when an option is not one of the part,
    *                                    when a value is blank, a page value
    *                                    outside the Page drawer's vocabulary
-   *                                    or a background image carrying a url
-   *                                    layer, when an option is both set and
+   *                                    or a background image other than none
+   *                                    or one gradient, when an option is
+   *                                    both set and
    *                                    reset, when nothing is asked, or with
    *                                    the branding service's message code
    *                                    when a value is refused
@@ -161,7 +162,7 @@ public class ThemeUpdateService {
         if (value != null) {
           if (!accepted.contains(option) || StringUtils.isBlank(value)
               || (ThemeOptions.PAGE_FIELDS.contains(option) && !BrandingPageStyleValidator.isAccepted(option, value))
-              || (option.endsWith(ThemeOptions.BACKGROUND_IMAGE_SUFFIX) && value.contains(ThemeOptions.URL_LAYER))) {
+              || (option.endsWith(ThemeOptions.BACKGROUND_IMAGE_SUFFIX) && !BrandingPageStyleValidator.isAcceptedEffect(value))) {
             throw new IllegalArgumentException(OPTIONS_NOT_ACCEPTED + ": " + option);
           }
           changes.put(option, value);

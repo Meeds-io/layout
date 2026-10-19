@@ -206,13 +206,17 @@ public class ThemeUpdateServiceTest {
                                                         Map.of("sideBarBackgroundImage", "url(https://cdn/x.png)"),
                                                         null,
                                                         USER)).getMessage());
-    assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": appTextTitleBackgroundImage",
-                 assertThrows(IllegalArgumentException.class,
-                              () -> service.updateTheme(ThemePart.PAGE_AND_APPS,
-                                                        Map.of("appTextTitleBackgroundImage",
-                                                               "linear-gradient(#fff, #000), url(https://cdn/x.png)"),
-                                                        null,
-                                                        USER)).getMessage());
+    List.of("linear-gradient(#fff, #000), url(https://cdn/x.png)",
+            "linear-gradient(#fff, #000), URL(x.png)",
+            "linear-gradient(#fff, #000), linear-gradient(#000, #fff)",
+            "initial")
+        .forEach(value -> assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": appTextTitleBackgroundImage",
+                                       assertThrows(IllegalArgumentException.class,
+                                                    () -> service.updateTheme(ThemePart.PAGE_AND_APPS,
+                                                                              Map.of("appTextTitleBackgroundImage", value),
+                                                                              null,
+                                                                              USER)).getMessage(),
+                                       value));
     verify(brandingService, never()).getBrandingInformation(anyBoolean());
     verify(brandingService, never()).updateBrandingInformation(any());
   }
@@ -223,12 +227,13 @@ public class ThemeUpdateServiceTest {
     loaded();
 
     service.updateTheme(ThemePart.PAGE_AND_APPS,
-                        Map.of("pageWidth", "1200px", "appMarginTop", "24px"),
+                        Map.of("pageWidth", "1200px", "appMarginTop", "24px", "appBackgroundImage", "radial-gradient(circle, #fff, #000)"),
                         List.of("pageBackgroundColor"),
                         USER);
 
     Branding submitted = submitted();
     assertEquals("1200px", submitted.getPageWidth());
+    assertEquals("radial-gradient(circle, #fff, #000)", submitted.getThemeStyle().get("appBackgroundImage"));
     assertNull(submitted.getPageBackgroundColor());
     assertEquals("24px", submitted.getThemeStyle().get("appMarginTop"));
     assertEquals("#111111", submitted.getThemeStyle().get("secondaryColor"));

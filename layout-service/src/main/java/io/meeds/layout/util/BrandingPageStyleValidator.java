@@ -63,13 +63,24 @@ public final class BrandingPageStyleValidator {
     return switch (field) {
       case ThemeOptions.PAGE_WIDTH -> isAcceptedWidth(value);
       case ThemeOptions.PAGE_BACKGROUND_COLOR -> COLOR_PATTERN.matcher(value).matches();
-      case ThemeOptions.PAGE_BACKGROUND_EFFECT -> EFFECT_PATTERN.matcher(value).matches() && isOneFunction(value);
+      case ThemeOptions.PAGE_BACKGROUND_EFFECT -> isAcceptedEffect(value);
       case ThemeOptions.PAGE_BACKGROUND_SIZE,
            ThemeOptions.PAGE_BACKGROUND_REPEAT,
            ThemeOptions.PAGE_BACKGROUND_POSITION,
            ThemeOptions.PAGE_BACKGROUND_ATTACHMENT -> KEYWORD_PATTERN.matcher(value).matches();
       default -> false;
     };
+  }
+
+  /**
+   * @param  value the value to write in a background image option, of the
+   *                 page or of a theme area
+   * @return       true when the value is none or exactly one gradient
+   *               function, as the drawers' background input writes it: a
+   *               url layer in any case, or a second layer, is refused
+   */
+  public static boolean isAcceptedEffect(String value) {
+    return value != null && EFFECT_PATTERN.matcher(value).matches() && isOneFunction(value);
   }
 
   /**
