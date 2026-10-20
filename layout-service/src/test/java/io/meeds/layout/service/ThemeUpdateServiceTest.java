@@ -166,46 +166,30 @@ public class ThemeUpdateServiceTest {
     service.updateTheme(ThemePart.COLORS, options, null, USER);
     assertEquals("#333333", submitted().getThemeStyle().get("secondaryColor"));
 
-    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
-                                                    () -> service.updateTheme(ThemePart.COLORS,
-                                                                              Map.of("primaryColor", " "),
-                                                                              null,
-                                                                              USER));
-    assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": primaryColor", refusal.getMessage());
+    assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": primaryColor",
+                 refusal(ThemePart.COLORS, Map.of("primaryColor", " "), null));
     verify(brandingService).updateBrandingInformation(any());
   }
 
   @Test
-  public void optionOutsideThePartOrUndeclaredIsRefusedBeforeAnyWrite() throws Exception {
+  public void optionOutsideThePartOrUndeclaredIsRefusedBeforeAnyWrite() {
     administrator();
     Map<String, String> defaults = new HashMap<>(defaults());
     defaults.remove("topBarSticky");
     when(brandingService.getDefaultThemeStyle()).thenReturn(defaults);
 
     assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": topBarTextColor",
-                 assertThrows(IllegalArgumentException.class,
-                              () -> service.updateTheme(ThemePart.COLORS, Map.of("topBarTextColor", "#000000"), null, USER)).getMessage());
+                 refusal(ThemePart.COLORS, Map.of("topBarTextColor", "#000000"), null));
     assertEquals(ThemeUpdateService.RESET_NOT_ACCEPTED + ": topBarTextColor",
-                 assertThrows(IllegalArgumentException.class,
-                              () -> service.updateTheme(ThemePart.COLORS, null, List.of("topBarTextColor"), USER)).getMessage());
+                 refusal(ThemePart.COLORS, null, List.of("topBarTextColor")));
     assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": topBarSticky",
-                 assertThrows(IllegalArgumentException.class,
-                              () -> service.updateTheme(ThemePart.TOPBAR, Map.of("topBarSticky", "true"), null, USER)).getMessage());
+                 refusal(ThemePart.TOPBAR, Map.of("topBarSticky", "true"), null));
     assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED,
-                 assertThrows(IllegalArgumentException.class,
-                              () -> service.updateTheme(ThemePart.COLORS, Map.of(), List.of(), USER)).getMessage());
+                 refusal(ThemePart.COLORS, Map.of(), List.of()));
     assertEquals(ThemeUpdateService.RESET_NOT_ACCEPTED + ": primaryColor",
-                 assertThrows(IllegalArgumentException.class,
-                              () -> service.updateTheme(ThemePart.COLORS,
-                                                        Map.of("primaryColor", "#123456"),
-                                                        List.of("primaryColor"),
-                                                        USER)).getMessage());
+                 refusal(ThemePart.COLORS, Map.of("primaryColor", "#123456"), List.of("primaryColor")));
     assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": sideBarBackgroundImage",
-                 assertThrows(IllegalArgumentException.class,
-                              () -> service.updateTheme(ThemePart.SIDEBARS,
-                                                        Map.of("sideBarBackgroundImage", "url(https://cdn/x.png)"),
-                                                        null,
-                                                        USER)).getMessage());
+                 refusal(ThemePart.SIDEBARS, Map.of("sideBarBackgroundImage", "url(https://cdn/x.png)"), null));
     List.of("linear-gradient(#fff, #000), url(https://cdn/x.png)",
             "linear-gradient(#fff, #000), URL(x.png)",
             "linear-gradient(red, url(x.png))",
@@ -213,11 +197,7 @@ public class ThemeUpdateServiceTest {
             "linear-gradient(#fff, #000), linear-gradient(#000, #fff)",
             "initial")
         .forEach(value -> assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": appTextTitleBackgroundImage",
-                                       assertThrows(IllegalArgumentException.class,
-                                                    () -> service.updateTheme(ThemePart.PAGE_AND_APPS,
-                                                                              Map.of("appTextTitleBackgroundImage", value),
-                                                                              null,
-                                                                              USER)).getMessage(),
+                                       refusal(ThemePart.PAGE_AND_APPS, Map.of("appTextTitleBackgroundImage", value), null),
                                        value));
     verify(brandingService, never()).getBrandingInformation(anyBoolean());
     verify(brandingService, never()).updateBrandingInformation(any());
@@ -278,33 +258,20 @@ public class ThemeUpdateServiceTest {
        .forEach((field, values) -> values.forEach(value -> assertFalse(BrandingPageStyleValidator.isAccepted(field, value),
                                                                        field + " " + value)));
     refused.forEach((field, value) -> assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": " + field,
-                                                   assertThrows(IllegalArgumentException.class,
-                                                                () -> service.updateTheme(ThemePart.PAGE_AND_APPS,
-                                                                                          Map.of(field, value),
-                                                                                          null,
-                                                                                          USER)).getMessage()));
+                                                   refusal(ThemePart.PAGE_AND_APPS, Map.of(field, value), null)));
     assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": pageBackgroundEffect",
-                 assertThrows(IllegalArgumentException.class,
-                              () -> service.updateTheme(ThemePart.PAGE_AND_APPS,
-                                                        Map.of("pageBackgroundEffect", "linear-gradient(90deg, #fff, #000"),
-                                                        null,
-                                                        USER)).getMessage());
+                 refusal(ThemePart.PAGE_AND_APPS, Map.of("pageBackgroundEffect", "linear-gradient(90deg, #fff, #000"), null));
     verify(brandingService).updateBrandingInformation(any());
   }
 
   @Test
-  public void brandingServiceRefusalPassesThroughUnchanged() throws Exception {
+  public void brandingServiceRefusalPassesThroughUnchanged() {
     administrator();
     loaded();
     doThrow(new IllegalArgumentException("branding.theme.invalidValue:primaryColor")).when(brandingService)
                                                                                      .updateBrandingInformation(any());
 
-    IllegalArgumentException refusal = assertThrows(IllegalArgumentException.class,
-                                                    () -> service.updateTheme(ThemePart.COLORS,
-                                                                              Map.of("primaryColor", "red"),
-                                                                              null,
-                                                                              USER));
-    assertEquals("branding.theme.invalidValue:primaryColor", refusal.getMessage());
+    assertEquals("branding.theme.invalidValue:primaryColor", refusal(ThemePart.COLORS, Map.of("primaryColor", "red"), null));
   }
 
   @Test
@@ -347,6 +314,10 @@ public class ThemeUpdateServiceTest {
     assertFalse(accepted.contains("topBarSticky"));
     assertTrue(accepted.contains("topBarTextColor"));
     assertTrue(service.acceptedOptions(ThemePart.PAGE_AND_APPS, Set.of()).containsAll(ThemeOptions.PAGE_FIELDS));
+  }
+
+  private String refusal(ThemePart part, Map<String, String> options, List<String> reset) {
+    return assertThrows(IllegalArgumentException.class, () -> service.updateTheme(part, options, reset, USER)).getMessage();
   }
 
   private void administrator() {

@@ -19,6 +19,7 @@
 package io.meeds.layout.mcp.constant;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -103,7 +104,7 @@ public final class ThemeOptions {
   }
 
   private static Set<String> background(String prefix) {
-    return suffixed(prefix, "BackgroundColor", "BackgroundImage", "BackgroundPosition", "BackgroundSize", "BackgroundRepeat");
+    return suffixed(prefix, "BackgroundColor", BACKGROUND_IMAGE_SUFFIX, "BackgroundPosition", "BackgroundSize", "BackgroundRepeat");
   }
 
   private static Set<String> text(String prefix) {
@@ -133,11 +134,16 @@ public final class ThemeOptions {
   }
 
   private static Set<String> suffixed(String prefix, String... suffixes) {
-    return Arrays.stream(suffixes).map(prefix::concat).collect(Collectors.toCollection(LinkedHashSet::new));
+    return unmodifiable(Arrays.stream(suffixes).map(prefix::concat));
   }
 
   @SafeVarargs
   private static Set<String> union(Set<String>... sets) {
-    return Stream.of(sets).flatMap(Set::stream).collect(Collectors.toCollection(LinkedHashSet::new));
+    return unmodifiable(Stream.of(sets).flatMap(Set::stream));
+  }
+
+  private static Set<String> unmodifiable(Stream<String> names) {
+    Set<String> ordered = names.collect(Collectors.toCollection(LinkedHashSet::new));
+    return Collections.unmodifiableSet(ordered);
   }
 }
