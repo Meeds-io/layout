@@ -206,8 +206,9 @@ public class SiteLayoutService {
   /**
    * Removes the draft sites of a deleted user: every draft site whose name ends
    * with {@code _draft_<username>}, a name another user could also have
-   * produced included, since that user couldn't open it while the deleted user
-   * existed and could afterwards.
+   * produced included. A non-administrator couldn't open such a draft while the
+   * deleted user existed and could afterwards; an administrator's draft of that
+   * name is removed too.
    *
    * @param username deleted user
    */
