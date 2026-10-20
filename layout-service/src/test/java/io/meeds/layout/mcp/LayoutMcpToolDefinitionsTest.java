@@ -39,6 +39,9 @@ import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.constant.SectionType;
 import io.meeds.layout.mcp.model.PageDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
+import io.meeds.layout.mcp.model.SidebarDisplayOptions;
+import io.meeds.layout.mcp.model.TopbarApplicationOption;
+import io.meeds.layout.mcp.model.TopbarDisplayOptions;
 import io.meeds.mcp.server.model.SimpleToolDefinition;
 import io.meeds.mcp.server.util.McpToolUtils;
 
@@ -52,6 +55,16 @@ public class LayoutMcpToolDefinitionsTest {
 
   private static final JsonHelper JSON_HELPER = new JsonHelper();
 
+  private static final String              NAVIGATION_DISPLAY_SAMPLE = """
+      {"topbar": {"display_company_name": true, "display_site_name": false, "display_mobile_company_logo": true,
+                  "applications": [{"id": "search", "enabled": false, "mobile": true}]},
+       "sidebar": {"allow_user_custom_home": true, "allowed_modes": ["icon", "sticky"], "default_mode": "icon"}}
+      """;
+
+  private static final Set<String>         WRITE_TOOLS               = Set.of("update_theme", "update_navigation_display");
+
+  private static final List<Class<?>>      TOOL_CLASSES              = List.of(LayoutMcpTool.class, BrandingMcpTool.class);
+
   private static final Map<String, String> SAMPLE_INPUTS = Map.of("list_sites",
                                                                   "{\"keyword\": \"marketing\"}",
                                                                   "get_site",
@@ -61,7 +74,11 @@ public class LayoutMcpToolDefinitionsTest {
                                                                   "get_page_layout",
                                                                   "{\"page_ref\": \"portal::mysite::home\", \"version\": \"draft\"}",
                                                                   "list_layout_applications",
-                                                                  "{\"category_id\": 2, \"keyword\": \"news\"}");
+                                                                  "{\"category_id\": 2, \"keyword\": \"news\"}",
+                                                                  "update_theme",
+                                                                  "{\"part\": \"colors\", \"options\": {\"primaryColor\": \"#123456\"}, \"reset\": [\"secondaryColor\"]}",
+                                                                  "update_navigation_display",
+                                                                  NAVIGATION_DISPLAY_SAMPLE);
 
   @Test
   public void everyPublicMethodHasADefinitionAndEveryDefinitionAMethod() {
@@ -90,12 +107,28 @@ public class LayoutMcpToolDefinitionsTest {
   }
 
   @Test
-  public void everyReadToolIsAnnotatedReadOnly() {
+  public void everyToolIsAnnotatedByItsNature() {
     definitions().values().forEach(definition -> {
+      boolean write = WRITE_TOOLS.contains(definition.getName());
       assertNotNull(definition.getAnnotations(), definition.getName());
-      assertEquals(Boolean.TRUE, definition.getAnnotations().readOnlyHint(), definition.getName());
-      assertEquals(Boolean.FALSE, definition.getAnnotations().destructiveHint(), definition.getName());
+      assertEquals(!write, definition.getAnnotations().readOnlyHint(), definition.getName());
+      assertEquals(write, definition.getAnnotations().destructiveHint(), definition.getName());
+      assertEquals(write, definition.isRequireApproval(), definition.getName());
     });
+  }
+
+  @Test
+  public void nestedArgumentsBindEveryFieldThroughTheServerConverter() {
+    Map<String, Object> arguments = JSON_HELPER.fromJsonToMap(NAVIGATION_DISPLAY_SAMPLE);
+    TopbarDisplayOptions topbar = (TopbarDisplayOptions) JSON_HELPER.convertToTypedObject(arguments.get("topbar"),
+                                                                                          TopbarDisplayOptions.class);
+    SidebarDisplayOptions sidebar = (SidebarDisplayOptions) JSON_HELPER.convertToTypedObject(arguments.get("sidebar"),
+                                                                                             SidebarDisplayOptions.class);
+
+    assertEquals(new TopbarDisplayOptions(true, false, true, List.of(new TopbarApplicationOption("search", null, false, true))), topbar);
+    assertEquals(new SidebarDisplayOptions(true, List.of("icon", "sticky"), "icon"), sidebar);
+    assertEquals(new TopbarDisplayOptions(null, null, null, null),
+                 JSON_HELPER.convertToTypedObject(JSON_HELPER.fromJsonToMap("{}"), TopbarDisplayOptions.class));
   }
 
   @Test
@@ -131,7 +164,8 @@ public class LayoutMcpToolDefinitionsTest {
   }
 
   private Map<String, Method> toolMethods() {
-    return Arrays.stream(LayoutMcpTool.class.getDeclaredMethods())
+    return TOOL_CLASSES.stream()
+                 .flatMap(c -> Arrays.stream(c.getDeclaredMethods()))
                  .filter(m -> Modifier.isPublic(m.getModifiers()) && !m.isSynthetic())
                  .collect(Collectors.toMap(m -> McpToolUtils.toSnakeCase(m.getName()), m -> m));
   }
