@@ -375,6 +375,18 @@ public class NavigationLayoutService {
     return router.render(params).replace("/en", "").replace("?lang=en", "").replace("&lang=en", "");
   }
 
+  /**
+   * @param  siteKey the site whose navigation is walked
+   * @return         the pages that a node of the site's navigation leads to,
+   *                 pages of other sites included, whereas the search index
+   *                 resolves a page's path in its own site's navigation
+   */
+  public Set<PageKey> getReachablePages(SiteKey siteKey) {
+    Set<PageKey> pageKeys = new HashSet<>();
+    collectPages(navigationService.loadNode(siteKey), pageKeys);
+    return pageKeys;
+  }
+
   @ContainerTransactional
   public void deleteNode(long nodeId) {
     NodeData nodeData = navigationService.getNodeById(nodeId);
@@ -468,8 +480,7 @@ public class NavigationLayoutService {
       return;
     }
     try {
-      Set<PageKey> reachablePages = new HashSet<>();
-      collectPages(navigationService.loadNode(siteKey), reachablePages);
+      Set<PageKey> reachablePages = getReachablePages(siteKey);
       pageKeys.stream().filter(pageKey -> !reachablePages.contains(pageKey)).forEach(this::broadcastPageUnreachable);
     } catch (Exception e) {
       LOG.debug("Cannot check whether pages {} are still reachable from navigation of site {}", pageKeys, siteKey, e);

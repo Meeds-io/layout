@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import io.meeds.layout.model.*;
@@ -35,13 +36,17 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserPortalConfig;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.config.model.ModelObject;
+import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
 import org.exoplatform.portal.mop.importer.ImportMode;
+import org.exoplatform.portal.mop.page.PageContext;
+import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.portal.mop.user.UserPortal;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.resources.LocaleConfig;
@@ -81,6 +86,12 @@ public class SiteLayoutService {
   @Autowired
   private LayoutAclService        aclService;
 
+  @Autowired
+  private ListenerService         listenerService;
+
+  @Autowired
+  private NavigationLayoutService navigationLayoutService;
+
   private Map<String, String>     supportedLanguages;
 
   private Locale                  defaultConfiguredLocale;
@@ -97,6 +108,7 @@ public class SiteLayoutService {
 
   public ModelObject getSiteLayout(SiteKey siteKey, String username) throws ObjectNotFoundException, IllegalAccessException {
     PortalConfig site = getSite(siteKey, username);
+    SiteLayoutUnresolvedException.checkResolved(site);
     return site.getPortalLayout();
   }
 
@@ -126,6 +138,7 @@ public class SiteLayoutService {
       throw new ObjectNotFoundException(String.format("Site with id %s doesn't exist",
                                                       createModel.getSiteId()));
     }
+    SiteLayoutUnresolvedException.checkResolved(templatePortalConfig);
 
     String[] accessPermissions = portalConfig.getAccessPermissions() == null ?
                                                                              new String[] {
@@ -159,6 +172,7 @@ public class SiteLayoutService {
       throw new IllegalAccessException(String.format("Not allowed to edit site %s", siteKey));
     }
     PortalConfig site = getSite(siteKey, username);
+    SiteLayoutUnresolvedException.checkResolved(site);
 
     String clonedSiteName = site.getType() + "_" + site.getName() + "_draft_" + username;
 
@@ -214,12 +228,20 @@ public class SiteLayoutService {
     } else if (!portalConfigService.canRestore(siteKey.getTypeName(), siteKey.getName())) {
       throw new IllegalStateException(String.format("Site %s can't be restored since it isn't a default site ", siteKey));
     }
+    Set<PageKey> previouslyReachablePages = restorePages || restoreNavigationTree ? getReachablePages(siteKey) : null;
     portalConfigService.restoreSite(siteKey.getTypeName(),
                                     siteKey.getName(),
                                     importMode,
                                     restoreSiteConfig,
                                     restorePages,
                                     restoreNavigationTree);
+    if (previouslyReachablePages != null) {
+      try {
+        broadcastRestoredPages(siteKey, previouslyReachablePages, restorePages, username);
+      } catch (RuntimeException e) {
+        LOG.warn("Site {} is restored, but the search index of its pages isn't refreshed", siteKey, e);
+      }
+    }
   }
 
   public void deleteSite(SiteKey siteKey, String username) throws IllegalAccessException, ObjectNotFoundException {
@@ -355,6 +377,42 @@ public class SiteLayoutService {
 
   private String getAdministratorsPermission() {
     return "*:" + aclService.getAdministratorsGroup();
+  }
+
+  private Set<PageKey> getReachablePages(SiteKey siteKey) {
+    try {
+      return navigationLayoutService.getReachablePages(siteKey);
+    } catch (RuntimeException e) {
+      LOG.warn("The restore of site {} won't refresh the search index of its pages: its navigation can't be read", siteKey, e);
+      return null;
+    }
+  }
+
+  /**
+   * A restore saves the pages and rebuilds the navigation of the site without
+   * the events of the editors. A page that a node of the site leads to is
+   * reindexed, for its content blocks and its path, as after a page save. A
+   * page whose last node in the site the restore removed is unindexed, as
+   * after a node deletion. A page that no node of the site led to is reached,
+   * if at all, from another site: it is reindexed when its content is
+   * restored, and left as it is otherwise.
+   */
+  private void broadcastRestoredPages(SiteKey siteKey,
+                                      Set<PageKey> previouslyReachablePages,
+                                      boolean pagesRestored,
+                                      String username) {
+    Set<PageKey> reachablePages = navigationLayoutService.getReachablePages(siteKey);
+    for (PageContext pageContext : layoutService.findPages(siteKey)) {
+      PageKey pageKey = pageContext.getKey();
+      if (reachablePages.contains(pageKey) || (pagesRestored && !previouslyReachablePages.contains(pageKey))) {
+        listenerService.broadcast(PageLayoutService.PAGE_UPDATED_EVENT, username, pageKey.format());
+      } else if (previouslyReachablePages.contains(pageKey)) {
+        Page page = layoutService.getPage(pageKey);
+        if (page != null) {
+          listenerService.broadcast(NavigationLayoutService.PAGE_UNREACHABLE_EVENT, this, page);
+        }
+      }
+    }
   }
 
 }

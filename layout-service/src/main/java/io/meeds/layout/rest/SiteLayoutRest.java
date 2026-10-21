@@ -58,6 +58,7 @@ import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SiteUpdateModel;
 import io.meeds.layout.rest.util.RestEntityBuilder;
 import io.meeds.layout.service.SiteLayoutService;
+import io.meeds.layout.service.SiteLayoutUnresolvedException;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -163,6 +164,7 @@ public class SiteLayoutRest {
     @ApiResponse(responseCode = "304", description = "Not modified"),
     @ApiResponse(responseCode = "403", description = "Forbidden"),
     @ApiResponse(responseCode = "404", description = "Not found"),
+    @ApiResponse(responseCode = "409", description = "Site layout not readable"),
   })
   public ResponseEntity<LayoutModel> getSiteLayout(
                                                    WebRequest webRequest,
@@ -192,6 +194,8 @@ public class SiteLayoutRest {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
     } catch (IllegalAccessException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+    } catch (SiteLayoutUnresolvedException e) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
     }
   }
 
@@ -330,7 +334,7 @@ public class SiteLayoutRest {
                                                              portalConfigService);
       return ResponseEntity.ok()
                            .body(siteEntity);
-    } catch (ObjectAlreadyExistsException e) {
+    } catch (ObjectAlreadyExistsException | SiteLayoutUnresolvedException e) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
     } catch (IllegalAccessException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
@@ -344,6 +348,7 @@ public class SiteLayoutRest {
     @ApiResponse(responseCode = "200", description = "Request fulfilled"),
     @ApiResponse(responseCode = "403", description = "Forbidden"),
     @ApiResponse(responseCode = "404", description = "Not found"),
+    @ApiResponse(responseCode = "409", description = "Site layout not readable"),
   })
   public ResponseEntity<SiteEntity> createDraftSite(
                                                     WebRequest webRequest,
@@ -361,6 +366,8 @@ public class SiteLayoutRest {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
     } catch (IllegalAccessException e) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+    } catch (SiteLayoutUnresolvedException e) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
     }
   }
 
@@ -372,6 +379,7 @@ public class SiteLayoutRest {
     @ApiResponse(responseCode = "400", description = "Invalid request input"),
     @ApiResponse(responseCode = "403", description = "Forbidden"),
     @ApiResponse(responseCode = "404", description = "Not found"),
+    @ApiResponse(responseCode = "409", description = "Site layout not readable"),
   })
   public ResponseEntity<LayoutModel> updateSiteLayout(
                                                       WebRequest webRequest,

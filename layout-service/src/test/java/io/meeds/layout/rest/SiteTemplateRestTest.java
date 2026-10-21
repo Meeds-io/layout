@@ -54,6 +54,7 @@ import org.springframework.web.context.WebApplicationContext;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 import io.meeds.layout.model.SiteTemplate;
+import io.meeds.layout.service.SiteLayoutUnresolvedException;
 import io.meeds.layout.service.SiteTemplateService;
 import io.meeds.spring.web.security.PortalAuthenticationManager;
 import io.meeds.spring.web.security.WebSecurityConfiguration;
@@ -125,6 +126,16 @@ public class SiteTemplateRestTest {
                                                             .contentType(MediaType.APPLICATION_JSON));
     response.andExpect(status().isForbidden());
     verifyNoInteractions(siteTemplateService);
+  }
+
+  @Test
+  void saveAsSiteTemplateWhenTheSiteLayoutIsUnresolved() throws Exception {
+    doThrow(SiteLayoutUnresolvedException.class).when(siteTemplateService)
+                                                 .saveAsSiteTemplate(any(), eq(2l), eq(SIMPLE_USER));
+    ResultActions response = mockMvc.perform(post(REST_PATH + "/2").with(testSimpleUser())
+                                                                   .content(toJsonString(new SiteTemplate()))
+                                                                   .contentType(MediaType.APPLICATION_JSON));
+    response.andExpect(status().isConflict());
   }
 
   @Test
