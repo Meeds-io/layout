@@ -197,6 +197,23 @@ public class LayoutStylingServiceTest {
                  refused(() -> LayoutStylingService.merge(withDecoratedImage,
                                                           styling(null, null, null, new BackgroundBlock(true, null, null, null, null, null, null, null, null, otherCorner), null, null),
                                                           false)));
+    BackgroundImageBlock allOther = new BackgroundImageBlock(null, "/image", null, null, null, null, null, new CornersBlock(true, 12, null, null, null, null));
+    assertEquals(REFUSED + "background.image.corners",
+                 refused(() -> LayoutStylingService.merge(withDecoratedImage,
+                                                          styling(null, null, null, new BackgroundBlock(true, null, null, null, null, null, null, null, null, allOther), null, null),
+                                                          false)));
+    BackgroundImageBlock unrounded = new BackgroundImageBlock(null, "/image", null, null, null, null, null, new CornersBlock(false, null, null, null, null, null));
+    assertEquals(REFUSED + "background.image.corners",
+                 refused(() -> LayoutStylingService.merge(withDecoratedImage,
+                                                          styling(null, null, null, new BackgroundBlock(true, null, null, null, null, null, null, null, null, unrounded), null, null),
+                                                          false)));
+    BackgroundImageBlock emptyCorners = new BackgroundImageBlock(null, "/image", null, null, null, null, null, new CornersBlock(null, null, null, null, null, null));
+    assertEquals(image,
+                 LayoutStylingService.merge(withImage,
+                                            styling(null, null, null, new BackgroundBlock(true, null, null, null, null, null, null, null, null, emptyCorners), null, null),
+                                            true)
+                                     .background()
+                                     .image());
     BackgroundImageBlock otherMargin = new BackgroundImageBlock(null, "/image", null, null, null, null, new SidesBlock(null, 2, null, null), null);
     assertEquals(REFUSED + "background.image.margins",
                  refused(() -> LayoutStylingService.merge(withDecoratedImage,

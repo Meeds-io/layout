@@ -341,7 +341,8 @@ public class LayoutStylingService {
       return false;
     }
     CornersBlock base = stored == null ? new CornersBlock(null, null, null, null, null, null) : stored;
-    return off(given.enabled()) != (stored == null || !on(stored.enabled()))
+    boolean storedRounded = base.topLeft() != null || base.topRight() != null || base.bottomRight() != null || base.bottomLeft() != null;
+    return (off(given.enabled()) && storedRounded)
            || differs(or(given.topLeft(), given.all()), base.topLeft())
            || differs(or(given.topRight(), given.all()), base.topRight())
            || differs(or(given.bottomRight(), given.all()), base.bottomRight())
