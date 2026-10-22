@@ -1039,12 +1039,23 @@ public class LayoutDescriptionServiceTest {
 
     Container bottom = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1);
     bottom.setCssClass("layout-banner-bottom-section layout-sticky-section");
-    SiteContainerDescription keptBottom = new SiteContainerDescription(bottom.getStorageId(), new SiteContainerOptions(null, null, true, null, null), null, null);
-    LayoutModel written = build(site, null, null, List.of(keptBottom)).getChildren().get(1).getChildren().get(1);
-    assertEquals(Set.of("layout-banner-bottom-section", "layout-sticky-section"), Set.of(written.getCssClass().split(" ")));
+    ModelStyle style = new ModelStyle();
+    style.setBackgroundColor("#111111@#222222");
+    bottom.setCssStyle(style);
+    SiteContainerDescription echoed = new SiteContainerDescription(bottom.getStorageId(),
+                                                                   new SiteContainerOptions(null, null, true, null, null),
+                                                                   new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#111111", null, null, null, null, "#222222", null, null), null, null),
+                                                                   null);
+    LayoutModel written = build(site, null, null, List.of(echoed)).getChildren().get(1).getChildren().get(1);
+    assertEquals("layout-banner-bottom-section", written.getCssClass());
+    assertEquals("#111111", written.getBackgroundColor());
+    SiteContainerDescription untouched = new SiteContainerDescription(bottom.getStorageId(), null, null, null);
+    written = build(site, null, null, List.of(untouched)).getChildren().get(1).getChildren().get(1);
+    assertEquals("layout-banner-bottom-section", written.getCssClass());
+    assertEquals("#111111", written.getBackgroundColor());
     SiteContainerDescription scrolled = new SiteContainerDescription(bottom.getStorageId(),
                                                                      null,
-                                                                     new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#111111", null, null, null, null, "#222222", null, null), null, null),
+                                                                     new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#111111", null, null, null, null, "#333333", null, null), null, null),
                                                                      null);
     assertEquals(LayoutStylingService.REFUSAL_PREFIX + "background.scroll_color", refused(() -> build(site, null, null, List.of(scrolled))));
   }

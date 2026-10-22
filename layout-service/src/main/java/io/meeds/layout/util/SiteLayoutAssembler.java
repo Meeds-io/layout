@@ -360,8 +360,8 @@ public class SiteLayoutAssembler {
    * cell; the position token is written from the banner's side. Only a
    * topbar is kept in place when the page scrolls, as the skin and the
    * editor's drawer have it: sticky is refused on a bottom bar unless the
-   * kept bar already stores the token, and a bottom bar takes no scroll
-   * colour
+   * kept bar already stores the token, which the read reports and the write
+   * then drops with its scroll colour, since neither has an effect there
    */
   private LayoutModel banner(SiteContainerDescription description, boolean top) throws ObjectNotFoundException {
     LayoutModel banner;
@@ -387,7 +387,7 @@ public class SiteLayoutAssembler {
     if (!top && Boolean.TRUE.equals(options.sticky()) && !storedSticky) {
       throw new IllegalArgumentException(STICKY_NOT_ACCEPTED);
     }
-    boolean sticky = options.sticky() != null ? options.sticky() : storedSticky;
+    boolean sticky = top && (options.sticky() != null ? options.sticky() : storedSticky);
     if (options.height() != null) {
       if (options.height() < 0 || options.height() > BANNER_HEIGHT_MAX) {
         throw new IllegalArgumentException(HEIGHT_NOT_ACCEPTED);
@@ -399,7 +399,7 @@ public class SiteLayoutAssembler {
     String bannerClass = LayoutStylingService.append(LayoutStylingService.strip(banner.getCssClass(), BANNER_TOKENS),
                                                      top ? BANNER_TOP_TOKEN : BANNER_BOTTOM_TOKEN);
     banner.setCssClass(sticky ? LayoutStylingService.append(bannerClass, STICKY_SECTION_TOKEN) : bannerClass);
-    applyStyling(banner, description.styling(), StylingDestination.BANNER, top && sticky, top);
+    applyStyling(banner, description.styling(), StylingDestination.BANNER, sticky, top);
     stylingService.applyDisplay(banner, options.display(), StylingDestination.BANNER, DISPLAY_NOT_ACCEPTED);
     placeApplications(description.applications(), cells);
     banner.setChildren(new ArrayList<>(cells));

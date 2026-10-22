@@ -703,7 +703,7 @@
               "properties": {
                 "container_id": {
                   "type": "string",
-                  "description": "the id of a bar in the layout get_site returned, to keep its stored element; omit to create it"
+                  "description": "the id of a topbar in the layout get_site returned, to keep its stored element; omit to create it"
                 },
                 "options": {
                   "type": "object",
@@ -858,7 +858,7 @@
               "properties": {
                 "container_id": {
                   "type": "string",
-                  "description": "the id of a bottom in the layout get_site returned, to keep its stored element; omit to create it"
+                  "description": "the id of a bottom bar in the layout get_site returned, to keep its stored element; omit to create it"
                 },
                 "options": {
                   "type": "object",

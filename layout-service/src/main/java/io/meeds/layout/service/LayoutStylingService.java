@@ -290,7 +290,7 @@ public class LayoutStylingService {
                                solid ? input.to() : or(input.to(), base.to()),
                                solid ? input.ratio() : or(input.ratio(), base.ratio()),
                                solid ? input.direction() : or(input.direction(), base.direction()),
-                               sticky && solid ? or(input.scrollColor(), base.scrollColor()) : input.scrollColor(),
+                               sticky && solid ? or(input.scrollColor(), base.scrollColor()) : scrollColorOrEcho(input.scrollColor(), base.scrollColor()),
                                restated ? input.effect() : or(input.effect(), base.effect()),
                                mergeImage(base.image(), input.image(), "background.image"));
   }
@@ -410,6 +410,16 @@ public class LayoutStylingService {
 
   private static CornersBlock mergeTextCorners(CornersBlock stored, CornersBlock input) {
     return input == null ? stored : mergeCorners(stored, input);
+  }
+
+  /**
+   * @return the scroll colour a call sends to an element that takes none:
+   *         null when it merely repeats the stored one, which the read
+   *         reports and the write drops, the value itself otherwise, for the
+   *         writer to refuse
+   */
+  private static String scrollColorOrEcho(String given, String stored) {
+    return given != null && given.equals(stored) ? null : given;
   }
 
   private static <T> T or(T value, T fallback) {
