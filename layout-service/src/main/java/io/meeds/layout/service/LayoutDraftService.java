@@ -133,7 +133,8 @@ public class LayoutDraftService {
   /**
    * Publishes the draft the user's revision names over the live site, as the
    * editor's save does from the stored draft, then removes the revision; a
-   * leftover draft without a revision is never published.
+   * leftover draft without a revision is never published, and the draft is
+   * read under the view rule a draft site carries, as the read tools read it.
    *
    * @param  liveSite                the site published
    * @param  username                the editing user
@@ -141,7 +142,7 @@ public class LayoutDraftService {
    * @throws IllegalAccessException  when the user may not edit the site
    */
   public void publishSite(PortalConfig liveSite, String username) throws ObjectNotFoundException, IllegalAccessException {
-    PortalConfig draftSite = layoutService.getPortalConfig(requireDraftSiteKey(liveSite, username));
+    PortalConfig draftSite = siteLayoutService.getSite(requireDraftSiteKey(liveSite, username), username);
     siteLayoutService.updateSiteLayout(liveSite.getSiteKey(), draftSite, true, username);
     coeditingService.removeRevision(username, siteKey(liveSite.getId()));
   }

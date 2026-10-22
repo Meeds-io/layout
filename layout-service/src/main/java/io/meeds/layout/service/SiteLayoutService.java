@@ -60,6 +60,11 @@ public class SiteLayoutService {
 
   public static final String      DISPLAYED_NOT_ACCEPTED = "value is not accepted for displayed";
 
+  /**
+   * Broadcast with the acting username and the SiteKey after a publication
+   * replaced a site's layout, whatever the site's kind (portal, group, user,
+   * template): a listener keyed on pages or spaces checks the kind itself
+   */
   public static final String      SITE_PUBLISHED_EVENT   = "layout.site.published";
 
   public static final String      SITE_OUTDATED_MESSAGE  = "layout.siteOutdatedError";

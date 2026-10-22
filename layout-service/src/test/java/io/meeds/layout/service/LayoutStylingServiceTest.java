@@ -306,12 +306,14 @@ public class LayoutStylingServiceTest {
     assertEquals("#333333", cell.getTextColor());
     assertEquals("16px", cell.getTextFontSize());
     assertNull(cell.getTextSubtitleColor());
-    assertNull(cell.getTextSubtitleFontWeight());
+    assertEquals("normal", cell.getTextSubtitleFontWeight());
+    assertEquals("normal", cell.getTextSubtitleFontStyle());
     assertEquals("#444444", cell.getIconColor());
 
     service.applyStyling(cell, null, StylingDestination.SIDEBAR, false, false);
     assertNull(cell.getTextTitleColor());
-    assertNull(cell.getTextTitleFontWeight());
+    assertEquals("normal", cell.getTextTitleFontWeight());
+    assertEquals("normal", cell.getTextHeaderFontStyle());
     assertNull(cell.getTextTitleBackgroundPadding());
     assertNull(cell.getIconColor());
 

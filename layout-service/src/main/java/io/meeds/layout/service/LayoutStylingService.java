@@ -460,12 +460,16 @@ public class LayoutStylingService {
     return role == null || role.size() == null ? null : range(role.size(), 1, TEXT_SIZE_MAX, path + ".size") + "px";
   }
 
+  /**
+   * The editor's text input writes a normal weight and style for every role
+   * it does not embolden or italicise, the block off included
+   */
   private String roleWeight(TextRoleBlock role) {
-    return role == null ? null : Boolean.TRUE.equals(role.bold()) ? BOLD : NORMAL;
+    return role != null && Boolean.TRUE.equals(role.bold()) ? BOLD : NORMAL;
   }
 
   private String roleStyle(TextRoleBlock role) {
-    return role == null ? null : Boolean.TRUE.equals(role.italic()) ? ITALIC : NORMAL;
+    return role != null && Boolean.TRUE.equals(role.italic()) ? ITALIC : NORMAL;
   }
 
   private String pixels(Integer value, int min, int max, String path) {

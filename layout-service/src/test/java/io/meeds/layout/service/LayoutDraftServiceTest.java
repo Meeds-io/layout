@@ -211,7 +211,7 @@ public class LayoutDraftServiceTest {
   public void publishSiteWritesTheRevisionsDraftOverTheLiveSiteAndRemovesTheRevision() throws Exception {
     PortalConfig liveSite = new PortalConfig("portal", "test", "portal_" + SITE_ID);
     PortalConfig draftSite = draftSite("portal_test_draft_john");
-    when(layoutService.getPortalConfig(draftSite.getSiteKey())).thenReturn(draftSite);
+    when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
 
     layoutDraftService.publishSite(liveSite, USER);
 
@@ -229,6 +229,10 @@ public class LayoutDraftServiceTest {
     draftSite("portal_test_draft_bob");
     assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.publishSite(liveSite, USER));
     assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.discardDraftSite(liveSite, USER));
+
+    PortalConfig ownDraft = draftSite("portal_test_draft_john");
+    when(siteLayoutService.getSite(ownDraft.getSiteKey(), USER)).thenThrow(new IllegalAccessException("owner only"));
+    assertThrows(IllegalAccessException.class, () -> layoutDraftService.publishSite(liveSite, USER));
 
     verify(siteLayoutService, never()).updateSiteLayout(any(), any(), anyBoolean(), any());
     verify(siteLayoutService, never()).createDraftSite(any(), any());

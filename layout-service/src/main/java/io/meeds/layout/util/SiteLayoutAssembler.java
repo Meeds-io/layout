@@ -47,8 +47,9 @@ import io.meeds.layout.service.LayoutStylingService;
  * and the banners are written in the order given, as the site layout editor's
  * parseSite and newSite shape them. A container addressed by its id keeps its
  * stored element (a banner its cells), an application addressed by its id
- * keeps its window, and a window the caller cannot see stays in its container
- * at its index when that container is kept, the call being refused otherwise.
+ * keeps its window, and a window the caller cannot see, which the call can
+ * neither address nor move, stays in its container at its index when that
+ * container is kept, the call being refused otherwise.
  */
 public class SiteLayoutAssembler {
 
@@ -334,7 +335,9 @@ public class SiteLayoutAssembler {
       LayoutModel application;
       if (description.applicationId() != null) {
         application = byId.get(description.applicationId());
-        if (application == null || StringUtils.isNotBlank(application.getTemplate())) {
+        if (application == null
+            || StringUtils.isNotBlank(application.getTemplate())
+            || hiddenWindows.containsKey(description.applicationId())) {
           throw new ObjectNotFoundException(APPLICATION_NOT_FOUND);
         } else if (!used.add(description.applicationId())) {
           throw new IllegalArgumentException(APPLICATION_ID_NOT_ACCEPTED);

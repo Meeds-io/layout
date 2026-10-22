@@ -876,6 +876,14 @@ public class LayoutDescriptionServiceTest {
                  assertThrows(IllegalAccessException.class,
                               () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, List.of(newTop), null), site, false, USER, Locale.ENGLISH)).getMessage());
 
+    SiteContainerDescription movedHidden = new SiteContainerDescription(topBanner.getStorageId(),
+                                                                        null,
+                                                                        null,
+                                                                        List.of(new ApplicationDescription("2", null, null, null, null, null, null, null, null)));
+    assertEquals(SiteLayoutAssembler.APPLICATION_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class,
+                              () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, List.of(movedHidden), null), site, false, USER, Locale.ENGLISH)).getMessage());
+
     PortalConfig siteWithHiddenContainer = storedSite();
     Container hiddenCell = findContainer(siteWithHiddenContainer.getPortalLayout(), LayoutDescriptionService.BANNER_CELL_TEMPLATE, 1);
     when(aclService.hasAccessPermission(hiddenCell, USER)).thenReturn(false);
