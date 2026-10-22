@@ -183,6 +183,25 @@ public class LayoutStylingServiceTest {
                                             true)
                                      .background()
                                      .image());
+    BackgroundImageBlock decorated = new BackgroundImageBlock(null, "/image", "cover", null, null, null, new SidesBlock(4, 4, 4, 4), new CornersBlock(true, 8, 8, 8, 8, 8));
+    StylingDescription withDecoratedImage = new StylingDescription(null, null, null, new BackgroundBlock(true, BackgroundMode.SOLID, "#111111", null, null, null, null, null, null, decorated), null, null);
+    BackgroundImageBlock sameInAnotherForm = new BackgroundImageBlock(null, null, null, null, null, null, new SidesBlock(4, null, null, null), new CornersBlock(null, 8, null, null, null, null));
+    assertEquals(decorated,
+                 LayoutStylingService.merge(withDecoratedImage,
+                                            styling(null, null, null, new BackgroundBlock(true, null, null, null, null, null, null, null, null, sameInAnotherForm), null, null),
+                                            false)
+                                     .background()
+                                     .image());
+    BackgroundImageBlock otherCorner = new BackgroundImageBlock(null, "/image", null, null, null, null, null, new CornersBlock(true, null, null, 12, null, null));
+    assertEquals(REFUSED + "background.image.corners",
+                 refused(() -> LayoutStylingService.merge(withDecoratedImage,
+                                                          styling(null, null, null, new BackgroundBlock(true, null, null, null, null, null, null, null, null, otherCorner), null, null),
+                                                          false)));
+    BackgroundImageBlock otherMargin = new BackgroundImageBlock(null, "/image", null, null, null, null, new SidesBlock(null, 2, null, null), null);
+    assertEquals(REFUSED + "background.image.margins",
+                 refused(() -> LayoutStylingService.merge(withDecoratedImage,
+                                                          styling(null, null, null, new BackgroundBlock(true, null, null, null, null, null, null, null, null, otherMargin), null, null),
+                                                          false)));
 
     StylingDescription unparsed = new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#111111", null, null, null, null, null, "linear-gradient(red, blue)", null), null, null);
     assertNull(LayoutStylingService.merge(unparsed, null, false).background());

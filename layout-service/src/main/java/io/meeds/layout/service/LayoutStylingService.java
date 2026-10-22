@@ -263,8 +263,8 @@ public class LayoutStylingService {
     BackgroundBlock base = stored != null && on(stored.enabled()) ? stored
                                                                   : new BackgroundBlock(true, null, null, null, null, null, null, null, null, null);
     if (input == null) {
-      return !on(base.enabled()) || sticky || base.scrollColor() == null || stored == null ? null
-                                                                                            : new BackgroundBlock(true,
+      return sticky || base.scrollColor() == null ? null
+                                                  : new BackgroundBlock(true,
                                                                                                                   base.mode(),
                                                                                                                   base.color(),
                                                                                                                   base.from(),
@@ -296,14 +296,16 @@ public class LayoutStylingService {
   }
 
   /**
-   * An image block the call sends must repeat the stored image: its url and
-   * every option it names, since no option of a stored image is rewritten
-   * here; the stored block is what the writer then keeps
+   * An image block the call sends must repeat the stored image: its url when
+   * given, and every option it names, a corner or a margin side compared by
+   * its value; a value it leaves out is the stored one, since no option of a
+   * stored image is rewritten here, and the stored block is what the writer
+   * then keeps
    */
   private static BackgroundImageBlock mergeImage(BackgroundImageBlock stored, BackgroundImageBlock input, String path) {
     if (input == null) {
       return stored;
-    } else if (input.imageUploadId() != null || stored == null || input.url() == null || !input.url().equals(stored.url())) {
+    } else if (input.imageUploadId() != null || stored == null || (input.url() != null && !input.url().equals(stored.url()))) {
       return input;
     } else if (differs(input.size(), stored.size())) {
       throw new IllegalArgumentException(REFUSAL_PREFIX + path + ".size");
@@ -313,9 +315,9 @@ public class LayoutStylingService {
       throw new IllegalArgumentException(REFUSAL_PREFIX + path + ".attachment");
     } else if (differs(input.repeat(), stored.repeat())) {
       throw new IllegalArgumentException(REFUSAL_PREFIX + path + ".repeat");
-    } else if (differs(input.margins(), stored.margins())) {
+    } else if (sidesDiffer(input.margins(), stored.margins())) {
       throw new IllegalArgumentException(REFUSAL_PREFIX + path + ".margins");
-    } else if (differs(input.corners(), stored.corners())) {
+    } else if (cornersDiffer(input.corners(), stored.corners())) {
       throw new IllegalArgumentException(REFUSAL_PREFIX + path + ".corners");
     }
     return stored;
@@ -323,6 +325,27 @@ public class LayoutStylingService {
 
   private static boolean differs(Object given, Object stored) {
     return given != null && !given.equals(stored);
+  }
+
+  private static boolean sidesDiffer(SidesBlock given, SidesBlock stored) {
+    if (given == null) {
+      return false;
+    }
+    SidesBlock base = stored == null ? new SidesBlock(null, null, null, null) : stored;
+    return differs(given.top(), base.top()) || differs(given.right(), base.right()) || differs(given.bottom(), base.bottom())
+           || differs(given.left(), base.left());
+  }
+
+  private static boolean cornersDiffer(CornersBlock given, CornersBlock stored) {
+    if (given == null) {
+      return false;
+    }
+    CornersBlock base = stored == null ? new CornersBlock(null, null, null, null, null, null) : stored;
+    return off(given.enabled()) != (stored == null || !on(stored.enabled()))
+           || differs(or(given.topLeft(), given.all()), base.topLeft())
+           || differs(or(given.topRight(), given.all()), base.topRight())
+           || differs(or(given.bottomRight(), given.all()), base.bottomRight())
+           || differs(or(given.bottomLeft(), given.all()), base.bottomLeft());
   }
 
   private static TextBlock mergeText(TextBlock stored, TextBlock input) {
