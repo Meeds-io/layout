@@ -119,6 +119,140 @@
       }
     },
     {
+      "name": "create_site",
+      "title": "Create a site",
+      "description": "Create a portal site from a site template, as the sites administration does, for every user at once (not a draft). name is the site's identifier and URL segment (letters, digits, - and _; at most 200 characters) and can never change; label is the name users see, in the platform's default language. Options omitted take the administration's defaults: the basic template, not displayed in the sites menu, the fa-globe icon, and administrators as the only ones who can access and edit the site. Every value is checked before anything is written, and a refused one is answered naming the option. The banner takes a banner_upload_id obtained from upload_layout_image. Returns the site as stored after the creation, its site_id included, whatever the permissions written let the caller read afterwards.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The site identifier: letters, digits, - and _ only, unique among the portal sites, immutable"
+          },
+          "label": {
+            "type": "string",
+            "description": "The name shown to users, at most 200 characters"
+          },
+          "description": {
+            "type": "string",
+            "description": "The site description, at most 2000 characters; omit for none"
+          },
+          "template": {
+            "type": "string",
+            "description": "The layout name of the site template to create the site from, one of the enabled site templates: basic (default), public, spacePublic, or a template an administrator added"
+          },
+          "banner_upload_id": {
+            "type": "string",
+            "description": "The upload_id of the banner image, from upload_layout_image; omit for no banner"
+          },
+          "access_permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Who can access the site, one or more permissions; omit for administrators only. A permission as the sites administration writes it: Everyone, or <membership>:<group> with an existing membership type (* for any) and an existing group, for example *:/platform/users, *:/platform/administrators, member:/spaces/marketing"
+          },
+          "edit_permission": {
+            "type": "string",
+            "description": "Who can edit the site, one permission; omit for administrators only. A permission as the sites administration writes it, <membership>:<group> with an existing membership type (* for any) and an existing group, for example *:/platform/users, *:/platform/administrators, member:/spaces/marketing"
+          },
+          "displayed": {
+            "type": "boolean",
+            "description": "Show the site in the sites menu; omit for not displayed"
+          },
+          "icon": {
+            "type": "string",
+            "description": "The icon shown in the sites menu, a Font Awesome class name such as fa-globe; omit for fa-globe"
+          }
+        },
+        "required": ["name", "label"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "update_site",
+      "title": "Update a site",
+      "description": "Update a site's label, description, icon, display in the sites menu, banner and permissions, as the sites administration does, for every user at once (not a draft). Only a site the sites administration lists can be updated: a portal site that is not a space's public site; a space's site, a user's site or a template is refused. Every option omitted keeps its stored value; a site's name identifies it and cannot change: change the label instead. label and description are written in the platform's default language; translations in other languages are kept. Permissions are written first, then the properties; when the properties fail, the stored permissions are put back. The banner takes a banner_upload_id from upload_layout_image, or remove_banner true to drop the stored one (not both). A refused value is answered naming the option and nothing is changed; when a later step fails, what was written before it is put back. Returns the site as stored after the change, whatever the permissions written let the caller read afterwards.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites"
+          },
+          "label": {
+            "type": "string",
+            "description": "The name shown to users, at most 200 characters; omit to keep it"
+          },
+          "description": {
+            "type": "string",
+            "description": "The site description, at most 2000 characters, an empty string to clear it; omit to keep it"
+          },
+          "access_permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Who can access the site, one or more permissions replacing the stored ones; omit to keep them. A permission as the sites administration writes it: Everyone, or <membership>:<group> with an existing membership type (* for any) and an existing group, for example *:/platform/users, *:/platform/administrators, member:/spaces/marketing"
+          },
+          "edit_permission": {
+            "type": "string",
+            "description": "Who can edit the site, one permission; omit to keep it. A permission as the sites administration writes it, <membership>:<group> with an existing membership type (* for any) and an existing group, for example *:/platform/users, *:/platform/administrators, member:/spaces/marketing"
+          },
+          "displayed": {
+            "type": "boolean",
+            "description": "Show the site in the sites menu; omit to keep it; false is refused on the platform's main site, which is always shown"
+          },
+          "icon": {
+            "type": "string",
+            "description": "The icon shown in the sites menu, a Font Awesome class name such as fa-globe; omit to keep it"
+          },
+          "banner_upload_id": {
+            "type": "string",
+            "description": "The upload_id of the new banner image, from upload_layout_image; omit to keep the banner"
+          },
+          "remove_banner": {
+            "type": "boolean",
+            "description": "true removes the stored banner; omit to keep it"
+          }
+        },
+        "required": ["site_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "delete_site",
+      "title": "Delete a site",
+      "description": "Delete a site with its pages and navigation, for every user at once and without undo, as the sites administration does: in the platform's assistant the user confirms it before it applies; an external client asks for confirmation only if its own settings do. A site the administration never offers to delete is refused: one the platform ships as not removable, a space's site or public site, a user's site, a template.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites"
+          }
+        },
+        "required": ["site_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
       "name": "update_theme",
       "title": "Update a part of the theme",
       "description": "Update one part of the platform theme, as the corresponding drawer of the Branding and Theme administration does, for every user at once (not a draft): in the platform's assistant the user confirms it before it applies; an external client asks for confirmation only if its own settings do. options sets the named options to the given values (strings, as the drawer sends them: colours as #RRGGBB or #RRGGBBAA, sizes with their unit such as 16px, keywords such as normal or bold); reset returns the named options to their configured default; every other option keeps its stored value. Options per part. colors: primaryColor, secondaryColor, tertiaryColor. font: fontFamily, one of the platform's supported families. topbar: topBarBackgroundColor, topBarBackgroundPosition, topBarBackgroundSize, topBarBackgroundRepeat, topBarTextColor, topBarTextFontSize, topBarTextFontStyle, topBarTextFontWeight, topBarIconColor, topBarSticky (true or false), topBarBackgroundScrollColor (the colour once scrolled, when sticky). sidebars: sideBarBackgroundColor, sideBarBackgroundImage, sideBarBackgroundPosition, sideBarBackgroundSize, sideBarBackgroundRepeat, sideBarTextColor, sideBarTextFontSize, sideBarTextFontStyle, sideBarTextFontWeight, sideBarTextSubtitleColor, sideBarTextSubtitleFontSize, sideBarTextSubtitleFontStyle, sideBarTextSubtitleFontWeight, sideBarIconColor. drawers: drawerBackgroundColor, drawerBackgroundImage, drawerBackgroundPosition, drawerBackgroundSize, drawerBackgroundRepeat, drawerIconColor, then Color, FontSize, FontStyle and FontWeight for each of drawerText, drawerTextSubtitle, drawerTextTitle and drawerTextHeader (for example drawerTextTitleColor). Every option ending in BackgroundImage takes none or exactly one CSS gradient function, such as linear-gradient(90deg, #ffffff, #000000): the image file itself is uploaded in the drawer, and a url() or a second layer is refused. page_and_apps: pageWidth (100px to 3000px, or 100%), pageBackgroundColor (a hex colour), pageBackgroundEffect (one CSS gradient function, or none), pageBackgroundSize, pageBackgroundRepeat, pageBackgroundPosition, pageBackgroundAttachment (CSS keywords), pageMarginTop, pageMarginRight, pageMarginBottom, pageMarginLeft, appMarginTop, appMarginRight, appMarginBottom, appMarginLeft, appBorderColor, appBorderSize, appBoxShadow, borderRadius, appBorderRadiusTopLeft, appBorderRadiusTopRight, appBorderRadiusBottomLeft, appBorderRadiusBottomRight, appBackgroundColor, appBackgroundImage, appBackgroundPosition, appBackgroundSize, appBackgroundRepeat, appIconColor, then Color, FontSize, FontStyle and FontWeight for each of appText, appTextTitle, appTextHeader and appTextSubtitle, and Color, Image, Position, Size, Repeat, PaddingTop, PaddingRight, PaddingBottom, PaddingLeft and Radius for each of appTextTitleBackground and appTextHeaderBackground. Images (logo, favicon, background files) are not theme options. A value the platform refuses is answered with its reason and nothing is changed. Returns the part's options as stored.",

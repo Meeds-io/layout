@@ -18,22 +18,28 @@
  */
 package io.meeds.layout.service;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
@@ -45,6 +51,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.InOrder;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -79,7 +86,9 @@ import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.PortletInstanceContext;
 import io.meeds.layout.model.SiteCreateModel;
+import io.meeds.layout.model.SitePropertiesUpdate;
 import io.meeds.layout.model.SiteUpdateModel;
+import io.meeds.social.translation.service.TranslationService;
 
 import lombok.SneakyThrows;
 
@@ -120,6 +129,9 @@ public class SiteLayoutServiceTest {
 
   @MockitoBean
   private NavigationLayoutService navigationLayoutService;
+
+  @MockitoBean
+  private TranslationService      translationService;
 
   @Autowired
   private SiteLayoutService       siteLayoutService;
@@ -438,6 +450,303 @@ public class SiteLayoutServiceTest {
 
   @Test
   @SneakyThrows
+  public void updateSiteAndPermissionsKeepsEveryPropertyTheCallerDidNotState() {
+    PortalConfig stored = storedSite();
+    SitePropertiesUpdate labelOnly = new SitePropertiesUpdate("New", null, null, null, null, null);
+    assertThrows(ObjectNotFoundException.class,
+                 () -> siteLayoutService.updateSiteAndPermissions(SITE_KEY, labelOnly, null, TEST_USER));
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(stored);
+    assertThrows(IllegalAccessException.class,
+                 () -> siteLayoutService.updateSiteAndPermissions(SITE_KEY, labelOnly, null, TEST_USER));
+    verify(layoutService, never()).save(any(PortalConfig.class));
+
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    defaultLocale(Locale.FRENCH);
+    siteLayoutService.updateSiteAndPermissions(SITE_KEY, labelOnly, null, TEST_USER);
+
+    verify(layoutService, times(1)).save(stored);
+    assertEquals("New", stored.getLabel());
+    assertEquals("Old description", stored.getDescription());
+    assertEquals("fa-old", stored.getIcon());
+    assertTrue(stored.isDisplayed());
+    assertEquals(3, stored.getDisplayOrder());
+    assertArrayEquals(new String[] { "*:/platform/users" }, stored.getAccessPermissions());
+    assertEquals("*:/platform/administrators", stored.getEditPermission());
+    assertEquals(0, stored.getBannerFileId());
+    verify(layoutService, never()).removeSiteBanner(any());
+    verify(translationService).saveTranslationLabel("site", 3L, "label", Locale.FRENCH, "New");
+    verify(translationService, never()).saveTranslationLabel(any(), anyLong(), eq("description"), any(), any());
+
+    siteLayoutService.updateSiteAndPermissions(SITE_KEY,
+                                               new SitePropertiesUpdate(null, " ", "fa-new", false, null, true),
+                                               null,
+                                               TEST_USER);
+    assertEquals("New", stored.getLabel());
+    assertNull(stored.getDescription());
+    assertEquals("fa-new", stored.getIcon());
+    assertFalse(stored.isDisplayed());
+    assertEquals(0, stored.getDisplayOrder());
+    verify(layoutService, never()).removeSiteBanner(any());
+    verify(translationService).saveTranslationLabel("site", 3L, "description", Locale.FRENCH, " ");
+    verify(translationService, times(1)).saveTranslationLabel(any(), anyLong(), eq("label"), any(), any());
+  }
+
+  /**
+   * The permissions are written first, then the properties, so a failure on
+   * the properties leaves the permissions written: they are put back by a
+   * third save carrying the stored values, and nothing is translated.
+   */
+  @Test
+  @SneakyThrows
+  public void updateSiteAndPermissionsWritesPermissionsFirstAndPutsThemBackWhenThePropertiesFail() {
+    PortalConfig stored = storedSite();
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(stored);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    defaultLocale(Locale.ENGLISH);
+    when(translationService.getTranslationLabel("site", 3L, "label", Locale.ENGLISH)).thenReturn("Ancien");
+    List<String> saves = new ArrayList<>();
+    boolean[] propertiesSaveFails = { true };
+    doAnswer(invocation -> {
+      PortalConfig saved = invocation.getArgument(0, PortalConfig.class);
+      saves.add(saved.getEditPermission() + "|" + String.join(",", saved.getAccessPermissions()) + "|" + saved.getLabel());
+      if (propertiesSaveFails[0] && saves.size() == 2) {
+        throw new IllegalStateException("properties save failed");
+      }
+      return null;
+    }).when(layoutService).save(stored);
+    PermissionUpdateModel permissions = new PermissionUpdateModel(SITE_KEY.getTypeName(),
+                                                                  SITE_KEY.getName(),
+                                                                  List.of("Everyone"),
+                                                                  "*:/platform/web-contributors");
+    SitePropertiesUpdate properties = new SitePropertiesUpdate("New", null, null, null, null, null);
+
+    assertEquals("properties save failed",
+                 assertThrows(IllegalStateException.class,
+                              () -> siteLayoutService.updateSiteAndPermissions(SITE_KEY, properties, permissions, TEST_USER)).getMessage());
+    assertEquals(List.of("*:/platform/web-contributors|Everyone|Old",
+                         "*:/platform/web-contributors|Everyone|New",
+                         "*:/platform/administrators|*:/platform/users|New"),
+                 saves);
+    InOrder translations = inOrder(translationService);
+    translations.verify(translationService).saveTranslationLabel("site", 3L, "label", Locale.ENGLISH, "New");
+    translations.verify(translationService).saveTranslationLabel("site", 3L, "label", Locale.ENGLISH, "Ancien");
+    verify(translationService, never()).saveTranslationLabel(any(), anyLong(), eq("description"), any(), any());
+
+    saves.clear();
+    propertiesSaveFails[0] = false;
+    siteLayoutService.updateSiteAndPermissions(SITE_KEY, properties, permissions, TEST_USER);
+    assertEquals(List.of("*:/platform/web-contributors|Everyone|New", "*:/platform/web-contributors|Everyone|New"), saves);
+    verify(translationService, times(2)).saveTranslationLabel("site", 3L, "label", Locale.ENGLISH, "New");
+    verify(translationService, times(1)).saveTranslationLabel("site", 3L, "label", Locale.ENGLISH, "Ancien");
+  }
+
+  /**
+   * The edit right is checked once, before the first write: handing it to a
+   * group the caller is not in applies, alone or with properties, as the
+   * permissions drawer's own request does
+   */
+  @Test
+  @SneakyThrows
+  public void updateSiteAndPermissionsHandsTheEditRightToAGroupTheCallerIsNotIn() {
+    PortalConfig stored = storedSite();
+    stored.setEditPermission("manager:/spaces/marketing");
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(stored);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenAnswer(i -> "manager:/spaces/marketing".equals(stored.getEditPermission()));
+    List<String> saves = new ArrayList<>();
+    doAnswer(invocation -> {
+      PortalConfig saved = invocation.getArgument(0, PortalConfig.class);
+      saves.add(saved.getEditPermission() + "|" + saved.getLabel());
+      return null;
+    }).when(layoutService).save(stored);
+    PermissionUpdateModel handOver = new PermissionUpdateModel(SITE_KEY.getTypeName(), SITE_KEY.getName(), null, "*:/platform/administrators");
+
+    siteLayoutService.updateSiteAndPermissions(SITE_KEY, new SitePropertiesUpdate("New", null, null, null, null, null), handOver, TEST_USER);
+    assertEquals(List.of("*:/platform/administrators|Old", "*:/platform/administrators|New"), saves);
+    assertEquals("*:/platform/administrators", stored.getEditPermission());
+
+    stored.setEditPermission("manager:/spaces/marketing");
+    saves.clear();
+    siteLayoutService.updateSiteAndPermissions(SITE_KEY, new SitePropertiesUpdate(null, null, null, null, null, null), handOver, TEST_USER);
+    assertEquals(List.of("*:/platform/administrators|New", "*:/platform/administrators|New"), saves);
+  }
+
+  /**
+   * The meta site is the one the sites administration form never lets out of
+   * the sites menu: hiding it is refused, before any write
+   */
+  @Test
+  @SneakyThrows
+  public void updateSiteAndPermissionsRefusesToHideTheMetaSite() {
+    PortalConfig stored = storedSite();
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(stored);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(portalConfigService.getMetaPortal()).thenReturn(SITE_KEY.getName());
+    PermissionUpdateModel permissions = new PermissionUpdateModel(SITE_KEY.getTypeName(), SITE_KEY.getName(), List.of("Everyone"), null);
+
+    assertEquals(SiteLayoutService.DISPLAYED_NOT_ACCEPTED,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> siteLayoutService.updateSiteAndPermissions(SITE_KEY,
+                                                                               new SitePropertiesUpdate(null, null, null, false, null, null),
+                                                                               permissions,
+                                                                               TEST_USER)).getMessage());
+    verify(layoutService, never()).save(any(PortalConfig.class));
+    assertTrue(stored.isDisplayed());
+
+    siteLayoutService.updateSiteAndPermissions(SITE_KEY, new SitePropertiesUpdate(null, null, null, true, null, null), null, TEST_USER);
+    assertTrue(stored.isDisplayed());
+    assertEquals(3, stored.getDisplayOrder());
+
+    when(portalConfigService.getMetaPortal()).thenReturn("other");
+    siteLayoutService.updateSiteAndPermissions(SITE_KEY, new SitePropertiesUpdate(null, null, null, false, null, null), null, TEST_USER);
+    assertFalse(stored.isDisplayed());
+  }
+
+  /**
+   * A creation that fails after the site was instantiated from its template
+   * removes that site, so the name is free for a retry: made removable first,
+   * since the template's clone is not, and left whole when that save fails
+   */
+  @Test
+  @SneakyThrows
+  public void createSiteRemovesTheSiteItCreatedWhenTheFinalSaveFails() {
+    SiteCreateModel createModel = mock(SiteCreateModel.class);
+    when(createModel.getPortalConfig()).thenReturn(portalConfig);
+    when(portalConfig.getName()).thenReturn(SITE_KEY.getName());
+    when(aclService.canAddSite(TEST_USER)).thenReturn(true);
+    when(createModel.getSiteId()).thenReturn(7L);
+    PortalConfig templatePortalConfig = mock(PortalConfig.class);
+    when(layoutService.getPortalConfig(7L)).thenReturn(templatePortalConfig);
+    when(templatePortalConfig.getType()).thenReturn(PortalConfig.PORTAL_TEMPLATE);
+    when(templatePortalConfig.getName()).thenReturn("basic");
+    when(aclService.getAdministratorsGroup()).thenReturn("administrators");
+    PortalConfig created = mock(PortalConfig.class);
+    doAnswer(invocation -> {
+      when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(created);
+      return null;
+    }).when(portalConfigService).createSiteFromTemplate(SiteKey.portalTemplate("basic"), SITE_KEY);
+    int[] saves = { 0 };
+    doAnswer(invocation -> {
+      if (saves[0]++ == 0) {
+        throw new IllegalStateException("Error while saving site image file");
+      }
+      return null;
+    }).when(layoutService).save(created);
+
+    assertEquals("Error while saving site image file",
+                 assertThrows(IllegalStateException.class, () -> siteLayoutService.createSite(createModel, TEST_USER)).getMessage());
+    InOrder removal = inOrder(created, navigationService, layoutService);
+    removal.verify(created).setBannerUploadId(null);
+    removal.verify(created).setRemovable(true);
+    removal.verify(layoutService).save(created);
+    removal.verify(navigationService).destroyNavigation(SITE_KEY);
+    removal.verify(layoutService).removePages(SITE_KEY);
+    removal.verify(layoutService).remove(created);
+
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(null);
+    doThrow(new IllegalStateException("Error while saving site image file")).when(layoutService).save(created);
+    assertEquals("Error while saving site image file",
+                 assertThrows(IllegalStateException.class, () -> siteLayoutService.createSite(createModel, TEST_USER)).getMessage());
+    verify(navigationService, times(1)).destroyNavigation(SITE_KEY);
+    verify(layoutService, times(1)).removePages(SITE_KEY);
+    verify(layoutService, times(1)).remove(created);
+  }
+
+  @Test
+  @SneakyThrows
+  public void updateSiteAndPermissionsLeavesThePropertiesWhenThePermissionsAreRefused() {
+    PortalConfig stored = storedSite();
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(stored);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    doThrow(new IllegalStateException("permissions save failed")).when(layoutService).save(stored);
+    PermissionUpdateModel permissions = new PermissionUpdateModel(SITE_KEY.getTypeName(), SITE_KEY.getName(), List.of("Everyone"), null);
+
+    assertThrows(IllegalStateException.class,
+                 () -> siteLayoutService.updateSiteAndPermissions(SITE_KEY,
+                                                                  new SitePropertiesUpdate("New", null, null, null, null, null),
+                                                                  permissions,
+                                                                  TEST_USER));
+    verify(layoutService, times(1)).save(stored);
+    assertEquals("Old", stored.getLabel());
+    verify(translationService, never()).saveTranslationLabel(any(), anyLong(), any(), any(), any());
+  }
+
+  /**
+   * A translation write that fails sits between the permissions and the
+   * properties: the permissions are put back, the properties never written,
+   * and the translation returned to what it held, a blank when it held none
+   */
+  @Test
+  @SneakyThrows
+  public void updateSiteAndPermissionsPutsThePermissionsBackWhenATranslationWriteFails() {
+    PortalConfig stored = storedSite();
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(stored);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    defaultLocale(Locale.ENGLISH);
+    List<String> saves = new ArrayList<>();
+    doAnswer(invocation -> {
+      PortalConfig saved = invocation.getArgument(0, PortalConfig.class);
+      saves.add(saved.getEditPermission() + "|" + String.join(",", saved.getAccessPermissions()) + "|" + saved.getLabel());
+      return null;
+    }).when(layoutService).save(stored);
+    doThrow(new IllegalStateException("translation failed")).when(translationService)
+                                                              .saveTranslationLabel("site", 3L, "label", Locale.ENGLISH, "New");
+    PermissionUpdateModel permissions = new PermissionUpdateModel(SITE_KEY.getTypeName(), SITE_KEY.getName(), List.of("Everyone"), null);
+
+    assertEquals("translation failed",
+                 assertThrows(IllegalStateException.class,
+                              () -> siteLayoutService.updateSiteAndPermissions(SITE_KEY,
+                                                                               new SitePropertiesUpdate("New", "Desc", null, null, null, null),
+                                                                               permissions,
+                                                                               TEST_USER)).getMessage());
+    assertEquals(List.of("*:/platform/administrators|Everyone|Old", "*:/platform/administrators|*:/platform/users|Old"), saves);
+    verify(translationService).deleteTranslationLabel("site", 3L, "label", Locale.ENGLISH);
+    verify(translationService, never()).deleteTranslationLabel(any(), anyLong(), eq("description"), any());
+    verify(translationService, never()).saveTranslationLabel(any(), anyLong(), eq("description"), any(), any());
+  }
+
+  /**
+   * A put-back that fails itself neither hides the first failure nor stops
+   * the other put-backs: the permissions go first, then each translation
+   * attempted, the one whose write failed included, and the exception raised
+   * is the one that stopped the update
+   */
+  @Test
+  @SneakyThrows
+  public void updateSiteAndPermissionsRaisesTheFirstFailureWhenAPutBackFailsToo() {
+    PortalConfig stored = storedSite();
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(stored);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    defaultLocale(Locale.ENGLISH);
+    List<String> saves = new ArrayList<>();
+    doAnswer(invocation -> {
+      PortalConfig saved = invocation.getArgument(0, PortalConfig.class);
+      saves.add(saved.getEditPermission() + "|" + String.join(",", saved.getAccessPermissions()) + "|" + saved.getLabel());
+      if (saves.size() == 2) {
+        throw new IllegalStateException("put-back save failed");
+      }
+      return null;
+    }).when(layoutService).save(stored);
+    doThrow(new IllegalStateException("description failed")).when(translationService)
+                                                              .saveTranslationLabel("site", 3L, "description", Locale.ENGLISH, "Desc");
+    doThrow(new IllegalStateException("put-back delete failed")).when(translationService)
+                                                                 .deleteTranslationLabel("site", 3L, "label", Locale.ENGLISH);
+    PermissionUpdateModel permissions = new PermissionUpdateModel(SITE_KEY.getTypeName(), SITE_KEY.getName(), List.of("Everyone"), null);
+
+    assertEquals("description failed",
+                 assertThrows(IllegalStateException.class,
+                              () -> siteLayoutService.updateSiteAndPermissions(SITE_KEY,
+                                                                               new SitePropertiesUpdate("New", "Desc", null, null, null, null),
+                                                                               permissions,
+                                                                               TEST_USER)).getMessage());
+    assertEquals(List.of("*:/platform/administrators|Everyone|Old", "*:/platform/administrators|*:/platform/users|Old"), saves);
+    InOrder putBacks = inOrder(layoutService, translationService);
+    putBacks.verify(layoutService, times(2)).save(stored);
+    putBacks.verify(translationService).deleteTranslationLabel("site", 3L, "label", Locale.ENGLISH);
+    putBacks.verify(translationService).deleteTranslationLabel("site", 3L, "description", Locale.ENGLISH);
+  }
+
+  @Test
+  @SneakyThrows
   public void restoreSite() {
     assertThrows(ObjectNotFoundException.class,
                  () -> siteLayoutService.restoreSite(SITE_KEY, ImportMode.CONSERVE, true, true, true, TEST_USER));
@@ -710,6 +1019,24 @@ public class SiteLayoutServiceTest {
     PortalConfig existingDraftSite = new PortalConfig(PortalConfig.DRAFT, DRAFT_SITE_NAME);
     when(layoutService.getPortalConfig(DRAFT_SITE_KEY)).thenReturn(existingDraftSite);
     return existingDraftSite;
+  }
+
+  private PortalConfig storedSite() {
+    PortalConfig stored = new PortalConfig(SITE_KEY.getTypeName(), SITE_KEY.getName(), "portal_3");
+    stored.setLabel("Old");
+    stored.setDescription("Old description");
+    stored.setIcon("fa-old");
+    stored.setDisplayed(true);
+    stored.setDisplayOrder(3);
+    stored.setAccessPermissions(new String[] { "*:/platform/users" });
+    stored.setEditPermission("*:/platform/administrators");
+    return stored;
+  }
+
+  private void defaultLocale(Locale locale) {
+    LocaleConfig localeConfig = mock(LocaleConfig.class);
+    when(localeConfig.getLocale()).thenReturn(locale);
+    when(localeConfigService.getDefaultLocaleConfig()).thenReturn(localeConfig);
   }
 
 }
