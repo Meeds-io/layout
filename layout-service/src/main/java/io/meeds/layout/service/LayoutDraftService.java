@@ -23,6 +23,7 @@ import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.navigation.NodeContext;
@@ -51,6 +52,8 @@ public class LayoutDraftService {
 
   public static final String DRAFT_NAME_MARKER      = "_draft_";
 
+  public static final String NO_DRAFT_MESSAGE       = "User %s has no draft of site %s";
+
   @Autowired
   private CoeditingService   coeditingService;
 
@@ -59,6 +62,9 @@ public class LayoutDraftService {
 
   @Autowired
   private LayoutService      layoutService;
+
+  @Autowired
+  private SiteLayoutService  siteLayoutService;
 
   /**
    * @param  liveNodeId the navigation node of the live page
@@ -103,6 +109,56 @@ public class LayoutDraftService {
       return null;
     }
     return draftSite.getSiteKey();
+  }
+
+  /**
+   * Creates the user's draft of a site through the editor's own path and
+   * records the draft site id as the user's co-editing revision, so the
+   * editor resumes it and the read tools return it; an existing draft of
+   * the same user is replaced, as the editor's "start again" does.
+   *
+   * @param  liveSite                the site drafted
+   * @param  username                the editing user
+   * @return                         the draft site's key
+   * @throws ObjectNotFoundException when the live site does not exist
+   * @throws IllegalAccessException  when the user may not edit the site
+   */
+  public SiteKey createDraftSite(PortalConfig liveSite, String username) throws ObjectNotFoundException, IllegalAccessException {
+    SiteKey draftSiteKey = siteLayoutService.createDraftSite(liveSite.getSiteKey(), username);
+    PortalConfig draftSite = layoutService.getPortalConfig(draftSiteKey);
+    coeditingService.setRevision(username, siteKey(liveSite.getId()), String.valueOf(draftSite.getId()));
+    return draftSiteKey;
+  }
+
+  /**
+   * Publishes the draft the user's revision names over the live site, as the
+   * editor's save does from the stored draft, then removes the revision; a
+   * leftover draft without a revision is never published.
+   *
+   * @param  liveSite                the site published
+   * @param  username                the editing user
+   * @throws ObjectNotFoundException when the user has no draft of the site
+   * @throws IllegalAccessException  when the user may not edit the site
+   */
+  public void publishSite(PortalConfig liveSite, String username) throws ObjectNotFoundException, IllegalAccessException {
+    PortalConfig draftSite = layoutService.getPortalConfig(requireDraftSiteKey(liveSite, username));
+    siteLayoutService.updateSiteLayout(liveSite.getSiteKey(), draftSite, true, username);
+    coeditingService.removeRevision(username, siteKey(liveSite.getId()));
+  }
+
+  /**
+   * Drops the draft the user's revision names and starts a new one from the
+   * live layout, as the editor's "start again" does.
+   *
+   * @param  liveSite                the site drafted
+   * @param  username                the editing user
+   * @return                         the new draft site's key
+   * @throws ObjectNotFoundException when the user has no draft of the site
+   * @throws IllegalAccessException  when the user may not edit the site
+   */
+  public SiteKey discardDraftSite(PortalConfig liveSite, String username) throws ObjectNotFoundException, IllegalAccessException {
+    requireDraftSiteKey(liveSite, username);
+    return createDraftSite(liveSite, username);
   }
 
   /**
@@ -155,6 +211,18 @@ public class LayoutDraftService {
       }
     }
     return null;
+  }
+
+  private SiteKey requireDraftSiteKey(PortalConfig liveSite, String username) throws ObjectNotFoundException {
+    SiteKey draftSiteKey = getDraftSiteKey(liveSite.getId(), username);
+    if (draftSiteKey == null) {
+      throw new ObjectNotFoundException(String.format(NO_DRAFT_MESSAGE, username, liveSite.getSiteKey()));
+    }
+    return draftSiteKey;
+  }
+
+  private CoeditionObjectKey siteKey(long siteId) {
+    return new CoeditionObjectKey(SITE_OBJECT_TYPE, String.valueOf(siteId));
   }
 
   private String getRevision(String username, String objectType, String objectId) {

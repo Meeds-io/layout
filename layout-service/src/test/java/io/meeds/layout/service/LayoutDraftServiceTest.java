@@ -21,8 +21,10 @@ package io.meeds.layout.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -37,6 +39,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
@@ -75,6 +78,9 @@ public class LayoutDraftServiceTest {
 
   @MockitoBean
   private LayoutService        layoutService;
+
+  @MockitoBean
+  private SiteLayoutService    siteLayoutService;
 
   @Autowired
   private LayoutDraftService   layoutDraftService;
@@ -188,6 +194,73 @@ public class LayoutDraftServiceTest {
     when(navigationService.loadNode(SiteKey.portal("test"))).thenReturn(root);
 
     assertNull(layoutDraftService.findLiveNodeId(LIVE_PAGE));
+  }
+
+  @Test
+  public void createDraftSiteRecordsTheDraftIdAsTheUsersRevision() throws Exception {
+    PortalConfig liveSite = new PortalConfig("portal", "test", "portal_" + SITE_ID);
+    SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
+    when(siteLayoutService.createDraftSite(SiteKey.portal("test"), USER)).thenReturn(draftKey);
+    when(layoutService.getPortalConfig(draftKey)).thenReturn(new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9"));
+
+    assertEquals(draftKey, layoutDraftService.createDraftSite(liveSite, USER));
+    verify(coeditingService).setRevision(USER, new CoeditionObjectKey(LayoutDraftService.SITE_OBJECT_TYPE, String.valueOf(SITE_ID)), "9");
+  }
+
+  @Test
+  public void publishSiteWritesTheRevisionsDraftOverTheLiveSiteAndRemovesTheRevision() throws Exception {
+    PortalConfig liveSite = new PortalConfig("portal", "test", "portal_" + SITE_ID);
+    PortalConfig draftSite = draftSite("portal_test_draft_john");
+    when(layoutService.getPortalConfig(draftSite.getSiteKey())).thenReturn(draftSite);
+
+    layoutDraftService.publishSite(liveSite, USER);
+
+    verify(siteLayoutService).updateSiteLayout(SiteKey.portal("test"), draftSite, true, USER);
+    verify(coeditingService).removeRevision(USER, new CoeditionObjectKey(LayoutDraftService.SITE_OBJECT_TYPE, String.valueOf(SITE_ID)));
+  }
+
+  @Test
+  public void publishAndDiscardWithoutADraftOfTheUserWriteNothing() throws Exception {
+    PortalConfig liveSite = new PortalConfig("portal", "test", "portal_" + SITE_ID);
+    when(coeditingService.getRevision(any(), any())).thenReturn(null);
+    assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.publishSite(liveSite, USER));
+    assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.discardDraftSite(liveSite, USER));
+
+    draftSite("portal_test_draft_bob");
+    assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.publishSite(liveSite, USER));
+    assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.discardDraftSite(liveSite, USER));
+
+    verify(siteLayoutService, never()).updateSiteLayout(any(), any(), anyBoolean(), any());
+    verify(siteLayoutService, never()).createDraftSite(any(), any());
+    verify(coeditingService, never()).removeRevision(any(), any());
+    verify(coeditingService, never()).setRevision(any(), any(), any());
+  }
+
+  @Test
+  public void discardDraftSiteReclonesTheLiveSiteAndRecordsTheNewDraft() throws Exception {
+    PortalConfig liveSite = new PortalConfig("portal", "test", "portal_" + SITE_ID);
+    draftSite("portal_test_draft_john");
+    SiteKey newDraftKey = SiteKey.draft("portal_test_draft_john");
+    when(siteLayoutService.createDraftSite(SiteKey.portal("test"), USER)).thenReturn(newDraftKey);
+    when(layoutService.getPortalConfig(newDraftKey)).thenReturn(new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_10"));
+
+    assertEquals(newDraftKey, layoutDraftService.discardDraftSite(liveSite, USER));
+
+    verify(siteLayoutService).createDraftSite(SiteKey.portal("test"), USER);
+    verify(coeditingService).setRevision(USER, new CoeditionObjectKey(LayoutDraftService.SITE_OBJECT_TYPE, String.valueOf(SITE_ID)), "10");
+  }
+
+  /**
+   * The user's revision on the live site names draft site 9, stored with the
+   * given name
+   */
+  private PortalConfig draftSite(String name) {
+    revision(LayoutDraftService.SITE_OBJECT_TYPE, String.valueOf(SITE_ID), "9");
+    PortalConfig liveSite = new PortalConfig("portal", "test", "portal_" + SITE_ID);
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, name, "draft_9");
+    when(layoutService.getPortalConfig(SITE_ID)).thenReturn(liveSite);
+    when(layoutService.getPortalConfig(9L)).thenReturn(draftSite);
+    return draftSite;
   }
 
   @Test

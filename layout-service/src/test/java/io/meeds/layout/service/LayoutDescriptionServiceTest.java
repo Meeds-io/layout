@@ -34,6 +34,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -71,6 +74,19 @@ import org.exoplatform.portal.mop.service.NavigationService;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
+import io.meeds.layout.util.SiteLayoutAssembler;
+import io.meeds.layout.mcp.model.SiteContainerDescription;
+import io.meeds.layout.mcp.model.SiteContainerOptions;
+import io.meeds.layout.mcp.model.StylingDescription;
+import io.meeds.layout.mcp.model.TextRoleBlock;
+import io.meeds.layout.mcp.model.TextBlock;
+import io.meeds.layout.mcp.model.MarginsBlock;
+import io.meeds.layout.mcp.model.CornersBlock;
+import io.meeds.layout.mcp.model.BorderBlock;
+import io.meeds.layout.mcp.model.SiteLayoutUpdate;
+import org.exoplatform.portal.pom.spi.portlet.Portlet;
+import org.exoplatform.portal.config.model.TransientApplicationState;
+import org.junit.jupiter.api.function.Executable;
 
 import io.meeds.layout.mcp.constant.BackgroundMode;
 import io.meeds.layout.mcp.constant.DisplayMode;
@@ -95,7 +111,7 @@ import io.meeds.layout.util.EntityMapper;
 
 import lombok.SneakyThrows;
 
-@SpringBootTest(classes = { LayoutDescriptionService.class })
+@SpringBootTest(classes = { LayoutDescriptionService.class, LayoutStylingService.class })
 @ExtendWith(MockitoExtension.class)
 public class LayoutDescriptionServiceTest {
 
@@ -713,6 +729,383 @@ public class LayoutDescriptionServiceTest {
     site.setDisplayed(true);
 
     return descriptionService.toSiteDescription(site, root, "Test site", "A site", true);
+  }
+
+  @Test
+  public void siteLayoutIsRebuiltInTheEditorsShape() throws Exception {
+    PortalConfig site = storedSite();
+    Container stored = site.getPortalLayout();
+    Container outerLeftCell = findContainer(stored, LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
+    Container topBanner = findContainer(stored, LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    instance(10L, "content/NewsListView", "News");
+    SiteContainerDescription left = new SiteContainerDescription(outerLeftCell.getStorageId(),
+                                                                 new SiteContainerOptions(null, 250, true, DisplayMode.HIDE_MOBILE, null),
+                                                                 null,
+                                                                 List.of(new ApplicationDescription("1", null, null, "Menu", null, null, null, false, null)));
+    SiteContainerDescription top = new SiteContainerDescription(topBanner.getStorageId(),
+                                                                new SiteContainerOptions(60, null, false, null, null),
+                                                                null,
+                                                                List.of(new ApplicationDescription("2", null, null, null, null, null, null, false, null),
+                                                                        new ApplicationDescription(null, null, 10L, null, null, DisplayMode.HIDE_DESKTOP, null, false, null)));
+    SiteContainerDescription bottom = new SiteContainerDescription(null, null, null, null);
+
+    LayoutModel result = descriptionService.toSiteLayout(new SiteLayoutUpdate(left, null, List.of(top), List.of(bottom)), site, false, USER, Locale.ENGLISH);
+
+    List<LayoutModel> rootChildren = result.getChildren();
+    assertEquals(3, rootChildren.size());
+    LayoutModel outerLeft = rootChildren.get(0);
+    assertEquals(LayoutDescriptionService.SIDEBAR_TEMPLATE, outerLeft.getTemplate());
+    assertEquals("layout-sticky-section", outerLeft.getCssClass());
+    LayoutModel cell = outerLeft.getChildren().get(0);
+    assertEquals(outerLeftCell.getStorageId(), cell.getStorageId());
+    assertEquals("250", cell.getWidth());
+    assertEquals("hidden-sm-and-down", cell.getCssClass());
+    assertEquals(1, cell.getChildren().size());
+    assertEquals("1", cell.getChildren().get(0).getStorageId());
+    assertEquals("Menu", cell.getChildren().get(0).getTitle());
+    LayoutModel outerRight = rootChildren.get(2);
+    assertEquals(LayoutDescriptionService.SIDEBAR_TEMPLATE, outerRight.getTemplate());
+    assertTrue(outerRight.getChildren().isEmpty());
+    assertNull(outerRight.getCssClass());
+
+    LayoutModel middle = rootChildren.get(1);
+    assertEquals(3, middle.getChildren().size());
+    LayoutModel writtenTop = middle.getChildren().get(0);
+    assertEquals(topBanner.getStorageId(), writtenTop.getStorageId());
+    assertEquals("60", writtenTop.getHeight());
+    assertEquals("layout-banner-top-section", writtenTop.getCssClass());
+    assertEquals(2, writtenTop.getChildren().size());
+    List<LayoutModel> firstCell = writtenTop.getChildren().get(0).getChildren();
+    assertEquals(2, firstCell.size());
+    assertEquals("2", firstCell.get(0).getStorageId());
+    assertNull(firstCell.get(1).getStorageId());
+    assertEquals("content/NewsListView", firstCell.get(1).getContentId());
+    assertEquals("News", firstCell.get(1).getTitle());
+    assertEquals("hidden-md-and-up", firstCell.get(1).getCssClass());
+    assertTrue(writtenTop.getChildren().get(1).getChildren().isEmpty());
+    LayoutModel center = middle.getChildren().get(1);
+    assertEquals(LayoutDescriptionService.SITE_MIDDLE_CENTER_TEMPLATE, center.getTemplate());
+    assertEquals(3, center.getChildren().size());
+    assertTrue(center.getChildren().get(0).getChildren().isEmpty());
+    assertEquals(EntityMapper.PAGE_BODY_TEMPLATE, center.getChildren().get(1).getTemplate());
+    assertTrue(center.getChildren().get(2).getChildren().isEmpty());
+    LayoutModel writtenBottom = middle.getChildren().get(2);
+    assertNull(writtenBottom.getStorageId());
+    assertEquals("layout-banner-bottom-section", writtenBottom.getCssClass());
+    assertEquals("57", writtenBottom.getHeight());
+    assertEquals(1, writtenBottom.getChildren().size());
+    assertEquals(LayoutDescriptionService.BANNER_CELL_TEMPLATE, writtenBottom.getChildren().get(0).getTemplate());
+
+    Container saved = result.toSite().getPortalLayout();
+    Application kept = (Application) ((Container) ((Container) saved.getChildren().get(0)).getChildren().get(0)).getChildren().get(0);
+    assertTrue(kept.getState() instanceof PersistentApplicationState);
+  }
+
+  @Test
+  public void innerSidebarsSitBetweenTheBanners() throws Exception {
+    PortalConfig site = storedSite();
+    SiteContainerDescription right = new SiteContainerDescription(null, new SiteContainerOptions(null, null, false, null, false), null, null);
+
+    LayoutModel result = descriptionService.toSiteLayout(new SiteLayoutUpdate(null, right, null, null), site, false, USER, Locale.ENGLISH);
+
+    assertTrue(result.getChildren().get(0).getChildren().isEmpty());
+    assertTrue(result.getChildren().get(2).getChildren().isEmpty());
+    LayoutModel middle = result.getChildren().get(1);
+    assertEquals(1, middle.getChildren().size());
+    LayoutModel innerRight = middle.getChildren().get(0).getChildren().get(2);
+    assertEquals(1, innerRight.getChildren().size());
+    assertEquals("310", innerRight.getChildren().get(0).getWidth());
+    assertNull(innerRight.getChildren().get(0).getStorageId());
+  }
+
+  @Test
+  public void keptWindowsBecomeCopiesWithTheirPreferencesWhenTheDraftIsBuiltFromTheLiveLayout() throws Exception {
+    PortalConfig site = storedSite();
+    Container outerLeftCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
+    doAnswer(invocation -> {
+      Application application = invocation.getArgument(0);
+      TransientApplicationState state = new TransientApplicationState("social/Menu");
+      Portlet portlet = new Portlet();
+      portlet.setValue("key", "value");
+      state.setContentState(portlet);
+      application.setState(state);
+      return null;
+    }).when(portletInstanceService).expandPortletPreferences(any(), any());
+    SiteContainerDescription left = new SiteContainerDescription(outerLeftCell.getStorageId(),
+                                                                 null,
+                                                                 null,
+                                                                 List.of(new ApplicationDescription("1", null, null, null, null, null, null, false, null)));
+
+    LayoutModel result = descriptionService.toSiteLayout(new SiteLayoutUpdate(left, null, null, null), site, true, USER, Locale.ENGLISH);
+
+    LayoutModel cell = result.getChildren().get(0).getChildren().get(0);
+    assertNull(cell.getStorageId());
+    LayoutModel window = cell.getChildren().get(0);
+    assertNull(window.getStorageId());
+    assertEquals("social/Menu", window.getContentId());
+    assertEquals("value", window.getPreferences().get(0).getValue());
+    Container saved = result.toSite().getPortalLayout();
+    Application copy = (Application) ((Container) ((Container) saved.getChildren().get(0)).getChildren().get(0)).getChildren().get(0);
+    assertTrue(copy.getState() instanceof TransientApplicationState);
+    assertEquals("social/Menu", ((TransientApplicationState) copy.getState()).getContentId());
+  }
+
+  @Test
+  public void hiddenElementsStayInPlaceOrRefuseTheCall() throws Exception {
+    PortalConfig site = storedSite();
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Application hidden = (Application) ((Container) topBanner.getChildren().get(0)).getChildren().get(0);
+    when(aclService.hasAccessPermission(hidden, USER)).thenReturn(false);
+    instance(10L, "content/NewsListView", "News");
+    SiteContainerDescription keptTop = new SiteContainerDescription(topBanner.getStorageId(),
+                                                                    null,
+                                                                    null,
+                                                                    List.of(new ApplicationDescription(null, null, 10L, null, null, null, null, false, null)));
+
+    LayoutModel result = descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, List.of(keptTop), null), site, false, USER, Locale.ENGLISH);
+    List<LayoutModel> firstCell = result.getChildren().get(1).getChildren().get(0).getChildren().get(0).getChildren();
+    assertEquals(2, firstCell.size());
+    assertEquals("2", firstCell.get(0).getStorageId());
+    assertEquals("content/NewsListView", firstCell.get(1).getContentId());
+
+    assertEquals(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN,
+                 assertThrows(IllegalAccessException.class,
+                              () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, null, null), site, false, USER, Locale.ENGLISH)).getMessage());
+    SiteContainerDescription newTop = new SiteContainerDescription(null, null, null, null);
+    assertEquals(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN,
+                 assertThrows(IllegalAccessException.class,
+                              () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, List.of(newTop), null), site, false, USER, Locale.ENGLISH)).getMessage());
+
+    PortalConfig siteWithHiddenContainer = storedSite();
+    Container hiddenCell = findContainer(siteWithHiddenContainer.getPortalLayout(), LayoutDescriptionService.BANNER_CELL_TEMPLATE, 1);
+    when(aclService.hasAccessPermission(hiddenCell, USER)).thenReturn(false);
+    assertEquals(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN,
+                 assertThrows(IllegalAccessException.class,
+                              () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, List.of(keptTop), null), siteWithHiddenContainer, false, USER, Locale.ENGLISH)).getMessage());
+  }
+
+  @Test
+  public void idsAreCheckedBeforeAnythingIsBuilt() throws Exception {
+    PortalConfig site = storedSite();
+    Container outerLeftCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    SiteContainerDescription unknownCell = new SiteContainerDescription("nope", null, null, null);
+    assertEquals(SiteLayoutAssembler.CONTAINER_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class,
+                              () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(unknownCell, null, null, null), site, false, USER, Locale.ENGLISH)).getMessage());
+    SiteContainerDescription bannerAsSidebar = new SiteContainerDescription(topBanner.getStorageId(), null, null, null);
+    assertEquals(SiteLayoutAssembler.CONTAINER_ID_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toSiteLayout(new SiteLayoutUpdate(bannerAsSidebar, null, null, null), site, false, USER, Locale.ENGLISH)));
+    SiteContainerDescription cell = new SiteContainerDescription(outerLeftCell.getStorageId(), null, null, null);
+    assertEquals(SiteLayoutAssembler.CONTAINER_ID_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toSiteLayout(new SiteLayoutUpdate(cell, cell, null, null), site, false, USER, Locale.ENGLISH)));
+    SiteContainerDescription unknownApplication = new SiteContainerDescription(null, null, null,
+                                                                               List.of(new ApplicationDescription("nope", null, null, null, null, null, null, false, null)));
+    assertEquals(SiteLayoutAssembler.APPLICATION_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class,
+                              () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(unknownApplication, null, null, null), site, false, USER, Locale.ENGLISH)).getMessage());
+    SiteContainerDescription cellAsApplication = new SiteContainerDescription(null, null, null,
+                                                                              List.of(new ApplicationDescription(outerLeftCell.getStorageId(), null, null, null, null, null, null, false, null)));
+    assertEquals(SiteLayoutAssembler.APPLICATION_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class,
+                              () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(cellAsApplication, null, null, null), site, false, USER, Locale.ENGLISH)).getMessage());
+    ApplicationDescription kept = new ApplicationDescription("1", null, null, null, null, null, null, false, null);
+    SiteContainerDescription twice = new SiteContainerDescription(null, null, null, List.of(kept, kept));
+    assertEquals(SiteLayoutAssembler.APPLICATION_ID_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toSiteLayout(new SiteLayoutUpdate(twice, null, null, null), site, false, USER, Locale.ENGLISH)));
+    SiteContainerDescription nothing = new SiteContainerDescription(null, null, null,
+                                                                    List.of(new ApplicationDescription(null, null, null, null, null, null, null, false, null)));
+    assertEquals(SiteLayoutAssembler.APPLICATIONS_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toSiteLayout(new SiteLayoutUpdate(nothing, null, null, null), site, false, USER, Locale.ENGLISH)));
+    verify(portletInstanceService, never()).getPortletInstance(anyLong(), any(), any(), anyBoolean());
+  }
+
+  @Test
+  public void optionsAndBoundsAreChecked() throws Exception {
+    PortalConfig site = storedSite();
+    assertEquals(SiteLayoutAssembler.WIDTH_NOT_ACCEPTED, refused(() -> build(site, sidebar(new SiteContainerOptions(null, 49, false, null, null)), null, null)));
+    assertEquals(SiteLayoutAssembler.WIDTH_NOT_ACCEPTED, refused(() -> build(site, sidebar(new SiteContainerOptions(null, 1001, false, null, null)), null, null)));
+    assertEquals(SiteLayoutAssembler.HEIGHT_NOT_ACCEPTED, refused(() -> build(site, sidebar(new SiteContainerOptions(60, null, false, null, null)), null, null)));
+    assertEquals(SiteLayoutAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> build(site, sidebar(new SiteContainerOptions(null, null, false, DisplayMode.HIDE_DESKTOP, null)), null, null)));
+    assertEquals(SiteLayoutAssembler.HEIGHT_NOT_ACCEPTED, refused(() -> build(site, null, List.of(sidebar(new SiteContainerOptions(1001, null, false, null, null))), null)));
+    assertEquals(SiteLayoutAssembler.WIDTH_NOT_ACCEPTED, refused(() -> build(site, null, List.of(sidebar(new SiteContainerOptions(null, 300, false, null, null))), null)));
+    assertEquals(SiteLayoutAssembler.FULL_HEIGHT_NOT_ACCEPTED, refused(() -> build(site, null, null, List.of(sidebar(new SiteContainerOptions(null, null, false, null, true))))));
+    assertEquals(SiteLayoutAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> build(site, null, List.of(sidebar(new SiteContainerOptions(null, null, false, DisplayMode.HIDE_DESKTOP, null))), null)));
+    List<SiteContainerDescription> eleven = java.util.Collections.nCopies(11, sidebar(null));
+    assertEquals(SiteLayoutAssembler.TOPBARS_NOT_ACCEPTED, refused(() -> build(site, null, eleven, null)));
+    assertEquals(SiteLayoutAssembler.BOTTOM_BARS_NOT_ACCEPTED, refused(() -> build(site, null, null, eleven)));
+    List<ApplicationDescription> many = java.util.Collections.nCopies(51, new ApplicationDescription(null, null, 10L, null, null, null, null, false, null));
+    assertEquals(SiteLayoutAssembler.APPLICATIONS_NOT_ACCEPTED,
+                 refused(() -> build(site, new SiteContainerDescription(null, null, null, many), null, null)));
+    instance(10L, "content/NewsListView", "News");
+    SiteContainerDescription longTitle = new SiteContainerDescription(null, null, null,
+                                                                      List.of(new ApplicationDescription(null, null, 10L, "x".repeat(201), null, null, null, false, null)));
+    assertEquals(SiteLayoutAssembler.TITLE_NOT_ACCEPTED, refused(() -> build(site, longTitle, null, null)));
+    SiteContainerDescription withSettings = new SiteContainerDescription(null, null, null,
+                                                                         List.of(new ApplicationDescription(null, null, 10L, null, null, null, Map.of("a", "b"), false, null)));
+    assertEquals(SiteLayoutAssembler.APPLICATIONS_NOT_ACCEPTED, refused(() -> build(site, withSettings, null, null)));
+    assertEquals(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE,
+                 refused(() -> build(new PortalConfig("portal", "test", "portal_5"), null, null, null)));
+    PortalConfig flat = new PortalConfig("portal", "test", "portal_5");
+    flat.setPortalLayout(container(LayoutDescriptionService.SITE_MIDDLE_TEMPLATE, null));
+    assertEquals(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE, refused(() -> build(flat, null, null, null)));
+  }
+
+  @Test
+  public void anAddedApplicationComesFromTheCatalogTheUserMayPlace() throws Exception {
+    PortalConfig site = storedSite();
+    when(portletInstanceService.getPortletInstance(10L, USER, Locale.ENGLISH, true)).thenThrow(new IllegalAccessException());
+    SiteContainerDescription byInstance = new SiteContainerDescription(null, null, null,
+                                                                       List.of(new ApplicationDescription(null, null, 10L, null, null, null, null, false, null)));
+    assertEquals(LayoutDescriptionService.INSTANCE_ID_NOT_ACCEPTED, refused(() -> build(site, byInstance, null, null)));
+    PortletInstance disabled = instance(11L, "content/NewsListView", "News");
+    disabled.setDisabled(true);
+    SiteContainerDescription byDisabledInstance = new SiteContainerDescription(null, null, null,
+                                                                               List.of(new ApplicationDescription(null, null, 11L, null, null, null, null, false, null)));
+    assertEquals(LayoutDescriptionService.INSTANCE_ID_NOT_ACCEPTED, refused(() -> build(site, byDisabledInstance, null, null)));
+    instance(12L, "content/NewsListView", "News");
+    SiteContainerDescription mismatch = new SiteContainerDescription(null, null, null,
+                                                                     List.of(new ApplicationDescription(null, "other/Portlet", 12L, null, null, null, null, false, null)));
+    assertEquals(LayoutDescriptionService.CONTENT_ID_NOT_ACCEPTED, refused(() -> build(site, mismatch, null, null)));
+
+    PortletInstance first = instance(13L, "social/Menu", "Menu");
+    PortletInstance second = instance(14L, "social/Menu", "Other menu");
+    when(portletInstanceService.getPortletInstances(0, USER, Locale.ENGLISH, true)).thenReturn(List.of(first, second));
+    SiteContainerDescription byContent = new SiteContainerDescription(null, null, null,
+                                                                      List.of(new ApplicationDescription(null, "social/Menu", null, null, null, null, null, false, null)));
+    assertEquals(LayoutDescriptionService.CONTENT_ID_NOT_ACCEPTED, refused(() -> build(site, byContent, null, null)));
+    second.setDisabled(true);
+    LayoutModel result = build(site, byContent, null, null);
+    LayoutModel added = result.getChildren().get(0).getChildren().get(0).getChildren().get(0);
+    assertEquals("social/Menu", added.getContentId());
+    assertEquals("Menu", added.getTitle());
+  }
+
+  @Test
+  public void writtenSiteReadsBackThroughTheSiteDescription() throws Exception {
+    PortalConfig site = storedSite();
+    instance(10L, "content/NewsListView", "News");
+    StylingDescription bannerStyling = new StylingDescription(new MarginsBlock(true, null, 4, null, null, null),
+                                                              null,
+                                                              null,
+                                                              new BackgroundBlock(true, null, "#111111", null, null, null, null, "#222222", null, null),
+                                                              new TextBlock(true, new TextRoleBlock("#333333", 18, true, null, null), null, null, null, null),
+                                                              null);
+    StylingDescription applicationStyling = new StylingDescription(new MarginsBlock(true, 24, null, null, null, null),
+                                                                   new BorderBlock(true, "#444444", 2, false),
+                                                                   new CornersBlock(true, 8, null, null, null, null),
+                                                                   new BackgroundBlock(true, BackgroundMode.LINEAR, null, "#555555", "#666666", 30, "to_right", null, null, null),
+                                                                   null,
+                                                                   null);
+    SiteContainerDescription top = new SiteContainerDescription(null,
+                                                                new SiteContainerOptions(60, null, true, DisplayMode.HIDE_MOBILE, null),
+                                                                bannerStyling,
+                                                                List.of(new ApplicationDescription(null, null, 10L, null, applicationStyling, DisplayMode.HIDE_DESKTOP, null, false, null)));
+    SiteContainerDescription left = new SiteContainerDescription(null, new SiteContainerOptions(null, 200, false, null, false), null, null);
+
+    LayoutModel written = build(site, left, List.of(top), null);
+    SiteDescription description = descriptionService.toSiteDescription(site, written.toSite().getPortalLayout(), "Test", null, true);
+
+    assertEquals(200, description.leftSidebar().options().width());
+    assertEquals(false, description.leftSidebar().options().fullHeight());
+    assertNull(description.rightSidebar());
+    assertEquals(1, description.topbars().size());
+    SiteContainerDescription readTop = description.topbars().get(0);
+    assertEquals(60, readTop.options().height());
+    assertTrue(readTop.options().sticky());
+    assertEquals(DisplayMode.HIDE_MOBILE, readTop.options().display());
+    assertEquals(4, readTop.styling().margins().top());
+    assertEquals(0, readTop.styling().margins().right());
+    assertEquals("#111111", readTop.styling().background().color());
+    assertEquals("#222222", readTop.styling().background().scrollColor());
+    assertEquals("#333333", readTop.styling().text().title().color());
+    assertEquals(18, readTop.styling().text().title().size());
+    assertEquals(true, readTop.styling().text().title().bold());
+    ApplicationDescription readApplication = readTop.applications().get(0);
+    assertEquals("content/NewsListView", readApplication.contentId());
+    assertEquals(DisplayMode.HIDE_DESKTOP, readApplication.display());
+    assertEquals(24, readApplication.styling().margins().all());
+    assertEquals("#444444", readApplication.styling().border().color());
+    assertEquals(2, readApplication.styling().border().size());
+    assertEquals(8, readApplication.styling().corners().all());
+    assertEquals(BackgroundMode.LINEAR, readApplication.styling().background().mode());
+    assertEquals("#555555", readApplication.styling().background().from());
+    assertEquals("#666666", readApplication.styling().background().to());
+    assertEquals(30, readApplication.styling().background().ratio());
+    assertEquals("to_right", readApplication.styling().background().direction());
+    assertTrue(description.bottomBars().isEmpty());
+  }
+
+  private LayoutModel build(PortalConfig site,
+                            SiteContainerDescription left,
+                            List<SiteContainerDescription> topbars,
+                            List<SiteContainerDescription> bottomBars) throws Exception {
+    return descriptionService.toSiteLayout(new SiteLayoutUpdate(left, null, topbars, bottomBars), site, false, USER, Locale.ENGLISH);
+  }
+
+  private String refused(Executable call) {
+    return assertThrows(IllegalArgumentException.class, call).getMessage();
+  }
+
+  private SiteContainerDescription sidebar(SiteContainerOptions options) {
+    return new SiteContainerDescription(null, options, null, null);
+  }
+
+  private PortletInstance instance(long id, String contentId, String name) throws Exception {
+    PortletInstance instance = instance(id, 1L, name, null, false);
+    instance.setContentId(contentId);
+    lenient().when(portletInstanceService.getPortletInstance(id, USER, Locale.ENGLISH, true)).thenReturn(instance);
+    return instance;
+  }
+
+  /**
+   * The stored site of the read tests, every element visible to the user:
+   * an outer left sidebar with one application, a top banner of two cells
+   * holding one application, an inner right sidebar, an empty bottom banner
+   */
+  private PortalConfig storedSite() {
+    Container outerLeftCell = container(LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, null);
+    outerLeftCell.setWidth("310");
+    children(outerLeftCell, application("1", null, null));
+    Container outerLeft = container(LayoutDescriptionService.SIDEBAR_TEMPLATE, null);
+    children(outerLeft, outerLeftCell);
+    Container outerRight = container(LayoutDescriptionService.SIDEBAR_TEMPLATE, null);
+    Container topCell = container(LayoutDescriptionService.BANNER_CELL_TEMPLATE, null);
+    children(topCell, application("2", null, null));
+    Container top = container(LayoutDescriptionService.BANNER_TEMPLATE, "layout-banner-top-section");
+    top.setHeight("57");
+    children(top, topCell, container(LayoutDescriptionService.BANNER_CELL_TEMPLATE, null));
+    Container bottom = container(LayoutDescriptionService.BANNER_TEMPLATE, "layout-banner-bottom-section");
+    Container innerRightCell = container(LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, null);
+    Container innerRight = container(LayoutDescriptionService.SIDEBAR_TEMPLATE, null);
+    children(innerRight, innerRightCell);
+    Container center = container(LayoutDescriptionService.SITE_MIDDLE_CENTER_TEMPLATE, null);
+    children(center, container(LayoutDescriptionService.SIDEBAR_TEMPLATE, null), new PageBody(), innerRight);
+    Container middle = container(LayoutDescriptionService.SITE_MIDDLE_TEMPLATE, null);
+    children(middle, top, center, bottom);
+    Container root = container(SiteLayoutAssembler.SITE_TEMPLATE, null);
+    children(root, outerLeft, middle, outerRight);
+    PortalConfig site = new PortalConfig("portal", "test", "portal_5");
+    site.setPortalLayout(root);
+    lenient().when(aclService.hasAccessPermission(any(), eq(USER))).thenReturn(true);
+    return site;
+  }
+
+  private Container findContainer(Container parent, String template, int occurrence) {
+    List<Container> matches = new ArrayList<>();
+    collectContainers(parent, template, matches);
+    return matches.get(occurrence);
+  }
+
+  private void collectContainers(ModelObject object, String template, List<Container> matches) {
+    if (object instanceof Container container) {
+      if (template.equals(container.getTemplate())) {
+        matches.add(container);
+      }
+      if (container.getChildren() != null) {
+        container.getChildren().forEach(child -> collectContainers(child, template, matches));
+      }
+    }
   }
 
   @Test
