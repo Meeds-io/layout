@@ -34,6 +34,6 @@ public record ApplicationDescription(@JsonProperty("application_id") String appl
                                      @JsonProperty("styling") StylingDescription styling,
                                      @JsonProperty("display") DisplayMode display,
                                      @JsonProperty("settings") Map<String, Object> settings,
-                                     @JsonProperty("configurable") boolean configurable,
+                                     @JsonProperty("configurable") Boolean configurable,
                                      @JsonProperty("widget_code") WidgetCodeDescription widgetCode) {
 }
