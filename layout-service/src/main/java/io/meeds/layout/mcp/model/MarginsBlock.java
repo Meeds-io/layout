@@ -27,7 +27,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * section or a site container stores 0 as none. all sets the four sides.
  */
 @JsonInclude(Include.NON_NULL)
-public record MarginsBlock(@JsonProperty("enabled") boolean enabled,
+public record MarginsBlock(@JsonProperty("enabled") Boolean enabled,
                            @JsonProperty("all") Integer all,
                            @JsonProperty("top") Integer top,
                            @JsonProperty("right") Integer right,
