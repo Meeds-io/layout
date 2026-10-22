@@ -699,7 +699,7 @@
             "type": "array",
             "items": {
               "type": "object",
-              "description": "a topbar or bottom bar",
+              "description": "a topbar",
               "properties": {
                 "container_id": {
                   "type": "string",
@@ -715,7 +715,7 @@
                     },
                     "sticky": {
                       "type": "boolean",
-                      "description": "true to keep the bar in place when the page scrolls; omit to keep the stored choice"
+                      "description": "true to keep the topbar in place when the page scrolls; omit to keep the stored choice; a bottom bar is never kept in place"
                     },
                     "display": {
                       "type": "string",
@@ -854,11 +854,11 @@
             "type": "array",
             "items": {
               "type": "object",
-              "description": "a topbar or bottom bar",
+              "description": "a bottom bar",
               "properties": {
                 "container_id": {
                   "type": "string",
-                  "description": "the id of a bar in the layout get_site returned, to keep its stored element; omit to create it"
+                  "description": "the id of a bottom in the layout get_site returned, to keep its stored element; omit to create it"
                 },
                 "options": {
                   "type": "object",
@@ -867,10 +867,6 @@
                     "height": {
                       "type": "integer",
                       "description": "the height in pixels, 0 to 1000; omit to keep it, a dynamic height included (57 on a new bar)"
-                    },
-                    "sticky": {
-                      "type": "boolean",
-                      "description": "true to keep the bar in place when the page scrolls; omit to keep the stored choice"
                     },
                     "display": {
                       "type": "string",

@@ -349,7 +349,6 @@ public class SiteLayoutService {
    * window with the preferences it carries and broadcasts the site
    * publication event, as the site layout editor's publish does
    */
-  @SneakyThrows
   public void updateSiteLayout(SiteKey siteKey,
                                PortalConfig site,
                                boolean publish,

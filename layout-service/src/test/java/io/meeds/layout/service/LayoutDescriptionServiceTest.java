@@ -1029,6 +1029,27 @@ public class LayoutDescriptionServiceTest {
   }
 
   @Test
+  public void onlyATopbarCanBeSticky() throws Exception {
+    PortalConfig site = storedSite();
+    SiteContainerDescription stickyBar = new SiteContainerDescription(null, new SiteContainerOptions(null, null, true, null, null), null, null);
+    assertEquals(SiteLayoutAssembler.STICKY_NOT_ACCEPTED, refused(() -> build(site, null, null, List.of(stickyBar))));
+
+    LayoutModel topbar = build(site, null, List.of(stickyBar), null).getChildren().get(1).getChildren().get(0);
+    assertEquals(Set.of("layout-banner-top-section", "layout-sticky-section"), Set.of(topbar.getCssClass().split(" ")));
+
+    Container bottom = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1);
+    bottom.setCssClass("layout-banner-bottom-section layout-sticky-section");
+    SiteContainerDescription keptBottom = new SiteContainerDescription(bottom.getStorageId(), new SiteContainerOptions(null, null, true, null, null), null, null);
+    LayoutModel written = build(site, null, null, List.of(keptBottom)).getChildren().get(1).getChildren().get(1);
+    assertEquals(Set.of("layout-banner-bottom-section", "layout-sticky-section"), Set.of(written.getCssClass().split(" ")));
+    SiteContainerDescription scrolled = new SiteContainerDescription(bottom.getStorageId(),
+                                                                     null,
+                                                                     new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#111111", null, null, null, null, "#222222", null, null), null, null),
+                                                                     null);
+    assertEquals(LayoutStylingService.REFUSAL_PREFIX + "background.scroll_color", refused(() -> build(site, null, null, List.of(scrolled))));
+  }
+
+  @Test
   public void aSideHoldingTwoSidebarsIsRefused() throws Exception {
     PortalConfig site = storedSite();
     Container center = findContainer(site.getPortalLayout(), LayoutDescriptionService.SITE_MIDDLE_CENTER_TEMPLATE, 0);

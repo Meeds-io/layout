@@ -119,6 +119,8 @@ public class SiteLayoutAssembler {
 
   public static final String                                DISPLAY_NOT_ACCEPTED            = "value is not accepted for options.display";
 
+  public static final String                                STICKY_NOT_ACCEPTED             = "value is not accepted for options.sticky";
+
   public static final String                                APPLICATION_DISPLAY_NOT_ACCEPTED = "value is not accepted for display";
 
   public static final int                                   DEFAULT_BANNER_HEIGHT           = 57;
@@ -355,7 +357,11 @@ public class SiteLayoutAssembler {
 
   /**
    * A banner keeps its stored cells when addressed by id, a new one has one
-   * cell; the position token is written from the banner's side
+   * cell; the position token is written from the banner's side. Only a
+   * topbar is kept in place when the page scrolls, as the skin and the
+   * editor's drawer have it: sticky is refused on a bottom bar unless the
+   * kept bar already stores the token, and a bottom bar takes no scroll
+   * colour
    */
   private LayoutModel banner(SiteContainerDescription description, boolean top) throws ObjectNotFoundException {
     LayoutModel banner;
@@ -377,7 +383,11 @@ public class SiteLayoutAssembler {
     } else if (options.fullHeight() != null) {
       throw new IllegalArgumentException(FULL_HEIGHT_NOT_ACCEPTED);
     }
-    boolean sticky = options.sticky() != null ? options.sticky() : hasToken(banner.getCssClass(), STICKY_TOKEN);
+    boolean storedSticky = hasToken(banner.getCssClass(), STICKY_TOKEN);
+    if (!top && Boolean.TRUE.equals(options.sticky()) && !storedSticky) {
+      throw new IllegalArgumentException(STICKY_NOT_ACCEPTED);
+    }
+    boolean sticky = options.sticky() != null ? options.sticky() : storedSticky;
     if (options.height() != null) {
       if (options.height() < 0 || options.height() > BANNER_HEIGHT_MAX) {
         throw new IllegalArgumentException(HEIGHT_NOT_ACCEPTED);
@@ -389,7 +399,7 @@ public class SiteLayoutAssembler {
     String bannerClass = LayoutStylingService.append(LayoutStylingService.strip(banner.getCssClass(), BANNER_TOKENS),
                                                      top ? BANNER_TOP_TOKEN : BANNER_BOTTOM_TOKEN);
     banner.setCssClass(sticky ? LayoutStylingService.append(bannerClass, STICKY_SECTION_TOKEN) : bannerClass);
-    applyStyling(banner, description.styling(), StylingDestination.BANNER, sticky, top);
+    applyStyling(banner, description.styling(), StylingDestination.BANNER, top && sticky, top);
     stylingService.applyDisplay(banner, options.display(), StylingDestination.BANNER, DISPLAY_NOT_ACCEPTED);
     placeApplications(description.applications(), cells);
     banner.setChildren(new ArrayList<>(cells));
