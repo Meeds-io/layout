@@ -42,6 +42,7 @@ import org.exoplatform.portal.mop.importer.ImportMode;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.portal.mop.user.UserPortal;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.resources.LocaleConfig;
@@ -58,6 +59,15 @@ import lombok.SneakyThrows;
 public class SiteLayoutService {
 
   public static final String      DISPLAYED_NOT_ACCEPTED = "value is not accepted for displayed";
+
+  /**
+   * Broadcast with the acting username and the SiteKey after a publication
+   * replaced a site's layout, whatever the site's kind (portal, group, user,
+   * template): a listener keyed on pages or spaces checks the kind itself
+   */
+  public static final String      SITE_PUBLISHED_EVENT   = "layout.site.published";
+
+  public static final String      SITE_OUTDATED_MESSAGE  = "layout.siteOutdatedError";
 
   private static final String     SITE_NOT_FOUND_MESSAGE = "Site with key %s doesn't exist";
 
@@ -87,6 +97,9 @@ public class SiteLayoutService {
 
   @Autowired
   private TranslationService      translationService;
+
+  @Autowired
+  private ListenerService         listenerService;
 
   private Map<String, String>     supportedLanguages;
 
@@ -330,6 +343,12 @@ public class SiteLayoutService {
     layoutService.save(portalConfig);
   }
 
+  /**
+   * Replaces a site's layout with the given one: a draft save checks that
+   * every window the tree names still exists, a publication recreates every
+   * window with the preferences it carries and broadcasts the site
+   * publication event, as the site layout editor's publish does
+   */
   public void updateSiteLayout(SiteKey siteKey,
                                PortalConfig site,
                                boolean publish,
@@ -354,9 +373,12 @@ public class SiteLayoutService {
       }
     } catch (ObjectNotFoundException e) {
       LOG.debug("Error while accessing Site applications storage information", e);
-      throw new IllegalStateException("layout.siteOutdatedError");
+      throw new IllegalStateException(SITE_OUTDATED_MESSAGE);
     }
     layoutService.save(portalConfig);
+    if (publish) {
+      listenerService.broadcast(SITE_PUBLISHED_EVENT, username, siteKey);
+    }
   }
 
   public NodeLabel getSiteLabels(Long siteId, String username) throws ObjectNotFoundException, IllegalAccessException {

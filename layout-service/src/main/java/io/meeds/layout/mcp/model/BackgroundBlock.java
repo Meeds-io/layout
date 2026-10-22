@@ -31,7 +31,7 @@ import io.meeds.layout.mcp.constant.BackgroundMode;
  * gradient forms.
  */
 @JsonInclude(Include.NON_NULL)
-public record BackgroundBlock(@JsonProperty("enabled") boolean enabled,
+public record BackgroundBlock(@JsonProperty("enabled") Boolean enabled,
                               @JsonProperty("mode") BackgroundMode mode,
                               @JsonProperty("color") String color,
                               @JsonProperty("from") String from,

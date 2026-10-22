@@ -26,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
@@ -39,6 +40,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -80,6 +82,10 @@ import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
+import io.meeds.layout.service.SiteLayoutAssembler;
+import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.mcp.model.SiteLayoutUpdate;
+import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteSummary;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PermissionUpdateModel;
@@ -660,6 +666,169 @@ public class LayoutMcpToolTest {
       when(descriptionService.describeApplications(2L, "news", USER, Locale.FRENCH)).thenReturn(expected);
 
       assertEquals(expected, asUser(() -> tool.listLayoutApplications(2L, "news")));
+    }
+  }
+
+  @Test
+  public void setSiteLayoutBuildsTheDraftFromTheLiveLayoutOnTheFirstWrite() throws Exception {
+    PortalConfig site = editableSite();
+    SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
+    LayoutModel layout = siteLayout();
+    SiteContainerDescription topbar = new SiteContainerDescription(null, null, null, null);
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null, draftKey);
+    when(descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, List.of(topbar), null), site, true, USER, Locale.FRENCH)).thenReturn(layout);
+    when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(new Container("draft"));
+    when(siteLayoutService.getSite(draftKey, USER)).thenReturn(draftSite);
+    SiteDescription expected = describedSite(site, draftSite);
+
+    assertEquals(expected, asUserInFrench(() -> tool.setSiteLayout(SITE_ID, null, null, List.of(topbar), null)));
+
+    ArgumentCaptor<PortalConfig> saved = ArgumentCaptor.forClass(PortalConfig.class);
+    verify(siteLayoutService).updateSiteLayout(eq(draftKey), saved.capture(), eq(false), eq(USER));
+    assertEquals(SiteLayoutAssembler.SITE_TEMPLATE, ((Container) saved.getValue().getPortalLayout()).getTemplate());
+    verify(draftService).createDraftSite(site, USER);
+  }
+
+  @Test
+  public void setSiteLayoutWritesTheExistingDraftTheRevisionNames() throws Exception {
+    PortalConfig site = editableSite();
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(new Container("draft"));
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
+    when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
+    SiteContainerDescription left = new SiteContainerDescription("12", null, null, null);
+    when(descriptionService.toSiteLayout(any(), any(), anyBoolean(), any(), any())).thenReturn(siteLayout());
+    SiteDescription expected = describedSite(site, draftSite);
+
+    assertEquals(expected, asUserInFrench(() -> tool.setSiteLayout(SITE_ID, left, null, null, null)));
+
+    verify(descriptionService).toSiteLayout(new SiteLayoutUpdate(left, null, null, null), draftSite, false, USER, Locale.FRENCH);
+    verify(siteLayoutService).updateSiteLayout(eq(draftSite.getSiteKey()), any(PortalConfig.class), eq(false), eq(USER));
+    verify(draftService, never()).createDraftSite(any(), any());
+  }
+
+  @Test
+  public void setSiteLayoutRefusalsCarryTheFixedTexts() throws Exception {
+    assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, refusal(() -> tool.setSiteLayout(0L, null, null, null, null)));
+    when(siteLayoutService.getSite(1L, USER)).thenThrow(new ObjectNotFoundException("internal detail"));
+    assertEquals(LayoutMcpTool.SITE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.setSiteLayout(1L, null, null, null, null)));
+    PortalConfig site = site("portal", "test", "Test");
+    when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site);
+    when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(false);
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.setSiteLayout(SITE_ID, null, null, null, null)));
+    verify(descriptionService, never()).toSiteLayout(any(), any(), anyBoolean(), any(), any());
+
+    when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(true);
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
+    SiteLayoutUpdate update = new SiteLayoutUpdate(null, null, null, null);
+    when(descriptionService.toSiteLayout(update, site, true, USER, Locale.FRENCH)).thenThrow(new IllegalArgumentException(SiteLayoutAssembler.WIDTH_NOT_ACCEPTED));
+    assertEquals(SiteLayoutAssembler.WIDTH_NOT_ACCEPTED, refusalInFrench(IllegalArgumentException.class, () -> tool.setSiteLayout(SITE_ID, null, null, null, null)));
+    doThrow(new IllegalAccessException(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN)).when(descriptionService).toSiteLayout(update, site, true, USER, Locale.FRENCH);
+    assertEquals(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN, refusalInFrench(IllegalAccessException.class, () -> tool.setSiteLayout(SITE_ID, null, null, null, null)));
+    verify(draftService, never()).createDraftSite(any(), any());
+
+    doReturn(siteLayout()).when(descriptionService).toSiteLayout(update, site, true, USER, Locale.FRENCH);
+    SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
+    when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
+    doThrow(new IllegalStateException("Can't find uploaded resource with id : 7d2")).when(siteLayoutService)
+                                                                                    .updateSiteLayout(eq(draftKey), any(), eq(false), eq(USER));
+    assertEquals(LayoutMcpTool.SITE_LAYOUT_NOT_SAVED, refusalInFrench(IllegalStateException.class, () -> tool.setSiteLayout(SITE_ID, null, null, null, null)));
+    doThrow(new IllegalStateException(SiteLayoutService.SITE_OUTDATED_MESSAGE)).when(siteLayoutService)
+                                                                                .updateSiteLayout(eq(draftKey), any(), eq(false), eq(USER));
+    assertEquals(LayoutMcpTool.LAYOUT_OUTDATED, refusalInFrench(IllegalStateException.class, () -> tool.setSiteLayout(SITE_ID, null, null, null, null)));
+    doThrow(new IllegalArgumentException("Invalid css value input javascript:alert(1)")).when(siteLayoutService)
+                                                                                         .updateSiteLayout(eq(draftKey), any(), eq(false), eq(USER));
+    assertEquals(LayoutMcpTool.STYLING_NOT_ACCEPTED, refusalInFrench(IllegalArgumentException.class, () -> tool.setSiteLayout(SITE_ID, null, null, null, null)));
+    doThrow(new IllegalAccessException("internal detail")).when(siteLayoutService).updateSiteLayout(eq(draftKey), any(), eq(false), eq(USER));
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusalInFrench(IllegalAccessException.class, () -> tool.setSiteLayout(SITE_ID, null, null, null, null)));
+    doThrow(new ObjectNotFoundException("internal detail")).when(siteLayoutService).updateSiteLayout(eq(draftKey), any(), eq(false), eq(USER));
+    assertEquals(LayoutMcpTool.SITE_NOT_FOUND, refusalInFrench(ObjectNotFoundException.class, () -> tool.setSiteLayout(SITE_ID, null, null, null, null)));
+  }
+
+  @Test
+  public void publishLayoutPublishesTheDraftAndAnswersThePublishedSite() throws Exception {
+    PortalConfig site = editableSite();
+    SiteDescription expected = describedSite(site);
+
+    assertEquals(expected, asUser(() -> tool.publishLayout(SITE_ID)));
+    verify(draftService).publishSite(site, USER);
+
+    doThrow(new ObjectNotFoundException("no draft")).when(draftService).publishSite(site, USER);
+    assertEquals(LayoutMcpTool.DRAFT_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.publishLayout(SITE_ID)));
+    doThrow(new IllegalAccessException("internal detail")).when(draftService).publishSite(site, USER);
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.publishLayout(SITE_ID)));
+    doThrow(new IllegalStateException("Application wasn't found with state x")).when(draftService).publishSite(site, USER);
+    assertEquals(LayoutMcpTool.SITE_LAYOUT_NOT_PUBLISHED, refusal(IllegalStateException.class, () -> tool.publishLayout(SITE_ID)));
+    doThrow(new IllegalStateException(SiteLayoutService.SITE_OUTDATED_MESSAGE)).when(draftService).publishSite(site, USER);
+    assertEquals(LayoutMcpTool.LAYOUT_OUTDATED, refusal(IllegalStateException.class, () -> tool.publishLayout(SITE_ID)));
+
+    when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(false);
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.publishLayout(SITE_ID)));
+    assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, refusal(() -> tool.publishLayout(null)));
+    verify(draftService, times(5)).publishSite(site, USER);
+  }
+
+  @Test
+  public void discardLayoutDraftStartsAgainFromThePublishedLayout() throws Exception {
+    PortalConfig site = editableSite();
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_10");
+    draftSite.setPortalLayout(new Container("draft"));
+    when(draftService.discardDraftSite(site, USER)).thenReturn(draftSite.getSiteKey());
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
+    when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
+    SiteDescription expected = describedSite(site, draftSite);
+
+    assertEquals(expected, asUser(() -> tool.discardLayoutDraft(SITE_ID)));
+
+    doThrow(new ObjectNotFoundException("no draft")).when(draftService).discardDraftSite(site, USER);
+    assertEquals(LayoutMcpTool.DRAFT_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.discardLayoutDraft(SITE_ID)));
+    doThrow(new IllegalStateException("engine detail")).when(draftService).discardDraftSite(site, USER);
+    assertEquals(LayoutMcpTool.SITE_LAYOUT_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.discardLayoutDraft(SITE_ID)));
+    when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(false);
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.discardLayoutDraft(SITE_ID)));
+    verify(draftService, times(3)).discardDraftSite(site, USER);
+  }
+
+  private PortalConfig editableSite() throws Exception {
+    PortalConfig site = site("portal", "test", "Test");
+    site.setPortalLayout(new Container("live"));
+    when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site);
+    when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(true);
+    return site;
+  }
+
+  /**
+   * The site as a write answers it, with the given draft's layout
+   */
+  private SiteDescription describedSite(PortalConfig site, PortalConfig draftSite) throws Exception {
+    SiteDescription expected = mock(SiteDescription.class);
+    lenient().when(layoutService.getPortalConfig(site.getSiteKey())).thenReturn(site);
+    lenient().doReturn(label(site.getLabel())).when(siteLayoutService).getSiteLabels(site.getId(), USER);
+    lenient().doReturn(null).when(siteLayoutService).getSiteDescriptions(site.getId(), USER);
+    lenient().when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> i.getArgument(0));
+    lenient().when(descriptionService.toSiteDescription(eq(site), eq(draftSite.getPortalLayout()), eq(site.getLabel()), isNull(), eq(true)))
+             .thenReturn(expected);
+    return expected;
+  }
+
+  private LayoutModel siteLayout() {
+    LayoutModel root = new LayoutModel();
+    root.setTemplate(SiteLayoutAssembler.SITE_TEMPLATE);
+    root.setChildren(new ArrayList<>());
+    return root;
+  }
+
+  private String refusalInFrench(Class<? extends Exception> type, Callable<?> call) {
+    return assertThrows(type, () -> asUserInFrench(call)).getMessage();
+  }
+
+  @SneakyThrows
+  private <T> T asUserInFrench(Callable<T> call) {
+    try (MockedStatic<LocaleContextInfoUtils> locales = mockStatic(LocaleContextInfoUtils.class)) {
+      locales.when(() -> LocaleContextInfoUtils.getUserLocale(USER)).thenReturn(Locale.FRENCH);
+      return asUser(call);
     }
   }
 

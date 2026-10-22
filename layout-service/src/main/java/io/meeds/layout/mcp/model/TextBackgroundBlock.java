@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.meeds.layout.mcp.constant.BackgroundMode;
 
 @JsonInclude(Include.NON_NULL)
-public record TextBackgroundBlock(@JsonProperty("enabled") boolean enabled,
+public record TextBackgroundBlock(@JsonProperty("enabled") Boolean enabled,
                                   @JsonProperty("mode") BackgroundMode mode,
                                   @JsonProperty("color") String color,
                                   @JsonProperty("from") String from,

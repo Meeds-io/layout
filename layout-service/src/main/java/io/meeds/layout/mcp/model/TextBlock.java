@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(Include.NON_NULL)
-public record TextBlock(@JsonProperty("enabled") boolean enabled,
+public record TextBlock(@JsonProperty("enabled") Boolean enabled,
                         @JsonProperty("title") TextRoleBlock title,
                         @JsonProperty("header") TextRoleBlock header,
                         @JsonProperty("content") TextRoleBlock content,

@@ -62,6 +62,7 @@ import org.exoplatform.portal.config.model.ModelStyle;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.config.serialize.model.SiteLayout;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.portal.mop.importer.ImportMode;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
@@ -109,6 +110,9 @@ public class SiteLayoutServiceTest {
 
   @MockitoBean
   private TranslationService      translationService;
+
+  @MockitoBean
+  private ListenerService         listenerService;
 
   @Autowired
   private SiteLayoutService       siteLayoutService;
@@ -620,6 +624,23 @@ public class SiteLayoutServiceTest {
     style.setBackgroundColor("#FFFFFF@#20282C");
     siteLayoutService.updateSiteLayout(SITE_KEY, site, false, TEST_USER);
     verify(layoutService).save(portalConfig);
+  }
+
+  @Test
+  @SneakyThrows
+  public void publishingASiteLayoutBroadcastsThePublishedEventAndADraftSaveDoesNot() {
+    PortalConfig site = mock(PortalConfig.class);
+    when(site.getPortalLayout()).thenReturn(new SiteLayout());
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+
+    siteLayoutService.updateSiteLayout(SITE_KEY, site, false, TEST_USER);
+    verify(portalConfig).checkStorage();
+    verify(listenerService, never()).broadcast(any(String.class), any(), any());
+
+    siteLayoutService.updateSiteLayout(SITE_KEY, site, true, TEST_USER);
+    verify(portalConfig).resetStorage();
+    verify(listenerService).broadcast(SiteLayoutService.SITE_PUBLISHED_EVENT, TEST_USER, SITE_KEY);
   }
 
   @Test

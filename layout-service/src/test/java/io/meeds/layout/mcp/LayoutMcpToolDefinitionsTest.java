@@ -35,11 +35,13 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.util.JsonHelper;
 
+import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.constant.SectionType;
 import io.meeds.layout.mcp.model.PageDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.SidebarDisplayOptions;
+import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.TopbarApplicationOption;
 import io.meeds.layout.mcp.model.TopbarDisplayOptions;
 import io.meeds.mcp.server.model.SimpleToolDefinition;
@@ -65,9 +67,27 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                "update_navigation_display",
                                                                                "create_site",
                                                                                "update_site",
-                                                                               "delete_site");
+                                                                               "delete_site",
+                                                                               "set_site_layout",
+                                                                               "publish_layout",
+                                                                               "discard_layout_draft");
 
-  private static final Set<String>         APPROVAL_TOOLS            = Set.of("update_theme", "update_navigation_display", "delete_site");
+  private static final Set<String>         APPROVAL_TOOLS            = Set.of("update_theme",
+                                                                               "update_navigation_display",
+                                                                               "delete_site",
+                                                                               "publish_layout");
+
+  private static final String              SITE_LAYOUT_SAMPLE        = """
+      {"site_id": 3,
+       "left_sidebar": {"container_id": "12", "options": {"width": 250, "sticky": true, "display": "hide_mobile", "full_height": true},
+                        "styling": {"margins": {"enabled": true, "all": 0}, "background": {"enabled": true, "color": "#111111", "scroll_color": "#222222"}},
+                        "applications": [{"application_id": "5"}, {"instance_id": 10, "title": "News", "display": "hide_desktop",
+                                          "styling": {"border": {"enabled": true, "color": "#123456", "size": 2, "shadow": true},
+                                                      "text": {"enabled": true, "title": {"color": "#333333", "size": 18, "bold": true}}}}]},
+       "right_sidebar": {"options": {"width": 300}},
+       "topbars": [{"options": {"height": 60, "sticky": true}, "applications": [{"content_id": "social/Menu"}]}],
+       "bottom_bars": []}
+      """;
 
   private static final String              CREATE_SITE_SAMPLE        = """
       {"name": "marketing", "label": "Marketing", "description": "About us", "template": "basic",
@@ -97,7 +117,10 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                                NAVIGATION_DISPLAY_SAMPLE),
                                                                                      Map.entry("create_site", CREATE_SITE_SAMPLE),
                                                                                      Map.entry("update_site", UPDATE_SITE_SAMPLE),
-                                                                                     Map.entry("delete_site", "{\"site_id\": 3}"));
+                                                                                     Map.entry("delete_site", "{\"site_id\": 3}"),
+                                                                                     Map.entry("set_site_layout", SITE_LAYOUT_SAMPLE),
+                                                                                     Map.entry("publish_layout", "{\"site_id\": 3}"),
+                                                                                     Map.entry("discard_layout_draft", "{\"site_id\": 3}"));
 
   @Test
   public void everyPublicMethodHasADefinitionAndEveryDefinitionAMethod() {
@@ -149,6 +172,35 @@ public class LayoutMcpToolDefinitionsTest {
     assertEquals(new SidebarDisplayOptions(true, List.of("icon", "sticky"), "icon"), sidebar);
     assertEquals(new TopbarDisplayOptions(null, null, null, null),
                  JSON_HELPER.convertToTypedObject(JSON_HELPER.fromJsonToMap("{}"), TopbarDisplayOptions.class));
+  }
+
+  /**
+   * Spring AI binds a list argument through the method's generic parameter
+   * type, so the containers and their nested blocks arrive as records
+   */
+  @Test
+  public void siteLayoutListsBindTheirRecordsThroughTheParameterizedType() throws Exception {
+    Method method = toolMethods().get("set_site_layout");
+    Map<String, Object> arguments = JSON_HELPER.fromJsonToMap(SITE_LAYOUT_SAMPLE);
+    Parameter topbars = Arrays.stream(method.getParameters()).filter(p -> p.getName().equals("topbars")).findFirst().orElseThrow();
+    @SuppressWarnings("unchecked")
+    List<SiteContainerDescription> typed = (List<SiteContainerDescription>) JSON_HELPER.fromJson(JSON_HELPER.toJson(arguments.get("topbars")),
+                                                                                                topbars.getParameterizedType());
+    assertEquals(60, typed.get(0).options().height());
+    assertTrue(typed.get(0).options().sticky());
+    assertEquals("social/Menu", typed.get(0).applications().get(0).contentId());
+
+    SiteContainerDescription left = (SiteContainerDescription) JSON_HELPER.convertToTypedObject(arguments.get("left_sidebar"),
+                                                                                                SiteContainerDescription.class);
+    assertEquals("12", left.containerId());
+    assertEquals(DisplayMode.HIDE_MOBILE, left.options().display());
+    assertEquals(0, left.styling().margins().all());
+    assertEquals("#222222", left.styling().background().scrollColor());
+    assertEquals("5", left.applications().get(0).applicationId());
+    assertEquals(10L, left.applications().get(1).instanceId());
+    assertEquals(DisplayMode.HIDE_DESKTOP, left.applications().get(1).display());
+    assertEquals(2, left.applications().get(1).styling().border().size());
+    assertEquals(true, left.applications().get(1).styling().text().title().bold());
   }
 
   @Test
