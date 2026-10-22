@@ -934,7 +934,24 @@ public class LayoutDescriptionServiceTest {
 
     SiteContainerDescription unstuck = new SiteContainerDescription(topBanner.getStorageId(), new SiteContainerOptions(null, null, false, DisplayMode.BOTH, null), null, null);
     result = build(site, null, List.of(unstuck), null);
-    assertEquals("layout-banner-top-section", result.getChildren().get(1).getChildren().get(0).getCssClass());
+    writtenTop = result.getChildren().get(1).getChildren().get(0);
+    assertEquals("layout-banner-top-section", writtenTop.getCssClass());
+    assertEquals("#111111", writtenTop.getBackgroundColor());
+
+    style.setBackgroundImage("/portal/rest/v1/social/attachments/containerBackground/site_5_1/7");
+    style.setBackgroundSize("cover");
+    topBanner.setCssClass("layout-banner-top-section layout-bg-margin-top-4");
+    SiteContainerDescription recoloured = new SiteContainerDescription(topBanner.getStorageId(),
+                                                                       null,
+                                                                       new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#777777", null, null, null, null, null, null, null), null, null),
+                                                                       null);
+    result = build(site, null, List.of(recoloured), null);
+    writtenTop = result.getChildren().get(1).getChildren().get(0);
+    assertEquals("#777777", writtenTop.getBackgroundColor());
+    assertEquals("/portal/rest/v1/social/attachments/containerBackground/site_5_1/7", writtenTop.getBackgroundImage());
+    assertEquals("cover", writtenTop.getBackgroundSize());
+    assertEquals(Set.of("layout-banner-top-section", "layout-bg-margin-top-4"), Set.of(writtenTop.getCssClass().split(" ")));
+    assertEquals("#333333", writtenTop.getTextTitleColor());
   }
 
   @Test
@@ -968,9 +985,7 @@ public class LayoutDescriptionServiceTest {
     PortalConfig site = storedSite();
     Container outerLeftCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
     Application kept = (Application) outerLeftCell.getChildren().get(0);
-    ModelStyle style = new ModelStyle();
-    style.setBorderSize("1px; javascript:alert(1)");
-    kept.setCssStyle(style);
+    kept.setWidth("100px; javascript:alert(1)");
     SiteContainerDescription left = new SiteContainerDescription(outerLeftCell.getStorageId(),
                                                                  null,
                                                                  null,

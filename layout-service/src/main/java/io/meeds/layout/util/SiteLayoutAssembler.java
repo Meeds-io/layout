@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -37,6 +38,7 @@ import io.meeds.layout.mcp.model.ApplicationDescription;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteContainerOptions;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
+import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.service.LayoutStylingService;
 
@@ -149,6 +151,8 @@ public class SiteLayoutAssembler {
 
   private final LayoutStylingService                        stylingService;
 
+  private final BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling;
+
   private final Function<ApplicationDescription, LayoutModel> newApplication;
 
   private final Map<String, LayoutModel>                    byId                            = new HashMap<>();
@@ -164,16 +168,21 @@ public class SiteLayoutAssembler {
    * @param hiddenWindows  the storage id of each window the caller cannot
    *                         see, with its index in its container
    * @param stylingService the styling writer
+   * @param storedStyling  reads an element's stored styling as get_site
+   *                         answers it, the base a call's description is
+   *                         merged over
    * @param newApplication builds the window of an application the call adds,
    *                         from its instance or content id
    */
   public SiteLayoutAssembler(LayoutModel root,
                              Map<String, Integer> hiddenWindows,
                              LayoutStylingService stylingService,
+                             BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling,
                              Function<ApplicationDescription, LayoutModel> newApplication) {
     this.root = root;
     this.hiddenWindows = hiddenWindows;
     this.stylingService = stylingService;
+    this.storedStyling = storedStyling;
     this.newApplication = newApplication;
   }
 
@@ -324,7 +333,7 @@ public class SiteLayoutAssembler {
     cell.setChildren(new ArrayList<>());
     String sidebarClass = LayoutStylingService.strip(sidebar.getCssClass(), STICKY_TOKEN);
     sidebar.setCssClass(sticky ? LayoutStylingService.append(sidebarClass, STICKY_SECTION_TOKEN) : sidebarClass);
-    stylingService.applyStyling(cell, description.styling(), StylingDestination.SIDEBAR, sticky, false);
+    applyStyling(cell, description.styling(), StylingDestination.SIDEBAR, sticky, false);
     stylingService.applyDisplay(cell, options.display(), StylingDestination.SIDEBAR, DISPLAY_NOT_ACCEPTED);
     placeApplications(description.applications(), List.of(cell));
     sidebar.setChildren(new ArrayList<>(List.of(cell)));
@@ -367,7 +376,7 @@ public class SiteLayoutAssembler {
     String bannerClass = LayoutStylingService.append(LayoutStylingService.strip(banner.getCssClass(), BANNER_TOKENS),
                                                      top ? BANNER_TOP_TOKEN : BANNER_BOTTOM_TOKEN);
     banner.setCssClass(sticky ? LayoutStylingService.append(bannerClass, STICKY_SECTION_TOKEN) : bannerClass);
-    stylingService.applyStyling(banner, description.styling(), StylingDestination.BANNER, sticky, top);
+    applyStyling(banner, description.styling(), StylingDestination.BANNER, sticky, top);
     stylingService.applyDisplay(banner, options.display(), StylingDestination.BANNER, DISPLAY_NOT_ACCEPTED);
     placeApplications(description.applications(), cells);
     banner.setChildren(new ArrayList<>(cells));
@@ -416,7 +425,7 @@ public class SiteLayoutAssembler {
         }
         application.setTitle(title);
       }
-      stylingService.applyStyling(application, description.styling(), StylingDestination.SITE_CONTAINER_APPLICATION, false, false);
+      applyStyling(application, description.styling(), StylingDestination.SITE_CONTAINER_APPLICATION, false, false);
       stylingService.applyDisplay(application,
                                   description.display(),
                                   StylingDestination.SITE_CONTAINER_APPLICATION,
@@ -430,6 +439,15 @@ public class SiteLayoutAssembler {
         children.add(Math.min(index, children.size()), byId.get(storageId));
       }
     });
+  }
+
+  /**
+   * Writes the call's styling merged over the element's stored one, so a
+   * block or a value the call leaves null keeps what the element holds
+   */
+  private void applyStyling(LayoutModel element, StylingDescription styling, StylingDestination destination, boolean sticky, boolean plainColorOnly) {
+    StylingDescription merged = LayoutStylingService.merge(storedStyling.apply(element, destination), styling, sticky);
+    stylingService.applyStyling(element, merged, destination, sticky, plainColorOnly);
   }
 
   private LayoutModel container(String storageId, String template) throws ObjectNotFoundException {

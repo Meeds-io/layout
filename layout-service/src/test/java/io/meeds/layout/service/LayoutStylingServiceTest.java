@@ -85,11 +85,56 @@ public class LayoutStylingServiceTest {
     assertNull(container.getMarginTop());
     assertNull(container.getMarginLeft());
     service.applyStyling(application, null, StylingDestination.APPLICATION, false, false);
-    assertEquals(80, application.getMarginTop());
-    service.applyStyling(application, styling(null, null, null, null, null, null), StylingDestination.APPLICATION, false, false);
-    assertEquals(20, application.getMarginRight());
-    service.applyStyling(application, styling(new MarginsBlock(false, null, null, null, null, null), null, null, null, null, null), StylingDestination.APPLICATION, false, false);
     assertNull(application.getMarginTop());
+  }
+
+  @Test
+  public void mergeKeepsWhatTheCallLeavesNullAndClearsWhatItTurnsOff() {
+    StylingDescription stored = new StylingDescription(new MarginsBlock(true, null, 4, 5, 6, 7),
+                                                       new BorderBlock(true, "#111111", 2, true),
+                                                       new CornersBlock(true, 8, 8, 8, 8, 8),
+                                                       new BackgroundBlock(true, BackgroundMode.LINEAR, null, "#AAAAAA", "#BBBBBB", 30, "to_right", null, null, null),
+                                                       new TextBlock(true, new TextRoleBlock("#222222", 18, true, null, null), null, null, null, "#333333"),
+                                                       new HeightBlock(true, HeightPreset.LARGE, null));
+    assertEquals(stored, LayoutStylingService.merge(stored, null, false));
+    assertEquals(stored, LayoutStylingService.merge(stored, styling(null, null, null, null, null, null), false));
+
+    StylingDescription merged = LayoutStylingService.merge(stored,
+                                                           styling(new MarginsBlock(true, null, 10, null, null, null),
+                                                                   new BorderBlock(false, null, null, null),
+                                                                   new CornersBlock(true, null, null, 20, null, null),
+                                                                   new BackgroundBlock(true, null, null, null, null, 60, null, null, null, null),
+                                                                   new TextBlock(true, new TextRoleBlock(null, null, null, true, null), new TextRoleBlock("#444444", null, null, null, null), null, null, null),
+                                                                   null),
+                                                           false);
+    assertEquals(new MarginsBlock(true, null, 10, 5, 6, 7), merged.margins());
+    assertEquals(new BorderBlock(false, null, null, null), merged.border());
+    assertEquals(new CornersBlock(true, null, 8, 20, 8, 8), merged.corners());
+    assertEquals(new BackgroundBlock(true, BackgroundMode.LINEAR, null, "#AAAAAA", "#BBBBBB", 60, "to_right", null, null, null), merged.background());
+    assertEquals(new TextRoleBlock("#222222", 18, true, true, null), merged.text().title());
+    assertEquals(new TextRoleBlock("#444444", null, null, null, null), merged.text().header());
+    assertEquals("#333333", merged.text().iconColor());
+    assertEquals(stored.height(), merged.height());
+
+    StylingDescription restated = LayoutStylingService.merge(stored,
+                                                             styling(null, null, null, new BackgroundBlock(true, null, "#555555", null, null, null, null, null, null, null), null, null),
+                                                             false);
+    assertEquals(new BackgroundBlock(true, BackgroundMode.SOLID, "#555555", null, null, null, null, null, null, null), restated.background());
+
+    BackgroundImageBlock image = new BackgroundImageBlock(null, "/image", "cover", null, null, null, null, null);
+    StylingDescription withImage = new StylingDescription(null, null, null, new BackgroundBlock(true, BackgroundMode.SOLID, "#111111@#222222", null, null, null, null, "#222222", null, image), null, null);
+    assertEquals(image, LayoutStylingService.merge(withImage, styling(null, null, null, background(null, "#666666", null, null, null, null, null), null, null), true).background().image());
+    assertEquals("#222222", LayoutStylingService.merge(withImage, null, true).background().scrollColor());
+    assertNull(LayoutStylingService.merge(withImage, null, false).background().scrollColor());
+    assertNull(LayoutStylingService.merge(withImage, styling(null, null, null, new BackgroundBlock(false, null, null, null, null, null, null, null, null, null), null, null), true)
+                                   .background()
+                                   .image());
+
+    StylingDescription unparsed = new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#111111", null, null, null, null, null, "linear-gradient(red, blue)", null), null, null);
+    assertEquals("linear-gradient(red, blue)", LayoutStylingService.merge(unparsed, null, false).background().effect());
+    assertNull(LayoutStylingService.merge(unparsed, styling(null, null, null, background(BackgroundMode.RADIAL, null, "#AAAAAA", "#BBBBBB", null, null, null), null, null), false)
+                                   .background()
+                                   .effect());
   }
 
   @Test
@@ -108,13 +153,6 @@ public class LayoutStylingServiceTest {
     assertEquals(8, application.getRadiusBottomRight());
 
     service.applyStyling(application, null, StylingDestination.SITE_CONTAINER_APPLICATION, false, false);
-    assertEquals("#123456", application.getBorderColor());
-    assertEquals(8, application.getRadiusTopLeft());
-    service.applyStyling(application,
-                         styling(null, new BorderBlock(false, null, null, null), new CornersBlock(false, null, null, null, null, null), null, null, null),
-                         StylingDestination.SITE_CONTAINER_APPLICATION,
-                         false,
-                         false);
     assertNull(application.getBorderColor());
     assertEquals("0", application.getBorderSize());
     assertNull(application.getBoxShadow());
@@ -299,9 +337,6 @@ public class LayoutStylingServiceTest {
     assertEquals("fixed", cell.getBackgroundAttachment());
     assertEquals("custom layout-bg-margin-top-4 layout-bg-radius-tl-8", cell.getCssClass());
 
-    service.applyStyling(cell, null, StylingDestination.SIDEBAR, false, false);
-    assertEquals(stored.url(), cell.getBackgroundImage());
-
     BackgroundImageBlock other = new BackgroundImageBlock(null, "/other", null, null, null, null, null, null);
     assertEquals(REFUSED + "background.image",
                  refused(() -> service.applyStyling(cell,
@@ -337,6 +372,17 @@ public class LayoutStylingServiceTest {
                          StylingDestination.SIDEBAR, false, false);
     assertNull(cell.getTextTitleBackgroundImage());
     assertEquals("#666666", cell.getTextTitleBackgroundColor());
+
+    cell.setTextTitleBackgroundRadius("6px 6px 6px 6px");
+    service.applyStyling(cell, styling(null, null, null, null,
+                                       text(new TextRoleBlock(null, null, null, null,
+                                                              new TextBackgroundBlock(true, null, "#666666", null, null, null, null, null, null, null,
+                                                                                      new CornersBlock(false, null, null, null, null, null))),
+                                            null,
+                                            null),
+                                       null),
+                         StylingDestination.SIDEBAR, false, false);
+    assertNull(cell.getTextTitleBackgroundRadius());
   }
 
   @Test
@@ -363,7 +409,7 @@ public class LayoutStylingServiceTest {
     assertEquals("#111111", cell.getTextTitleColor());
     assertEquals("20px", cell.getTextTitleFontSize());
     assertEquals("bold", cell.getTextTitleFontWeight());
-    assertNull(cell.getTextTitleFontStyle());
+    assertEquals("normal", cell.getTextTitleFontStyle());
     assertEquals("#FFFFFFFF", cell.getTextTitleBackgroundColor());
     assertNull(cell.getTextTitleBackgroundEffect());
     assertEquals("4px 0px 4px 8px", cell.getTextTitleBackgroundPadding());
@@ -375,17 +421,10 @@ public class LayoutStylingServiceTest {
     assertEquals("#333333", cell.getTextColor());
     assertEquals("16px", cell.getTextFontSize());
     assertNull(cell.getTextSubtitleColor());
-    assertNull(cell.getTextSubtitleFontWeight());
+    assertEquals("normal", cell.getTextSubtitleFontWeight());
     assertEquals("#444444", cell.getIconColor());
 
-    service.applyStyling(cell, styling(null, null, null, null, text(new TextRoleBlock(null, 24, null, null, null), null, null), null),
-                         StylingDestination.SIDEBAR, false, false);
-    assertEquals("#111111", cell.getTextTitleColor());
-    assertEquals("24px", cell.getTextTitleFontSize());
-    assertEquals("bold", cell.getTextTitleFontWeight());
-    assertEquals("4px 0px 4px 8px", cell.getTextTitleBackgroundPadding());
-
-    service.applyStyling(cell, styling(null, null, null, null, new TextBlock(false, null, null, null, null, null), null), StylingDestination.SIDEBAR, false, false);
+    service.applyStyling(cell, null, StylingDestination.SIDEBAR, false, false);
     assertNull(cell.getTextTitleColor());
     assertEquals("normal", cell.getTextTitleFontWeight());
     assertEquals("normal", cell.getTextHeaderFontStyle());
@@ -437,8 +476,6 @@ public class LayoutStylingServiceTest {
                          StylingDestination.APPLICATION, false, false);
     assertEquals("420", application.getHeight());
     service.applyStyling(application, null, StylingDestination.APPLICATION, false, false);
-    assertEquals("420", application.getHeight());
-    service.applyStyling(application, styling(null, null, null, null, null, new HeightBlock(false, null, null)), StylingDestination.APPLICATION, false, false);
     assertNull(application.getHeight());
     assertEquals(REFUSED + "height.custom_px",
                  refused(() -> service.applyStyling(application,

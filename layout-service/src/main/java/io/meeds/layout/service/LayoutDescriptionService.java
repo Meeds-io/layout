@@ -326,6 +326,7 @@ public class LayoutDescriptionService {
     LayoutModel result = new SiteLayoutAssembler(root,
                                                  hiddenWindows,
                                                  stylingService,
+                                                 this::toStyling,
                                                  description -> newApplication(description, username, locale)).assemble(update);
     if (copyWindows) {
       result.resetStorage();
