@@ -51,7 +51,9 @@ import io.meeds.layout.model.LayoutModel;
  * false clears its fields, and a value outside the vocabulary is refused
  * naming its path. A caller that keeps an element merges the call's
  * description over the element's stored one first ({@link #merge}), so a
- * value left null inside a block it turns on keeps what the element holds.
+ * value left null inside a block it turns on keeps what the element holds;
+ * the one block the merge restates on its own is a solid background with a
+ * scroll colour on an element that stops being sticky.
  * Images are not written here: an image block is accepted only when it
  * repeats the image the element already holds, which then stays as stored.
  */
@@ -330,15 +332,23 @@ public class LayoutStylingService {
                                    restated ? input.effect() : or(input.effect(), base.effect()),
                                    or(input.image(), base.image()),
                                    mergeSides(base.padding(), input.padding()),
-                                   mergeCorners(base.corners(), input.corners()));
+                                   mergeTextCorners(base.corners(), input.corners()));
   }
 
+  /**
+   * The padding and the corners of a text background are values inside the
+   * block: left null they stay stored, unlike a block of their own
+   */
   private static SidesBlock mergeSides(SidesBlock stored, SidesBlock input) {
     if (input == null) {
-      return null;
+      return stored;
     }
     SidesBlock base = stored == null ? new SidesBlock(null, null, null, null) : stored;
     return new SidesBlock(or(input.top(), base.top()), or(input.right(), base.right()), or(input.bottom(), base.bottom()), or(input.left(), base.left()));
+  }
+
+  private static CornersBlock mergeTextCorners(CornersBlock stored, CornersBlock input) {
+    return input == null ? stored : mergeCorners(stored, input);
   }
 
   private static <T> T or(T value, T fallback) {

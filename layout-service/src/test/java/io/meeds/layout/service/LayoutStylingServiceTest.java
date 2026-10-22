@@ -148,6 +148,14 @@ public class LayoutStylingServiceTest {
     assertEquals(new SidesBlock(4, 8, 8, 8), mergedTitle.padding());
     assertEquals(new CornersBlock(true, null, 6, 12, 6, 6), mergedTitle.corners());
     assertEquals("#777777", mergedTitle.color());
+    TextBackgroundBlock colourOnly = new TextBackgroundBlock(true, null, "#555555", null, null, null, null, null, null, null, null);
+    TextBackgroundBlock recoloured = LayoutStylingService.merge(withTitle, styling(null, null, null, null, text(new TextRoleBlock(null, null, null, null, colourOnly), null, null), null), false)
+                                                         .text()
+                                                         .title()
+                                                         .background();
+    assertEquals("#555555", recoloured.color());
+    assertEquals(new SidesBlock(8, 8, 8, 8), recoloured.padding());
+    assertEquals(storedTitleBackground.corners(), recoloured.corners());
     assertNull(LayoutStylingService.merge(withImage, styling(null, null, null, new BackgroundBlock(false, null, null, null, null, null, null, null, null, null), null, null), true)
                                    .background()
                                    .image());
