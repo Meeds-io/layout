@@ -46,14 +46,14 @@ import io.meeds.layout.model.LayoutModel;
  * Writes a styling description onto a layout element exactly as the editor's
  * styling inputs do, the inverse of LayoutDescriptionService.toStyling: the
  * vocabulary is checked block by block against the destination's matrix
- * before a field is written, a block that is off or absent clears its
- * fields, and a value outside the vocabulary is refused naming its path. A
- * caller that keeps an element merges the call's description over the
- * element's stored one first ({@link #merge}), so a block, a role or a value
- * the call leaves null keeps what the element holds and only an enabled flag
- * set to false clears a block. Images are not written here: an image block
- * is accepted only when it repeats the image the element already holds,
- * which then stays as stored.
+ * before a field is written; a block, a text role or a text background the
+ * call leaves null is not written at all, a block whose enabled flag is
+ * false clears its fields, and a value outside the vocabulary is refused
+ * naming its path. A caller that keeps an element merges the call's
+ * description over the element's stored one first ({@link #merge}), so a
+ * value left null inside a block it turns on keeps what the element holds.
+ * Images are not written here: an image block is accepted only when it
+ * repeats the image the element already holds, which then stays as stored.
  */
 @Service
 public class LayoutStylingService {
@@ -133,38 +133,35 @@ public class LayoutStylingService {
 
   /**
    * The description a call means for a kept element: a block the call leaves
-   * null is the stored one, a block it turns off is off, and inside a block
-   * it turns on every value it leaves null is the stored value, a text role
-   * included. A stored gradient's effect is kept only while the call names
-   * neither a mode nor a colour, and a stored scroll colour only while the
-   * element stays sticky.
+   * null stays null, so the element keeps it untouched; a block it turns off
+   * is off; and inside a block it turns on every value it leaves null is the
+   * stored value, a text role, a padding side or a corner included. A stored
+   * gradient's effect is kept only while the call names neither a mode nor a
+   * colour, and a stored scroll colour only while the element stays sticky
+   * and solid: a solid background left untouched on an element that stops
+   * being sticky is restated without its scroll colour, as the editor does.
    *
    * @param  stored the element's stored description, as the read answers it
-   * @param  input  the call's description, null for every block stored
+   * @param  input  the call's description, null for every block untouched
    * @param  sticky whether the element is sticky after the call
    * @return        the description to write
    */
   public static StylingDescription merge(StylingDescription stored, StylingDescription input, boolean sticky) { // NOSONAR
     StylingDescription base = stored == null ? new StylingDescription(null, null, null, null, null, null) : stored;
     if (input == null) {
-      return new StylingDescription(base.margins(),
-                                    base.border(),
-                                    base.corners(),
-                                    mergeBackground(base.background(), null, sticky),
-                                    base.text(),
-                                    base.height());
+      return new StylingDescription(null, null, null, mergeBackground(base.background(), null, sticky), null, null);
     }
     return new StylingDescription(mergeMargins(base.margins(), input.margins()),
                                   mergeBorder(base.border(), input.border()),
                                   mergeCorners(base.corners(), input.corners()),
                                   mergeBackground(base.background(), input.background(), sticky),
                                   mergeText(base.text(), input.text()),
-                                  input.height() == null ? base.height() : input.height());
+                                  input.height());
   }
 
   /**
    * @param target         the element written
-   * @param styling        the blocks, null for every block off
+   * @param styling        the blocks, null for every block untouched
    * @param destination    the element's place in the matrix
    * @param sticky         whether the element is a sticky site container,
    *                         the only one with a scroll colour
@@ -176,13 +173,14 @@ public class LayoutStylingService {
                            StylingDestination destination,
                            boolean sticky,
                            boolean plainColorOnly) {
-    StylingDescription blocks = styling == null ? new StylingDescription(null, null, null, null, null, null) : styling;
-    applyMargins(target, blocks.margins(), destination);
-    applyBorder(target, blocks.border(), destination);
-    applyCorners(target, blocks.corners(), destination);
-    applyBackground(target, blocks.background(), sticky, plainColorOnly);
-    applyText(target, blocks.text(), destination);
-    applyHeight(target, blocks.height(), destination);
+    if (styling != null) {
+      applyMargins(target, styling.margins(), destination);
+      applyBorder(target, styling.border(), destination);
+      applyCorners(target, styling.corners(), destination);
+      applyBackground(target, styling.background(), sticky, plainColorOnly);
+      applyText(target, styling.text(), destination);
+      applyHeight(target, styling.height(), destination);
+    }
     if (destination.isApplication()) {
       target.setCssClass(strip(target.getCssClass(), GENERATED_TOKENS));
     }
@@ -224,9 +222,7 @@ public class LayoutStylingService {
   }
 
   private static MarginsBlock mergeMargins(MarginsBlock stored, MarginsBlock input) {
-    if (input == null) {
-      return stored;
-    } else if (!on(input.enabled())) {
+    if (input == null || !on(input.enabled())) {
       return input;
     }
     MarginsBlock base = stored != null && on(stored.enabled()) ? stored : new MarginsBlock(true, null, null, null, null, null);
@@ -239,9 +235,7 @@ public class LayoutStylingService {
   }
 
   private static BorderBlock mergeBorder(BorderBlock stored, BorderBlock input) {
-    if (input == null) {
-      return stored;
-    } else if (!on(input.enabled())) {
+    if (input == null || !on(input.enabled())) {
       return input;
     }
     BorderBlock base = stored != null && on(stored.enabled()) ? stored : new BorderBlock(true, null, null, null);
@@ -249,9 +243,7 @@ public class LayoutStylingService {
   }
 
   private static CornersBlock mergeCorners(CornersBlock stored, CornersBlock input) {
-    if (input == null) {
-      return stored;
-    } else if (!on(input.enabled())) {
+    if (input == null || !on(input.enabled())) {
       return input;
     }
     CornersBlock base = stored != null && on(stored.enabled()) ? stored : new CornersBlock(true, null, null, null, null, null);
@@ -266,7 +258,7 @@ public class LayoutStylingService {
   private static BackgroundBlock mergeBackground(BackgroundBlock stored, BackgroundBlock input, boolean sticky) {
     BackgroundBlock base = stored != null && on(stored.enabled()) ? stored : null;
     if (input == null) {
-      return base == null || sticky || base.scrollColor() == null ? stored
+      return base == null || sticky || base.scrollColor() == null ? null
                                                                  : new BackgroundBlock(true,
                                                                                        base.mode(),
                                                                                        base.color(),
@@ -290,15 +282,13 @@ public class LayoutStylingService {
                                solid ? input.to() : or(input.to(), base.to()),
                                solid ? input.ratio() : or(input.ratio(), base.ratio()),
                                solid ? input.direction() : or(input.direction(), base.direction()),
-                               sticky ? or(input.scrollColor(), base.scrollColor()) : input.scrollColor(),
+                               sticky && solid ? or(input.scrollColor(), base.scrollColor()) : input.scrollColor(),
                                restated ? input.effect() : or(input.effect(), base.effect()),
                                or(input.image(), base.image()));
   }
 
   private static TextBlock mergeText(TextBlock stored, TextBlock input) {
-    if (input == null) {
-      return stored;
-    } else if (!on(input.enabled())) {
+    if (input == null || !on(input.enabled())) {
       return input;
     }
     TextBlock base = stored != null && on(stored.enabled()) ? stored : new TextBlock(true, null, null, null, null, null);
@@ -312,7 +302,7 @@ public class LayoutStylingService {
 
   private static TextRoleBlock mergeRole(TextRoleBlock stored, TextRoleBlock input) {
     if (input == null) {
-      return stored;
+      return null;
     }
     TextRoleBlock base = stored == null ? new TextRoleBlock(null, null, null, null, null) : stored;
     return new TextRoleBlock(or(input.color(), base.color()),
@@ -324,9 +314,7 @@ public class LayoutStylingService {
 
   private static TextBackgroundBlock mergeTextBackground(TextBackgroundBlock stored, TextBackgroundBlock input) {
     TextBackgroundBlock base = stored != null && on(stored.enabled()) ? stored : null;
-    if (input == null) {
-      return stored;
-    } else if (!on(input.enabled()) || base == null) {
+    if (input == null || !on(input.enabled()) || base == null) {
       return input;
     }
     boolean restated = input.mode() != null || input.color() != null || input.from() != null || input.to() != null;
@@ -341,8 +329,16 @@ public class LayoutStylingService {
                                    solid ? input.direction() : or(input.direction(), base.direction()),
                                    restated ? input.effect() : or(input.effect(), base.effect()),
                                    or(input.image(), base.image()),
-                                   or(input.padding(), base.padding()),
-                                   or(input.corners(), base.corners()));
+                                   mergeSides(base.padding(), input.padding()),
+                                   mergeCorners(base.corners(), input.corners()));
+  }
+
+  private static SidesBlock mergeSides(SidesBlock stored, SidesBlock input) {
+    if (input == null) {
+      return null;
+    }
+    SidesBlock base = stored == null ? new SidesBlock(null, null, null, null) : stored;
+    return new SidesBlock(or(input.top(), base.top()), or(input.right(), base.right()), or(input.bottom(), base.bottom()), or(input.left(), base.left()));
   }
 
   private static <T> T or(T value, T fallback) {
@@ -358,7 +354,9 @@ public class LayoutStylingService {
   }
 
   private void applyMargins(LayoutModel target, MarginsBlock margins, StylingDestination destination) {
-    if (margins == null || !on(margins.enabled())) {
+    if (margins == null) {
+      return;
+    } else if (!on(margins.enabled())) {
       target.setMarginTop(null);
       target.setMarginRight(null);
       target.setMarginBottom(null);
@@ -380,7 +378,9 @@ public class LayoutStylingService {
   }
 
   private void applyBorder(LayoutModel target, BorderBlock border, StylingDestination destination) {
-    if (border == null || !on(border.enabled())) {
+    if (border == null) {
+      return;
+    } else if (!on(border.enabled())) {
       if (destination.hasBorder()) {
         target.setBorderColor(null);
         target.setBorderSize("0");
@@ -398,7 +398,9 @@ public class LayoutStylingService {
   }
 
   private void applyCorners(LayoutModel target, CornersBlock corners, StylingDestination destination) {
-    if (corners == null || !on(corners.enabled())) {
+    if (corners == null) {
+      return;
+    } else if (!on(corners.enabled())) {
       target.setRadiusTopLeft(null);
       target.setRadiusTopRight(null);
       target.setRadiusBottomRight(null);
@@ -418,7 +420,9 @@ public class LayoutStylingService {
   }
 
   private void applyBackground(LayoutModel target, BackgroundBlock background, boolean sticky, boolean plainColorOnly) {
-    if (background == null || !on(background.enabled())) {
+    if (background == null) {
+      return;
+    } else if (!on(background.enabled())) {
       target.setBackgroundColor(null);
       target.setBackgroundEffect(null);
       clearImage(target);
@@ -526,20 +530,42 @@ public class LayoutStylingService {
   }
 
   private void applyText(LayoutModel target, TextBlock text, StylingDestination destination) { // NOSONAR
-    boolean on = text != null && on(text.enabled());
-    if (on && !destination.hasText()) {
+    if (text == null) {
+      return;
+    } else if (!on(text.enabled())) {
+      target.setIconColor(null);
+      target.setTextTitleColor(null);
+      target.setTextTitleFontSize(null);
+      target.setTextTitleFontWeight(NORMAL);
+      target.setTextTitleFontStyle(NORMAL);
+      target.setTextHeaderColor(null);
+      target.setTextHeaderFontSize(null);
+      target.setTextHeaderFontWeight(NORMAL);
+      target.setTextHeaderFontStyle(NORMAL);
+      target.setTextColor(null);
+      target.setTextFontSize(null);
+      target.setTextFontWeight(NORMAL);
+      target.setTextFontStyle(NORMAL);
+      target.setTextSubtitleColor(null);
+      target.setTextSubtitleFontSize(null);
+      target.setTextSubtitleFontWeight(NORMAL);
+      target.setTextSubtitleFontStyle(NORMAL);
+      clearTitleBackground(target);
+      clearHeaderBackground(target);
+      return;
+    } else if (!destination.hasText()) {
       throw refusal("text");
     }
-    TextRoleBlock title = on ? text.title() : null;
-    TextRoleBlock header = on ? text.header() : null;
-    TextRoleBlock content = on ? text.content() : null;
-    TextRoleBlock subtitle = on ? text.subtitle() : null;
+    TextRoleBlock title = text.title();
+    TextRoleBlock header = text.header();
+    TextRoleBlock content = text.content();
+    TextRoleBlock subtitle = text.subtitle();
     if (content != null && content.background() != null) {
       throw refusal("text.content.background");
     } else if (subtitle != null && subtitle.background() != null) {
       throw refusal("text.subtitle.background");
     }
-    String iconColor = on && text.iconColor() != null ? hex(text.iconColor(), "text.icon_color") : null;
+    String iconColor = text.iconColor() == null ? null : hex(text.iconColor(), "text.icon_color");
     String[] titleBackground = textBackground(title == null ? null : title.background(),
                                               target.getTextTitleBackgroundImage(),
                                               target.getTextTitleBackgroundEffect(),
@@ -548,50 +574,106 @@ public class LayoutStylingService {
                                                target.getTextHeaderBackgroundImage(),
                                                target.getTextHeaderBackgroundEffect(),
                                                "text.header.background");
+    String[] titleValues = roleValues(title, "text.title");
+    String[] headerValues = roleValues(header, "text.header");
+    String[] contentValues = roleValues(content, "text.content");
+    String[] subtitleValues = roleValues(subtitle, "text.subtitle");
     target.setIconColor(iconColor);
-    target.setTextTitleColor(roleColor(title, "text.title"));
-    target.setTextTitleFontSize(roleSize(title, "text.title"));
-    target.setTextTitleFontWeight(roleWeight(title));
-    target.setTextTitleFontStyle(roleStyle(title));
-    target.setTextTitleBackgroundColor(titleBackground[0]);
-    target.setTextTitleBackgroundEffect(titleBackground[1]);
-    if (titleBackground[4] == null) {
-      target.setTextTitleBackgroundImage(null);
-      target.setTextTitleBackgroundSize(null);
-      target.setTextTitleBackgroundRepeat(null);
-      target.setTextTitleBackgroundPosition(null);
+    if (title != null) {
+      target.setTextTitleColor(titleValues[0]);
+      target.setTextTitleFontSize(titleValues[1]);
+      target.setTextTitleFontWeight(titleValues[2]);
+      target.setTextTitleFontStyle(titleValues[3]);
+      if (title.background() != null && !on(title.background().enabled())) {
+        clearTitleBackground(target);
+      } else if (title.background() != null) {
+        target.setTextTitleBackgroundColor(titleBackground[0]);
+        target.setTextTitleBackgroundEffect(titleBackground[1]);
+        if (titleBackground[4] == null) {
+          target.setTextTitleBackgroundImage(null);
+          target.setTextTitleBackgroundSize(null);
+          target.setTextTitleBackgroundRepeat(null);
+          target.setTextTitleBackgroundPosition(null);
+        }
+        target.setTextTitleBackgroundPadding(titleBackground[2]);
+        target.setTextTitleBackgroundRadius(titleBackground[3]);
+      }
     }
-    target.setTextTitleBackgroundPadding(titleBackground[2]);
-    target.setTextTitleBackgroundRadius(titleBackground[3]);
-    target.setTextHeaderColor(roleColor(header, "text.header"));
-    target.setTextHeaderFontSize(roleSize(header, "text.header"));
-    target.setTextHeaderFontWeight(roleWeight(header));
-    target.setTextHeaderFontStyle(roleStyle(header));
-    target.setTextHeaderBackgroundColor(headerBackground[0]);
-    target.setTextHeaderBackgroundEffect(headerBackground[1]);
-    if (headerBackground[4] == null) {
-      target.setTextHeaderBackgroundImage(null);
-      target.setTextHeaderBackgroundSize(null);
-      target.setTextHeaderBackgroundRepeat(null);
-      target.setTextHeaderBackgroundPosition(null);
+    if (header != null) {
+      target.setTextHeaderColor(headerValues[0]);
+      target.setTextHeaderFontSize(headerValues[1]);
+      target.setTextHeaderFontWeight(headerValues[2]);
+      target.setTextHeaderFontStyle(headerValues[3]);
+      if (header.background() != null && !on(header.background().enabled())) {
+        clearHeaderBackground(target);
+      } else if (header.background() != null) {
+        target.setTextHeaderBackgroundColor(headerBackground[0]);
+        target.setTextHeaderBackgroundEffect(headerBackground[1]);
+        if (headerBackground[4] == null) {
+          target.setTextHeaderBackgroundImage(null);
+          target.setTextHeaderBackgroundSize(null);
+          target.setTextHeaderBackgroundRepeat(null);
+          target.setTextHeaderBackgroundPosition(null);
+        }
+        target.setTextHeaderBackgroundPadding(headerBackground[2]);
+        target.setTextHeaderBackgroundRadius(headerBackground[3]);
+      }
     }
-    target.setTextHeaderBackgroundPadding(headerBackground[2]);
-    target.setTextHeaderBackgroundRadius(headerBackground[3]);
-    target.setTextColor(roleColor(content, "text.content"));
-    target.setTextFontSize(roleSize(content, "text.content"));
-    target.setTextFontWeight(roleWeight(content));
-    target.setTextFontStyle(roleStyle(content));
-    target.setTextSubtitleColor(roleColor(subtitle, "text.subtitle"));
-    target.setTextSubtitleFontSize(roleSize(subtitle, "text.subtitle"));
-    target.setTextSubtitleFontWeight(roleWeight(subtitle));
-    target.setTextSubtitleFontStyle(roleStyle(subtitle));
+    if (content != null) {
+      target.setTextColor(contentValues[0]);
+      target.setTextFontSize(contentValues[1]);
+      target.setTextFontWeight(contentValues[2]);
+      target.setTextFontStyle(contentValues[3]);
+    }
+    if (subtitle != null) {
+      target.setTextSubtitleColor(subtitleValues[0]);
+      target.setTextSubtitleFontSize(subtitleValues[1]);
+      target.setTextSubtitleFontWeight(subtitleValues[2]);
+      target.setTextSubtitleFontStyle(subtitleValues[3]);
+    }
   }
 
   /**
-   * @return the colour, effect, padding and radius a text background stores,
-   *         then a marker that the stored image stays; five nulls when the
-   *         block is off, and a null colour with the effect marker when the
-   *         block repeats the stored effect, which then stays
+   * @return the colour, the size in pixels, the weight and the style a role
+   *         stores, as the editor's text input writes them: a weight or a
+   *         style not chosen is normal
+   */
+  private String[] roleValues(TextRoleBlock role, String path) {
+    if (role == null) {
+      return new String[4];
+    }
+    return new String[] { role.color() == null ? null : hex(role.color(), path + ".color"),
+                          role.size() == null ? null : range(role.size(), 1, TEXT_SIZE_MAX, path + ".size") + "px",
+                          Boolean.TRUE.equals(role.bold()) ? BOLD : NORMAL,
+                          Boolean.TRUE.equals(role.italic()) ? ITALIC : NORMAL };
+  }
+
+  private void clearTitleBackground(LayoutModel target) {
+    target.setTextTitleBackgroundColor(null);
+    target.setTextTitleBackgroundEffect(null);
+    target.setTextTitleBackgroundImage(null);
+    target.setTextTitleBackgroundSize(null);
+    target.setTextTitleBackgroundRepeat(null);
+    target.setTextTitleBackgroundPosition(null);
+    target.setTextTitleBackgroundPadding(null);
+    target.setTextTitleBackgroundRadius(null);
+  }
+
+  private void clearHeaderBackground(LayoutModel target) {
+    target.setTextHeaderBackgroundColor(null);
+    target.setTextHeaderBackgroundEffect(null);
+    target.setTextHeaderBackgroundImage(null);
+    target.setTextHeaderBackgroundSize(null);
+    target.setTextHeaderBackgroundRepeat(null);
+    target.setTextHeaderBackgroundPosition(null);
+    target.setTextHeaderBackgroundPadding(null);
+    target.setTextHeaderBackgroundRadius(null);
+  }
+
+  /**
+   * @return the colour, effect, padding and radius a text background that is
+   *         on stores, then a marker that the stored image stays; a null
+   *         colour with the stored effect when the block repeats that effect
    */
   private String[] textBackground(TextBackgroundBlock background, String storedImage, String storedEffect, String path) {
     if (background == null || !on(background.enabled())) {
@@ -644,7 +726,9 @@ public class LayoutStylingService {
   }
 
   private void applyHeight(LayoutModel target, HeightBlock height, StylingDestination destination) {
-    if (height == null || !on(height.enabled())) {
+    if (height == null) {
+      return;
+    } else if (!on(height.enabled())) {
       if (destination.hasHeight()) {
         target.setHeight(null);
       }
@@ -660,26 +744,6 @@ public class LayoutStylingService {
     } else {
       target.setHeight(height.fixed().getStoredValue());
     }
-  }
-
-  private String roleColor(TextRoleBlock role, String path) {
-    return role == null || role.color() == null ? null : hex(role.color(), path + ".color");
-  }
-
-  private String roleSize(TextRoleBlock role, String path) {
-    return role == null || role.size() == null ? null : range(role.size(), 1, TEXT_SIZE_MAX, path + ".size") + "px";
-  }
-
-  /**
-   * The editor's text input writes a normal weight and style for every role
-   * it does not embolden or italicise, the block off included
-   */
-  private String roleWeight(TextRoleBlock role) {
-    return role != null && Boolean.TRUE.equals(role.bold()) ? BOLD : NORMAL;
-  }
-
-  private String roleStyle(TextRoleBlock role) {
-    return role != null && Boolean.TRUE.equals(role.italic()) ? ITALIC : NORMAL;
   }
 
   private String pixels(Integer value, int min, int max, String path) {

@@ -955,6 +955,29 @@ public class LayoutDescriptionServiceTest {
   }
 
   @Test
+  public void aKeptElementTheCallDoesNotStyleIsNeitherRewrittenNorRevalidated() throws Exception {
+    PortalConfig site = storedSite();
+    Container outerLeftCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
+    Application kept = (Application) outerLeftCell.getChildren().get(0);
+    ModelStyle style = new ModelStyle();
+    style.setBackgroundImage("/portal/rest/v1/social/attachments/containerBackground/site_5_1/7");
+    style.setMarginTop(99);
+    style.setTextTitleBackgroundPadding("8px 8px 8px 8px");
+    kept.setCssStyle(style);
+    SiteContainerDescription left = new SiteContainerDescription(outerLeftCell.getStorageId(),
+                                                                 null,
+                                                                 null,
+                                                                 List.of(new ApplicationDescription("1", null, null, null, null, null, null, null, null)));
+
+    LayoutModel written = build(site, left, null, null).getChildren().get(0).getChildren().get(0).getChildren().get(0);
+
+    assertNull(written.getBackgroundColor());
+    assertEquals("/portal/rest/v1/social/attachments/containerBackground/site_5_1/7", written.getBackgroundImage());
+    assertEquals(99, written.getMarginTop());
+    assertEquals("8px 8px 8px 8px", written.getTextTitleBackgroundPadding());
+  }
+
+  @Test
   public void aKeptInnerSidebarStaysInItsSlot() throws Exception {
     PortalConfig site = storedSite();
     Container innerRightCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 1);
