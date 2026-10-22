@@ -136,6 +136,13 @@ public class LayoutStylingServiceTest {
     assertNull(LayoutStylingService.merge(withImage, styling(null, null, null, background(BackgroundMode.LINEAR, null, "#AAAAAA", "#BBBBBB", null, null, null), null, null), true)
                                    .background()
                                    .scrollColor());
+    BackgroundBlock echoedScroll = background(null, "#111111", null, null, null, null, "#222222");
+    assertNull(LayoutStylingService.merge(withImage, styling(null, null, null, echoedScroll, null, null), false).background().scrollColor());
+    assertEquals("#111111", LayoutStylingService.merge(withImage, styling(null, null, null, echoedScroll, null, null), false).background().color());
+    BackgroundBlock gradientWithEcho = background(BackgroundMode.LINEAR, null, "#AAAAAA", "#BBBBBB", null, null, "#222222");
+    assertNull(LayoutStylingService.merge(withImage, styling(null, null, null, gradientWithEcho, null, null), true).background().scrollColor());
+    BackgroundBlock otherScroll = background(null, "#111111", null, null, null, null, "#333333");
+    assertEquals("#333333", LayoutStylingService.merge(withImage, styling(null, null, null, otherScroll, null, null), false).background().scrollColor());
     TextBackgroundBlock storedTitleBackground = new TextBackgroundBlock(true, BackgroundMode.SOLID, "#777777", null, null, null, null, null, null,
                                                                         new SidesBlock(8, 8, 8, 8), new CornersBlock(true, 6, 6, 6, 6, 6));
     StylingDescription withTitle = new StylingDescription(null, null, null, null, new TextBlock(true, new TextRoleBlock(null, null, null, null, storedTitleBackground), null, null, null, null), null);
