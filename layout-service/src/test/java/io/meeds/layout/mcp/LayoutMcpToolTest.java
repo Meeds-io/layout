@@ -699,11 +699,12 @@ public class LayoutMcpToolTest {
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
     when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
     SiteContainerDescription left = new SiteContainerDescription("12", null, null, null);
-    when(descriptionService.toSiteLayout(new SiteLayoutUpdate(left, null, null, null), draftSite, false, USER, Locale.FRENCH)).thenReturn(siteLayout());
+    when(descriptionService.toSiteLayout(any(), any(), anyBoolean(), any(), any())).thenReturn(siteLayout());
     SiteDescription expected = describedSite(site, draftSite);
 
     assertEquals(expected, asUserInFrench(() -> tool.setSiteLayout(SITE_ID, left, null, null, null)));
 
+    verify(descriptionService).toSiteLayout(new SiteLayoutUpdate(left, null, null, null), draftSite, false, USER, Locale.FRENCH);
     verify(siteLayoutService).updateSiteLayout(eq(draftSite.getSiteKey()), any(PortalConfig.class), eq(false), eq(USER));
     verify(draftService, never()).createDraftSite(any(), any());
   }
