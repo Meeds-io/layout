@@ -373,6 +373,692 @@
         "openWorldHint": false
       },
       "require_approval": true
+    },
+    {
+      "name": "set_site_layout",
+      "title": "Set the layout of a site",
+      "description": "Replace the structure of the site layout shared by every page of the site, in the current user's draft, as the site layout editor does: the left and right sidebars, the topbars and the bottom bars, each with its options, styling and applications. What is sent is the whole structure, as get_site returns it: a sidebar omitted is removed, topbars or bottom_bars omitted means none. Ids address the layout get_site returned (the user's draft when they have one, the published layout otherwise): a container_id keeps the stored container (a topbar its cells), an application_id keeps the application with its settings, an application given by instance_id or content_id is added, and an application of the layout absent from the call is removed. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. On a kept container or application, an option, a styling block or a display omitted keeps what it holds; enabled false clears a block. A site whose stored layout holds two sidebars on one side, which get_site reports as one, is refused. At most 200 containers and applications in one call. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_site does, with the ids to use in later calls; after publish_layout the ids change, read the site again. New images are not accepted by this tool: a stored image stays unless its background block is turned off.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites"
+          },
+          "left_sidebar": {
+            "type": "object",
+            "description": "a sidebar",
+            "properties": {
+              "container_id": {
+                "type": "string",
+                "description": "the id of a sidebar in the layout get_site returned, to keep its stored element; omit to create it"
+              },
+              "options": {
+                "type": "object",
+                "description": "the container options; an option omitted keeps the stored value on a kept container",
+                "properties": {
+                  "width": {
+                    "type": "integer",
+                    "description": "the width in pixels, 50 to 1000; omit to keep it (310 on a new sidebar)"
+                  },
+                  "sticky": {
+                    "type": "boolean",
+                    "description": "true to keep the sidebar in place when the page scrolls; omit to keep the stored choice"
+                  },
+                  "display": {
+                    "type": "string",
+                    "enum": [
+                      "both",
+                      "hide_mobile"
+                    ],
+                    "description": "omit to keep it (both on a new sidebar)"
+                  },
+                  "full_height": {
+                    "type": "boolean",
+                    "description": "true when the sidebar spans the topbars and bottom bars, false when it sits between them; omit to keep its place (spanning on a new sidebar)"
+                  }
+                }
+              },
+              "styling": {
+                "type": "object",
+                "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                "properties": {
+                  "margins": {
+                    "type": "object",
+                    "description": "enabled, then all or top/right/bottom/left, -60 to 60 (0 none)",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "background": {
+                    "type": "object",
+                    "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "text": {
+                    "type": "object",
+                    "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              },
+              "applications": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "description": "an application in the container",
+                  "properties": {
+                    "application_id": {
+                      "type": "string",
+                      "description": "the id of an application already in the layout get_site returned, to keep it with its settings; omit to add a new one"
+                    },
+                    "instance_id": {
+                      "type": "integer",
+                      "description": "the catalog instance to add, from list_layout_applications; omit when application_id or content_id is given"
+                    },
+                    "content_id": {
+                      "type": "string",
+                      "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "the title shown, at most 200 characters; omit for the catalog name or the stored title"
+                    },
+                    "styling": {
+                      "type": "object",
+                      "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                      "properties": {
+                        "margins": {
+                          "type": "object",
+                          "description": "enabled, then all or top/right/bottom/left on the editor scale, -40 to 80 (20 none)",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "border": {
+                          "type": "object",
+                          "description": "enabled, color (#RRGGBB or #RRGGBBAA), size 0 to 8 (default 1), shadow",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "corners": {
+                          "type": "object",
+                          "description": "enabled, then all or top_left/top_right/bottom_right/bottom_left, 0 to 20",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "background": {
+                          "type": "object",
+                          "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "text": {
+                          "type": "object",
+                          "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "display": {
+                      "type": "string",
+                      "enum": [
+                        "both",
+                        "hide_mobile",
+                        "hide_desktop"
+                      ],
+                      "description": "where the application shows; omit to keep it (both on a new application)"
+                    }
+                  }
+                },
+                "description": "the applications the container holds, in order, at most 50; a kept application goes back to its stored place, a new one follows the one before it; an application of the layout absent from the call is removed"
+              }
+            }
+          },
+          "right_sidebar": {
+            "type": "object",
+            "description": "a sidebar",
+            "properties": {
+              "container_id": {
+                "type": "string",
+                "description": "the id of a sidebar in the layout get_site returned, to keep its stored element; omit to create it"
+              },
+              "options": {
+                "type": "object",
+                "description": "the container options; an option omitted keeps the stored value on a kept container",
+                "properties": {
+                  "width": {
+                    "type": "integer",
+                    "description": "the width in pixels, 50 to 1000; omit to keep it (310 on a new sidebar)"
+                  },
+                  "sticky": {
+                    "type": "boolean",
+                    "description": "true to keep the sidebar in place when the page scrolls; omit to keep the stored choice"
+                  },
+                  "display": {
+                    "type": "string",
+                    "enum": [
+                      "both",
+                      "hide_mobile"
+                    ],
+                    "description": "omit to keep it (both on a new sidebar)"
+                  },
+                  "full_height": {
+                    "type": "boolean",
+                    "description": "true when the sidebar spans the topbars and bottom bars, false when it sits between them; omit to keep its place (spanning on a new sidebar)"
+                  }
+                }
+              },
+              "styling": {
+                "type": "object",
+                "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                "properties": {
+                  "margins": {
+                    "type": "object",
+                    "description": "enabled, then all or top/right/bottom/left, -60 to 60 (0 none)",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "background": {
+                    "type": "object",
+                    "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  },
+                  "text": {
+                    "type": "object",
+                    "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                    "properties": {
+                      "enabled": {
+                        "type": "boolean"
+                      }
+                    }
+                  }
+                }
+              },
+              "applications": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "description": "an application in the container",
+                  "properties": {
+                    "application_id": {
+                      "type": "string",
+                      "description": "the id of an application already in the layout get_site returned, to keep it with its settings; omit to add a new one"
+                    },
+                    "instance_id": {
+                      "type": "integer",
+                      "description": "the catalog instance to add, from list_layout_applications; omit when application_id or content_id is given"
+                    },
+                    "content_id": {
+                      "type": "string",
+                      "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                    },
+                    "title": {
+                      "type": "string",
+                      "description": "the title shown, at most 200 characters; omit for the catalog name or the stored title"
+                    },
+                    "styling": {
+                      "type": "object",
+                      "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                      "properties": {
+                        "margins": {
+                          "type": "object",
+                          "description": "enabled, then all or top/right/bottom/left on the editor scale, -40 to 80 (20 none)",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "border": {
+                          "type": "object",
+                          "description": "enabled, color (#RRGGBB or #RRGGBBAA), size 0 to 8 (default 1), shadow",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "corners": {
+                          "type": "object",
+                          "description": "enabled, then all or top_left/top_right/bottom_right/bottom_left, 0 to 20",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "background": {
+                          "type": "object",
+                          "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            }
+                          }
+                        },
+                        "text": {
+                          "type": "object",
+                          "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                          "properties": {
+                            "enabled": {
+                              "type": "boolean"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "display": {
+                      "type": "string",
+                      "enum": [
+                        "both",
+                        "hide_mobile",
+                        "hide_desktop"
+                      ],
+                      "description": "where the application shows; omit to keep it (both on a new application)"
+                    }
+                  }
+                },
+                "description": "the applications the container holds, in order, at most 50; a kept application goes back to its stored place, a new one follows the one before it; an application of the layout absent from the call is removed"
+              }
+            }
+          },
+          "topbars": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "a topbar",
+              "properties": {
+                "container_id": {
+                  "type": "string",
+                  "description": "the id of a topbar in the layout get_site returned, to keep its stored element; omit to create it"
+                },
+                "options": {
+                  "type": "object",
+                  "description": "the container options; an option omitted keeps the stored value on a kept container",
+                  "properties": {
+                    "height": {
+                      "type": "integer",
+                      "description": "the height in pixels, 0 to 1000; omit to keep it, a dynamic height included (57 on a new bar)"
+                    },
+                    "sticky": {
+                      "type": "boolean",
+                      "description": "true to keep the topbar in place when the page scrolls; omit to keep the stored choice; a bottom bar is never kept in place"
+                    },
+                    "display": {
+                      "type": "string",
+                      "enum": [
+                        "both",
+                        "hide_mobile"
+                      ],
+                      "description": "omit to keep it (both on a new bar)"
+                    }
+                  }
+                },
+                "styling": {
+                  "type": "object",
+                  "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                  "properties": {
+                    "margins": {
+                      "type": "object",
+                      "description": "enabled, then all or top/right/bottom/left, -60 to 60 (0 none)",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "background": {
+                      "type": "object",
+                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "text": {
+                      "type": "object",
+                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                },
+                "applications": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "an application in the container",
+                    "properties": {
+                      "application_id": {
+                        "type": "string",
+                        "description": "the id of an application already in the layout get_site returned, to keep it with its settings; omit to add a new one"
+                      },
+                      "instance_id": {
+                        "type": "integer",
+                        "description": "the catalog instance to add, from list_layout_applications; omit when application_id or content_id is given"
+                      },
+                      "content_id": {
+                        "type": "string",
+                        "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                      },
+                      "title": {
+                        "type": "string",
+                        "description": "the title shown, at most 200 characters; omit for the catalog name or the stored title"
+                      },
+                      "styling": {
+                        "type": "object",
+                        "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                        "properties": {
+                          "margins": {
+                            "type": "object",
+                            "description": "enabled, then all or top/right/bottom/left on the editor scale, -40 to 80 (20 none)",
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
+                          "border": {
+                            "type": "object",
+                            "description": "enabled, color (#RRGGBB or #RRGGBBAA), size 0 to 8 (default 1), shadow",
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
+                          "corners": {
+                            "type": "object",
+                            "description": "enabled, then all or top_left/top_right/bottom_right/bottom_left, 0 to 20",
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
+                          "background": {
+                            "type": "object",
+                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
+                          "text": {
+                            "type": "object",
+                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "display": {
+                        "type": "string",
+                        "enum": [
+                          "both",
+                          "hide_mobile",
+                          "hide_desktop"
+                        ],
+                        "description": "where the application shows; omit to keep it (both on a new application)"
+                      }
+                    }
+                  },
+                  "description": "the applications the container holds, in order, at most 50; a kept application goes back to its stored place, a new one follows the one before it; an application of the layout absent from the call is removed"
+                }
+              }
+            },
+            "description": "the topbars, top to bottom, at most 10; omit for none"
+          },
+          "bottom_bars": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "a bottom bar",
+              "properties": {
+                "container_id": {
+                  "type": "string",
+                  "description": "the id of a bottom bar in the layout get_site returned, to keep its stored element; omit to create it"
+                },
+                "options": {
+                  "type": "object",
+                  "description": "the container options; an option omitted keeps the stored value on a kept container",
+                  "properties": {
+                    "height": {
+                      "type": "integer",
+                      "description": "the height in pixels, 0 to 1000; omit to keep it, a dynamic height included (57 on a new bar)"
+                    },
+                    "display": {
+                      "type": "string",
+                      "enum": [
+                        "both",
+                        "hide_mobile"
+                      ],
+                      "description": "omit to keep it (both on a new bar)"
+                    }
+                  }
+                },
+                "styling": {
+                  "type": "object",
+                  "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                  "properties": {
+                    "margins": {
+                      "type": "object",
+                      "description": "enabled, then all or top/right/bottom/left, -60 to 60 (0 none)",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "background": {
+                      "type": "object",
+                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "text": {
+                      "type": "object",
+                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                },
+                "applications": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "an application in the container",
+                    "properties": {
+                      "application_id": {
+                        "type": "string",
+                        "description": "the id of an application already in the layout get_site returned, to keep it with its settings; omit to add a new one"
+                      },
+                      "instance_id": {
+                        "type": "integer",
+                        "description": "the catalog instance to add, from list_layout_applications; omit when application_id or content_id is given"
+                      },
+                      "content_id": {
+                        "type": "string",
+                        "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                      },
+                      "title": {
+                        "type": "string",
+                        "description": "the title shown, at most 200 characters; omit for the catalog name or the stored title"
+                      },
+                      "styling": {
+                        "type": "object",
+                        "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                        "properties": {
+                          "margins": {
+                            "type": "object",
+                            "description": "enabled, then all or top/right/bottom/left on the editor scale, -40 to 80 (20 none)",
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
+                          "border": {
+                            "type": "object",
+                            "description": "enabled, color (#RRGGBB or #RRGGBBAA), size 0 to 8 (default 1), shadow",
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
+                          "corners": {
+                            "type": "object",
+                            "description": "enabled, then all or top_left/top_right/bottom_right/bottom_left, 0 to 20",
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
+                          "background": {
+                            "type": "object",
+                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            }
+                          },
+                          "text": {
+                            "type": "object",
+                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "display": {
+                        "type": "string",
+                        "enum": [
+                          "both",
+                          "hide_mobile",
+                          "hide_desktop"
+                        ],
+                        "description": "where the application shows; omit to keep it (both on a new application)"
+                      }
+                    }
+                  },
+                  "description": "the applications the container holds, in order, at most 50; a kept application goes back to its stored place, a new one follows the one before it; an application of the layout absent from the call is removed"
+                }
+              }
+            },
+            "description": "the bottom bars, top to bottom, at most 10; omit for none"
+          }
+        },
+        "required": [
+          "site_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "publish_layout",
+      "title": "Publish the draft of a site layout",
+      "description": "Make the current user's site draft the published layout, for every user at once, as the site layout editor's publish does: in the platform's assistant the user confirms it before it applies; an external client asks for confirmation only if its own settings do. Fails when the user has no draft of the site. The draft ends and every container and application takes a new id: returns the site as published, with the new ids.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites"
+          }
+        },
+        "required": [
+          "site_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "openWorldHint": false
+      },
+      "require_approval": true
+    },
+    {
+      "name": "discard_layout_draft",
+      "title": "Discard the draft of a site layout",
+      "description": "Drop the current user's site draft and start a new one from the published layout, as the site layout editor's \"start again\" does; nothing published changes. Fails when the user has no draft of the site. Returns the new draft, with its ids.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites"
+          }
+        },
+        "required": [
+          "site_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
     }
   ]
 }
