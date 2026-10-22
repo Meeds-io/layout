@@ -61,24 +61,43 @@ public class LayoutMcpToolDefinitionsTest {
        "sidebar": {"allow_user_custom_home": true, "allowed_modes": ["icon", "sticky"], "default_mode": "icon"}}
       """;
 
-  private static final Set<String>         WRITE_TOOLS               = Set.of("update_theme", "update_navigation_display");
+  private static final Set<String>         WRITE_TOOLS               = Set.of("update_theme",
+                                                                               "update_navigation_display",
+                                                                               "create_site",
+                                                                               "update_site",
+                                                                               "delete_site");
+
+  private static final Set<String>         APPROVAL_TOOLS            = Set.of("update_theme", "update_navigation_display", "delete_site");
+
+  private static final String              CREATE_SITE_SAMPLE        = """
+      {"name": "marketing", "label": "Marketing", "description": "About us", "template": "basic",
+       "banner_upload_id": "u1", "access_permissions": ["Everyone"], "edit_permission": "*:/platform/administrators",
+       "displayed": true, "icon": "fa-globe"}
+      """;
+
+  private static final String              UPDATE_SITE_SAMPLE        = """
+      {"site_id": 3, "label": "Marketing", "description": "About us", "access_permissions": ["*:/platform/users"],
+       "edit_permission": "*:/platform/administrators", "displayed": false, "icon": "fa-globe",
+       "banner_upload_id": "u1", "remove_banner": false}
+      """;
 
   private static final List<Class<?>>      TOOL_CLASSES              = List.of(LayoutMcpTool.class, BrandingMcpTool.class);
 
-  private static final Map<String, String> SAMPLE_INPUTS = Map.of("list_sites",
-                                                                  "{\"keyword\": \"marketing\"}",
-                                                                  "get_site",
-                                                                  "{\"site_id\": 3}",
-                                                                  "list_site_pages",
-                                                                  "{\"site_id\": 3, \"include_hidden\": true}",
-                                                                  "get_page_layout",
-                                                                  "{\"page_ref\": \"portal::mysite::home\", \"version\": \"draft\"}",
-                                                                  "list_layout_applications",
-                                                                  "{\"category_id\": 2, \"keyword\": \"news\"}",
-                                                                  "update_theme",
-                                                                  "{\"part\": \"colors\", \"options\": {\"primaryColor\": \"#123456\"}, \"reset\": [\"secondaryColor\"]}",
-                                                                  "update_navigation_display",
-                                                                  NAVIGATION_DISPLAY_SAMPLE);
+  private static final Map<String, String> SAMPLE_INPUTS             = Map.ofEntries(Map.entry("list_sites", "{\"keyword\": \"marketing\"}"),
+                                                                                     Map.entry("get_site", "{\"site_id\": 3}"),
+                                                                                     Map.entry("list_site_pages",
+                                                                                               "{\"site_id\": 3, \"include_hidden\": true}"),
+                                                                                     Map.entry("get_page_layout",
+                                                                                               "{\"page_ref\": \"portal::mysite::home\", \"version\": \"draft\"}"),
+                                                                                     Map.entry("list_layout_applications",
+                                                                                               "{\"category_id\": 2, \"keyword\": \"news\"}"),
+                                                                                     Map.entry("update_theme",
+                                                                                               "{\"part\": \"colors\", \"options\": {\"primaryColor\": \"#123456\"}, \"reset\": [\"secondaryColor\"]}"),
+                                                                                     Map.entry("update_navigation_display",
+                                                                                               NAVIGATION_DISPLAY_SAMPLE),
+                                                                                     Map.entry("create_site", CREATE_SITE_SAMPLE),
+                                                                                     Map.entry("update_site", UPDATE_SITE_SAMPLE),
+                                                                                     Map.entry("delete_site", "{\"site_id\": 3}"));
 
   @Test
   public void everyPublicMethodHasADefinitionAndEveryDefinitionAMethod() {
@@ -110,10 +129,11 @@ public class LayoutMcpToolDefinitionsTest {
   public void everyToolIsAnnotatedByItsNature() {
     definitions().values().forEach(definition -> {
       boolean write = WRITE_TOOLS.contains(definition.getName());
+      boolean approval = APPROVAL_TOOLS.contains(definition.getName());
       assertNotNull(definition.getAnnotations(), definition.getName());
       assertEquals(!write, definition.getAnnotations().readOnlyHint(), definition.getName());
-      assertEquals(write, definition.getAnnotations().destructiveHint(), definition.getName());
-      assertEquals(write, definition.isRequireApproval(), definition.getName());
+      assertEquals(approval, definition.getAnnotations().destructiveHint(), definition.getName());
+      assertEquals(approval, definition.isRequireApproval(), definition.getName());
     });
   }
 
