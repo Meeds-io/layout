@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(Include.NON_NULL)
-public record BorderBlock(@JsonProperty("enabled") boolean enabled,
+public record BorderBlock(@JsonProperty("enabled") Boolean enabled,
                           @JsonProperty("color") String color,
                           @JsonProperty("size") Integer size,
                           @JsonProperty("shadow") Boolean shadow) {
