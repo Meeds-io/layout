@@ -265,15 +265,15 @@ public class LayoutStylingService {
     if (input == null) {
       return sticky || base.scrollColor() == null ? null
                                                   : new BackgroundBlock(true,
-                                                                                                                  base.mode(),
-                                                                                                                  base.color(),
-                                                                                                                  base.from(),
-                                                                                                                  base.to(),
-                                                                                                                  base.ratio(),
-                                                                                                                  base.direction(),
-                                                                                                                  null,
-                                                                                                                  base.effect(),
-                                                                                                                  base.image());
+                                                                        base.mode(),
+                                                                        base.color(),
+                                                                        base.from(),
+                                                                        base.to(),
+                                                                        base.ratio(),
+                                                                        base.direction(),
+                                                                        null,
+                                                                        base.effect(),
+                                                                        base.image());
     } else if (off(input.enabled())) {
       return input;
     }
