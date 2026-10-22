@@ -43,6 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -893,6 +894,124 @@ public class LayoutDescriptionServiceTest {
   }
 
   @Test
+  public void aKeptContainerKeepsWhatTheCallLeavesNull() throws Exception {
+    PortalConfig site = storedSite();
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    topBanner.setHeight("auto");
+    topBanner.setCssClass("layout-banner-top-section layout-sticky-section hidden-sm-and-down");
+    ModelStyle style = new ModelStyle();
+    style.setBackgroundColor("#111111@#222222");
+    style.setTextTitleColor("#333333");
+    topBanner.setCssStyle(style);
+    Container outerLeftCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
+    Container outerLeft = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_TEMPLATE, 0);
+    outerLeft.setCssClass("layout-sticky-section");
+    outerLeftCell.setWidth("250");
+    Application kept = (Application) outerLeftCell.getChildren().get(0);
+    ModelStyle applicationStyle = new ModelStyle();
+    applicationStyle.setBorderColor("#444444");
+    kept.setCssStyle(applicationStyle);
+    kept.setCssClass("hidden-md-and-up");
+    SiteContainerDescription top = new SiteContainerDescription(topBanner.getStorageId(), null, null, null);
+    SiteContainerDescription left = new SiteContainerDescription(outerLeftCell.getStorageId(),
+                                                                 null,
+                                                                 null,
+                                                                 List.of(new ApplicationDescription("1", null, null, null, null, null, null, null, null)));
+
+    LayoutModel result = build(site, left, List.of(top), null);
+
+    LayoutModel writtenTop = result.getChildren().get(1).getChildren().get(0);
+    assertEquals("auto", writtenTop.getHeight());
+    assertEquals(Set.of("layout-banner-top-section", "layout-sticky-section", "hidden-sm-and-down"), Set.of(writtenTop.getCssClass().split(" ")));
+    assertEquals("#111111@#222222", writtenTop.getBackgroundColor());
+    assertEquals("#333333", writtenTop.getTextTitleColor());
+    LayoutModel writtenLeft = result.getChildren().get(0);
+    assertEquals("layout-sticky-section", writtenLeft.getCssClass());
+    assertEquals("250", writtenLeft.getChildren().get(0).getWidth());
+    LayoutModel writtenApplication = writtenLeft.getChildren().get(0).getChildren().get(0);
+    assertEquals("#444444", writtenApplication.getBorderColor());
+    assertEquals("hidden-md-and-up", writtenApplication.getCssClass());
+
+    SiteContainerDescription unstuck = new SiteContainerDescription(topBanner.getStorageId(), new SiteContainerOptions(null, null, false, DisplayMode.BOTH, null), null, null);
+    result = build(site, null, List.of(unstuck), null);
+    assertEquals("layout-banner-top-section", result.getChildren().get(1).getChildren().get(0).getCssClass());
+  }
+
+  @Test
+  public void aKeptInnerSidebarStaysInItsSlot() throws Exception {
+    PortalConfig site = storedSite();
+    Container innerRightCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 1);
+    SiteContainerDescription right = new SiteContainerDescription(innerRightCell.getStorageId(), null, null, null);
+
+    LayoutModel result = build(site, null, null, null, right);
+
+    assertTrue(result.getChildren().get(2).getChildren().isEmpty());
+    LayoutModel innerRight = result.getChildren().get(1).getChildren().get(0).getChildren().get(2);
+    assertEquals(innerRightCell.getStorageId(), innerRight.getChildren().get(0).getStorageId());
+  }
+
+  @Test
+  public void aSideHoldingTwoSidebarsIsRefused() throws Exception {
+    PortalConfig site = storedSite();
+    Container center = findContainer(site.getPortalLayout(), LayoutDescriptionService.SITE_MIDDLE_CENTER_TEMPLATE, 0);
+    Container innerLeft = (Container) center.getChildren().get(0);
+    Container innerLeftCell = container(LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, null);
+    children(innerLeftCell, application("3", null, null));
+    children(innerLeft, innerLeftCell);
+
+    assertEquals(SiteLayoutAssembler.TWO_LEFT_SIDEBARS, refused(() -> build(site, null, null, null)));
+    verify(portletInstanceService, never()).getPortletInstances(anyLong(), any(), any(), anyBoolean());
+  }
+
+  @Test
+  public void aStoredValueTheSaveWouldRefuseIsRefusedBeforeAnyWrite() throws Exception {
+    PortalConfig site = storedSite();
+    Container outerLeftCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
+    Application kept = (Application) outerLeftCell.getChildren().get(0);
+    ModelStyle style = new ModelStyle();
+    style.setBorderSize("1px; javascript:alert(1)");
+    kept.setCssStyle(style);
+    SiteContainerDescription left = new SiteContainerDescription(outerLeftCell.getStorageId(),
+                                                                 null,
+                                                                 null,
+                                                                 List.of(new ApplicationDescription("1", null, null, null, null, null, null, null, null)));
+
+    assertEquals(SiteLayoutAssembler.STYLING_NOT_ACCEPTED, refused(() -> build(site, left, null, null)));
+  }
+
+  @Test
+  public void hiddenWindowsComeBackInTheirStoredOrder() throws Exception {
+    PortalConfig site = storedSite();
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container firstCell = (Container) topBanner.getChildren().get(0);
+    Application first = (Application) firstCell.getChildren().get(0);
+    Application second = application("4", null, null);
+    Application visible = application("5", null, null);
+    children(firstCell, first, second, visible);
+    when(aclService.hasAccessPermission(first, USER)).thenReturn(false);
+    when(aclService.hasAccessPermission(second, USER)).thenReturn(false);
+    SiteContainerDescription top = new SiteContainerDescription(topBanner.getStorageId(),
+                                                                null,
+                                                                null,
+                                                                List.of(new ApplicationDescription("5", null, null, null, null, null, null, null, null)));
+
+    LayoutModel result = build(site, null, List.of(top), null);
+
+    List<LayoutModel> written = result.getChildren().get(1).getChildren().get(0).getChildren().get(0).getChildren();
+    assertEquals(List.of("2", "4", "5"), written.stream().map(LayoutModel::getStorageId).toList());
+  }
+
+  @Test
+  public void aCallOfMoreThanTwoHundredElementsIsRefused() throws Exception {
+    PortalConfig site = storedSite();
+    List<ApplicationDescription> fortyOne = java.util.Collections.nCopies(41, new ApplicationDescription(null, null, 10L, null, null, null, null, null, null));
+    List<SiteContainerDescription> five = java.util.Collections.nCopies(5, new SiteContainerDescription(null, null, null, fortyOne));
+
+    assertEquals(SiteLayoutAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> build(site, null, five, null)));
+    verify(portletInstanceService, never()).getPortletInstance(anyLong(), any(), any(), anyBoolean());
+  }
+
+  @Test
   public void idsAreCheckedBeforeAnythingIsBuilt() throws Exception {
     PortalConfig site = storedSite();
     Container outerLeftCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
@@ -1048,7 +1167,15 @@ public class LayoutDescriptionServiceTest {
                             SiteContainerDescription left,
                             List<SiteContainerDescription> topbars,
                             List<SiteContainerDescription> bottomBars) throws Exception {
-    return descriptionService.toSiteLayout(new SiteLayoutUpdate(left, null, topbars, bottomBars), site, false, USER, Locale.ENGLISH);
+    return build(site, left, topbars, bottomBars, null);
+  }
+
+  private LayoutModel build(PortalConfig site,
+                            SiteContainerDescription left,
+                            List<SiteContainerDescription> topbars,
+                            List<SiteContainerDescription> bottomBars,
+                            SiteContainerDescription right) throws Exception {
+    return descriptionService.toSiteLayout(new SiteLayoutUpdate(left, right, topbars, bottomBars), site, false, USER, Locale.ENGLISH);
   }
 
   private String refused(Executable call) {

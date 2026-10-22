@@ -377,7 +377,7 @@
     {
       "name": "set_site_layout",
       "title": "Set the layout of a site",
-      "description": "Replace the structure of the site layout shared by every page of the site, in the current user's draft, as the site layout editor does: the left and right sidebars, the topbars and the bottom bars, each with its options, styling and applications. What is sent is the whole structure, as get_site returns it: a sidebar omitted is removed, topbars or bottom_bars omitted means none. Ids address the layout get_site returned (the user's draft when they have one, the published layout otherwise): a container_id keeps the stored container (a topbar its cells), an application_id keeps the application with its settings, an application given by instance_id or content_id is added, and an application of the layout absent from the call is removed. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_site does, with the ids to use in later calls; after publish_layout the ids change, read the site again. Images in styling are not accepted by this tool.",
+      "description": "Replace the structure of the site layout shared by every page of the site, in the current user's draft, as the site layout editor does: the left and right sidebars, the topbars and the bottom bars, each with its options, styling and applications. What is sent is the whole structure, as get_site returns it: a sidebar omitted is removed, topbars or bottom_bars omitted means none. Ids address the layout get_site returned (the user's draft when they have one, the published layout otherwise): a container_id keeps the stored container (a topbar its cells), an application_id keeps the application with its settings, an application given by instance_id or content_id is added, and an application of the layout absent from the call is removed. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. On a kept container or application, an option, a styling block or a display omitted keeps what it holds; enabled false clears a block. A site whose stored layout holds two sidebars on one side, which get_site reports as one, is refused. At most 200 containers and applications in one call. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_site does, with the ids to use in later calls; after publish_layout the ids change, read the site again. New images are not accepted by this tool: a stored image stays when its block is omitted or repeated as returned.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -395,15 +395,15 @@
               },
               "options": {
                 "type": "object",
-                "description": "the container options",
+                "description": "the container options; an option omitted keeps the stored value on a kept container",
                 "properties": {
                   "width": {
                     "type": "integer",
-                    "description": "the width in pixels, 50 to 1000; omit for 310"
+                    "description": "the width in pixels, 50 to 1000; omit to keep it (310 on a new sidebar)"
                   },
                   "sticky": {
                     "type": "boolean",
-                    "description": "true to keep the sidebar in place when the page scrolls"
+                    "description": "true to keep the sidebar in place when the page scrolls; omit to keep the stored choice"
                   },
                   "display": {
                     "type": "string",
@@ -411,17 +411,17 @@
                       "both",
                       "hide_mobile"
                     ],
-                    "description": "omit for both"
+                    "description": "omit to keep it (both on a new sidebar)"
                   },
                   "full_height": {
                     "type": "boolean",
-                    "description": "true (default) when the sidebar spans the topbars and bottom bars, false when it sits between them"
+                    "description": "true when the sidebar spans the topbars and bottom bars, false when it sits between them; omit to keep its place (spanning on a new sidebar)"
                   }
                 }
               },
               "styling": {
                 "type": "object",
-                "description": "the styling blocks as get_site returns them: a block omitted or with enabled false is off",
+                "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it; an image block is accepted only when it repeats the image the element already holds",
                 "properties": {
                   "margins": {
                     "type": "object",
@@ -434,7 +434,7 @@
                   },
                   "background": {
                     "type": "object",
-                    "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; an image is not accepted here",
+                    "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
                     "properties": {
                       "enabled": {
                         "type": "boolean"
@@ -443,7 +443,7 @@
                   },
                   "text": {
                     "type": "object",
-                    "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; an image is not accepted here",
+                    "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
                     "properties": {
                       "enabled": {
                         "type": "boolean"
@@ -476,7 +476,7 @@
                     },
                     "styling": {
                       "type": "object",
-                      "description": "the styling blocks as get_site returns them: a block omitted or with enabled false is off",
+                      "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it; an image block is accepted only when it repeats the image the element already holds",
                       "properties": {
                         "margins": {
                           "type": "object",
@@ -507,7 +507,7 @@
                         },
                         "background": {
                           "type": "object",
-                          "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; an image is not accepted here",
+                          "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
                           "properties": {
                             "enabled": {
                               "type": "boolean"
@@ -516,7 +516,7 @@
                         },
                         "text": {
                           "type": "object",
-                          "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; an image is not accepted here",
+                          "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
                           "properties": {
                             "enabled": {
                               "type": "boolean"
@@ -532,7 +532,7 @@
                         "hide_mobile",
                         "hide_desktop"
                       ],
-                      "description": "where the application shows; omit for both"
+                      "description": "where the application shows; omit to keep it (both on a new application)"
                     }
                   }
                 },
@@ -550,15 +550,15 @@
               },
               "options": {
                 "type": "object",
-                "description": "the container options",
+                "description": "the container options; an option omitted keeps the stored value on a kept container",
                 "properties": {
                   "width": {
                     "type": "integer",
-                    "description": "the width in pixels, 50 to 1000; omit for 310"
+                    "description": "the width in pixels, 50 to 1000; omit to keep it (310 on a new sidebar)"
                   },
                   "sticky": {
                     "type": "boolean",
-                    "description": "true to keep the sidebar in place when the page scrolls"
+                    "description": "true to keep the sidebar in place when the page scrolls; omit to keep the stored choice"
                   },
                   "display": {
                     "type": "string",
@@ -566,17 +566,17 @@
                       "both",
                       "hide_mobile"
                     ],
-                    "description": "omit for both"
+                    "description": "omit to keep it (both on a new sidebar)"
                   },
                   "full_height": {
                     "type": "boolean",
-                    "description": "true (default) when the sidebar spans the topbars and bottom bars, false when it sits between them"
+                    "description": "true when the sidebar spans the topbars and bottom bars, false when it sits between them; omit to keep its place (spanning on a new sidebar)"
                   }
                 }
               },
               "styling": {
                 "type": "object",
-                "description": "the styling blocks as get_site returns them: a block omitted or with enabled false is off",
+                "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it; an image block is accepted only when it repeats the image the element already holds",
                 "properties": {
                   "margins": {
                     "type": "object",
@@ -589,7 +589,7 @@
                   },
                   "background": {
                     "type": "object",
-                    "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; an image is not accepted here",
+                    "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
                     "properties": {
                       "enabled": {
                         "type": "boolean"
@@ -598,7 +598,7 @@
                   },
                   "text": {
                     "type": "object",
-                    "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; an image is not accepted here",
+                    "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
                     "properties": {
                       "enabled": {
                         "type": "boolean"
@@ -631,7 +631,7 @@
                     },
                     "styling": {
                       "type": "object",
-                      "description": "the styling blocks as get_site returns them: a block omitted or with enabled false is off",
+                      "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it; an image block is accepted only when it repeats the image the element already holds",
                       "properties": {
                         "margins": {
                           "type": "object",
@@ -662,7 +662,7 @@
                         },
                         "background": {
                           "type": "object",
-                          "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; an image is not accepted here",
+                          "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
                           "properties": {
                             "enabled": {
                               "type": "boolean"
@@ -671,7 +671,7 @@
                         },
                         "text": {
                           "type": "object",
-                          "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; an image is not accepted here",
+                          "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
                           "properties": {
                             "enabled": {
                               "type": "boolean"
@@ -687,7 +687,7 @@
                         "hide_mobile",
                         "hide_desktop"
                       ],
-                      "description": "where the application shows; omit for both"
+                      "description": "where the application shows; omit to keep it (both on a new application)"
                     }
                   }
                 },
@@ -707,15 +707,15 @@
                 },
                 "options": {
                   "type": "object",
-                  "description": "the container options",
+                  "description": "the container options; an option omitted keeps the stored value on a kept container",
                   "properties": {
                     "height": {
                       "type": "integer",
-                      "description": "the height in pixels, 0 to 1000; omit for 57"
+                      "description": "the height in pixels, 0 to 1000; omit to keep it, a dynamic height included (57 on a new bar)"
                     },
                     "sticky": {
                       "type": "boolean",
-                      "description": "true to keep the bar in place when the page scrolls"
+                      "description": "true to keep the bar in place when the page scrolls; omit to keep the stored choice"
                     },
                     "display": {
                       "type": "string",
@@ -729,7 +729,7 @@
                 },
                 "styling": {
                   "type": "object",
-                  "description": "the styling blocks as get_site returns them: a block omitted or with enabled false is off",
+                  "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it; an image block is accepted only when it repeats the image the element already holds",
                   "properties": {
                     "margins": {
                       "type": "object",
@@ -742,7 +742,7 @@
                     },
                     "background": {
                       "type": "object",
-                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; an image is not accepted here",
+                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
                       "properties": {
                         "enabled": {
                           "type": "boolean"
@@ -751,7 +751,7 @@
                     },
                     "text": {
                       "type": "object",
-                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; an image is not accepted here",
+                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
                       "properties": {
                         "enabled": {
                           "type": "boolean"
@@ -784,7 +784,7 @@
                       },
                       "styling": {
                         "type": "object",
-                        "description": "the styling blocks as get_site returns them: a block omitted or with enabled false is off",
+                        "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it; an image block is accepted only when it repeats the image the element already holds",
                         "properties": {
                           "margins": {
                             "type": "object",
@@ -815,7 +815,7 @@
                           },
                           "background": {
                             "type": "object",
-                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; an image is not accepted here",
+                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
                             "properties": {
                               "enabled": {
                                 "type": "boolean"
@@ -824,7 +824,7 @@
                           },
                           "text": {
                             "type": "object",
-                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; an image is not accepted here",
+                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
                             "properties": {
                               "enabled": {
                                 "type": "boolean"
@@ -840,7 +840,7 @@
                           "hide_mobile",
                           "hide_desktop"
                         ],
-                        "description": "where the application shows; omit for both"
+                        "description": "where the application shows; omit to keep it (both on a new application)"
                       }
                     }
                   },
@@ -862,15 +862,15 @@
                 },
                 "options": {
                   "type": "object",
-                  "description": "the container options",
+                  "description": "the container options; an option omitted keeps the stored value on a kept container",
                   "properties": {
                     "height": {
                       "type": "integer",
-                      "description": "the height in pixels, 0 to 1000; omit for 57"
+                      "description": "the height in pixels, 0 to 1000; omit to keep it, a dynamic height included (57 on a new bar)"
                     },
                     "sticky": {
                       "type": "boolean",
-                      "description": "true to keep the bar in place when the page scrolls"
+                      "description": "true to keep the bar in place when the page scrolls; omit to keep the stored choice"
                     },
                     "display": {
                       "type": "string",
@@ -884,7 +884,7 @@
                 },
                 "styling": {
                   "type": "object",
-                  "description": "the styling blocks as get_site returns them: a block omitted or with enabled false is off",
+                  "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it; an image block is accepted only when it repeats the image the element already holds",
                   "properties": {
                     "margins": {
                       "type": "object",
@@ -897,7 +897,7 @@
                     },
                     "background": {
                       "type": "object",
-                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; an image is not accepted here",
+                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
                       "properties": {
                         "enabled": {
                           "type": "boolean"
@@ -906,7 +906,7 @@
                     },
                     "text": {
                       "type": "object",
-                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; an image is not accepted here",
+                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
                       "properties": {
                         "enabled": {
                           "type": "boolean"
@@ -939,7 +939,7 @@
                       },
                       "styling": {
                         "type": "object",
-                        "description": "the styling blocks as get_site returns them: a block omitted or with enabled false is off",
+                        "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it; an image block is accepted only when it repeats the image the element already holds",
                         "properties": {
                           "margins": {
                             "type": "object",
@@ -970,7 +970,7 @@
                           },
                           "background": {
                             "type": "object",
-                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; an image is not accepted here",
+                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
                             "properties": {
                               "enabled": {
                                 "type": "boolean"
@@ -979,7 +979,7 @@
                           },
                           "text": {
                             "type": "object",
-                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; an image is not accepted here",
+                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
                             "properties": {
                               "enabled": {
                                 "type": "boolean"
@@ -995,7 +995,7 @@
                           "hide_mobile",
                           "hide_desktop"
                         ],
-                        "description": "where the application shows; omit for both"
+                        "description": "where the application shows; omit to keep it (both on a new application)"
                       }
                     }
                   },

@@ -30,6 +30,7 @@ import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
 import io.meeds.layout.mcp.constant.StylingDestination;
 import io.meeds.layout.mcp.model.BackgroundBlock;
+import io.meeds.layout.mcp.model.BackgroundImageBlock;
 import io.meeds.layout.mcp.model.BorderBlock;
 import io.meeds.layout.mcp.model.CornersBlock;
 import io.meeds.layout.mcp.model.HeightBlock;
@@ -45,10 +46,11 @@ import io.meeds.layout.model.LayoutModel;
  * Writes a styling description onto a layout element exactly as the editor's
  * styling inputs do, the inverse of LayoutDescriptionService.toStyling: the
  * vocabulary is checked block by block against the destination's matrix
- * before a field is written, a block that is off clears its fields, and a
- * value outside the vocabulary is refused naming its path. Images are not
- * written here: a background or text background carrying an image block is
- * refused.
+ * before a field is written; a block, a role or a value that is null leaves
+ * what the element holds, a block whose enabled flag is false clears its
+ * fields, and a value outside the vocabulary is refused naming its path.
+ * Images are not written here: an image block is accepted only when it
+ * repeats the image the element already holds, which then stays as stored.
  */
 @Service
 public class LayoutStylingService {
@@ -114,6 +116,9 @@ public class LayoutStylingService {
 
   private static final Pattern      DISPLAY_TOKENS                = Pattern.compile("(^| )(hidden-sm-and-down|hidden-md-and-up)(?= |$)");
 
+  private static final Pattern      BACKGROUND_LAYER_TOKENS       =
+                                                            Pattern.compile("(^| )layout-bg-(margin-(top|right|bottom|left)|radius-(tl|tr|br|bl))-\\d+(?= |$)");
+
   private static final Map<String, String> ANGULAR_START_ANGLES   = Map.of("top_left",
                                                                            "90deg",
                                                                            "top_right",
@@ -125,7 +130,7 @@ public class LayoutStylingService {
 
   /**
    * @param target         the element written
-   * @param styling        the blocks, null for every block off
+   * @param styling        the blocks, null to leave every block as it is
    * @param destination    the element's place in the matrix
    * @param sticky         whether the element is a sticky site container,
    *                         the only one with a scroll colour
@@ -137,13 +142,14 @@ public class LayoutStylingService {
                            StylingDestination destination,
                            boolean sticky,
                            boolean plainColorOnly) {
-    StylingDescription blocks = styling == null ? new StylingDescription(null, null, null, null, null, null) : styling;
-    applyMargins(target, blocks.margins(), destination);
-    applyBorder(target, blocks.border(), destination);
-    applyCorners(target, blocks.corners(), destination);
-    applyBackground(target, blocks.background(), sticky, plainColorOnly);
-    applyText(target, blocks.text(), destination);
-    applyHeight(target, blocks.height(), destination);
+    if (styling != null) {
+      applyMargins(target, styling.margins(), destination);
+      applyBorder(target, styling.border(), destination);
+      applyCorners(target, styling.corners(), destination);
+      applyBackground(target, styling.background(), sticky, plainColorOnly);
+      applyText(target, styling.text(), destination);
+      applyHeight(target, styling.height(), destination);
+    }
     if (destination.isApplication()) {
       target.setCssClass(strip(target.getCssClass(), GENERATED_TOKENS));
     }
@@ -151,13 +157,16 @@ public class LayoutStylingService {
 
   /**
    * @param target      the element written
-   * @param display     the device visibility, null for both
+   * @param display     the device visibility, null to leave it as it is
    * @param destination the element's place in the matrix
    * @param refusal     the text answered when the destination does not offer
    *                      the choice
    */
   public void applyDisplay(LayoutModel target, DisplayMode display, StylingDestination destination, String refusal) {
-    DisplayMode mode = display == null ? DisplayMode.BOTH : display;
+    if (display == null) {
+      return;
+    }
+    DisplayMode mode = display;
     if ((mode != DisplayMode.BOTH && !destination.hasDisplay())
         || (mode == DisplayMode.HIDE_DESKTOP && !destination.hasDesktopHiding())) {
       throw new IllegalArgumentException(refusal);
@@ -184,7 +193,9 @@ public class LayoutStylingService {
   }
 
   private void applyMargins(LayoutModel target, MarginsBlock margins, StylingDestination destination) {
-    if (!on(margins == null ? null : margins.enabled())) {
+    if (margins == null) {
+      return;
+    } else if (!on(margins.enabled())) {
       target.setMarginTop(null);
       target.setMarginRight(null);
       target.setMarginBottom(null);
@@ -195,14 +206,20 @@ public class LayoutStylingService {
     int min = application ? APPLICATION_MARGIN_MIN : CONTAINER_MARGIN_MIN;
     int max = application ? APPLICATION_MARGIN_MAX : CONTAINER_MARGIN_MAX;
     int neutral = application ? APPLICATION_MARGIN_NEUTRAL : 0;
-    target.setMarginTop(side(margins.top(), margins.all(), neutral, min, max, "margins.top"));
-    target.setMarginRight(side(margins.right(), margins.all(), neutral, min, max, "margins.right"));
-    target.setMarginBottom(side(margins.bottom(), margins.all(), neutral, min, max, "margins.bottom"));
-    target.setMarginLeft(side(margins.left(), margins.all(), neutral, min, max, "margins.left"));
+    int top = side(margins.top(), margins.all(), neutral, min, max, "margins.top");
+    int right = side(margins.right(), margins.all(), neutral, min, max, "margins.right");
+    int bottom = side(margins.bottom(), margins.all(), neutral, min, max, "margins.bottom");
+    int left = side(margins.left(), margins.all(), neutral, min, max, "margins.left");
+    target.setMarginTop(top);
+    target.setMarginRight(right);
+    target.setMarginBottom(bottom);
+    target.setMarginLeft(left);
   }
 
   private void applyBorder(LayoutModel target, BorderBlock border, StylingDestination destination) {
-    if (!on(border == null ? null : border.enabled())) {
+    if (border == null) {
+      return;
+    } else if (!on(border.enabled())) {
       if (destination.hasBorder()) {
         target.setBorderColor(null);
         target.setBorderSize("0");
@@ -221,7 +238,9 @@ public class LayoutStylingService {
   }
 
   private void applyCorners(LayoutModel target, CornersBlock corners, StylingDestination destination) {
-    if (!on(corners == null ? null : corners.enabled())) {
+    if (corners == null) {
+      return;
+    } else if (!on(corners.enabled())) {
       target.setRadiusTopLeft(null);
       target.setRadiusTopRight(null);
       target.setRadiusBottomRight(null);
@@ -230,26 +249,36 @@ public class LayoutStylingService {
     } else if (!destination.hasCorners()) {
       throw refusal("corners");
     }
-    target.setRadiusTopLeft(side(corners.topLeft(), corners.all(), 0, 0, CORNER_MAX, "corners.top_left"));
-    target.setRadiusTopRight(side(corners.topRight(), corners.all(), 0, 0, CORNER_MAX, "corners.top_right"));
-    target.setRadiusBottomRight(side(corners.bottomRight(), corners.all(), 0, 0, CORNER_MAX, "corners.bottom_right"));
-    target.setRadiusBottomLeft(side(corners.bottomLeft(), corners.all(), 0, 0, CORNER_MAX, "corners.bottom_left"));
+    int topLeft = side(corners.topLeft(), corners.all(), 0, 0, CORNER_MAX, "corners.top_left");
+    int topRight = side(corners.topRight(), corners.all(), 0, 0, CORNER_MAX, "corners.top_right");
+    int bottomRight = side(corners.bottomRight(), corners.all(), 0, 0, CORNER_MAX, "corners.bottom_right");
+    int bottomLeft = side(corners.bottomLeft(), corners.all(), 0, 0, CORNER_MAX, "corners.bottom_left");
+    target.setRadiusTopLeft(topLeft);
+    target.setRadiusTopRight(topRight);
+    target.setRadiusBottomRight(bottomRight);
+    target.setRadiusBottomLeft(bottomLeft);
   }
 
   private void applyBackground(LayoutModel target, BackgroundBlock background, boolean sticky, boolean plainColorOnly) {
-    target.setBackgroundImage(null);
-    target.setBackgroundSize(null);
-    target.setBackgroundPosition(null);
-    target.setBackgroundRepeat(null);
-    target.setBackgroundAttachment(null);
-    if (!on(background == null ? null : background.enabled())) {
+    if (background == null) {
+      return;
+    } else if (!on(background.enabled())) {
       target.setBackgroundColor(null);
       target.setBackgroundEffect(null);
+      clearImage(target);
       return;
-    } else if (background.image() != null) {
+    }
+    BackgroundImageBlock image = background.image();
+    if (image == null) {
+      clearImage(target);
+    } else if (image.imageUploadId() != null || image.url() == null || !image.url().equals(target.getBackgroundImage())) {
       throw refusal("background.image");
-    } else if (background.effect() != null) {
-      throw refusal("background.effect");
+    }
+    if (background.effect() != null) {
+      if (!background.effect().equals(target.getBackgroundEffect())) {
+        throw refusal("background.effect");
+      }
+      return;
     }
     BackgroundMode mode = background.mode() == null ? BackgroundMode.SOLID : background.mode();
     if (mode == BackgroundMode.SOLID) {
@@ -283,6 +312,19 @@ public class LayoutStylingService {
                                           background.direction(),
                                           "background"));
     }
+  }
+
+  /**
+   * Removes the element's background image with the image options and the
+   * margin and radius tokens that belong to it
+   */
+  private void clearImage(LayoutModel target) {
+    target.setBackgroundImage(null);
+    target.setBackgroundSize(null);
+    target.setBackgroundPosition(null);
+    target.setBackgroundRepeat(null);
+    target.setBackgroundAttachment(null);
+    target.setCssClass(strip(target.getCssClass(), BACKGROUND_LAYER_TOKENS));
   }
 
   /**
@@ -332,67 +374,198 @@ public class LayoutStylingService {
   }
 
   private void applyText(LayoutModel target, TextBlock text, StylingDestination destination) { // NOSONAR
-    boolean on = on(text == null ? null : text.enabled());
-    if (on && !destination.hasText()) {
+    if (text == null) {
+      return;
+    } else if (!on(text.enabled())) {
+      target.setIconColor(null);
+      target.setTextTitleColor(null);
+      target.setTextTitleFontSize(null);
+      target.setTextTitleFontWeight(NORMAL);
+      target.setTextTitleFontStyle(NORMAL);
+      target.setTextHeaderColor(null);
+      target.setTextHeaderFontSize(null);
+      target.setTextHeaderFontWeight(NORMAL);
+      target.setTextHeaderFontStyle(NORMAL);
+      target.setTextColor(null);
+      target.setTextFontSize(null);
+      target.setTextFontWeight(NORMAL);
+      target.setTextFontStyle(NORMAL);
+      target.setTextSubtitleColor(null);
+      target.setTextSubtitleFontSize(null);
+      target.setTextSubtitleFontWeight(NORMAL);
+      target.setTextSubtitleFontStyle(NORMAL);
+      clearTitleBackground(target);
+      clearHeaderBackground(target);
+      return;
+    } else if (!destination.hasText()) {
       throw refusal("text");
     }
-    TextRoleBlock title = on ? text.title() : null;
-    TextRoleBlock header = on ? text.header() : null;
-    TextRoleBlock content = on ? text.content() : null;
-    TextRoleBlock subtitle = on ? text.subtitle() : null;
+    TextRoleBlock content = text.content();
+    TextRoleBlock subtitle = text.subtitle();
     if (content != null && content.background() != null) {
       throw refusal("text.content.background");
     } else if (subtitle != null && subtitle.background() != null) {
       throw refusal("text.subtitle.background");
     }
-    target.setIconColor(on && text.iconColor() != null ? hex(text.iconColor(), "text.icon_color") : null);
-    target.setTextTitleColor(roleColor(title, "text.title"));
-    target.setTextTitleFontSize(roleSize(title, "text.title"));
-    target.setTextTitleFontWeight(roleWeight(title));
-    target.setTextTitleFontStyle(roleStyle(title));
-    String[] titleBackground = textBackground(title == null ? null : title.background(), "text.title.background");
-    target.setTextTitleBackgroundColor(titleBackground[0]);
-    target.setTextTitleBackgroundEffect(titleBackground[1]);
+    if (text.iconColor() != null) {
+      target.setIconColor(hex(text.iconColor(), "text.icon_color"));
+    }
+    TextRoleBlock title = text.title();
+    if (title != null) {
+      if (title.color() != null) {
+        target.setTextTitleColor(hex(title.color(), "text.title.color"));
+      }
+      if (title.size() != null) {
+        target.setTextTitleFontSize(roleSize(title.size(), "text.title"));
+      }
+      if (title.bold() != null) {
+        target.setTextTitleFontWeight(title.bold() ? BOLD : NORMAL);
+      }
+      if (title.italic() != null) {
+        target.setTextTitleFontStyle(title.italic() ? ITALIC : NORMAL);
+      }
+      applyTitleBackground(target, title.background());
+    }
+    TextRoleBlock header = text.header();
+    if (header != null) {
+      if (header.color() != null) {
+        target.setTextHeaderColor(hex(header.color(), "text.header.color"));
+      }
+      if (header.size() != null) {
+        target.setTextHeaderFontSize(roleSize(header.size(), "text.header"));
+      }
+      if (header.bold() != null) {
+        target.setTextHeaderFontWeight(header.bold() ? BOLD : NORMAL);
+      }
+      if (header.italic() != null) {
+        target.setTextHeaderFontStyle(header.italic() ? ITALIC : NORMAL);
+      }
+      applyHeaderBackground(target, header.background());
+    }
+    if (content != null) {
+      if (content.color() != null) {
+        target.setTextColor(hex(content.color(), "text.content.color"));
+      }
+      if (content.size() != null) {
+        target.setTextFontSize(roleSize(content.size(), "text.content"));
+      }
+      if (content.bold() != null) {
+        target.setTextFontWeight(content.bold() ? BOLD : NORMAL);
+      }
+      if (content.italic() != null) {
+        target.setTextFontStyle(content.italic() ? ITALIC : NORMAL);
+      }
+    }
+    if (subtitle != null) {
+      if (subtitle.color() != null) {
+        target.setTextSubtitleColor(hex(subtitle.color(), "text.subtitle.color"));
+      }
+      if (subtitle.size() != null) {
+        target.setTextSubtitleFontSize(roleSize(subtitle.size(), "text.subtitle"));
+      }
+      if (subtitle.bold() != null) {
+        target.setTextSubtitleFontWeight(subtitle.bold() ? BOLD : NORMAL);
+      }
+      if (subtitle.italic() != null) {
+        target.setTextSubtitleFontStyle(subtitle.italic() ? ITALIC : NORMAL);
+      }
+    }
+  }
+
+  private void applyTitleBackground(LayoutModel target, TextBackgroundBlock background) {
+    if (background == null) {
+      return;
+    } else if (!on(background.enabled())) {
+      clearTitleBackground(target);
+      return;
+    }
+    String[] values = textBackground(background, target.getTextTitleBackgroundImage(), target.getTextTitleBackgroundEffect(), "text.title.background");
+    if (values[0] != null) {
+      target.setTextTitleBackgroundColor(values[0]);
+      target.setTextTitleBackgroundEffect(values[1]);
+    }
+    if (background.image() == null) {
+      target.setTextTitleBackgroundImage(null);
+      target.setTextTitleBackgroundSize(null);
+      target.setTextTitleBackgroundRepeat(null);
+      target.setTextTitleBackgroundPosition(null);
+    }
+    if (values[2] != null) {
+      target.setTextTitleBackgroundPadding(values[2]);
+    }
+    if (values[3] != null) {
+      target.setTextTitleBackgroundRadius(values[3]);
+    }
+  }
+
+  private void applyHeaderBackground(LayoutModel target, TextBackgroundBlock background) {
+    if (background == null) {
+      return;
+    } else if (!on(background.enabled())) {
+      clearHeaderBackground(target);
+      return;
+    }
+    String[] values = textBackground(background,
+                                     target.getTextHeaderBackgroundImage(),
+                                     target.getTextHeaderBackgroundEffect(),
+                                     "text.header.background");
+    if (values[0] != null) {
+      target.setTextHeaderBackgroundColor(values[0]);
+      target.setTextHeaderBackgroundEffect(values[1]);
+    }
+    if (background.image() == null) {
+      target.setTextHeaderBackgroundImage(null);
+      target.setTextHeaderBackgroundSize(null);
+      target.setTextHeaderBackgroundRepeat(null);
+      target.setTextHeaderBackgroundPosition(null);
+    }
+    if (values[2] != null) {
+      target.setTextHeaderBackgroundPadding(values[2]);
+    }
+    if (values[3] != null) {
+      target.setTextHeaderBackgroundRadius(values[3]);
+    }
+  }
+
+  private void clearTitleBackground(LayoutModel target) {
+    target.setTextTitleBackgroundColor(null);
+    target.setTextTitleBackgroundEffect(null);
     target.setTextTitleBackgroundImage(null);
     target.setTextTitleBackgroundSize(null);
     target.setTextTitleBackgroundRepeat(null);
     target.setTextTitleBackgroundPosition(null);
-    target.setTextTitleBackgroundPadding(titleBackground[2]);
-    target.setTextTitleBackgroundRadius(titleBackground[3]);
-    target.setTextHeaderColor(roleColor(header, "text.header"));
-    target.setTextHeaderFontSize(roleSize(header, "text.header"));
-    target.setTextHeaderFontWeight(roleWeight(header));
-    target.setTextHeaderFontStyle(roleStyle(header));
-    String[] headerBackground = textBackground(header == null ? null : header.background(), "text.header.background");
-    target.setTextHeaderBackgroundColor(headerBackground[0]);
-    target.setTextHeaderBackgroundEffect(headerBackground[1]);
+    target.setTextTitleBackgroundPadding(null);
+    target.setTextTitleBackgroundRadius(null);
+  }
+
+  private void clearHeaderBackground(LayoutModel target) {
+    target.setTextHeaderBackgroundColor(null);
+    target.setTextHeaderBackgroundEffect(null);
     target.setTextHeaderBackgroundImage(null);
     target.setTextHeaderBackgroundSize(null);
     target.setTextHeaderBackgroundRepeat(null);
     target.setTextHeaderBackgroundPosition(null);
-    target.setTextHeaderBackgroundPadding(headerBackground[2]);
-    target.setTextHeaderBackgroundRadius(headerBackground[3]);
-    target.setTextColor(roleColor(content, "text.content"));
-    target.setTextFontSize(roleSize(content, "text.content"));
-    target.setTextFontWeight(roleWeight(content));
-    target.setTextFontStyle(roleStyle(content));
-    target.setTextSubtitleColor(roleColor(subtitle, "text.subtitle"));
-    target.setTextSubtitleFontSize(roleSize(subtitle, "text.subtitle"));
-    target.setTextSubtitleFontWeight(roleWeight(subtitle));
-    target.setTextSubtitleFontStyle(roleStyle(subtitle));
+    target.setTextHeaderBackgroundPadding(null);
+    target.setTextHeaderBackgroundRadius(null);
   }
 
   /**
-   * @return the colour, effect, padding and radius a text background stores,
-   *         four nulls when it is off
+   * @return the colour and effect a text background stores (both null when
+   *         the block repeats the stored effect, which then stays), then its
+   *         padding and radius, each null when the block leaves it
    */
-  private String[] textBackground(TextBackgroundBlock background, String path) {
-    if (!on(background == null ? null : background.enabled())) {
-      return new String[4];
-    } else if (background.image() != null) {
+  private String[] textBackground(TextBackgroundBlock background, String storedImage, String storedEffect, String path) {
+    BackgroundImageBlock image = background.image();
+    if (image != null && (image.imageUploadId() != null || image.url() == null || !image.url().equals(storedImage))) {
       throw refusal(path + ".image");
-    } else if (background.effect() != null) {
-      throw refusal(path + ".effect");
+    }
+    String padding = background.padding() == null ? null : sides(background.padding(), path + ".padding");
+    String radius = background.corners() == null ? null : corners(background.corners(), path + ".corners");
+    if (background.effect() != null) {
+      if (!background.effect().equals(storedEffect)) {
+        throw refusal(path + ".effect");
+      }
+      return new String[] { null, null, padding, radius };
     }
     BackgroundMode mode = background.mode() == null ? BackgroundMode.SOLID : background.mode();
     String color;
@@ -409,9 +582,6 @@ public class LayoutStylingService {
       color = GRADIENT_BASE_COLOR;
       effect = gradient(mode, background.from(), background.to(), background.ratio(), background.direction(), path);
     }
-    String padding = background.padding() == null ? null : sides(background.padding(), path + ".padding");
-    String radius = background.corners() == null || !on(background.corners().enabled()) ? null
-                                                                                      : corners(background.corners(), path + ".corners");
     return new String[] { color, effect, padding, radius };
   }
 
@@ -423,6 +593,9 @@ public class LayoutStylingService {
   }
 
   private String corners(CornersBlock corners, String path) {
+    if (!on(corners.enabled())) {
+      return null;
+    }
     return side(corners.topLeft(), corners.all(), 0, 0, TEXT_CORNER_MAX, path + ".top_left") + "px "
            + side(corners.topRight(), corners.all(), 0, 0, TEXT_CORNER_MAX, path + ".top_right") + "px "
            + side(corners.bottomRight(), corners.all(), 0, 0, TEXT_CORNER_MAX, path + ".bottom_right") + "px "
@@ -430,7 +603,9 @@ public class LayoutStylingService {
   }
 
   private void applyHeight(LayoutModel target, HeightBlock height, StylingDestination destination) {
-    if (!on(height == null ? null : height.enabled())) {
+    if (height == null) {
+      return;
+    } else if (!on(height.enabled())) {
       if (destination.hasHeight()) {
         target.setHeight(null);
       }
@@ -452,24 +627,8 @@ public class LayoutStylingService {
     return Boolean.TRUE.equals(enabled);
   }
 
-  private String roleColor(TextRoleBlock role, String path) {
-    return role == null || role.color() == null ? null : hex(role.color(), path + ".color");
-  }
-
-  private String roleSize(TextRoleBlock role, String path) {
-    return role == null || role.size() == null ? null : range(role.size(), 1, TEXT_SIZE_MAX, path + ".size") + "px";
-  }
-
-  /**
-   * The editor's text input writes a normal weight and style for every role
-   * it does not embolden or italicise, the block off included
-   */
-  private String roleWeight(TextRoleBlock role) {
-    return role != null && Boolean.TRUE.equals(role.bold()) ? BOLD : NORMAL;
-  }
-
-  private String roleStyle(TextRoleBlock role) {
-    return role != null && Boolean.TRUE.equals(role.italic()) ? ITALIC : NORMAL;
+  private String roleSize(Integer size, String path) {
+    return range(size, 1, TEXT_SIZE_MAX, path + ".size") + "px";
   }
 
   private String pixels(Integer value, int min, int max, String path) {

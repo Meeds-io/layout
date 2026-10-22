@@ -61,6 +61,7 @@ import io.meeds.layout.service.LayoutDraftService;
 import io.meeds.layout.service.PageLayoutService;
 import io.meeds.layout.service.SiteLayoutService;
 import io.meeds.layout.service.SiteTemplateService;
+import io.meeds.layout.util.SiteLayoutAssembler;
 import io.meeds.mcp.server.plugin.McpToolPlugin;
 
 /**
@@ -128,7 +129,7 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   public static final String       LAYOUT_OUTDATED       = "layout outdated, re-read it";
 
-  public static final String       STYLING_NOT_ACCEPTED  = "value is not accepted for styling";
+  public static final String       STYLING_NOT_ACCEPTED  = SiteLayoutAssembler.STYLING_NOT_ACCEPTED;
 
   public static final String       DEFAULT_TEMPLATE      = "basic";
 
@@ -427,7 +428,9 @@ public class LayoutMcpTool implements McpToolPlugin {
    * Replaces the structure of the user's site draft: the sidebars, topbars
    * and bottom bars given, with their options, styling and applications, as
    * the site layout editor lays them out; a sidebar or a list omitted is
-   * absent from the draft. Ids address the layout get_site returned: the
+   * absent from the draft, while an option, a styling block or a display
+   * left null on a kept element keeps what it holds. Ids address the layout
+   * get_site returned: the
    * user's draft when they have one, the published layout otherwise, in
    * which case the draft is created by this call and every kept application
    * becomes a copy carrying its preferences. Every value is checked before

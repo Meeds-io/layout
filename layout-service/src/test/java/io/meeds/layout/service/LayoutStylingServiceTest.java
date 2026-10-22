@@ -85,6 +85,10 @@ public class LayoutStylingServiceTest {
     assertNull(container.getMarginTop());
     assertNull(container.getMarginLeft());
     service.applyStyling(application, null, StylingDestination.APPLICATION, false, false);
+    assertEquals(80, application.getMarginTop());
+    service.applyStyling(application, styling(null, null, null, null, null, null), StylingDestination.APPLICATION, false, false);
+    assertEquals(20, application.getMarginRight());
+    service.applyStyling(application, styling(new MarginsBlock(false, null, null, null, null, null), null, null, null, null, null), StylingDestination.APPLICATION, false, false);
     assertNull(application.getMarginTop());
   }
 
@@ -104,6 +108,13 @@ public class LayoutStylingServiceTest {
     assertEquals(8, application.getRadiusBottomRight());
 
     service.applyStyling(application, null, StylingDestination.SITE_CONTAINER_APPLICATION, false, false);
+    assertEquals("#123456", application.getBorderColor());
+    assertEquals(8, application.getRadiusTopLeft());
+    service.applyStyling(application,
+                         styling(null, new BorderBlock(false, null, null, null), new CornersBlock(false, null, null, null, null, null), null, null, null),
+                         StylingDestination.SITE_CONTAINER_APPLICATION,
+                         false,
+                         false);
     assertNull(application.getBorderColor());
     assertEquals("0", application.getBorderSize());
     assertNull(application.getBoxShadow());
@@ -271,6 +282,64 @@ public class LayoutStylingServiceTest {
   }
 
   @Test
+  public void aStoredImageSurvivesWhenRepeatedAndGoesWithItsTokensWhenCleared() {
+    LayoutModel cell = new LayoutModel();
+    cell.setBackgroundColor("#111111");
+    cell.setBackgroundImage("/portal/rest/v1/social/attachments/containerBackground/site_5_12/7");
+    cell.setBackgroundSize("cover");
+    cell.setBackgroundAttachment("fixed");
+    cell.setCssClass("custom layout-bg-margin-top-4 layout-bg-radius-tl-8");
+    BackgroundImageBlock stored = new BackgroundImageBlock(null, cell.getBackgroundImage(), "cover", null, "fixed", null, null, null);
+
+    service.applyStyling(cell, styling(null, null, null, new BackgroundBlock(true, null, "#222222", null, null, null, null, null, null, stored), null, null),
+                         StylingDestination.SIDEBAR, false, false);
+    assertEquals("#222222", cell.getBackgroundColor());
+    assertEquals(stored.url(), cell.getBackgroundImage());
+    assertEquals("cover", cell.getBackgroundSize());
+    assertEquals("fixed", cell.getBackgroundAttachment());
+    assertEquals("custom layout-bg-margin-top-4 layout-bg-radius-tl-8", cell.getCssClass());
+
+    service.applyStyling(cell, null, StylingDestination.SIDEBAR, false, false);
+    assertEquals(stored.url(), cell.getBackgroundImage());
+
+    BackgroundImageBlock other = new BackgroundImageBlock(null, "/other", null, null, null, null, null, null);
+    assertEquals(REFUSED + "background.image",
+                 refused(() -> service.applyStyling(cell,
+                                                    styling(null, null, null, new BackgroundBlock(true, null, "#222222", null, null, null, null, null, null, other), null, null),
+                                                    StylingDestination.SIDEBAR,
+                                                    false,
+                                                    false)));
+
+    service.applyStyling(cell, styling(null, null, null, background(null, "#333333", null, null, null, null, null), null, null),
+                         StylingDestination.SIDEBAR, false, false);
+    assertNull(cell.getBackgroundImage());
+    assertNull(cell.getBackgroundSize());
+    assertNull(cell.getBackgroundAttachment());
+    assertEquals("custom", cell.getCssClass());
+
+    cell.setBackgroundEffect("linear-gradient(red, blue)");
+    service.applyStyling(cell, styling(null, null, null, new BackgroundBlock(true, null, "#333333", null, null, null, null, null, "linear-gradient(red, blue)", null), null, null),
+                         StylingDestination.SIDEBAR, false, false);
+    assertEquals("linear-gradient(red, blue)", cell.getBackgroundEffect());
+    assertEquals("#333333", cell.getBackgroundColor());
+
+    cell.setTextTitleBackgroundImage("/title");
+    cell.setTextTitleBackgroundColor("#444444");
+    TextBackgroundBlock repeated = new TextBackgroundBlock(true, null, "#555555", null, null, null, null, null,
+                                                           new BackgroundImageBlock(null, "/title", null, null, null, null, null, null), null, null);
+    service.applyStyling(cell, styling(null, null, null, null, text(new TextRoleBlock(null, null, null, null, repeated), null, null), null),
+                         StylingDestination.SIDEBAR, false, false);
+    assertEquals("/title", cell.getTextTitleBackgroundImage());
+    assertEquals("#555555", cell.getTextTitleBackgroundColor());
+    service.applyStyling(cell, styling(null, null, null, null,
+                                       text(new TextRoleBlock(null, null, null, null, new TextBackgroundBlock(true, null, "#666666", null, null, null, null, null, null, null, null)), null, null),
+                                       null),
+                         StylingDestination.SIDEBAR, false, false);
+    assertNull(cell.getTextTitleBackgroundImage());
+    assertEquals("#666666", cell.getTextTitleBackgroundColor());
+  }
+
+  @Test
   public void textRolesStoreTheirSizeInPixelsAndTheirStyleAsAKeyword() {
     LayoutModel cell = new LayoutModel();
     TextBackgroundBlock titleBackground = new TextBackgroundBlock(true,
@@ -294,7 +363,7 @@ public class LayoutStylingServiceTest {
     assertEquals("#111111", cell.getTextTitleColor());
     assertEquals("20px", cell.getTextTitleFontSize());
     assertEquals("bold", cell.getTextTitleFontWeight());
-    assertEquals("normal", cell.getTextTitleFontStyle());
+    assertNull(cell.getTextTitleFontStyle());
     assertEquals("#FFFFFFFF", cell.getTextTitleBackgroundColor());
     assertNull(cell.getTextTitleBackgroundEffect());
     assertEquals("4px 0px 4px 8px", cell.getTextTitleBackgroundPadding());
@@ -306,14 +375,21 @@ public class LayoutStylingServiceTest {
     assertEquals("#333333", cell.getTextColor());
     assertEquals("16px", cell.getTextFontSize());
     assertNull(cell.getTextSubtitleColor());
-    assertEquals("normal", cell.getTextSubtitleFontWeight());
-    assertEquals("normal", cell.getTextSubtitleFontStyle());
+    assertNull(cell.getTextSubtitleFontWeight());
     assertEquals("#444444", cell.getIconColor());
 
-    service.applyStyling(cell, null, StylingDestination.SIDEBAR, false, false);
+    service.applyStyling(cell, styling(null, null, null, null, text(new TextRoleBlock(null, 24, null, null, null), null, null), null),
+                         StylingDestination.SIDEBAR, false, false);
+    assertEquals("#111111", cell.getTextTitleColor());
+    assertEquals("24px", cell.getTextTitleFontSize());
+    assertEquals("bold", cell.getTextTitleFontWeight());
+    assertEquals("4px 0px 4px 8px", cell.getTextTitleBackgroundPadding());
+
+    service.applyStyling(cell, styling(null, null, null, null, new TextBlock(false, null, null, null, null, null), null), StylingDestination.SIDEBAR, false, false);
     assertNull(cell.getTextTitleColor());
     assertEquals("normal", cell.getTextTitleFontWeight());
     assertEquals("normal", cell.getTextHeaderFontStyle());
+    assertEquals("normal", cell.getTextSubtitleFontWeight());
     assertNull(cell.getTextTitleBackgroundPadding());
     assertNull(cell.getIconColor());
 
@@ -361,6 +437,8 @@ public class LayoutStylingServiceTest {
                          StylingDestination.APPLICATION, false, false);
     assertEquals("420", application.getHeight());
     service.applyStyling(application, null, StylingDestination.APPLICATION, false, false);
+    assertEquals("420", application.getHeight());
+    service.applyStyling(application, styling(null, null, null, null, null, new HeightBlock(false, null, null)), StylingDestination.APPLICATION, false, false);
     assertNull(application.getHeight());
     assertEquals(REFUSED + "height.custom_px",
                  refused(() -> service.applyStyling(application,
@@ -400,6 +478,8 @@ public class LayoutStylingServiceTest {
     service.applyDisplay(cell, DisplayMode.HIDE_MOBILE, StylingDestination.SIDEBAR, "refused display");
     assertEquals("custom hidden-sm-and-down", cell.getCssClass());
     service.applyDisplay(cell, null, StylingDestination.SIDEBAR, "refused display");
+    assertEquals("custom hidden-sm-and-down", cell.getCssClass());
+    service.applyDisplay(cell, DisplayMode.BOTH, StylingDestination.SIDEBAR, "refused display");
     assertEquals("custom", cell.getCssClass());
     assertEquals("refused display",
                  refused(() -> service.applyDisplay(cell, DisplayMode.HIDE_DESKTOP, StylingDestination.BANNER, "refused display")));

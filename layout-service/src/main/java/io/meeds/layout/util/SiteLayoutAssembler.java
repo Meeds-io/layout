@@ -46,10 +46,12 @@ import io.meeds.layout.service.LayoutStylingService;
  * stored tree, the four sidebar slots are always written (empty when unused)
  * and the banners are written in the order given, as the site layout editor's
  * parseSite and newSite shape them. A container addressed by its id keeps its
- * stored element (a banner its cells), an application addressed by its id
- * keeps its window, and a window the caller cannot see, which the call can
+ * stored element (a banner its cells) and every option, styling block or
+ * display the call leaves null; an application addressed by its id keeps its
+ * window the same way; a window the caller cannot see, which the call can
  * neither address nor move, stays in its container at its index when that
- * container is kept, the call being refused otherwise.
+ * container is kept, the call being refused otherwise. A side holding both
+ * an outer and an inner sidebar, which the read reports as one, is refused.
  */
 public class SiteLayoutAssembler {
 
@@ -75,6 +77,17 @@ public class SiteLayoutAssembler {
   public static final String                                BANNER_BOTTOM_TOKEN             = "layout-banner-bottom-section";
 
   public static final String                                SITE_LAYOUT_NOT_EDITABLE        = "cannot be updated: site layout";
+
+  public static final String                                TWO_LEFT_SIDEBARS               =
+                                                                                       "cannot be updated: site layout holds two left sidebars";
+
+  public static final String                                TWO_RIGHT_SIDEBARS              =
+                                                                                       "cannot be updated: site layout holds two right sidebars";
+
+  public static final String                                STYLING_NOT_ACCEPTED            = "value is not accepted for styling";
+
+  public static final String                                ELEMENTS_NOT_ACCEPTED           =
+                                                                                       "value is not accepted for layout: more than 200 elements";
 
   public static final String                                SITE_LAYOUT_HIDDEN              =
                                                                                "not allowed: site layout holds elements you cannot see";
@@ -119,6 +132,8 @@ public class SiteLayoutAssembler {
   public static final int                                   MAX_BANNERS                     = 10;
 
   public static final int                                   MAX_APPLICATIONS                = 50;
+
+  public static final int                                   MAX_ELEMENTS                    = 200;
 
   public static final int                                   TITLE_MAX_LENGTH                = 200;
 
@@ -172,13 +187,28 @@ public class SiteLayoutAssembler {
     LayoutModel pageBody = single(centerChildren, EntityMapper.PAGE_BODY_TEMPLATE, SIDEBAR_TEMPLATE);
     List<SiteContainerDescription> topbars = bounded(update.topbars(), TOPBARS_NOT_ACCEPTED);
     List<SiteContainerDescription> bottomBars = bounded(update.bottomBars(), BOTTOM_BARS_NOT_ACCEPTED);
+    LayoutModel outerLeftSlot = slot(rootChildren, middle, true);
+    LayoutModel outerRightSlot = slot(rootChildren, middle, false);
+    LayoutModel innerLeftSlot = slot(centerChildren, pageBody, true);
+    LayoutModel innerRightSlot = slot(centerChildren, pageBody, false);
+    if (sidebarCell(outerLeftSlot) != null && sidebarCell(innerLeftSlot) != null) {
+      throw new IllegalArgumentException(TWO_LEFT_SIDEBARS);
+    } else if (sidebarCell(outerRightSlot) != null && sidebarCell(innerRightSlot) != null) {
+      throw new IllegalArgumentException(TWO_RIGHT_SIDEBARS);
+    }
+    int elements = (update.leftSidebar() == null ? 0 : 1) + (update.rightSidebar() == null ? 0 : 1) + topbars.size() + bottomBars.size()
+                   + applications(update.leftSidebar()) + applications(update.rightSidebar())
+                   + topbars.stream().mapToInt(this::applications).sum() + bottomBars.stream().mapToInt(this::applications).sum();
+    if (elements > MAX_ELEMENTS) {
+      throw new IllegalArgumentException(ELEMENTS_NOT_ACCEPTED);
+    }
 
     boolean leftOuter = outer(update.leftSidebar());
     boolean rightOuter = outer(update.rightSidebar());
-    LayoutModel outerLeft = sidebar(slot(rootChildren, middle, true), leftOuter ? update.leftSidebar() : null);
-    LayoutModel outerRight = sidebar(slot(rootChildren, middle, false), rightOuter ? update.rightSidebar() : null);
-    LayoutModel innerLeft = sidebar(slot(centerChildren, pageBody, true), leftOuter ? null : update.leftSidebar());
-    LayoutModel innerRight = sidebar(slot(centerChildren, pageBody, false), rightOuter ? null : update.rightSidebar());
+    LayoutModel outerLeft = sidebar(outerLeftSlot, leftOuter ? update.leftSidebar() : null);
+    LayoutModel outerRight = sidebar(outerRightSlot, rightOuter ? update.rightSidebar() : null);
+    LayoutModel innerLeft = sidebar(innerLeftSlot, leftOuter ? null : update.leftSidebar());
+    LayoutModel innerRight = sidebar(innerRightSlot, rightOuter ? null : update.rightSidebar());
 
     List<LayoutModel> newMiddleChildren = new ArrayList<>();
     for (SiteContainerDescription topbar : topbars) {
@@ -230,8 +260,29 @@ public class SiteLayoutAssembler {
     return index >= 0 && index < children.size() ? children.get(index) : null;
   }
 
+  /**
+   * @return whether the sidebar goes to the outer slot: as stated, else the
+   *         slot its stored cell is in, else the outer one, as the editor's
+   *         new site has it
+   */
   private boolean outer(SiteContainerDescription sidebar) {
-    return sidebar != null && (sidebar.options() == null || !Boolean.FALSE.equals(sidebar.options().fullHeight()));
+    if (sidebar == null) {
+      return false;
+    }
+    Boolean fullHeight = sidebar.options() == null ? null : sidebar.options().fullHeight();
+    if (fullHeight != null) {
+      return fullHeight;
+    }
+    LayoutModel storedSidebar = sidebar.containerId() == null ? null : parentOf.get(sidebar.containerId());
+    return storedSidebar == null || storedSidebar.getStorageId() == null || parentOf.get(storedSidebar.getStorageId()) == root;
+  }
+
+  private int applications(SiteContainerDescription container) {
+    return container == null || container.applications() == null ? 0 : container.applications().size();
+  }
+
+  private LayoutModel sidebarCell(LayoutModel sidebar) {
+    return children(sidebar).stream().filter(c -> isTemplate(c, SIDEBAR_CELL_TEMPLATE)).findFirst().orElse(null);
   }
 
   private List<SiteContainerDescription> bounded(List<SiteContainerDescription> banners, String refusal) {
@@ -254,18 +305,22 @@ public class SiteLayoutAssembler {
       sidebar.setCssClass(null);
       return sidebar;
     }
-    LayoutModel cell = description.containerId() == null ? newContainer(SIDEBAR_CELL_TEMPLATE)
-                                                         : container(description.containerId(), SIDEBAR_CELL_TEMPLATE);
+    boolean kept = description.containerId() != null;
+    LayoutModel cell = kept ? container(description.containerId(), SIDEBAR_CELL_TEMPLATE) : newContainer(SIDEBAR_CELL_TEMPLATE);
+    LayoutModel storedSidebar = kept ? parentOf.get(description.containerId()) : null;
     SiteContainerOptions options = options(description);
-    boolean sticky = Boolean.TRUE.equals(options.sticky());
     if (options.height() != null) {
       throw new IllegalArgumentException(HEIGHT_NOT_ACCEPTED);
     }
-    int width = options.width() == null ? DEFAULT_SIDEBAR_WIDTH : options.width();
-    if (width < SIDEBAR_WIDTH_MIN || width > SIDEBAR_WIDTH_MAX) {
-      throw new IllegalArgumentException(WIDTH_NOT_ACCEPTED);
+    boolean sticky = options.sticky() != null ? options.sticky() : storedSidebar != null && hasToken(storedSidebar.getCssClass(), STICKY_TOKEN);
+    if (options.width() != null) {
+      if (options.width() < SIDEBAR_WIDTH_MIN || options.width() > SIDEBAR_WIDTH_MAX) {
+        throw new IllegalArgumentException(WIDTH_NOT_ACCEPTED);
+      }
+      cell.setWidth(String.valueOf(options.width()));
+    } else if (StringUtils.isBlank(cell.getWidth())) {
+      cell.setWidth(String.valueOf(DEFAULT_SIDEBAR_WIDTH));
     }
-    cell.setWidth(String.valueOf(width));
     cell.setChildren(new ArrayList<>());
     String sidebarClass = LayoutStylingService.strip(sidebar.getCssClass(), STICKY_TOKEN);
     sidebar.setCssClass(sticky ? LayoutStylingService.append(sidebarClass, STICKY_SECTION_TOKEN) : sidebarClass);
@@ -295,17 +350,20 @@ public class SiteLayoutAssembler {
       }
     }
     SiteContainerOptions options = options(description);
-    boolean sticky = Boolean.TRUE.equals(options.sticky());
     if (options.width() != null) {
       throw new IllegalArgumentException(WIDTH_NOT_ACCEPTED);
     } else if (options.fullHeight() != null) {
       throw new IllegalArgumentException(FULL_HEIGHT_NOT_ACCEPTED);
     }
-    int height = options.height() == null ? DEFAULT_BANNER_HEIGHT : options.height();
-    if (height < 0 || height > BANNER_HEIGHT_MAX) {
-      throw new IllegalArgumentException(HEIGHT_NOT_ACCEPTED);
+    boolean sticky = options.sticky() != null ? options.sticky() : hasToken(banner.getCssClass(), STICKY_TOKEN);
+    if (options.height() != null) {
+      if (options.height() < 0 || options.height() > BANNER_HEIGHT_MAX) {
+        throw new IllegalArgumentException(HEIGHT_NOT_ACCEPTED);
+      }
+      banner.setHeight(String.valueOf(options.height()));
+    } else if (StringUtils.isBlank(banner.getHeight())) {
+      banner.setHeight(String.valueOf(DEFAULT_BANNER_HEIGHT));
     }
-    banner.setHeight(String.valueOf(height));
     String bannerClass = LayoutStylingService.append(LayoutStylingService.strip(banner.getCssClass(), BANNER_TOKENS),
                                                      top ? BANNER_TOP_TOKEN : BANNER_BOTTOM_TOKEN);
     banner.setCssClass(sticky ? LayoutStylingService.append(bannerClass, STICKY_SECTION_TOKEN) : bannerClass);
@@ -393,6 +451,10 @@ public class SiteLayoutAssembler {
     container.setTemplate(template);
     container.setChildren(new ArrayList<>());
     return container;
+  }
+
+  private boolean hasToken(String cssClass, Pattern token) {
+    return StringUtils.isNotBlank(cssClass) && token.matcher(cssClass).find();
   }
 
   private boolean isTemplate(LayoutModel model, String template) {

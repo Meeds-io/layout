@@ -95,6 +95,7 @@ import io.meeds.layout.model.PortletInstance;
 import io.meeds.layout.model.PortletInstanceCategory;
 import io.meeds.layout.model.PortletInstanceContext;
 import io.meeds.layout.util.EntityMapper;
+import io.meeds.layout.util.LayoutStyleValidator;
 import io.meeds.layout.util.SiteLayoutAssembler;
 
 /**
@@ -300,7 +301,9 @@ public class LayoutDescriptionService {
    * @param  username                the caller
    * @param  locale                  the caller's locale, for the title of an
    *                                   application added from the catalog
-   * @return                         the tree to save, ready for toSite
+   * @return                         the tree to save, ready for toSite, its
+   *                                   style values checked as the save checks
+   *                                   them, so a refusal precedes any write
    * @throws ObjectNotFoundException when an addressed container or window
    *                                   is not in the stored layout
    * @throws IllegalAccessException  when the stored layout holds an element
@@ -316,7 +319,7 @@ public class LayoutDescriptionService {
     if (layout == null) {
       throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
     }
-    Map<String, Integer> hiddenWindows = new HashMap<>();
+    Map<String, Integer> hiddenWindows = new LinkedHashMap<>();
     collectHidden(layout, username, hiddenWindows);
     LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
                                    new LayoutModel(layout);
@@ -326,6 +329,11 @@ public class LayoutDescriptionService {
                                                  description -> newApplication(description, username, locale)).assemble(update);
     if (copyWindows) {
       result.resetStorage();
+    }
+    try {
+      LayoutStyleValidator.validate(EntityMapper.toModelObject(result));
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
     }
     return result;
   }
