@@ -75,7 +75,6 @@ import org.exoplatform.portal.mop.service.NavigationService;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
-import io.meeds.layout.util.SiteLayoutAssembler;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteContainerOptions;
 import io.meeds.layout.mcp.model.StylingDescription;

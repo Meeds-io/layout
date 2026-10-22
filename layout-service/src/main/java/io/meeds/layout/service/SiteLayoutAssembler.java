@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software Foundation,
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
-package io.meeds.layout.util;
+package io.meeds.layout.service;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,7 +40,7 @@ import io.meeds.layout.mcp.model.SiteContainerOptions;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.model.LayoutModel;
-import io.meeds.layout.service.LayoutStylingService;
+import io.meeds.layout.util.EntityMapper;
 
 /**
  * Rebuilds a site layout tree from a set_site_layout call, for one call: the

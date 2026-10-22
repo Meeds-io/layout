@@ -96,7 +96,6 @@ import io.meeds.layout.model.PortletInstanceCategory;
 import io.meeds.layout.model.PortletInstanceContext;
 import io.meeds.layout.util.EntityMapper;
 import io.meeds.layout.util.LayoutStyleValidator;
-import io.meeds.layout.util.SiteLayoutAssembler;
 
 /**
  * Converts a page or site container tree into the description the MCP tools

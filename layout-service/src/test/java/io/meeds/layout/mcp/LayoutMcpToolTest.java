@@ -82,7 +82,7 @@ import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
-import io.meeds.layout.util.SiteLayoutAssembler;
+import io.meeds.layout.service.SiteLayoutAssembler;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.SiteContainerDescription;

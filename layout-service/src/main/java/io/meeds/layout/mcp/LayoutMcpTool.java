@@ -61,7 +61,7 @@ import io.meeds.layout.service.LayoutDraftService;
 import io.meeds.layout.service.PageLayoutService;
 import io.meeds.layout.service.SiteLayoutService;
 import io.meeds.layout.service.SiteTemplateService;
-import io.meeds.layout.util.SiteLayoutAssembler;
+import io.meeds.layout.service.SiteLayoutAssembler;
 import io.meeds.mcp.server.plugin.McpToolPlugin;
 
 /**
