@@ -895,6 +895,23 @@ public class SiteLayoutServiceTest {
 
   @Test
   @SneakyThrows
+  public void publishingASiteLayoutBroadcastsThePublishedEventAndADraftSaveDoesNot() {
+    PortalConfig site = mock(PortalConfig.class);
+    when(site.getPortalLayout()).thenReturn(new SiteLayout());
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+
+    siteLayoutService.updateSiteLayout(SITE_KEY, site, false, TEST_USER);
+    verify(portalConfig).checkStorage();
+    verify(listenerService, never()).broadcast(any(String.class), any(), any());
+
+    siteLayoutService.updateSiteLayout(SITE_KEY, site, true, TEST_USER);
+    verify(portalConfig).resetStorage();
+    verify(listenerService).broadcast(SiteLayoutService.SITE_PUBLISHED_EVENT, TEST_USER, SITE_KEY);
+  }
+
+  @Test
+  @SneakyThrows
   public void deleteSite() {
     assertThrows(ObjectNotFoundException.class, () -> siteLayoutService.deleteSite(SITE_KEY, TEST_USER));
     when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
