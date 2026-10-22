@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.meeds.layout.mcp.constant.HeightPreset;
 
 @JsonInclude(Include.NON_NULL)
-public record HeightBlock(@JsonProperty("enabled") boolean enabled,
+public record HeightBlock(@JsonProperty("enabled") Boolean enabled,
                           @JsonProperty("fixed") HeightPreset fixed,
                           @JsonProperty("custom_px") Integer customPx) {
 }

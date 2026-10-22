@@ -31,7 +31,7 @@ import io.meeds.layout.mcp.constant.DisplayMode;
 @JsonInclude(Include.NON_NULL)
 public record SiteContainerOptions(@JsonProperty("height") Integer height,
                                    @JsonProperty("width") Integer width,
-                                   @JsonProperty("sticky") boolean sticky,
+                                   @JsonProperty("sticky") Boolean sticky,
                                    @JsonProperty("display") DisplayMode display,
                                    @JsonProperty("full_height") Boolean fullHeight) {
 }

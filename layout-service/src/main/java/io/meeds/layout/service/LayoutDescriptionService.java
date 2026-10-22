@@ -83,6 +83,7 @@ import io.meeds.layout.mcp.model.SidesBlock;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteContainerOptions;
 import io.meeds.layout.mcp.model.SiteDescription;
+import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.SiteSummary;
 import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.mcp.model.TextBackgroundBlock;
@@ -92,7 +93,9 @@ import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PortletInstance;
 import io.meeds.layout.model.PortletInstanceCategory;
+import io.meeds.layout.model.PortletInstanceContext;
 import io.meeds.layout.util.EntityMapper;
+import io.meeds.layout.util.LayoutStyleValidator;
 
 /**
  * Converts a page or site container tree into the description the MCP tools
@@ -159,6 +162,10 @@ public class LayoutDescriptionService {
 
   public static final int        SITE_MATCH_LIMIT            = 50;
 
+  public static final String     INSTANCE_ID_NOT_ACCEPTED    = "value is not accepted for instance_id";
+
+  public static final String     CONTENT_ID_NOT_ACCEPTED     = "value is not accepted for content_id";
+
   private static final int       SITE_NAME_PAGE              = 200;
 
   private static final Pattern   CONIC_STOP                  = Pattern.compile("^(#[0-9a-fA-F]{6,8})\\s+(-?\\d+(?:\\.\\d+)?)deg$");
@@ -184,6 +191,9 @@ public class LayoutDescriptionService {
 
   @Autowired
   private LayoutDraftService     layoutDraftService;
+
+  @Autowired
+  private LayoutStylingService   stylingService;
 
   /**
    * Drops, recursively, every container and application the user has no
@@ -272,6 +282,60 @@ public class LayoutDescriptionService {
                                toSidebar(outerRight, innerRight, contentIds),
                                topbars,
                                bottomBars);
+  }
+
+  /**
+   * Rebuilds a site layout from a set_site_layout call over the stored tree,
+   * every value checked before anything is written. The windows the caller
+   * cannot see stay in place; a container they cannot see refuses the call.
+   *
+   * @param  update                  the four arguments of the call
+   * @param  stored                  the site whose stored layout is rebuilt,
+   *                                   the user's draft or the live site
+   * @param  copyWindows             true when the layout is the live one and
+   *                                   the result becomes a new draft: every
+   *                                   kept window is then a copy carrying
+   *                                   the live window's preferences, as
+   *                                   createDraftSite makes them
+   * @param  username                the caller
+   * @param  locale                  the caller's locale, for the title of an
+   *                                   application added from the catalog
+   * @return                         the tree to save, ready for toSite, its
+   *                                   style values checked as the save checks
+   *                                   them, so a refusal precedes any write
+   * @throws ObjectNotFoundException when an addressed container or window
+   *                                   is not in the stored layout
+   * @throws IllegalAccessException  when the stored layout holds an element
+   *                                   the caller cannot see and the call
+   *                                   would not keep it in place
+   */
+  public LayoutModel toSiteLayout(SiteLayoutUpdate update,
+                                  PortalConfig stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  Locale locale) throws ObjectNotFoundException, IllegalAccessException {
+    Container layout = stored.getPortalLayout();
+    if (layout == null) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
+    }
+    Map<String, Integer> hiddenWindows = new LinkedHashMap<>();
+    collectHidden(layout, username, hiddenWindows);
+    LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(layout);
+    LayoutModel result = new SiteLayoutAssembler(root,
+                                                 hiddenWindows,
+                                                 stylingService,
+                                                 this::toStyling,
+                                                 description -> newApplication(description, username, locale)).assemble(update);
+    if (copyWindows) {
+      result.resetStorage();
+    }
+    try {
+      LayoutStyleValidator.validate(EntityMapper.toModelObject(result));
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
+    }
+    return result;
   }
 
   /**
@@ -711,6 +775,72 @@ public class LayoutDescriptionService {
         contentIds.put(storageId, layoutService.getId(application.getState()));
       }
     }
+  }
+
+  private void collectHidden(ModelObject object, String username, Map<String, Integer> hiddenWindows) throws IllegalAccessException {
+    if (object instanceof Container container) {
+      if (!aclService.hasAccessPermission(container, username)) {
+        throw new IllegalAccessException(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN);
+      }
+      List<ModelObject> children = container.getChildren() == null ? Collections.emptyList() : container.getChildren();
+      for (int i = 0; i < children.size(); i++) {
+        ModelObject child = children.get(i);
+        if (child instanceof Application application) {
+          if (!aclService.hasAccessPermission(application, username)) {
+            hiddenWindows.put(application.getStorageId(), i);
+          }
+        } else {
+          collectHidden(child, username, hiddenWindows);
+        }
+      }
+    }
+  }
+
+  /**
+   * @return the window of an application the caller adds, as the editor's
+   *         application drawer builds it from the catalog: the instance's
+   *         content id and preferences, its name as title
+   */
+  private LayoutModel newApplication(ApplicationDescription description, String username, Locale locale) {
+    PortletInstance instance = resolveInstance(description, username, locale);
+    LayoutModel application = new LayoutModel();
+    application.setContentId(instance.getContentId());
+    application.setPreferences(instance.getPreferences());
+    application.setTitle(instance.getName());
+    return application;
+  }
+
+  /**
+   * @return the catalog instance the description names, by instance id when
+   *         given (its content id, when given too, must match), otherwise
+   *         the one enabled instance the caller may place with that content
+   *         id
+   */
+  private PortletInstance resolveInstance(ApplicationDescription description, String username, Locale locale) {
+    String contentId = StringUtils.trimToNull(description.contentId());
+    if (description.instanceId() != null) {
+      PortletInstance instance;
+      try {
+        instance = portletInstanceService.getPortletInstance(description.instanceId(), username, locale, true);
+      } catch (ObjectNotFoundException | IllegalAccessException e) {
+        throw new IllegalArgumentException(INSTANCE_ID_NOT_ACCEPTED);
+      }
+      if (instance.isDisabled()) {
+        throw new IllegalArgumentException(INSTANCE_ID_NOT_ACCEPTED);
+      } else if (contentId != null && !StringUtils.equals(contentId, instance.getContentId())) {
+        throw new IllegalArgumentException(CONTENT_ID_NOT_ACCEPTED);
+      }
+      return instance;
+    }
+    List<PortletInstance> matches = portletInstanceService.getPortletInstances(0, username, locale, true)
+                                                          .stream()
+                                                          .filter(instance -> !instance.isDisabled()
+                                                                              && StringUtils.equals(instance.getContentId(), contentId))
+                                                          .toList();
+    if (matches.size() != 1) {
+      throw new IllegalArgumentException(CONTENT_ID_NOT_ACCEPTED);
+    }
+    return matches.get(0);
   }
 
   private MarginsBlock toMargins(LayoutModel model) {

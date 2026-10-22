@@ -45,8 +45,11 @@ import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
+import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
+import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.SiteSummary;
+import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.SiteCreateModel;
@@ -58,16 +61,19 @@ import io.meeds.layout.service.LayoutDraftService;
 import io.meeds.layout.service.PageLayoutService;
 import io.meeds.layout.service.SiteLayoutService;
 import io.meeds.layout.service.SiteTemplateService;
+import io.meeds.layout.service.SiteLayoutAssembler;
 import io.meeds.mcp.server.plugin.McpToolPlugin;
 
 /**
- * The read tools of the layout and the site tools: every public method is an
- * MCP tool described in ai-tool-definitions.json. A tool maps its arguments,
- * checks them against the vocabulary the editors accept, calls the Services
- * as the current user and translates their refusals into the fixed texts the
- * agent reads: {@code does not exist: <object>}, {@code not allowed: <object>},
- * {@code value is not accepted for <option>}. A site change applies at once,
- * as the sites administration's does; it is never a draft.
+ * The read tools of the layout, the site tools and the site layout tools:
+ * every public method is an MCP tool described in ai-tool-definitions.json. A
+ * tool maps its arguments, checks them against the vocabulary the editors
+ * accept, calls the Services as the current user and translates their
+ * refusals into the fixed texts the agent reads: {@code does not exist:
+ * <object>}, {@code not allowed: <object>}, {@code value is not accepted for
+ * <option>}. A change to a site's properties applies at once, as the sites
+ * administration's does; a change to its layout is the user's draft until
+ * publish_layout, as in the site layout editor.
  */
 @Service
 @Profile("mcp-server")
@@ -116,6 +122,14 @@ public class LayoutMcpTool implements McpToolPlugin {
   public static final String       EDIT_PERMISSION_NOT_ACCEPTED = "value is not accepted for edit_permission";
 
   public static final String       REMOVE_BANNER_NOT_ACCEPTED = "value is not accepted for remove_banner";
+
+  public static final String       SITE_LAYOUT_NOT_SAVED = "could not be saved: site layout";
+
+  public static final String       SITE_LAYOUT_NOT_PUBLISHED = "could not be published: site layout";
+
+  public static final String       LAYOUT_OUTDATED       = "layout outdated, re-read it";
+
+  public static final String       STYLING_NOT_ACCEPTED  = SiteLayoutAssembler.STYLING_NOT_ACCEPTED;
 
   public static final String       DEFAULT_TEMPLATE      = "basic";
 
@@ -408,6 +422,119 @@ public class LayoutMcpTool implements McpToolPlugin {
       LOG.debug("Site {} could not be deleted by {}", siteKey, username, e);
       throw new IllegalStateException(SITE_NOT_DELETED);
     }
+  }
+
+  /**
+   * Replaces the structure of the user's site draft: the sidebars, topbars
+   * and bottom bars given, with their options, styling and applications, as
+   * the site layout editor lays them out; a sidebar or a list omitted is
+   * absent from the draft, while an option, a styling block or a display
+   * left null on a kept element keeps what it holds. Ids address the layout
+   * get_site returned: the
+   * user's draft when they have one, the published layout otherwise, in
+   * which case the draft is created by this call and every kept application
+   * becomes a copy carrying its preferences. Every value is checked before
+   * anything is written. Returns the draft as get_site does, with its ids.
+   */
+  public SiteDescription setSiteLayout(Long siteId,
+                                       SiteContainerDescription leftSidebar,
+                                       SiteContainerDescription rightSidebar,
+                                       List<SiteContainerDescription> topbars,
+                                       List<SiteContainerDescription> bottomBars) throws ObjectNotFoundException,
+                                                                                  IllegalAccessException {
+    requireSiteId(siteId);
+    String username = getCurrentUserName();
+    PortalConfig site = readEditableSite(siteId, username);
+    SiteKey siteKey = site.getSiteKey();
+    PortalConfig draftSite = readDraftSite(siteId, username);
+    boolean createDraft = draftSite == null;
+    LayoutModel layout = layoutDescriptionService.toSiteLayout(new SiteLayoutUpdate(leftSidebar, rightSidebar, topbars, bottomBars),
+                                                               createDraft ? site : draftSite,
+                                                               createDraft,
+                                                               username,
+                                                               getCurrentUserLocale());
+    try {
+      SiteKey draftSiteKey = createDraft ? layoutDraftService.createDraftSite(site, username) : draftSite.getSiteKey();
+      siteLayoutService.updateSiteLayout(draftSiteKey, layout.toSite(), false, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(SITE_NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(SITE_NOT_ALLOWED);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(STYLING_NOT_ACCEPTED);
+    } catch (RuntimeException e) {
+      throw translateWriteFailure(e, siteKey, username, SITE_LAYOUT_NOT_SAVED);
+    }
+    return describeStoredSite(siteKey, username);
+  }
+
+  /**
+   * Makes the user's site draft the published layout, for every viewer at
+   * once, as the site layout editor's publish does: the draft the user's
+   * revision names is written over the live site, every container and
+   * application taking a new id, and the draft ends. Returns the site as
+   * published, with the new ids.
+   */
+  public SiteDescription publishLayout(Long siteId) throws ObjectNotFoundException, IllegalAccessException {
+    requireSiteId(siteId);
+    String username = getCurrentUserName();
+    PortalConfig site = readEditableSite(siteId, username);
+    SiteKey siteKey = site.getSiteKey();
+    try {
+      layoutDraftService.publishSite(site, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(DRAFT_NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(SITE_NOT_ALLOWED);
+    } catch (RuntimeException e) {
+      throw translateWriteFailure(e, siteKey, username, SITE_LAYOUT_NOT_PUBLISHED);
+    }
+    return describeStoredSite(siteKey, username);
+  }
+
+  /**
+   * Drops the user's site draft and starts a new one from the published
+   * layout, as the site layout editor's "start again" does. Returns the new
+   * draft, with its ids.
+   */
+  public SiteDescription discardLayoutDraft(Long siteId) throws ObjectNotFoundException, IllegalAccessException {
+    requireSiteId(siteId);
+    String username = getCurrentUserName();
+    PortalConfig site = readEditableSite(siteId, username);
+    SiteKey siteKey = site.getSiteKey();
+    try {
+      layoutDraftService.discardDraftSite(site, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(DRAFT_NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(SITE_NOT_ALLOWED);
+    } catch (RuntimeException e) {
+      throw translateWriteFailure(e, siteKey, username, SITE_LAYOUT_NOT_SAVED);
+    }
+    return describeStoredSite(siteKey, username);
+  }
+
+  /**
+   * The live site the user may edit, read as get_site reads it
+   */
+  private PortalConfig readEditableSite(long siteId, String username) throws ObjectNotFoundException, IllegalAccessException {
+    PortalConfig site = readSite(siteId, username);
+    if (!aclService.canEditSite(site.getSiteKey(), username)) {
+      throw new IllegalAccessException(SITE_NOT_ALLOWED);
+    }
+    return site;
+  }
+
+  /**
+   * A layout write refused by the storage answers a fixed text: the outdated
+   * draft its own, every other failure the given one, its cause logged
+   */
+  private RuntimeException translateWriteFailure(RuntimeException e, SiteKey siteKey, String username, String refusal) {
+    if (StringUtils.equals(e.getMessage(), SiteLayoutService.SITE_OUTDATED_MESSAGE)) {
+      return new IllegalStateException(LAYOUT_OUTDATED);
+    }
+    LOG.debug("Site layout {} could not be written by {}", siteKey, username, e);
+    return new IllegalStateException(refusal);
   }
 
   /**

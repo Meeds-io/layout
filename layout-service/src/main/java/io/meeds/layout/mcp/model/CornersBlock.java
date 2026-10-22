@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(Include.NON_NULL)
-public record CornersBlock(@JsonProperty("enabled") boolean enabled,
+public record CornersBlock(@JsonProperty("enabled") Boolean enabled,
                            @JsonProperty("all") Integer all,
                            @JsonProperty("top_left") Integer topLeft,
                            @JsonProperty("top_right") Integer topRight,
