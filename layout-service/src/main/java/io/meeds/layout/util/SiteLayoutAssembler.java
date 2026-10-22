@@ -163,6 +163,8 @@ public class SiteLayoutAssembler {
 
   private final Set<String>                                 placedHidden                    = new HashSet<>();
 
+  private final Map<String, Boolean>                        storedStickiness                = new HashMap<>();
+
   /**
    * @param root           the stored tree, wrapped
    * @param hiddenWindows  the storage id of each window the caller cannot
@@ -214,6 +216,8 @@ public class SiteLayoutAssembler {
 
     boolean leftOuter = outer(update.leftSidebar());
     boolean rightOuter = outer(update.rightSidebar());
+    rememberStickiness(update.leftSidebar());
+    rememberStickiness(update.rightSidebar());
     LayoutModel outerLeft = sidebar(outerLeftSlot, leftOuter ? update.leftSidebar() : null);
     LayoutModel outerRight = sidebar(outerRightSlot, rightOuter ? update.rightSidebar() : null);
     LayoutModel innerLeft = sidebar(innerLeftSlot, leftOuter ? null : update.leftSidebar());
@@ -286,6 +290,16 @@ public class SiteLayoutAssembler {
     return storedSidebar == null || storedSidebar.getStorageId() == null || parentOf.get(storedSidebar.getStorageId()) == root;
   }
 
+  /**
+   * A kept cell's stickiness is read from its stored wrapper before any slot
+   * is emptied, since the wrapper may be the slot the cell leaves
+   */
+  private void rememberStickiness(SiteContainerDescription sidebar) {
+    if (sidebar != null && sidebar.containerId() != null && parentOf.containsKey(sidebar.containerId())) {
+      storedStickiness.put(sidebar.containerId(), hasToken(parentOf.get(sidebar.containerId()).getCssClass(), STICKY_TOKEN));
+    }
+  }
+
   private int applications(SiteContainerDescription container) {
     return container == null || container.applications() == null ? 0 : container.applications().size();
   }
@@ -316,12 +330,11 @@ public class SiteLayoutAssembler {
     }
     boolean kept = description.containerId() != null;
     LayoutModel cell = kept ? container(description.containerId(), SIDEBAR_CELL_TEMPLATE) : newContainer(SIDEBAR_CELL_TEMPLATE);
-    LayoutModel storedSidebar = kept ? parentOf.get(description.containerId()) : null;
     SiteContainerOptions options = options(description);
     if (options.height() != null) {
       throw new IllegalArgumentException(HEIGHT_NOT_ACCEPTED);
     }
-    boolean sticky = options.sticky() != null ? options.sticky() : storedSidebar != null && hasToken(storedSidebar.getCssClass(), STICKY_TOKEN);
+    boolean sticky = options.sticky() != null ? options.sticky() : kept && storedStickiness.getOrDefault(description.containerId(), false);
     if (options.width() != null) {
       if (options.width() < SIDEBAR_WIDTH_MIN || options.width() > SIDEBAR_WIDTH_MAX) {
         throw new IllegalArgumentException(WIDTH_NOT_ACCEPTED);

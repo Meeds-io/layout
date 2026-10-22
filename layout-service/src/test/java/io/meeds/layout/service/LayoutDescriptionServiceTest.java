@@ -991,6 +991,44 @@ public class LayoutDescriptionServiceTest {
   }
 
   @Test
+  public void aStickySidebarMovedBetweenTheSlotsStaysSticky() throws Exception {
+    PortalConfig site = storedSite();
+    Container outerLeftCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
+    findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_TEMPLATE, 0).setCssClass("layout-sticky-section");
+    SiteContainerDescription movedInner = new SiteContainerDescription(outerLeftCell.getStorageId(),
+                                                                       new SiteContainerOptions(null, null, null, null, false),
+                                                                       null,
+                                                                       List.of(new ApplicationDescription("1", null, null, null, null, null, null, null, null)));
+
+    LayoutModel result = build(site, movedInner, null, null);
+
+    assertTrue(result.getChildren().get(0).getChildren().isEmpty());
+    assertNull(result.getChildren().get(0).getCssClass());
+    LayoutModel innerLeft = result.getChildren().get(1).getChildren().get(0).getChildren().get(0);
+    assertEquals("layout-sticky-section", innerLeft.getCssClass());
+    assertEquals(outerLeftCell.getStorageId(), innerLeft.getChildren().get(0).getStorageId());
+  }
+
+  @Test
+  public void aBlockSentWithoutItsFlagIsOn() throws Exception {
+    PortalConfig site = storedSite();
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    ModelStyle style = new ModelStyle();
+    style.setBackgroundColor("#111111");
+    style.setBackgroundImage("/portal/rest/v1/social/attachments/containerBackground/site_5_1/7");
+    topBanner.setCssStyle(style);
+    SiteContainerDescription recoloured = new SiteContainerDescription(topBanner.getStorageId(),
+                                                                       null,
+                                                                       new StylingDescription(null, null, null, new BackgroundBlock(null, null, "#777777", null, null, null, null, null, null, null), null, null),
+                                                                       null);
+
+    LayoutModel writtenTop = build(site, null, List.of(recoloured), null).getChildren().get(1).getChildren().get(0);
+
+    assertEquals("#777777", writtenTop.getBackgroundColor());
+    assertEquals("/portal/rest/v1/social/attachments/containerBackground/site_5_1/7", writtenTop.getBackgroundImage());
+  }
+
+  @Test
   public void aSideHoldingTwoSidebarsIsRefused() throws Exception {
     PortalConfig site = storedSite();
     Container center = findContainer(site.getPortalLayout(), LayoutDescriptionService.SITE_MIDDLE_CENTER_TEMPLATE, 0);

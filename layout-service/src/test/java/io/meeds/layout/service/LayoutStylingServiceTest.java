@@ -160,6 +160,30 @@ public class LayoutStylingServiceTest {
                                    .background()
                                    .image());
 
+    BackgroundBlock noFlag = new BackgroundBlock(null, null, "#666666", null, null, null, null, null, null, null);
+    BackgroundBlock mergedNoFlag = LayoutStylingService.merge(withImage, styling(null, null, null, noFlag, null, null), true).background();
+    assertEquals(true, mergedNoFlag.enabled());
+    assertEquals("#666666", mergedNoFlag.color());
+    assertEquals(image, mergedNoFlag.image());
+    assertEquals(true, LayoutStylingService.merge(stored, styling(new MarginsBlock(null, 3, null, null, null, null), null, null, null, null, null), false).margins().enabled());
+    assertEquals(true, LayoutStylingService.merge(stored, styling(null, null, null, null, null, new HeightBlock(null, HeightPreset.SMALL, null)), false).height().enabled());
+    assertEquals(REFUSED + "background.image.size",
+                 refused(() -> LayoutStylingService.merge(withImage,
+                                                          styling(null, null, null,
+                                                                  new BackgroundBlock(true, null, null, null, null, null, null, null, null,
+                                                                                      new BackgroundImageBlock(null, "/image", "contain", null, null, null, null, null)),
+                                                                  null, null),
+                                                          true)));
+    assertEquals(image,
+                 LayoutStylingService.merge(withImage,
+                                            styling(null, null, null,
+                                                    new BackgroundBlock(true, null, null, null, null, null, null, null, null,
+                                                                        new BackgroundImageBlock(null, "/image", null, null, null, null, null, null)),
+                                                    null, null),
+                                            true)
+                                     .background()
+                                     .image());
+
     StylingDescription unparsed = new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#111111", null, null, null, null, null, "linear-gradient(red, blue)", null), null, null);
     assertNull(LayoutStylingService.merge(unparsed, null, false).background());
     assertEquals("linear-gradient(red, blue)",
@@ -169,6 +193,10 @@ public class LayoutStylingServiceTest {
     assertNull(LayoutStylingService.merge(unparsed, styling(null, null, null, background(BackgroundMode.RADIAL, null, "#AAAAAA", "#BBBBBB", null, null, null), null, null), false)
                                    .background()
                                    .effect());
+    assertEquals(REFUSED + "background.scroll_color",
+                 refused(() -> LayoutStylingService.merge(unparsed,
+                                                          styling(null, null, null, new BackgroundBlock(true, null, null, null, null, null, null, "#222222", null, null), null, null),
+                                                          true)));
   }
 
   @Test

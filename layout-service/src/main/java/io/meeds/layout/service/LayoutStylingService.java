@@ -136,8 +136,9 @@ public class LayoutStylingService {
   /**
    * The description a call means for a kept element: a block the call leaves
    * null stays null, so the element keeps it untouched; a block it turns off
-   * is off; and inside a block it turns on every value it leaves null is the
-   * stored value, a text role, a padding side or a corner included. A stored
+   * is off; a block it sends without the flag is on; and inside a block it
+   * turns on every value it leaves null is the stored value, a text role, a
+   * padding side or a corner included. A stored
    * gradient's effect is kept only while the call names neither a mode nor a
    * colour, and a stored scroll colour only while the element stays sticky
    * and solid: a solid background left untouched on an element that stops
@@ -158,7 +159,8 @@ public class LayoutStylingService {
                                   mergeCorners(base.corners(), input.corners()),
                                   mergeBackground(base.background(), input.background(), sticky),
                                   mergeText(base.text(), input.text()),
-                                  input.height());
+                                  input.height() == null || off(input.height().enabled()) ? input.height()
+                                                                                          : new HeightBlock(true, input.height().fixed(), input.height().customPx()));
   }
 
   /**
@@ -224,7 +226,7 @@ public class LayoutStylingService {
   }
 
   private static MarginsBlock mergeMargins(MarginsBlock stored, MarginsBlock input) {
-    if (input == null || !on(input.enabled())) {
+    if (input == null || off(input.enabled())) {
       return input;
     }
     MarginsBlock base = stored != null && on(stored.enabled()) ? stored : new MarginsBlock(true, null, null, null, null, null);
@@ -237,7 +239,7 @@ public class LayoutStylingService {
   }
 
   private static BorderBlock mergeBorder(BorderBlock stored, BorderBlock input) {
-    if (input == null || !on(input.enabled())) {
+    if (input == null || off(input.enabled())) {
       return input;
     }
     BorderBlock base = stored != null && on(stored.enabled()) ? stored : new BorderBlock(true, null, null, null);
@@ -245,7 +247,7 @@ public class LayoutStylingService {
   }
 
   private static CornersBlock mergeCorners(CornersBlock stored, CornersBlock input) {
-    if (input == null || !on(input.enabled())) {
+    if (input == null || off(input.enabled())) {
       return input;
     }
     CornersBlock base = stored != null && on(stored.enabled()) ? stored : new CornersBlock(true, null, null, null, null, null);
@@ -258,23 +260,27 @@ public class LayoutStylingService {
   }
 
   private static BackgroundBlock mergeBackground(BackgroundBlock stored, BackgroundBlock input, boolean sticky) {
-    BackgroundBlock base = stored != null && on(stored.enabled()) ? stored : null;
+    BackgroundBlock base = stored != null && on(stored.enabled()) ? stored
+                                                                  : new BackgroundBlock(true, null, null, null, null, null, null, null, null, null);
     if (input == null) {
-      return base == null || sticky || base.scrollColor() == null ? null
-                                                                 : new BackgroundBlock(true,
-                                                                                       base.mode(),
-                                                                                       base.color(),
-                                                                                       base.from(),
-                                                                                       base.to(),
-                                                                                       base.ratio(),
-                                                                                       base.direction(),
-                                                                                       null,
-                                                                                       base.effect(),
-                                                                                       base.image());
-    } else if (!on(input.enabled()) || base == null) {
+      return !on(base.enabled()) || sticky || base.scrollColor() == null || stored == null ? null
+                                                                                            : new BackgroundBlock(true,
+                                                                                                                  base.mode(),
+                                                                                                                  base.color(),
+                                                                                                                  base.from(),
+                                                                                                                  base.to(),
+                                                                                                                  base.ratio(),
+                                                                                                                  base.direction(),
+                                                                                                                  null,
+                                                                                                                  base.effect(),
+                                                                                                                  base.image());
+    } else if (off(input.enabled())) {
       return input;
     }
     boolean restated = input.mode() != null || input.color() != null || input.from() != null || input.to() != null;
+    if (!restated && base.effect() != null && input.scrollColor() != null) {
+      throw new IllegalArgumentException(REFUSAL_PREFIX + "background.scroll_color");
+    }
     BackgroundMode mode = input.mode() != null ? input.mode() : input.color() != null ? BackgroundMode.SOLID : base.mode();
     boolean solid = mode == null || mode == BackgroundMode.SOLID;
     return new BackgroundBlock(true,
@@ -286,11 +292,41 @@ public class LayoutStylingService {
                                solid ? input.direction() : or(input.direction(), base.direction()),
                                sticky && solid ? or(input.scrollColor(), base.scrollColor()) : input.scrollColor(),
                                restated ? input.effect() : or(input.effect(), base.effect()),
-                               or(input.image(), base.image()));
+                               mergeImage(base.image(), input.image(), "background.image"));
+  }
+
+  /**
+   * An image block the call sends must repeat the stored image: its url and
+   * every option it names, since no option of a stored image is rewritten
+   * here; the stored block is what the writer then keeps
+   */
+  private static BackgroundImageBlock mergeImage(BackgroundImageBlock stored, BackgroundImageBlock input, String path) {
+    if (input == null) {
+      return stored;
+    } else if (input.imageUploadId() != null || stored == null || input.url() == null || !input.url().equals(stored.url())) {
+      return input;
+    } else if (differs(input.size(), stored.size())) {
+      throw new IllegalArgumentException(REFUSAL_PREFIX + path + ".size");
+    } else if (differs(input.position(), stored.position())) {
+      throw new IllegalArgumentException(REFUSAL_PREFIX + path + ".position");
+    } else if (differs(input.attachment(), stored.attachment())) {
+      throw new IllegalArgumentException(REFUSAL_PREFIX + path + ".attachment");
+    } else if (differs(input.repeat(), stored.repeat())) {
+      throw new IllegalArgumentException(REFUSAL_PREFIX + path + ".repeat");
+    } else if (differs(input.margins(), stored.margins())) {
+      throw new IllegalArgumentException(REFUSAL_PREFIX + path + ".margins");
+    } else if (differs(input.corners(), stored.corners())) {
+      throw new IllegalArgumentException(REFUSAL_PREFIX + path + ".corners");
+    }
+    return stored;
+  }
+
+  private static boolean differs(Object given, Object stored) {
+    return given != null && !given.equals(stored);
   }
 
   private static TextBlock mergeText(TextBlock stored, TextBlock input) {
-    if (input == null || !on(input.enabled())) {
+    if (input == null || off(input.enabled())) {
       return input;
     }
     TextBlock base = stored != null && on(stored.enabled()) ? stored : new TextBlock(true, null, null, null, null, null);
@@ -315,8 +351,9 @@ public class LayoutStylingService {
   }
 
   private static TextBackgroundBlock mergeTextBackground(TextBackgroundBlock stored, TextBackgroundBlock input) {
-    TextBackgroundBlock base = stored != null && on(stored.enabled()) ? stored : null;
-    if (input == null || !on(input.enabled()) || base == null) {
+    TextBackgroundBlock base = stored != null && on(stored.enabled()) ? stored
+                                                                      : new TextBackgroundBlock(true, null, null, null, null, null, null, null, null, null, null);
+    if (input == null || off(input.enabled())) {
       return input;
     }
     boolean restated = input.mode() != null || input.color() != null || input.from() != null || input.to() != null;
@@ -330,7 +367,7 @@ public class LayoutStylingService {
                                    solid ? input.ratio() : or(input.ratio(), base.ratio()),
                                    solid ? input.direction() : or(input.direction(), base.direction()),
                                    restated ? input.effect() : or(input.effect(), base.effect()),
-                                   or(input.image(), base.image()),
+                                   mergeImage(base.image(), input.image(), "text.background.image"),
                                    mergeSides(base.padding(), input.padding()),
                                    mergeTextCorners(base.corners(), input.corners()));
   }
@@ -361,6 +398,14 @@ public class LayoutStylingService {
 
   private static boolean on(Boolean enabled) {
     return Boolean.TRUE.equals(enabled);
+  }
+
+  /**
+   * A block the call sends without its enabled flag is on: only an explicit
+   * false clears, as the note's null rule states
+   */
+  private static boolean off(Boolean enabled) {
+    return Boolean.FALSE.equals(enabled);
   }
 
   private void applyMargins(LayoutModel target, MarginsBlock margins, StylingDestination destination) {
