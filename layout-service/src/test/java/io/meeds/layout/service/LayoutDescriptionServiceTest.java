@@ -325,6 +325,8 @@ public class LayoutDescriptionServiceTest {
     NodeContext<NodeContext<Object>> root = node(0L, "default", null, Visibility.DISPLAYED);
     NodeContext<NodeContext<Object>> home = node(1L, "home", homeKey, Visibility.DISPLAYED);
     NodeContext<NodeContext<Object>> child = node(2L, "child", childKey, Visibility.TEMPORAL);
+    NodeState childState = child.getState().builder().target("SAME_TAB").build();
+    when(child.getState()).thenReturn(childState);
     NodeContext<NodeContext<Object>> link = node(3L, "link", linkKey, Visibility.DISPLAYED);
     NodeContext<NodeContext<Object>> hidden = node(4L, "hidden", homeKey, Visibility.HIDDEN);
     NodeContext<NodeContext<Object>> draft = node(5L, "home_draft_john", homeKey, Visibility.DISPLAYED);
@@ -356,6 +358,7 @@ public class LayoutDescriptionServiceTest {
     assertEquals("home", homeItem.urlName());
     assertEquals(NavigationItemType.PAGE, homeItem.type());
     assertEquals("portal::test::home", homeItem.pageRef());
+    assertEquals("new_tab", homeItem.target());
     assertTrue(homeItem.visible());
     assertNull(homeItem.scheduled());
     assertEquals(List.of("Everyone"), homeItem.accessPermissions());
@@ -370,11 +373,52 @@ public class LayoutDescriptionServiceTest {
     assertEquals("Label", linkItem.name());
     assertNull(linkItem.labels());
     assertEquals("https://meeds.io", linkItem.url());
-    assertEquals("_blank", linkItem.target());
+    assertEquals("new_tab", linkItem.target());
+    assertEquals("same_tab", homeItem.children().get(0).target());
     NavigationItemDescription groupItem = items.get(2);
     assertEquals(NavigationItemType.GROUP, groupItem.type());
     assertNull(groupItem.pageRef());
+    assertNull(groupItem.target());
     assertTrue(groupItem.children().isEmpty());
+  }
+
+  @Test
+  public void oneItemIsDescribedToItsWriterWithItsChildrenAndWithoutTheViewFilter() throws Exception {
+    PageKey pageKey = PageKey.parse("portal::test::team");
+    NodeContext<NodeContext<Object>> root = node(0L, "default", null, Visibility.DISPLAYED);
+    NodeContext<NodeContext<Object>> team = node(5L, "team", pageKey, Visibility.HIDDEN);
+    NodeContext<NodeContext<Object>> child = node(6L, "child", null, Visibility.DISPLAYED);
+    NodeContext<NodeContext<Object>> draft = node(7L, "team_draft_john", pageKey, Visibility.DRAFT);
+    nodes(root, team, draft);
+    nodes(team, child);
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    when(layoutDraftService.isDraftNode("team_draft_john")).thenReturn(true);
+    lenient().when(navigationLayoutService.getNodeLabels(anyLong(), eq(USER))).thenReturn(nodeLabel("Label"));
+    when(navigationLayoutService.getNodeLabels(5L, USER)).thenThrow(new IllegalAccessException("no view right after the write"));
+    PageContext teamContext = new PageContext(pageKey, pageState("PAGE", null, "*:/platform/users", "*:/platform/administrators"));
+    when(layoutService.getPageContext(pageKey)).thenReturn(teamContext);
+    when(aclService.canViewNavigation(eq(SITE_KEY), any(), eq(USER))).thenReturn(true);
+    when(aclService.canViewNavigation(SITE_KEY, pageKey, USER)).thenReturn(false);
+    when(aclService.canEditNavigation(SITE_KEY, USER)).thenReturn(true);
+
+    NavigationItemDescription item = descriptionService.describeNavigationItem(SITE_KEY, 5L, USER);
+    assertNotNull(item);
+    assertEquals(5L, item.nodeId());
+    assertEquals("team", item.urlName());
+    assertEquals("Label", item.name());
+    assertNull(item.labels());
+    assertEquals("Label", item.children().get(0).name());
+    assertFalse(item.visible());
+    assertEquals(List.of("*:/platform/administrators"), item.accessPermissions());
+    assertEquals(1, item.children().size());
+    assertEquals(6L, item.children().get(0).nodeId());
+
+    assertNull(descriptionService.describeNavigationItem(SITE_KEY, 7L, USER));
+    assertNull(descriptionService.describeNavigationItem(SITE_KEY, 8L, USER));
+    when(aclService.canEditNavigation(SiteKey.portal("empty"), USER)).thenReturn(true);
+    assertNull(descriptionService.describeNavigationItem(SiteKey.portal("empty"), 5L, USER));
+    when(aclService.canEditNavigation(SITE_KEY, USER)).thenReturn(false);
+    assertThrows(IllegalAccessException.class, () -> descriptionService.describeNavigationItem(SITE_KEY, 5L, USER));
   }
 
   @Test
@@ -1470,7 +1514,7 @@ public class LayoutDescriptionServiceTest {
     NodeContext<NodeContext<Object>> node = mock(NodeContext.class);
     lenient().when(node.getId()).thenReturn(String.valueOf(id));
     lenient().when(node.getName()).thenReturn(name);
-    NodeState.Builder builder = new NodeState.Builder().pageRef(pageRef).visibility(visibility).label("Label").target("_blank");
+    NodeState.Builder builder = new NodeState.Builder().pageRef(pageRef).visibility(visibility).label("Label").target("NEW_TAB");
     if (visibility == Visibility.TEMPORAL) {
       builder.startPublicationTime(1000L).endPublicationTime(2000L);
     }
