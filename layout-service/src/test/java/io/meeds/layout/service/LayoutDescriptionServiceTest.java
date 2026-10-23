@@ -428,15 +428,16 @@ public class LayoutDescriptionServiceTest {
   /**
    * Two hidden windows at the head of a column come back in their stored
    * order, which rests on the hidden windows being collected in tree order:
-   * the ids are chosen so that a hash-ordered walk would reverse them
+   * the ids are chosen so that a hash-ordered walk of a small table would
+   * reverse them
    */
   @Test
   public void hiddenWindowsOfOneColumnKeepTheirStoredOrder() throws Exception {
     String cellClass = "flex-cell grid-cell-colspan grid-cell-colspan-xl-12 grid-cell-rowspan grid-cell-rowspan-xl-1";
     Container section = container(LayoutDescriptionService.FLEX_TEMPLATE, FLEX_CLASS);
     Container column = cell(cellClass);
-    Application firstHidden = application("8", null, null);
-    Application secondHidden = application("7", null, null);
+    Application firstHidden = application("7", null, null);
+    Application secondHidden = application("8", null, null);
     children(column, firstHidden, secondHidden, application("5", null, null), application("6", null, null));
     children(section, column);
     when(aclService.hasAccessPermission(firstHidden, USER)).thenReturn(false);
@@ -452,7 +453,7 @@ public class LayoutDescriptionServiceTest {
                                                      null);
     LayoutModel result = toPageLayout(List.of(kept), storedPage(section), false);
     List<LayoutModel> written = result.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren();
-    assertEquals(List.of("8", "7", "6", "5"), written.stream().map(LayoutModel::getStorageId).toList());
+    assertEquals(List.of("7", "8", "6", "5"), written.stream().map(LayoutModel::getStorageId).toList());
   }
 
   @Test
