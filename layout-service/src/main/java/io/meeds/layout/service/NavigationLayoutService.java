@@ -101,9 +101,9 @@ public class NavigationLayoutService {
 
   public static final String             PARENT_NODE_NOT_FOUND_MESSAGE       = "Parent node with id %s doesn't exist";
 
-  private static final Log               LOG                                 = ExoLogger.getExoLogger(NavigationLayoutService.class);
+  public static final String             NODE_NOT_FOUND_MESSAGE              = "Node with id %s doesn't exist";
 
-  private static final String            NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND = "Node with id %s doesn't exist";
+  private static final Log               LOG                                 = ExoLogger.getExoLogger(NavigationLayoutService.class);
 
   private static final Map<Long, String> QUEUE                               = new ConcurrentHashMap<>();
 
@@ -297,7 +297,7 @@ public class NavigationLayoutService {
   public NodeData getEditableNode(long nodeId, String username) throws ObjectNotFoundException, IllegalAccessException {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
     } else if (!aclService.canEditNavigation(nodeData.getSiteKey(), username)) {
       throw new IllegalAccessException();
     }
@@ -342,7 +342,7 @@ public class NavigationLayoutService {
                                           IllegalArgumentException {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
     } else if (!aclService.canEditNavigation(nodeData.getSiteKey(), username)) {
       throw new IllegalAccessException();
     }
@@ -475,7 +475,7 @@ public class NavigationLayoutService {
                                           IllegalAccessException {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
     } else if (!aclService.canEditNavigation(nodeData.getSiteKey(), username) || isSystemVisibility(nodeData)) {
       throw new IllegalAccessException();
     }
@@ -510,14 +510,14 @@ public class NavigationLayoutService {
                                         IllegalAccessException {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
     }
     if (destinationParentId == null) {
       destinationParentId = Long.parseLong(nodeData.getParentId());
     }
     NodeData destinationNodeData = navigationService.getNodeById(destinationParentId);
     if (destinationNodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, destinationParentId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, destinationParentId));
     } else if (!aclService.canEditNavigation(destinationNodeData.getSiteKey(), username)) {
       throw new IllegalAccessException();
     }
@@ -536,7 +536,7 @@ public class NavigationLayoutService {
                                            IllegalAccessException {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
     } else if (!aclService.canViewNavigation(nodeData.getSiteKey(), nodeData.getState().getPageRef(), username)) {
       throw new IllegalAccessException();
     }
@@ -546,7 +546,7 @@ public class NavigationLayoutService {
   public NodeLabel getNodeLabels(long nodeId, String username) throws ObjectNotFoundException, IllegalAccessException {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
     } else {
       SiteKey siteKey = nodeData.getSiteKey();
       if (!aclService.canViewNavigation(siteKey, nodeData.getState().getPageRef(), username)) {

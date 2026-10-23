@@ -701,7 +701,8 @@ public class LayoutMcpTool implements McpToolPlugin {
    * page only when the template is given, so the type read back can be sent
    * back unchanged; the previous page is kept, so a repeated call that replaces
    * a page leaves one behind each time. An item whose page no longer exists
-   * is handled as a group until it is pointed elsewhere. The
+   * keeps its reference: type group drops it, page_ref points it elsewhere,
+   * and type page without a template changes nothing on it. The
    * permissions go on the item's page, never in the call that points it at
    * another page. The page steps come first, then the item, and what was
    * written is put back when a later step fails. Applies at once; not a
@@ -795,7 +796,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     try {
       navigationLayoutService.updateNodeAndPagePermissions(nodeId, update, username);
     } catch (ObjectNotFoundException e) {
-      throw new ObjectNotFoundException(PAGE_NOT_FOUND);
+      throw new ObjectNotFoundException(isNodeNotFound(e, nodeId) ? NODE_NOT_FOUND : PAGE_NOT_FOUND);
     } catch (IllegalAccessException e) {
       throw new IllegalAccessException(PAGE_NOT_ALLOWED);
     } catch (RuntimeException e) {
@@ -1136,8 +1137,9 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   /**
    * @return the stored page an item points at, null when that page no longer
-   *         exists (a page of a deleted site), in which case the item is
-   *         handled as a group until it is pointed elsewhere
+   *         exists (a page of a deleted site), in which case the item keeps
+   *         its reference and takes no page step until it is pointed
+   *         elsewhere or detached
    */
   /**
    * @return whether a not-found the service answered after the tool's own
@@ -1145,6 +1147,10 @@ public class LayoutMcpTool implements McpToolPlugin {
    */
   private boolean isParentNotFound(ObjectNotFoundException e, long parentId) {
     return StringUtils.equals(e.getMessage(), String.format(NavigationLayoutService.PARENT_NODE_NOT_FOUND_MESSAGE, parentId));
+  }
+
+  private boolean isNodeNotFound(ObjectNotFoundException e, long nodeId) {
+    return StringUtils.equals(e.getMessage(), String.format(NavigationLayoutService.NODE_NOT_FOUND_MESSAGE, nodeId));
   }
 
   private PageState pageStateOrNull(PageKey pageKey) {

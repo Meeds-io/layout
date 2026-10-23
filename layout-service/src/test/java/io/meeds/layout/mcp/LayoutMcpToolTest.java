@@ -1254,10 +1254,12 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.URL_NOT_ACCEPTED,
                  refusal(() -> tool.updatePage(14L, null, null, null, null, null, null, "https://meeds.io", null, null, null, null, null, null)));
 
-    when(navigationLayoutService.updateNodeAndPagePermissions(eq(NODE_ID), any(), eq(USER))).thenThrow(new ObjectNotFoundException("internal detail"))
+    when(navigationLayoutService.updateNodeAndPagePermissions(eq(NODE_ID), any(), eq(USER))).thenThrow(new ObjectNotFoundException(String.format(NavigationLayoutService.NODE_NOT_FOUND_MESSAGE, NODE_ID)))
+                                                                                             .thenThrow(new ObjectNotFoundException("Page with key x doesn't exist"))
                                                                                              .thenThrow(new IllegalAccessException("internal detail"))
                                                                                              .thenThrow(new IllegalArgumentException(NavigationLayoutService.SCHEDULE_ON_HIDDEN_NODE))
                                                                                              .thenThrow(new IllegalStateException("db down"));
+    assertEquals(LayoutMcpTool.NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
     assertEquals(LayoutMcpTool.PAGE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
     assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
     assertEquals(LayoutMcpTool.SCHEDULED_NOT_ACCEPTED, refusal(() -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
