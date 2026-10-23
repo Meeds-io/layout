@@ -63,6 +63,7 @@ import io.meeds.layout.mcp.constant.BackgroundMode;
 import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
 import io.meeds.layout.mcp.constant.LayoutVersion;
+import io.meeds.layout.mcp.constant.LinkTarget;
 import io.meeds.layout.mcp.constant.NavigationItemType;
 import io.meeds.layout.mcp.constant.SectionType;
 import io.meeds.layout.mcp.constant.StylingDestination;
@@ -436,6 +437,39 @@ public class LayoutDescriptionService {
   }
 
   /**
+   * One navigation item with its children, as describeNavigation lists it,
+   * for a user who edits the site's navigation, the writer of the item: the
+   * hidden items are included, and the item itself is not filtered by the
+   * view right on its page, which the permissions just written may have
+   * taken from them; its labels are, as the navigation drawer's own label
+   * read is, so they are omitted then; its children are listed as
+   * describeNavigation lists them.
+   *
+   * @param  siteKey                 the site the item belongs to
+   * @param  nodeId                  the item
+   * @param  username                the reader
+   * @return                         the item, null when it is absent from
+   *                                 the site's navigation or is a draft
+   * @throws IllegalAccessException  the user cannot edit the site's
+   *                                 navigation
+   */
+  public NavigationItemDescription describeNavigationItem(SiteKey siteKey, long nodeId, String username) throws IllegalAccessException {
+    if (!aclService.canEditNavigation(siteKey, username)) {
+      throw new IllegalAccessException();
+    }
+    NodeContext<NodeContext<Object>> node = findNodeById(navigationService.loadNode(siteKey), String.valueOf(nodeId));
+    NodeState state = node == null ? null : node.getState();
+    if (state == null || layoutDraftService.isDraftNode(node.getName())) {
+      return null;
+    }
+    Visibility visibility = state.getVisibility() == null ? Visibility.DISPLAYED : state.getVisibility();
+    if (visibility == Visibility.DRAFT) {
+      return null;
+    }
+    return toNavigationItem(node, state, visibility, siteKey, true, username);
+  }
+
+  /**
    * @param  categoryId a category, null for every category
    * @param  keyword    a text the name or description must contain, null for
    *                      no filter
@@ -711,13 +745,29 @@ public class LayoutDescriptionService {
                                          type,
                                          pageRef == null ? null : pageRef.format(),
                                          link ? pageState.getLink() : null,
-                                         link ? state.getTarget() : null,
+                                         pageRef == null ? null : LinkTarget.fromStateValue(state.getTarget()).getValue(),
                                          state.getIcon(),
                                          !hidden,
                                          schedule,
                                          pageState == null ? null : pageState.getAccessPermissions(),
                                          pageState == null ? null : pageState.getEditPermission(),
                                          toNavigationItems(node, siteKey, withHidden, username));
+  }
+
+  private NodeContext<NodeContext<Object>> findNodeById(NodeContext<NodeContext<Object>> node, String nodeId) {
+    if (node == null) {
+      return null;
+    } else if (nodeId.equals(node.getId())) {
+      return node;
+    }
+    int count = node.getNodeCount();
+    for (int i = 0; i < count; i++) {
+      NodeContext<NodeContext<Object>> found = findNodeById(node.get(i), nodeId);
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
   }
 
   private Map<String, String> readLabels(long nodeId, String username) {
