@@ -1056,7 +1056,7 @@ public class LayoutMcpToolTest {
   public void createPageAnswersTheFixedTextsOnServiceRefusals() throws Exception {
     editableNavigation();
     languages();
-    when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenThrow(new ObjectNotFoundException("internal detail"))
+    when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenThrow(new ObjectNotFoundException(String.format(NavigationLayoutService.PARENT_NODE_NOT_FOUND_MESSAGE, ROOT_NODE)))
                                                                               .thenThrow(new IllegalAccessException("internal detail"))
                                                                               .thenThrow(new IllegalArgumentException(NavigationLayoutService.NODE_NAME_NOT_ACCEPTED))
                                                                               .thenThrow(new IllegalArgumentException(NavigationLayoutService.SCHEDULE_START_PAST))
@@ -1065,12 +1065,15 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.PARENT_NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
     page(PAGE_KEY, "PAGE", null);
     when(aclService.canViewPage(PAGE_KEY, USER)).thenReturn(true);
-    when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenThrow(new ObjectNotFoundException("internal detail"))
+    when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenThrow(new ObjectNotFoundException(String.format(NavigationLayoutService.PARENT_NODE_NOT_FOUND_MESSAGE, ROOT_NODE)))
+                                                                              .thenThrow(new ObjectNotFoundException("Page with key x doesn't exist"))
                                                                               .thenThrow(new IllegalAccessException("internal detail"))
                                                                               .thenThrow(new IllegalArgumentException(NavigationLayoutService.NODE_NAME_NOT_ACCEPTED))
                                                                               .thenThrow(new IllegalArgumentException(NavigationLayoutService.SCHEDULE_INCOMPLETE))
                                                                               .thenThrow(new IllegalArgumentException("pageTemplate with designated Id is disabled"))
                                                                               .thenThrow(new IllegalStateException("db down"));
+    assertEquals(LayoutMcpTool.PARENT_NODE_NOT_FOUND,
+                 refusal(ObjectNotFoundException.class, () -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "existing_page", null, PAGE_KEY.format(), null, null, null, null, null, null, null)));
     assertEquals(LayoutMcpTool.PAGE_NOT_FOUND,
                  refusal(ObjectNotFoundException.class, () -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "existing_page", null, PAGE_KEY.format(), null, null, null, null, null, null, null)));
     assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
@@ -1233,11 +1236,15 @@ public class LayoutMcpToolTest {
     verify(navigationLayoutService).updateNodeAndPagePermissions(eq(15L), updates.capture(), eq(USER));
     assertFalse(updates.getValue().isDetachPage());
     assertNull(updates.getValue().getNewPage());
-    asUser(() -> tool.updatePage(15L, null, null, null, "group", null, null, null, null, null, null, null, null, null));
+    asUser(() -> tool.updatePage(15L, null, null, null, "page", null, null, null, null, null, null, null, null, null));
     verify(navigationLayoutService, times(2)).updateNodeAndPagePermissions(eq(15L), updates.capture(), eq(USER));
+    assertNull(updates.getValue().getNewPage());
+    assertFalse(updates.getValue().isDetachPage());
+    asUser(() -> tool.updatePage(15L, null, null, null, "group", null, null, null, null, null, null, null, null, null));
+    verify(navigationLayoutService, times(3)).updateNodeAndPagePermissions(eq(15L), updates.capture(), eq(USER));
     assertTrue(updates.getValue().isDetachPage());
     asUser(() -> tool.updatePage(15L, null, null, null, null, null, otherKey.format(), null, null, null, null, null, null, null));
-    verify(navigationLayoutService, times(3)).updateNodeAndPagePermissions(eq(15L), updates.capture(), eq(USER));
+    verify(navigationLayoutService, times(4)).updateNodeAndPagePermissions(eq(15L), updates.capture(), eq(USER));
     assertEquals(otherKey.format(), updates.getValue().getPageRef());
 
     NodeData groupNode = editableNode(14L, "docs", null, Visibility.DISPLAYED);

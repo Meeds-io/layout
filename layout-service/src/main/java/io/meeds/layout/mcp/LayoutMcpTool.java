@@ -680,7 +680,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     try {
       node = navigationLayoutService.createNodeWithPage(nodeModel, pageModel, username);
     } catch (ObjectNotFoundException e) {
-      throw new ObjectNotFoundException(pageModel == null && itemPageRef == null ? PARENT_NODE_NOT_FOUND : PAGE_NOT_FOUND);
+      throw new ObjectNotFoundException(isParentNotFound(e, parentId) ? PARENT_NODE_NOT_FOUND : PAGE_NOT_FOUND);
     } catch (IllegalAccessException e) {
       throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
     } catch (RuntimeException e) {
@@ -697,9 +697,9 @@ public class LayoutMcpTool implements McpToolPlugin {
    * different one is refused with that reason. A type given follows the
    * drawer's edit: a group detaches the page, an existing page re-points
    * the item, a link rewrites the item's link page or creates one, a page
-   * creates a new one from a template, on an item that already has a page
-   * only when the template is given, so the type read back can be sent back
-   * unchanged; the previous page is kept, so a repeated call that replaces
+   * creates a new one from a template, on an item that already points at a
+   * page only when the template is given, so the type read back can be sent
+   * back unchanged; the previous page is kept, so a repeated call that replaces
    * a page leaves one behind each time. An item whose page no longer exists
    * is handled as a group until it is pointed elsewhere. The
    * permissions go on the item's page, never in the call that points it at
@@ -748,7 +748,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     case PAGE:
       refuseGiven(url, URL_NOT_ACCEPTED);
       refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
-      if (type != null && (storedType != NavigationItemType.PAGE || pageTemplateId != null)) {
+      if (type != null && (storedPageKey == null || storedType == NavigationItemType.LINK || pageTemplateId != null)) {
         update.setNewPage(newPageModel(node.getName(), itemLabel(update, state), PageType.PAGE, null, resolvePageTemplateId(pageTemplateId), null, null));
       } else {
         refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
@@ -1139,6 +1139,14 @@ public class LayoutMcpTool implements McpToolPlugin {
    *         exists (a page of a deleted site), in which case the item is
    *         handled as a group until it is pointed elsewhere
    */
+  /**
+   * @return whether a not-found the service answered after the tool's own
+   *         checks is the parent's, gone meanwhile, rather than a page's
+   */
+  private boolean isParentNotFound(ObjectNotFoundException e, long parentId) {
+    return StringUtils.equals(e.getMessage(), String.format(NavigationLayoutService.PARENT_NODE_NOT_FOUND_MESSAGE, parentId));
+  }
+
   private PageState pageStateOrNull(PageKey pageKey) {
     PageContext pageContext = layoutService.getPageContext(pageKey);
     return pageContext == null ? null : pageContext.getState();

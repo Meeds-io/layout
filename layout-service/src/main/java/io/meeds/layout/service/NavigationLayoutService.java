@@ -99,6 +99,8 @@ public class NavigationLayoutService {
 
   public static final String             SCHEDULE_INCOMPLETE                 = "navigation.schedule.incomplete";
 
+  public static final String             PARENT_NODE_NOT_FOUND_MESSAGE       = "Parent node with id %s doesn't exist";
+
   private static final Log               LOG                                 = ExoLogger.getExoLogger(NavigationLayoutService.class);
 
   private static final String            NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND = "Node with id %s doesn't exist";
@@ -140,7 +142,7 @@ public class NavigationLayoutService {
                                               IllegalArgumentException {
     NodeData parentNodeData = navigationService.getNodeById(nodeModel.getParentNodeId());
     if (parentNodeData == null) {
-      throw new ObjectNotFoundException(String.format("Parent node with id %s doesn't exist", nodeModel.getParentNodeId()));
+      throw new ObjectNotFoundException(String.format(PARENT_NODE_NOT_FOUND_MESSAGE, nodeModel.getParentNodeId()));
     } else if (!aclService.canEditNavigation(parentNodeData.getSiteKey(), username)) {
       throw new IllegalAccessException();
     }
@@ -228,7 +230,7 @@ public class NavigationLayoutService {
                                                       IllegalAccessException {
     NodeData parentNodeData = navigationService.getNodeById(nodeModel.getParentNodeId());
     if (parentNodeData == null) {
-      throw new ObjectNotFoundException(String.format("Parent node with id %s doesn't exist", nodeModel.getParentNodeId()));
+      throw new ObjectNotFoundException(String.format(PARENT_NODE_NOT_FOUND_MESSAGE, nodeModel.getParentNodeId()));
     } else if (!aclService.canEditNavigation(parentNodeData.getSiteKey(), username)) {
       throw new IllegalAccessException();
     }
