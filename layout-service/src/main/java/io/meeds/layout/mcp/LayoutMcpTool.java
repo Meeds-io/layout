@@ -1240,14 +1240,10 @@ public class LayoutMcpTool implements McpToolPlugin {
    */
   private String requireUrl(String url) {
     String link = StringUtils.trim(url);
-    if (StringUtils.isEmpty(link) || link.chars().anyMatch(c -> c <= 0x20 || c == 0x7f)) {
-      throw new IllegalArgumentException(URL_NOT_ACCEPTED);
-    } else if (link.startsWith("/")) {
-      if (link.length() > 1 && (link.charAt(1) == '/' || link.charAt(1) == '\\')) {
-        throw new IllegalArgumentException(URL_NOT_ACCEPTED);
-      }
-      return link;
-    } else if (!ABSOLUTE_URL_PATTERN.matcher(link).matches()) {
+    boolean wellFormed = StringUtils.isNotEmpty(link) && link.chars().noneMatch(c -> c <= 0x20 || c == 0x7f);
+    boolean siteRelative = wellFormed && link.startsWith("/") && !(link.length() > 1 && (link.charAt(1) == '/' || link.charAt(1) == '\\'));
+    boolean absolute = wellFormed && !link.startsWith("/") && ABSOLUTE_URL_PATTERN.matcher(link).matches();
+    if (!siteRelative && !absolute) {
       throw new IllegalArgumentException(URL_NOT_ACCEPTED);
     }
     return link;
