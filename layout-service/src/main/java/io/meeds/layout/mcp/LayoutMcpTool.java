@@ -587,12 +587,13 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   /**
    * Creates a navigation item of a site with the 'Add an item' drawer's
-   * inputs, as that drawer does: a translatable name, a URL name chosen now
-   * and never changed, a type with what it needs (a new page from a page
-   * template, an existing page, a link opening in the same or a new tab, the
-   * only kind list_site_pages shows a target on, a group of pages), an icon, a visibility and its schedule, and the
+   * inputs: a translatable name, a URL name chosen now and never changed, a
+   * type with what it needs (a new page from a page template, an existing
+   * page, a link opening in the same or a new tab, a group of pages), an icon, a visibility and its schedule, and the
    * permissions of a page created here; the item goes last under its parent.
-   * Every value is checked before anything is written: the page first, then
+   * Where the drawer offers a tab for an existing page too, the tool takes
+   * one for a link only, the kind list_site_pages shows it on. Every value is
+   * checked before anything is written: the page first, then
    * the item, a page left behind by an item failure being removed. Applies at
    * once; not a draft. Returns the item as list_site_pages describes it.
    */
@@ -696,7 +697,8 @@ public class LayoutMcpTool implements McpToolPlugin {
    * stored ones. The URL name is chosen at creation and cannot change: a
    * different one is refused with that reason. A type given follows the
    * drawer's edit: a group detaches the page, an existing page re-points
-   * the item, a link rewrites the item's link page or creates one, a page
+   * the item, a link rewrites the item's link page or creates one, opening
+   * in the same tab unless a target is given, a page
    * creates a new one from a template, on an item that already points at a
    * page only when the template is given, so the type read back can be sent
    * back unchanged; the previous page is kept, so a repeated call that replaces
@@ -763,6 +765,7 @@ public class LayoutMcpTool implements McpToolPlugin {
         update.setLink(url == null ? null : requireUrl(url));
       } else {
         update.setNewPage(newPageModel(node.getName(), itemLabel(update, state), PageType.LINK, requireUrl(url), null, null, null));
+        update.setTarget(LinkTarget.parse(target).getStateValue());
       }
       break;
     case EXISTING_PAGE:
@@ -783,7 +786,7 @@ public class LayoutMcpTool implements McpToolPlugin {
       update.setDetachPage(type != null && storedPageKey != null);
       break;
     }
-    if (target != null) {
+    if (target != null && update.getTarget() == null) {
       update.setTarget(LinkTarget.parse(target).getStateValue());
     }
     if (update.getNewPage() == null
