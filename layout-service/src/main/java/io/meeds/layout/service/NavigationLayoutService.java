@@ -954,7 +954,8 @@ public class NavigationLayoutService {
 
   /**
    * The stored state with what was given over it: a schedule makes the node
-   * temporal on its bounds, a cleared one displayed, visible false hidden,
+   * temporal on its bounds, a cleared one displayed when the node was
+   * temporal and leaves any other visibility as it is, visible false hidden,
    * visible true displayed unless a schedule stands
    */
   private NodeState mergeNodeState(NodeState storedState, NavigationItemUpdate update, PageKey pageKey) {
@@ -973,7 +974,7 @@ public class NavigationLayoutService {
       builder.visibility(Visibility.TEMPORAL).startPublicationTime(schedule.start()).endPublicationTime(schedule.end());
     } else if (Boolean.FALSE.equals(update.getVisible())) {
       builder.visibility(Visibility.HIDDEN).startPublicationTime(-1).endPublicationTime(-1);
-    } else if (schedule != null
+    } else if ((schedule != null && storedState.getVisibility() == Visibility.TEMPORAL)
                || (Boolean.TRUE.equals(update.getVisible()) && storedState.getVisibility() != Visibility.TEMPORAL)) {
       builder.visibility(Visibility.DISPLAYED).startPublicationTime(-1).endPublicationTime(-1);
     }

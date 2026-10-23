@@ -28,7 +28,8 @@ import lombok.NoArgsConstructor;
 /**
  * What a caller outside the navigation drawer asks to change on a navigation
  * item: a null field keeps the stored value. The schedule, when given, makes
- * the item visible on its bounds, a cleared one makes it visible with none;
+ * the item visible on its bounds, a cleared one drops a scheduled item's
+ * bounds and leaves any other visibility as it is;
  * a new page replaces the item's page by one created from the model, the
  * detach flag by none, a page reference by that page; the link rewrites the
  * item's LINK page; the permissions are written on the item's page.

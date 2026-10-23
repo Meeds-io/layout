@@ -857,10 +857,21 @@ public class NavigationLayoutServiceTest {
 
     storedNode(4L, new NodeState.Builder().label("Docs").visibility(Visibility.HIDDEN).build());
     update = new NavigationItemUpdate();
-    update.setVisible(true);
+    update.setSchedule(new NodeSchedule(null, null));
     navigationLayoutService.updateNodeAndPagePermissions(4L, update, TEST_USER);
     verify(navigationService).updateNode(eq(4L), states.capture());
+    assertEquals(Visibility.HIDDEN, states.getValue().getVisibility());
+    update = new NavigationItemUpdate();
+    update.setVisible(true);
+    navigationLayoutService.updateNodeAndPagePermissions(4L, update, TEST_USER);
+    verify(navigationService, times(2)).updateNode(eq(4L), states.capture());
     assertEquals(Visibility.DISPLAYED, states.getValue().getVisibility());
+    storedNode(5L, new NodeState.Builder().label("Admin").visibility(Visibility.SYSTEM).build());
+    update = new NavigationItemUpdate();
+    update.setSchedule(new NodeSchedule(null, null));
+    navigationLayoutService.updateNodeAndPagePermissions(5L, update, TEST_USER);
+    verify(navigationService).updateNode(eq(5L), states.capture());
+    assertEquals(Visibility.SYSTEM, states.getValue().getVisibility());
     assertNotNull(node);
   }
 
