@@ -436,6 +436,32 @@ public class LayoutDescriptionService {
   }
 
   /**
+   * One navigation item with its children, as describeNavigation lists it,
+   * read back by the user who just wrote it: the hidden items they may edit
+   * are included, and the item itself is not filtered by the view right the
+   * permissions just written may have taken from them.
+   *
+   * @param  siteKey  the site the item belongs to
+   * @param  nodeId   the item
+   * @param  username the writer
+   * @return          the item, null when it is absent from the site's
+   *                  navigation or is a draft
+   */
+  public NavigationItemDescription describeNavigationItem(SiteKey siteKey, long nodeId, String username) {
+    NodeContext<NodeContext<Object>> node = findNodeById(navigationService.loadNode(siteKey), String.valueOf(nodeId));
+    NodeState state = node == null ? null : node.getState();
+    if (state == null || layoutDraftService.isDraftNode(node.getName())) {
+      return null;
+    }
+    Visibility visibility = state.getVisibility() == null ? Visibility.DISPLAYED : state.getVisibility();
+    if (visibility == Visibility.DRAFT) {
+      return null;
+    }
+    boolean withHidden = aclService.canEditNavigation(siteKey, username);
+    return toNavigationItem(node, state, visibility, siteKey, withHidden, username);
+  }
+
+  /**
    * @param  categoryId a category, null for every category
    * @param  keyword    a text the name or description must contain, null for
    *                      no filter
@@ -718,6 +744,22 @@ public class LayoutDescriptionService {
                                          pageState == null ? null : pageState.getAccessPermissions(),
                                          pageState == null ? null : pageState.getEditPermission(),
                                          toNavigationItems(node, siteKey, withHidden, username));
+  }
+
+  private NodeContext<NodeContext<Object>> findNodeById(NodeContext<NodeContext<Object>> node, String nodeId) {
+    if (node == null) {
+      return null;
+    } else if (nodeId.equals(node.getId())) {
+      return node;
+    }
+    int count = node.getNodeCount();
+    for (int i = 0; i < count; i++) {
+      NodeContext<NodeContext<Object>> found = findNodeById(node.get(i), nodeId);
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
   }
 
   private Map<String, String> readLabels(long nodeId, String username) {

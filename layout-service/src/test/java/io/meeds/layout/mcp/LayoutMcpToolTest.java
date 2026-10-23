@@ -40,6 +40,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -65,13 +66,20 @@ import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.localization.LocaleContextInfoUtils;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.Visibility;
+import org.exoplatform.portal.mop.navigation.NodeData;
+import org.exoplatform.portal.mop.navigation.NodeState;
+import org.exoplatform.portal.mop.page.PageContext;
 import org.exoplatform.portal.mop.page.PageKey;
+import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.services.organization.Group;
 import org.exoplatform.services.organization.GroupHandler;
 import org.exoplatform.services.organization.MembershipType;
 import org.exoplatform.services.organization.MembershipTypeHandler;
 import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.resources.LocaleConfig;
+import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.upload.UploadResource;
@@ -81,13 +89,18 @@ import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
+import io.meeds.layout.mcp.model.ScheduleDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.service.SiteLayoutAssembler;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteSummary;
+import io.meeds.layout.model.NavigationCreateModel;
+import io.meeds.layout.model.NavigationItemUpdate;
 import io.meeds.layout.model.NodeLabel;
+import io.meeds.layout.model.PageCreateModel;
+import io.meeds.layout.model.PageTemplate;
 import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SitePropertiesUpdate;
@@ -95,7 +108,9 @@ import io.meeds.layout.model.SiteTemplate;
 import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
 import io.meeds.layout.service.LayoutDraftService;
+import io.meeds.layout.service.NavigationLayoutService;
 import io.meeds.layout.service.PageLayoutService;
+import io.meeds.layout.service.PageTemplateService;
 import io.meeds.layout.service.SiteLayoutService;
 import io.meeds.layout.service.SiteTemplateService;
 
@@ -117,6 +132,14 @@ public class LayoutMcpToolTest {
   private static final PageKey     DRAFT_KEY = PageKey.parse("portal::test::home_draft_john");
 
   private static final long        LIVE_NODE = 11L;
+
+  private static final long        ROOT_NODE = 7L;
+
+  private static final long        NODE_ID   = 12L;
+
+  private static final String      FUTURE    = Instant.now().plusSeconds(3600).toString();
+
+  private static final String      LATER     = Instant.now().plusSeconds(7200).toString();
 
   @MockitoBean
   private LayoutService            layoutService;
@@ -145,6 +168,15 @@ public class LayoutMcpToolTest {
   @MockitoBean
   private UploadService            uploadService;
 
+  @MockitoBean
+  private NavigationLayoutService  navigationLayoutService;
+
+  @MockitoBean
+  private PageTemplateService      pageTemplateService;
+
+  @MockitoBean
+  private LocaleConfigService      localeConfigService;
+
   @Autowired
   private LayoutMcpTool            tool;
 
@@ -156,6 +188,7 @@ public class LayoutMcpToolTest {
     lenient().when(identity.getUserId()).thenReturn(USER);
     conversationState = mock(ConversationState.class);
     lenient().when(conversationState.getIdentity()).thenReturn(identity);
+    lenient().when(draftService.isDraftNode(any())).thenAnswer(i -> i.getArgument(0) != null && ((String) i.getArgument(0)).contains("_draft_"));
   }
 
   @Test
@@ -818,6 +851,463 @@ public class LayoutMcpToolTest {
     root.setTemplate(SiteLayoutAssembler.SITE_TEMPLATE);
     root.setChildren(new ArrayList<>());
     return root;
+  }
+
+  @Test
+  public void createPageCreatesEachKindWithTheDrawersDefaults() throws Exception {
+    editableNavigation();
+    languages();
+    templates(pageTemplate(1, "blank", true), pageTemplate(2, "blank", false), pageTemplate(3, "default", false));
+    NavigationItemDescription expected = mock(NavigationItemDescription.class);
+    when(descriptionService.describeNavigationItem(SITE_KEY, NODE_ID, USER)).thenReturn(expected);
+    NodeData createdourteam = node(NODE_ID, "ourteam");
+    when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenReturn(createdourteam);
+    ArgumentCaptor<NavigationCreateModel> nodes = ArgumentCaptor.forClass(NavigationCreateModel.class);
+    ArgumentCaptor<PageCreateModel> pages = ArgumentCaptor.forClass(PageCreateModel.class);
+
+    assertEquals(expected,
+                 asUser(() -> tool.createPage(SITE_ID, null, "Our Team", null, null, "page", null, null, null, null, null, null, null, null, null)));
+    verify(navigationLayoutService).createNodeWithPage(nodes.capture(), pages.capture(), eq(USER));
+    NavigationCreateModel node = nodes.getValue();
+    assertEquals(ROOT_NODE, node.getParentNodeId());
+    assertNull(node.getPreviousNodeId());
+    assertEquals("ourteam", node.getNodeId());
+    assertEquals("Our Team", node.getNodeLabel());
+    assertEquals(Map.of("en", "Our Team"), node.getLabels());
+    assertTrue(node.isVisible());
+    assertFalse(node.isScheduled());
+    assertFalse(node.isDraft());
+    assertFalse(node.isPasteMode());
+    assertNull(node.getPageRef());
+    assertNull(node.getTarget());
+    assertNull(node.getIcon());
+    PageCreateModel page = pages.getValue();
+    assertEquals("ourteam", page.getPageName());
+    assertEquals("Our Team", page.getPageTitle());
+    assertEquals("PAGE", page.getPageType());
+    assertEquals(2L, page.getPageTemplateId());
+    assertNull(page.getLink());
+    assertNull(page.getAccessPermissions());
+    assertNull(page.getEditPermission());
+
+    permissions();
+    asUser(() -> tool.createPage(SITE_ID,
+                                 LIVE_NODE,
+                                 "Équipe",
+                                 Map.of("fr", "Équipe", "en", "Team"),
+                                 "team",
+                                 "LINK",
+                                 null,
+                                 null,
+                                 "https://meeds.io/team?x=1#top",
+                                 "new_tab",
+                                 "fas fa-users",
+                                 false,
+                                 null,
+                                 List.of("*:/platform/users"),
+                                 "member:/spaces/marketing"));
+    verify(navigationLayoutService, times(2)).createNodeWithPage(nodes.capture(), pages.capture(), eq(USER));
+    node = nodes.getValue();
+    assertEquals(LIVE_NODE, node.getParentNodeId());
+    assertEquals("team", node.getNodeId());
+    assertEquals(Map.of("fr", "Équipe", "en", "Équipe"), node.getLabels());
+    assertFalse(node.isVisible());
+    assertEquals("NEW_TAB", node.getTarget());
+    assertEquals("fas fa-users", node.getIcon());
+    page = pages.getValue();
+    assertEquals("LINK", page.getPageType());
+    assertEquals("https://meeds.io/team?x=1#top", page.getLink());
+    assertNull(page.getPageTemplateId());
+    assertArrayEquals(new String[] { "*:/platform/users" }, page.getAccessPermissions());
+    assertEquals("member:/spaces/marketing", page.getEditPermission());
+
+    page(PAGE_KEY, "PAGE", null);
+    when(aclService.canViewPage(PAGE_KEY, USER)).thenReturn(true);
+    asUser(() -> tool.createPage(SITE_ID,
+                                 null,
+                                 "Home again",
+                                 null,
+                                 null,
+                                 "existing_page",
+                                 null,
+                                 PAGE_KEY.format(),
+                                 null,
+                                 null,
+                                 null,
+                                 true,
+                                 new ScheduleDescription(FUTURE, LATER),
+                                 null,
+                                 null));
+    verify(navigationLayoutService, times(3)).createNodeWithPage(nodes.capture(), pages.capture(), eq(USER));
+    node = nodes.getValue();
+    assertNull(pages.getValue());
+    assertEquals(PAGE_KEY.format(), node.getPageRef());
+    assertEquals("SAME_TAB", node.getTarget());
+    assertEquals("homeagain", node.getNodeId());
+    assertTrue(node.isScheduled());
+    assertEquals(Instant.parse(FUTURE).toEpochMilli(), node.getStartScheduleDate());
+    assertEquals(Instant.parse(LATER).toEpochMilli(), node.getEndScheduleDate());
+
+    asUser(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "group", null, null, null, null, null, null, new ScheduleDescription(null, null), null, null));
+    verify(navigationLayoutService, times(4)).createNodeWithPage(nodes.capture(), pages.capture(), eq(USER));
+    assertNull(pages.getValue());
+    assertNull(nodes.getValue().getPageRef());
+    assertFalse(nodes.getValue().isScheduled());
+    assertTrue(nodes.getValue().isVisible());
+  }
+
+  @Test
+  public void createPageRefusesEachValueOutsideTheVocabularyBeforeAnyWrite() throws Exception {
+    languages();
+    permissions();
+    templates(pageTemplate(1, "blank", true), pageTemplate(2, "default", false));
+    PortalConfig site = site("portal", "test", "Test");
+    when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site);
+    assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, refusal(() -> createGroup(0L, "Docs", "docs")));
+    assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
+
+    when(aclService.canEditNavigation(SITE_KEY, USER)).thenReturn(true);
+    when(navigationLayoutService.getRootNodeId(SITE_KEY)).thenReturn(ROOT_NODE);
+    assertEquals(LayoutMcpTool.TYPE_NOT_ACCEPTED, refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, null, "folder", null, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.TYPE_NOT_ACCEPTED, refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, null, null, null, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.LABEL_NOT_ACCEPTED, refusal(() -> createGroup(SITE_ID, " ", "docs")));
+    assertEquals(LayoutMcpTool.LABEL_NOT_ACCEPTED, refusal(() -> createGroup(SITE_ID, "x".repeat(201), "docs")));
+    assertEquals(LayoutMcpTool.URL_NAME_NOT_ACCEPTED, refusal(() -> createGroup(SITE_ID, "Docs", "our docs")));
+    assertEquals(LayoutMcpTool.URL_NAME_NOT_ACCEPTED, refusal(() -> createGroup(SITE_ID, "Docs", "docs_draft_john")));
+    assertEquals(LayoutMcpTool.URL_NAME_NOT_ACCEPTED, refusal(() -> createGroup(SITE_ID, "Docs", "d".repeat(201))));
+    assertEquals(LayoutMcpTool.URL_NAME_NOT_ACCEPTED, refusal(() -> createGroup(SITE_ID, "日本語", null)));
+    assertEquals(LayoutMcpTool.LABELS_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", Map.of("de", "Dokumente"), "docs", "group", null, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.LABELS_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", Map.of("fr", " "), "docs", "group", null, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.ICON_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "group", null, null, null, null, "<svg>", null, null, null, null)));
+    for (ScheduleDescription schedule : List.of(new ScheduleDescription(FUTURE, null),
+                                                new ScheduleDescription(null, LATER),
+                                                new ScheduleDescription(LATER, FUTURE),
+                                                new ScheduleDescription(FUTURE, FUTURE),
+                                                new ScheduleDescription("2020-01-01T00:00:00Z", LATER),
+                                                new ScheduleDescription("2030-01-01", LATER),
+                                                new ScheduleDescription("2030-01-01T10:00:00", LATER))) {
+      assertEquals(LayoutMcpTool.SCHEDULED_NOT_ACCEPTED,
+                   refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "group", null, null, null, null, null, null, schedule, null, null)),
+                   schedule.toString());
+    }
+    assertEquals(LayoutMcpTool.SCHEDULED_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "group", null, null, null, null, null, false, new ScheduleDescription(FUTURE, LATER), null, null)));
+    for (String url : List.of("javascript:alert(1)", "//evil.example/x", "www.meeds.io", "ftp://meeds.io/x", "/\\\\evil", "https://", "https://meeds.io/a b", "mailto:x@y.z", "")) {
+      assertEquals(LayoutMcpTool.URL_NOT_ACCEPTED,
+                   refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "link", null, null, url, null, null, null, null, null, null)),
+                   url);
+    }
+    assertEquals(LayoutMcpTool.TARGET_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "link", null, null, "https://meeds.io", "popup", null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.PAGE_TEMPLATE_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "page", null, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.PAGE_TEMPLATE_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "page", 1L, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.PAGE_TEMPLATE_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "page", 9L, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.ACCESS_PERMISSIONS_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "page", 2L, null, null, null, null, null, null, List.of("*:/nowhere"), null)));
+    assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "existing_page", null, "not a ref", null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.PAGE_NOT_FOUND,
+                 refusal(ObjectNotFoundException.class, () -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "existing_page", null, DRAFT_KEY.format(), null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.PAGE_NOT_FOUND,
+                 refusal(ObjectNotFoundException.class, () -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "existing_page", null, PAGE_KEY.format(), null, null, null, null, null, null, null)));
+    when(layoutService.getPageContext(PAGE_KEY)).thenReturn(new PageContext(PAGE_KEY, null));
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED,
+                 refusal(IllegalAccessException.class, () -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "existing_page", null, PAGE_KEY.format(), null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.URL_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "page", 2L, null, "https://meeds.io", null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "link", null, PAGE_KEY.format(), "https://meeds.io", null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.ACCESS_PERMISSIONS_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "existing_page", null, PAGE_KEY.format(), null, null, null, null, null, List.of("Everyone"), null)));
+    assertEquals(LayoutMcpTool.TARGET_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "group", null, null, null, "new_tab", null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.EDIT_PERMISSION_NOT_ACCEPTED,
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "group", null, null, null, null, null, null, null, null, "*:/platform/users")));
+
+    assertEquals(LayoutMcpTool.PARENT_NODE_ID_NOT_ACCEPTED, refusal(() -> tool.createPage(SITE_ID, 0L, "Docs", null, "docs", "group", null, null, null, null, null, null, null, null, null)));
+    when(navigationLayoutService.getEditableNode(20L, USER)).thenThrow(new ObjectNotFoundException("internal detail"));
+    NodeData node21L = node(21L, "home_draft_john");
+    when(navigationLayoutService.getEditableNode(21L, USER)).thenReturn(node21L);
+    NodeData elsewhere = node(22L, "home");
+    when(elsewhere.getSiteKey()).thenReturn(SiteKey.portal("other"));
+    when(navigationLayoutService.getEditableNode(22L, USER)).thenReturn(elsewhere);
+    when(navigationLayoutService.getEditableNode(23L, USER)).thenThrow(new IllegalAccessException("internal detail"));
+    assertEquals(LayoutMcpTool.PARENT_NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.createPage(SITE_ID, 20L, "Docs", null, "docs", "group", null, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.PARENT_NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.createPage(SITE_ID, 21L, "Docs", null, "docs", "group", null, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.PARENT_NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.createPage(SITE_ID, 22L, "Docs", null, "docs", "group", null, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.createPage(SITE_ID, 23L, "Docs", null, "docs", "group", null, null, null, null, null, null, null, null, null)));
+    when(navigationLayoutService.getRootNodeId(SITE_KEY)).thenReturn(null);
+    assertEquals(LayoutMcpTool.PARENT_NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
+    verify(navigationLayoutService, never()).createNodeWithPage(any(), any(), any());
+  }
+
+  @Test
+  public void createPageAnswersTheFixedTextsOnServiceRefusals() throws Exception {
+    editableNavigation();
+    languages();
+    when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenThrow(new ObjectNotFoundException("internal detail"))
+                                                                              .thenThrow(new IllegalAccessException("internal detail"))
+                                                                              .thenThrow(new IllegalArgumentException(NavigationLayoutService.NODE_NAME_NOT_ACCEPTED))
+                                                                              .thenThrow(new IllegalArgumentException(NavigationLayoutService.SCHEDULE_START_PAST))
+                                                                              .thenThrow(new IllegalArgumentException("pageTemplate with designated Id is disabled"))
+                                                                              .thenThrow(new IllegalStateException("db down"));
+    assertEquals(LayoutMcpTool.PARENT_NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
+    assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
+    assertEquals(LayoutMcpTool.URL_NAME_NOT_ACCEPTED, refusal(() -> createGroup(SITE_ID, "Docs", "docs")));
+    assertEquals(LayoutMcpTool.SCHEDULED_NOT_ACCEPTED, refusal(() -> createGroup(SITE_ID, "Docs", "docs")));
+    assertEquals(LayoutMcpTool.NODE_NOT_SAVED, refusal(IllegalStateException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
+    assertEquals(LayoutMcpTool.NODE_NOT_SAVED, refusal(IllegalStateException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
+    NodeData createddocs = node(NODE_ID, "docs");
+    when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenReturn(createddocs);
+    assertEquals(LayoutMcpTool.NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
+  }
+
+  @Test
+  public void updatePageRefusesAChangedUrlNameAndAcceptsTheEcho() throws Exception {
+    NodeData node = editableNode(NODE_ID, "team", null, Visibility.DISPLAYED);
+    assertEquals(LayoutMcpTool.URL_NAME_NOT_CHANGEABLE,
+                 refusal(() -> tool.updatePage(NODE_ID, null, null, "our-team", null, null, null, null, null, null, null, null, null, null)));
+    verify(navigationLayoutService, never()).updateNodeAndPagePermissions(anyLong(), any(), any());
+    describedItem(node);
+    asUser(() -> tool.updatePage(NODE_ID, null, null, " team ", null, null, null, null, null, "fa-users", null, null, null, null));
+    verify(navigationLayoutService).updateNodeAndPagePermissions(eq(NODE_ID), any(), eq(USER));
+  }
+
+  @Test
+  public void updatePageStatesOnlyTheGivenOptions() throws Exception {
+    languages();
+    NodeData node = editableNode(NODE_ID, "team", PAGE_KEY, Visibility.TEMPORAL);
+    page(PAGE_KEY, "PAGE", null);
+    NavigationItemDescription expected = describedItem(node);
+    ArgumentCaptor<NavigationItemUpdate> updates = ArgumentCaptor.forClass(NavigationItemUpdate.class);
+
+    assertEquals(expected, asUser(() -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
+    verify(navigationLayoutService).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
+    NavigationItemUpdate update = updates.getValue();
+    assertEquals("fa-users", update.getIcon());
+    assertNull(update.getLabel());
+    assertNull(update.getLabels());
+    assertNull(update.getVisible());
+    assertNull(update.getSchedule());
+    assertNull(update.getPageRef());
+    assertFalse(update.isDetachPage());
+    assertNull(update.getNewPage());
+    assertNull(update.getLink());
+    assertNull(update.getTarget());
+    assertNull(update.getAccessPermissions());
+    assertNull(update.getEditPermission());
+    verify(aclService, never()).canEditPage(any(), any());
+
+    asUser(() -> tool.updatePage(NODE_ID, "Team", Map.of("fr", "Équipe"), null, null, null, null, null, "new_tab", null, true, new ScheduleDescription(FUTURE, LATER), null, null));
+    verify(navigationLayoutService, times(2)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
+    update = updates.getValue();
+    assertEquals("Team", update.getLabel());
+    assertEquals(Map.of("fr", "Équipe"), update.getLabels());
+    assertEquals("NEW_TAB", update.getTarget());
+    assertTrue(update.getVisible());
+    assertEquals(Instant.parse(FUTURE).toEpochMilli(), update.getSchedule().start());
+    assertEquals(Instant.parse(LATER).toEpochMilli(), update.getSchedule().end());
+
+    asUser(() -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, null, null, new ScheduleDescription(null, null), null, null));
+    verify(navigationLayoutService, times(3)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
+    assertTrue(updates.getValue().getSchedule().isCleared());
+    assertEquals(LayoutMcpTool.SCHEDULED_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, null, false, new ScheduleDescription(FUTURE, LATER), null, null)));
+
+    permissions();
+    when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(false);
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED,
+                 refusal(IllegalAccessException.class, () -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, null, null, null, List.of("Everyone"), null)));
+    when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
+    asUser(() -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, null, null, null, List.of("Everyone"), "*:/platform/users"));
+    verify(navigationLayoutService, times(4)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
+    assertEquals(List.of("Everyone"), updates.getValue().getAccessPermissions());
+    assertEquals("*:/platform/users", updates.getValue().getEditPermission());
+    assertNull(updates.getValue().getNewPage());
+  }
+
+  @Test
+  public void updatePageFollowsTheDrawersEditFlowOnATypeChange() throws Exception {
+    languages();
+    permissions();
+    templates(pageTemplate(2, "blank", false));
+    NodeData node = editableNode(NODE_ID, "team", PAGE_KEY, Visibility.DISPLAYED);
+    describedItem(node);
+    page(PAGE_KEY, "PAGE", null);
+    ArgumentCaptor<NavigationItemUpdate> updates = ArgumentCaptor.forClass(NavigationItemUpdate.class);
+
+    assertEquals(LayoutMcpTool.URL_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, null, null, null, "https://meeds.io", null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.PAGE_TEMPLATE_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, null, 2L, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.URL_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, "link", null, null, null, null, null, null, null, null, null)));
+
+    asUser(() -> tool.updatePage(NODE_ID, null, null, null, "link", null, null, "/portal/public", "new_tab", null, null, null, List.of("Everyone"), null));
+    verify(navigationLayoutService).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
+    NavigationItemUpdate update = updates.getValue();
+    assertEquals("LINK", update.getNewPage().getPageType());
+    assertEquals("/portal/public", update.getNewPage().getLink());
+    assertEquals("team", update.getNewPage().getPageName());
+    assertEquals("Label", update.getNewPage().getPageTitle());
+    assertNull(update.getLink());
+    assertEquals("NEW_TAB", update.getTarget());
+    assertEquals(List.of("Everyone"), update.getAccessPermissions());
+    verify(aclService, never()).canEditPage(any(), any());
+
+    asUser(() -> tool.updatePage(NODE_ID, "Team 2", null, null, "page", null, null, null, null, null, null, null, null, null));
+    verify(navigationLayoutService, times(2)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
+    assertEquals("PAGE", updates.getValue().getNewPage().getPageType());
+    assertEquals(2L, updates.getValue().getNewPage().getPageTemplateId());
+    assertEquals("Team 2", updates.getValue().getNewPage().getPageTitle());
+
+    PageKey otherKey = PageKey.parse("portal::test::about");
+    page(otherKey, "PAGE", null);
+    when(aclService.canViewPage(otherKey, USER)).thenReturn(true);
+    asUser(() -> tool.updatePage(NODE_ID, null, null, null, null, null, otherKey.format(), null, null, null, null, null, null, null));
+    verify(navigationLayoutService, times(3)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
+    assertEquals(otherKey.format(), updates.getValue().getPageRef());
+    assertNull(updates.getValue().getNewPage());
+    assertFalse(updates.getValue().isDetachPage());
+    assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, "existing_page", null, null, null, null, null, null, null, null, null)));
+
+    asUser(() -> tool.updatePage(NODE_ID, null, null, null, "group", null, null, null, null, null, null, null, null, null));
+    verify(navigationLayoutService, times(4)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
+    assertTrue(updates.getValue().isDetachPage());
+    assertEquals(LayoutMcpTool.TARGET_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, "group", null, null, null, "new_tab", null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.ACCESS_PERMISSIONS_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, "group", null, null, null, null, null, null, null, List.of("Everyone"), null)));
+
+    NodeData linkNode = editableNode(13L, "site", PAGE_KEY, Visibility.DISPLAYED);
+    page(PAGE_KEY, "LINK", "https://old.example");
+    describedItem(linkNode);
+    when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
+    asUser(() -> tool.updatePage(13L, null, null, null, null, null, null, "https://meeds.io", null, null, null, null, null, null));
+    verify(navigationLayoutService).updateNodeAndPagePermissions(eq(13L), updates.capture(), eq(USER));
+    assertEquals("https://meeds.io", updates.getValue().getLink());
+    assertNull(updates.getValue().getNewPage());
+    asUser(() -> tool.updatePage(13L, null, null, null, "link", null, null, null, "same_tab", null, null, null, null, null));
+    verify(navigationLayoutService, times(2)).updateNodeAndPagePermissions(eq(13L), updates.capture(), eq(USER));
+    assertNull(updates.getValue().getLink());
+    assertEquals("SAME_TAB", updates.getValue().getTarget());
+
+    NodeData groupNode = editableNode(14L, "docs", null, Visibility.DISPLAYED);
+    describedItem(groupNode);
+    assertEquals(LayoutMcpTool.EDIT_PERMISSION_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(14L, null, null, null, null, null, null, null, null, null, null, null, null, "*:/platform/users")));
+    assertEquals(LayoutMcpTool.URL_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(14L, null, null, null, null, null, null, "https://meeds.io", null, null, null, null, null, null)));
+
+    when(navigationLayoutService.updateNodeAndPagePermissions(eq(NODE_ID), any(), eq(USER))).thenThrow(new ObjectNotFoundException("internal detail"))
+                                                                                             .thenThrow(new IllegalAccessException("internal detail"))
+                                                                                             .thenThrow(new IllegalArgumentException(NavigationLayoutService.SCHEDULE_ON_HIDDEN_NODE))
+                                                                                             .thenThrow(new IllegalStateException("db down"));
+    assertEquals(LayoutMcpTool.PAGE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
+    assertEquals(LayoutMcpTool.SCHEDULED_NOT_ACCEPTED, refusal(() -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
+    assertEquals(LayoutMcpTool.NODE_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
+  }
+
+  @Test
+  public void deletePageRefusalsAndThePlainDelete() throws Exception {
+    assertEquals(LayoutMcpTool.NODE_ID_NOT_ACCEPTED, refusal(() -> { tool.deletePage(null); return null; }));
+    assertEquals(LayoutMcpTool.NODE_ID_NOT_ACCEPTED, refusal(() -> { tool.deletePage(-1L); return null; }));
+    when(navigationLayoutService.getEditableNode(20L, USER)).thenThrow(new ObjectNotFoundException("internal detail"));
+    when(navigationLayoutService.getEditableNode(21L, USER)).thenThrow(new IllegalAccessException("internal detail"));
+    NodeData node22L = node(22L, "home_draft_john");
+    when(navigationLayoutService.getEditableNode(22L, USER)).thenReturn(node22L);
+    assertEquals(LayoutMcpTool.NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> { tool.deletePage(20L); return null; }));
+    assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> { tool.deletePage(21L); return null; }));
+    assertEquals(LayoutMcpTool.NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> { tool.deletePage(22L); return null; }));
+    verify(navigationLayoutService, never()).deleteNode(anyLong(), anyLong(), any());
+
+    NodeData nodeNODE_ID = node(NODE_ID, "team");
+    when(navigationLayoutService.getEditableNode(NODE_ID, USER)).thenReturn(nodeNODE_ID);
+    doThrow(new IllegalAccessException("system node")).doThrow(new IllegalStateException("db down"))
+                                                       .doNothing()
+                                                       .when(navigationLayoutService)
+                                                       .deleteNode(NODE_ID, 0, USER);
+    assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> { tool.deletePage(NODE_ID); return null; }));
+    assertEquals(LayoutMcpTool.NODE_NOT_DELETED, refusal(IllegalStateException.class, () -> { tool.deletePage(NODE_ID); return null; }));
+    asUser(() -> { tool.deletePage(NODE_ID); return null; });
+    verify(navigationLayoutService, times(3)).deleteNode(NODE_ID, 0, USER);
+  }
+
+  private NavigationItemDescription createGroup(long siteId, String label, String urlName) throws Exception {
+    return tool.createPage(siteId, null, label, null, urlName, "group", null, null, null, null, null, null, null, null, null);
+  }
+
+  /**
+   * The site exists, the user edits its navigation, its root is ROOT_NODE
+   * and LIVE_NODE is one of its items
+   */
+  private void editableNavigation() throws Exception {
+    when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site("portal", "test", "Test"));
+    when(aclService.canEditNavigation(SITE_KEY, USER)).thenReturn(true);
+    lenient().when(navigationLayoutService.getRootNodeId(SITE_KEY)).thenReturn(ROOT_NODE);
+    NodeData liveNode = node(LIVE_NODE, "home");
+    lenient().when(navigationLayoutService.getEditableNode(LIVE_NODE, USER)).thenReturn(liveNode);
+  }
+
+  private NodeData editableNode(long nodeId, String name, PageKey pageRef, Visibility visibility) throws Exception {
+    NodeData node = node(nodeId, name);
+    NodeState.Builder state = new NodeState.Builder().label("Label").pageRef(pageRef).visibility(visibility);
+    if (visibility == Visibility.TEMPORAL) {
+      state.startPublicationTime(1000L).endPublicationTime(2000L);
+    }
+    lenient().when(node.getState()).thenReturn(state.build());
+    when(navigationLayoutService.getEditableNode(nodeId, USER)).thenReturn(node);
+    return node;
+  }
+
+  private NavigationItemDescription describedItem(NodeData node) {
+    NavigationItemDescription expected = mock(NavigationItemDescription.class);
+    lenient().when(descriptionService.describeNavigationItem(SITE_KEY, Long.parseLong(node.getId()), USER)).thenReturn(expected);
+    return expected;
+  }
+
+  private void page(PageKey pageKey, String type, String link) {
+    PageState state = new PageState(pageKey.getName(), null, false, false, false, null, null, List.of("Everyone"), "*:/platform/users", type, link);
+    lenient().when(layoutService.getPageContext(pageKey)).thenReturn(new PageContext(pageKey, state));
+  }
+
+  private NodeData node(long id, String name) {
+    NodeData node = mock(NodeData.class);
+    lenient().when(node.getId()).thenReturn(String.valueOf(id));
+    lenient().when(node.getName()).thenReturn(name);
+    lenient().when(node.getSiteKey()).thenReturn(SITE_KEY);
+    return node;
+  }
+
+  /**
+   * The platform supports English, its default, and French
+   */
+  private void languages() {
+    LocaleConfig english = mock(LocaleConfig.class);
+    LocaleConfig french = mock(LocaleConfig.class);
+    lenient().when(english.getLocale()).thenReturn(Locale.ENGLISH);
+    lenient().when(french.getLocale()).thenReturn(Locale.FRENCH);
+    lenient().when(localeConfigService.getLocalConfigs()).thenReturn(List.of(english, french));
+    lenient().when(localeConfigService.getDefaultLocaleConfig()).thenReturn(english);
+  }
+
+  private void templates(PageTemplate... templates) {
+    lenient().when(pageTemplateService.getPageTemplates()).thenReturn(List.of(templates));
+    for (PageTemplate template : templates) {
+      lenient().when(pageTemplateService.getPageTemplate(template.getId())).thenReturn(template);
+    }
+  }
+
+  private PageTemplate pageTemplate(long id, String category, boolean disabled) {
+    return new PageTemplate(id, disabled, true, category, null);
   }
 
   private String refusalInFrench(Class<? extends Exception> type, Callable<?> call) {

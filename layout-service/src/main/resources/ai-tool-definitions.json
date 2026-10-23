@@ -1059,6 +1059,234 @@
         "idempotentHint": true,
         "openWorldHint": false
       }
+    },
+    {
+      "name": "create_page",
+      "title": "Create a navigation item",
+      "description": "Create a navigation item of a site with the inputs of the navigation's 'Add an item' drawer, for every user at once (not a draft): a page under construction is kept from users by visible false until it is ready. The item goes last under its parent, the site's root when parent_node_id is omitted. type decides what it points to: page creates a new page from a page template (page_template_id, the catalog's first blank template when omitted); existing_page points at a page given by page_ref; link creates a link page opening url, in the same or a new tab (target); group points at nothing. url_name is the item's segment in the page address, chosen now and never changed afterwards: letters, digits, - and _, unique among its siblings; omit it to derive it from the label as the drawer does. access_permissions and edit_permission are written on the page created here (a page or a link); omitted, the site's apply; they are refused on an existing page, whose permissions update_page changes, and on a group. Every value is checked before anything is written; the page is created first, then the item, and a page left behind by an item failure is removed. Returns the item as list_site_pages describes it, with its node_id and page_ref.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites"
+          },
+          "parent_node_id": {
+            "type": "integer",
+            "description": "The node_id of the item the new one goes under, from list_site_pages; omit for the site's root"
+          },
+          "label": {
+            "type": "string",
+            "description": "The name shown to users, in the platform's default language, at most 200 characters"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The name per language, keyed by a language tag the platform supports (en, fr, ...), for the languages other than the platform's default one, whose text is label; an entry set to null is ignored"
+          },
+          "url_name": {
+            "type": "string",
+            "description": "The item's segment in the page address: letters, digits, - and _, at most 200 characters, unique among its siblings; chosen at creation and never changed. Omit to derive it from the label as the drawer does (accents and other characters dropped, lower case)"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "page",
+              "existing_page",
+              "link",
+              "group"
+            ],
+            "description": "page: a new page from a page template; existing_page: the page page_ref names; link: a link to url; group: a group of pages, pointing at nothing"
+          },
+          "page_template_id": {
+            "type": "integer",
+            "description": "For a page: the identifier of an enabled page template; omit for the catalog's first blank template. Refused for any other type"
+          },
+          "page_ref": {
+            "type": "string",
+            "description": "For an existing page: the page reference, from list_site_pages (for example portal::mysite::home), of a page the user can view. Refused for any other type"
+          },
+          "url": {
+            "type": "string",
+            "description": "For a link: an absolute http or https address with a host, or a site-relative path starting with one /; any other scheme and //host are refused. Refused for any other type"
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "same_tab",
+              "new_tab"
+            ],
+            "description": "For a link or an existing page: same_tab (the default) or new_tab, where the item opens; omit for same_tab. Refused for a page or a group"
+          },
+          "icon": {
+            "type": "string",
+            "description": "The icon shown in the navigation, a Font Awesome class name such as fa-home or fas fa-home; omit for none"
+          },
+          "visible": {
+            "type": "boolean",
+            "description": "Whether users see the item; omit for true. A page being built is created with false and made visible once ready"
+          },
+          "scheduled": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "string"
+              },
+              "end": {
+                "type": "string"
+              }
+            },
+            "description": "When the item is visible: both start and end as ISO-8601 date-times with an offset or Z (2026-11-01T09:00:00Z), the start after now and the end after the start; refused on an item made hidden; omit for no schedule"
+          },
+          "access_permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Who can view the page, one or more permissions as the sites administration writes them: Everyone, or <membership>:<group> with an existing membership type (* for any) and an existing group, for example *:/platform/users, member:/spaces/marketing; omit for the site's. Refused for an existing page and a group"
+          },
+          "edit_permission": {
+            "type": "string",
+            "description": "Who can edit the page, one permission as the sites administration writes it, <membership>:<group>, for example *:/platform/administrators; omit for the site's. Refused for an existing page and a group"
+          }
+        },
+        "required": [
+          "site_id",
+          "label",
+          "type"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "update_page",
+      "title": "Update a navigation item",
+      "description": "Update a navigation item's name and translations, type, icon, visibility and schedule, and the permissions of its page, as the navigation drawer's edit does, for every user at once (not a draft). Every option omitted keeps its stored value; a translation given is merged over the stored ones; the label replaces the item's bundle-provided name when the item has none stored. The URL name is chosen at creation and cannot change: a url_name different from the stored one is refused with the reason 'cannot be changed: url_name'. A type given follows the drawer's edit: group detaches the page; existing_page points the item at page_ref; link rewrites the link page's url, or creates a link page when the item had none; page creates a new page from page_template_id (the catalog's first blank template when omitted); the previous page is kept, under no item. Without type, page_ref alone re-points the item, url alone rewrites a link item's address, page_template_id is refused. access_permissions and edit_permission are written on the item's page, merged with its current ones, which needs the right to edit that page; they are refused on a group. visible false hides the item and drops its schedule; a scheduled object with neither bound drops the schedule and keeps the item visible. The page steps come first, then the item, and what was written is put back when a later step fails. Returns the item as list_site_pages describes it.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "description": "The item identifier, from list_site_pages"
+          },
+          "label": {
+            "type": "string",
+            "description": "The name shown to users, in the platform's default language, at most 200 characters; omit to keep it"
+          },
+          "labels": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The name per language, keyed by a language tag the platform supports (en, fr, ...), for the languages other than the platform's default one, whose text is label; a language omitted keeps its stored translation, an entry set to null is ignored"
+          },
+          "url_name": {
+            "type": "string",
+            "description": "Cannot be changed: a value different from the stored one is refused with that reason; omit it"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "page",
+              "existing_page",
+              "link",
+              "group"
+            ],
+            "description": "The new kind of the item; omit to keep it. page: a new page from a page template; existing_page: the page page_ref names; link: a link to url; group: a group of pages"
+          },
+          "page_template_id": {
+            "type": "integer",
+            "description": "With type page: the identifier of an enabled page template; omit for the catalog's first blank template. Refused otherwise"
+          },
+          "page_ref": {
+            "type": "string",
+            "description": "The page reference, from list_site_pages, of a page the user can view, to point the item at; with type existing_page or alone. Refused with another type"
+          },
+          "url": {
+            "type": "string",
+            "description": "For a link item: an absolute http or https address with a host, or a site-relative path starting with one /; any other scheme and //host are refused; omit to keep it. Refused on an item that is not a link unless type is link"
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "same_tab",
+              "new_tab"
+            ],
+            "description": "For a link or an existing page: same_tab (the default) or new_tab, where the item opens; omit to keep it. Refused for a group"
+          },
+          "icon": {
+            "type": "string",
+            "description": "The icon shown in the navigation, a Font Awesome class name such as fa-home or fas fa-home; omit to keep it"
+          },
+          "visible": {
+            "type": "boolean",
+            "description": "Whether users see the item; omit to keep it. false hides the item and drops its schedule; true shows it, keeping a stored schedule"
+          },
+          "scheduled": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "string"
+              },
+              "end": {
+                "type": "string"
+              }
+            },
+            "description": "When the item is visible: both start and end as ISO-8601 date-times with an offset or Z (2026-11-01T09:00:00Z), the start after now and the end after the start; refused on an item made hidden; omit to keep the stored schedule; an object with neither bound drops it"
+          },
+          "access_permissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Who can view the page, one or more permissions as the sites administration writes them: Everyone, or <membership>:<group> with an existing membership type (* for any) and an existing group, for example *:/platform/users, member:/spaces/marketing; omit to keep them. Refused for a group"
+          },
+          "edit_permission": {
+            "type": "string",
+            "description": "Who can edit the page, one permission as the sites administration writes it, <membership>:<group>, for example *:/platform/administrators; omit to keep it. Refused for a group"
+          }
+        },
+        "required": [
+          "node_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "delete_page",
+      "title": "Delete a navigation item",
+      "description": "Delete a navigation item with the items under it, for every user at once and without undo, as the navigation drawer does after its confirmation: in the platform's assistant the user confirms it before it applies; an external client asks for confirmation only if its own settings do. The page the item pointed to is kept, as the drawer keeps it, under no item. An item the platform manages itself is refused.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "node_id": {
+            "type": "integer",
+            "description": "The item identifier, from list_site_pages"
+          }
+        },
+        "required": [
+          "node_id"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true,
+        "openWorldHint": false
+      },
+      "require_approval": true
     }
   ]
 }

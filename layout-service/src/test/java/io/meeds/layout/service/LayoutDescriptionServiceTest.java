@@ -378,6 +378,38 @@ public class LayoutDescriptionServiceTest {
   }
 
   @Test
+  public void oneItemIsDescribedToItsWriterWithItsChildrenAndWithoutTheViewFilter() throws Exception {
+    PageKey pageKey = PageKey.parse("portal::test::team");
+    NodeContext<NodeContext<Object>> root = node(0L, "default", null, Visibility.DISPLAYED);
+    NodeContext<NodeContext<Object>> team = node(5L, "team", pageKey, Visibility.HIDDEN);
+    NodeContext<NodeContext<Object>> child = node(6L, "child", null, Visibility.DISPLAYED);
+    NodeContext<NodeContext<Object>> draft = node(7L, "team_draft_john", pageKey, Visibility.DRAFT);
+    nodes(root, team, draft);
+    nodes(team, child);
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    when(layoutDraftService.isDraftNode("team_draft_john")).thenReturn(true);
+    lenient().when(navigationLayoutService.getNodeLabels(anyLong(), eq(USER))).thenReturn(nodeLabel("Label"));
+    PageContext teamContext = new PageContext(pageKey, pageState("PAGE", null, "*:/platform/users", "*:/platform/administrators"));
+    when(layoutService.getPageContext(pageKey)).thenReturn(teamContext);
+    when(aclService.canViewNavigation(eq(SITE_KEY), any(), eq(USER))).thenReturn(true);
+    when(aclService.canViewNavigation(SITE_KEY, pageKey, USER)).thenReturn(false);
+    when(aclService.canEditNavigation(SITE_KEY, USER)).thenReturn(true);
+
+    NavigationItemDescription item = descriptionService.describeNavigationItem(SITE_KEY, 5L, USER);
+    assertNotNull(item);
+    assertEquals(5L, item.nodeId());
+    assertEquals("team", item.urlName());
+    assertFalse(item.visible());
+    assertEquals(List.of("*:/platform/administrators"), item.accessPermissions());
+    assertEquals(1, item.children().size());
+    assertEquals(6L, item.children().get(0).nodeId());
+
+    assertNull(descriptionService.describeNavigationItem(SITE_KEY, 7L, USER));
+    assertNull(descriptionService.describeNavigationItem(SITE_KEY, 8L, USER));
+    assertNull(descriptionService.describeNavigationItem(SiteKey.portal("empty"), 5L, USER));
+  }
+
+  @Test
   public void hiddenItemsAreDescribedToNavigationEditorsOnly() throws Exception {
     PageKey pageKey = PageKey.parse("portal::test::home");
     NodeContext<NodeContext<Object>> root = node(0L, "default", null, Visibility.DISPLAYED);

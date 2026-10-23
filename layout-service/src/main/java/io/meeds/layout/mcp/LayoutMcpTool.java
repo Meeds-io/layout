@@ -18,8 +18,17 @@
  */
 package io.meeds.layout.mcp;
 
+import java.text.Normalizer;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,24 +42,40 @@ import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
+import org.exoplatform.portal.mop.PageType;
+import org.exoplatform.portal.mop.Visibility;
+import org.exoplatform.portal.mop.navigation.NodeData;
+import org.exoplatform.portal.mop.navigation.NodeState;
+import org.exoplatform.portal.mop.page.PageContext;
 import org.exoplatform.portal.mop.page.PageKey;
+import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.organization.OrganizationService;
+import org.exoplatform.services.resources.LocaleConfig;
+import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.social.core.space.SpaceUtils;
 import org.exoplatform.upload.UploadService;
 
 import io.meeds.layout.mcp.constant.LayoutVersion;
+import io.meeds.layout.mcp.constant.LinkTarget;
+import io.meeds.layout.mcp.constant.NavigationItemType;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
+import io.meeds.layout.mcp.model.ScheduleDescription;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.SiteSummary;
 import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.model.NavigationCreateModel;
+import io.meeds.layout.model.NavigationItemUpdate;
 import io.meeds.layout.model.NodeLabel;
+import io.meeds.layout.model.NodeSchedule;
+import io.meeds.layout.model.PageCreateModel;
+import io.meeds.layout.model.PageTemplate;
 import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SitePropertiesUpdate;
@@ -58,21 +83,24 @@ import io.meeds.layout.model.SiteTemplate;
 import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
 import io.meeds.layout.service.LayoutDraftService;
+import io.meeds.layout.service.NavigationLayoutService;
 import io.meeds.layout.service.PageLayoutService;
+import io.meeds.layout.service.PageTemplateService;
 import io.meeds.layout.service.SiteLayoutService;
 import io.meeds.layout.service.SiteTemplateService;
 import io.meeds.layout.service.SiteLayoutAssembler;
 import io.meeds.mcp.server.plugin.McpToolPlugin;
 
 /**
- * The read tools of the layout, the site tools and the site layout tools:
- * every public method is an MCP tool described in ai-tool-definitions.json. A
+ * The read tools of the layout, the site tools, the site layout tools and the
+ * navigation item tools: every public method is an MCP tool described in ai-tool-definitions.json. A
  * tool maps its arguments, checks them against the vocabulary the editors
  * accept, calls the Services as the current user and translates their
  * refusals into the fixed texts the agent reads: {@code does not exist:
  * <object>}, {@code not allowed: <object>}, {@code value is not accepted for
  * <option>}. A change to a site's properties applies at once, as the sites
- * administration's does; a change to its layout is the user's draft until
+ * administration's does, and so does a change to its navigation, as the
+ * navigation drawer's; a change to its layout is the user's draft until
  * publish_layout, as in the site layout editor.
  */
 @Service
@@ -131,6 +159,38 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   public static final String       STYLING_NOT_ACCEPTED  = SiteLayoutAssembler.STYLING_NOT_ACCEPTED;
 
+  public static final String       NODE_NOT_FOUND        = "does not exist: navigation item";
+
+  public static final String       PARENT_NODE_NOT_FOUND = "does not exist: parent navigation item";
+
+  public static final String       NAVIGATION_NOT_ALLOWED = "not allowed: navigation";
+
+  public static final String       NODE_ID_NOT_ACCEPTED  = "value is not accepted for node_id";
+
+  public static final String       PARENT_NODE_ID_NOT_ACCEPTED = "value is not accepted for parent_node_id";
+
+  public static final String       TYPE_NOT_ACCEPTED     = "value is not accepted for type";
+
+  public static final String       URL_NAME_NOT_ACCEPTED = "value is not accepted for url_name";
+
+  public static final String       URL_NAME_NOT_CHANGEABLE = "cannot be changed: url_name";
+
+  public static final String       URL_NOT_ACCEPTED      = "value is not accepted for url";
+
+  public static final String       TARGET_NOT_ACCEPTED   = LinkTarget.TARGET_NOT_ACCEPTED;
+
+  public static final String       PAGE_TEMPLATE_NOT_ACCEPTED = "value is not accepted for page_template_id";
+
+  public static final String       LABELS_NOT_ACCEPTED   = "value is not accepted for labels";
+
+  public static final String       SCHEDULED_NOT_ACCEPTED = "value is not accepted for scheduled";
+
+  public static final String       NODE_NOT_SAVED        = "could not be saved: navigation item";
+
+  public static final String       NODE_NOT_DELETED      = "could not be deleted: navigation item";
+
+  public static final String       BLANK_TEMPLATE_CATEGORY = "blank";
+
   public static final String       DEFAULT_TEMPLATE      = "basic";
 
   public static final String       DEFAULT_ICON          = "fa-globe";
@@ -146,6 +206,8 @@ public class LayoutMcpTool implements McpToolPlugin {
   private static final Pattern     ICON_PATTERN          = Pattern.compile("^[a-z0-9-]+( [a-z0-9-]+)*$");
 
   private static final Pattern     PERMISSION_PATTERN    = Pattern.compile("^(\\*|[a-zA-Z0-9_-]+):(/[a-zA-Z0-9_./-]+)$");
+
+  private static final Pattern     ABSOLUTE_URL_PATTERN  = Pattern.compile("^(?i:https?)://[^/?#\\s]+(?:[/?#].*)?$");
 
   @Autowired
   private LayoutService            layoutService;
@@ -173,6 +235,15 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   @Autowired
   private UploadService            uploadService;
+
+  @Autowired
+  private NavigationLayoutService  navigationLayoutService;
+
+  @Autowired
+  private PageTemplateService      pageTemplateService;
+
+  @Autowired
+  private LocaleConfigService      localeConfigService;
 
   /**
    * Lists the sites the current user can view: without a keyword the portal
@@ -515,6 +586,239 @@ public class LayoutMcpTool implements McpToolPlugin {
   }
 
   /**
+   * Creates a navigation item of a site with the 'Add an item' drawer's
+   * inputs, as that drawer does: a translatable name, a URL name chosen now
+   * and never changed, a type with what it needs (a new page from a page
+   * template, an existing page, a link opening in the same or a new tab, a
+   * group of pages), an icon, a visibility and its schedule, and the
+   * permissions of a page created here; the item goes last under its parent.
+   * Every value is checked before anything is written: the page first, then
+   * the item, a page left behind by an item failure being removed. Applies at
+   * once; not a draft. Returns the item as list_site_pages describes it.
+   */
+  public NavigationItemDescription createPage(Long siteId, // NOSONAR
+                                              Long parentNodeId,
+                                              String label,
+                                              Map<String, String> labels,
+                                              String urlName,
+                                              String type,
+                                              Long pageTemplateId,
+                                              String pageRef,
+                                              String url,
+                                              String target,
+                                              String icon,
+                                              Boolean visible,
+                                              ScheduleDescription scheduled,
+                                              List<String> accessPermissions,
+                                              String editPermission) throws ObjectNotFoundException, IllegalAccessException {
+    requireSiteId(siteId);
+    String username = getCurrentUserName();
+    PortalConfig site = readSite(siteId, username);
+    SiteKey siteKey = site.getSiteKey();
+    if (!aclService.canEditNavigation(siteKey, username)) {
+      throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
+    }
+    NavigationItemType itemType = requireType(type);
+    String itemLabel = requireLabel(label);
+    Map<String, String> itemLabels = requireLabels(labels);
+    String itemName = requireUrlName(urlName, itemLabel);
+    String itemIcon = icon == null ? null : requireIcon(icon);
+    boolean displayed = !Boolean.FALSE.equals(visible);
+    NodeSchedule schedule = requireSchedule(scheduled, displayed);
+    List<String> pageAccessPermissions = requireAccessPermissions(accessPermissions);
+    String pageEditPermission = requireEditPermission(editPermission);
+    PageCreateModel pageModel = null;
+    String itemPageRef = null;
+    String itemTarget = null;
+    switch (itemType) {
+    case PAGE:
+      refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
+      refuseGiven(url, URL_NOT_ACCEPTED);
+      refuseGiven(target, TARGET_NOT_ACCEPTED);
+      pageModel = newPageModel(itemName, itemLabel, PageType.PAGE, null, resolvePageTemplateId(pageTemplateId), pageAccessPermissions, pageEditPermission);
+      break;
+    case LINK:
+      refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
+      refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
+      pageModel = newPageModel(itemName, itemLabel, PageType.LINK, requireUrl(url), null, pageAccessPermissions, pageEditPermission);
+      itemTarget = LinkTarget.parse(target).getStateValue();
+      break;
+    case EXISTING_PAGE:
+      refuseGiven(url, URL_NOT_ACCEPTED);
+      refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
+      refuseGiven(pageAccessPermissions, ACCESS_PERMISSIONS_NOT_ACCEPTED);
+      refuseGiven(pageEditPermission, EDIT_PERMISSION_NOT_ACCEPTED);
+      itemPageRef = requireExistingPage(pageRef, username).format();
+      itemTarget = LinkTarget.parse(target).getStateValue();
+      break;
+    default:
+      refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
+      refuseGiven(url, URL_NOT_ACCEPTED);
+      refuseGiven(target, TARGET_NOT_ACCEPTED);
+      refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
+      refuseGiven(pageAccessPermissions, ACCESS_PERMISSIONS_NOT_ACCEPTED);
+      refuseGiven(pageEditPermission, EDIT_PERMISSION_NOT_ACCEPTED);
+      break;
+    }
+    long parentId = resolveParentNodeId(siteKey, parentNodeId, username);
+    boolean temporal = schedule != null && !schedule.isCleared();
+    NavigationCreateModel nodeModel = new NavigationCreateModel(parentId,
+                                                                null,
+                                                                itemLabel,
+                                                                itemName,
+                                                                displayed,
+                                                                temporal,
+                                                                false,
+                                                                temporal ? schedule.start() : null,
+                                                                temporal ? schedule.end() : null,
+                                                                itemPageRef,
+                                                                itemTarget,
+                                                                false,
+                                                                itemIcon,
+                                                                withDefaultLanguage(itemLabels, itemLabel));
+    NodeData node;
+    try {
+      node = navigationLayoutService.createNodeWithPage(nodeModel, pageModel, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(PARENT_NODE_NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
+    } catch (RuntimeException e) {
+      throw translateNavigationFailure(e, username, NODE_NOT_SAVED);
+    }
+    return describeStoredItem(siteKey, Long.parseLong(node.getId()), username);
+  }
+
+  /**
+   * Updates a navigation item's name and translations, type, icon,
+   * visibility and schedule and the permissions of its page: an option
+   * omitted keeps its stored value, a translation given is merged over the
+   * stored ones. The URL name is chosen at creation and cannot change: a
+   * different one is refused with that reason. A type given follows the
+   * drawer's edit: a group detaches the page, an existing page re-points
+   * the item, a link rewrites the item's link page or creates one, a page
+   * creates a new one from a template; the previous page is kept. The page
+   * steps come first, then the item, and what was written is put back when
+   * a later step fails. Applies at once; not a draft. Returns the item as
+   * list_site_pages describes it.
+   */
+  public NavigationItemDescription updatePage(Long nodeId, // NOSONAR
+                                              String label,
+                                              Map<String, String> labels,
+                                              String urlName,
+                                              String type,
+                                              Long pageTemplateId,
+                                              String pageRef,
+                                              String url,
+                                              String target,
+                                              String icon,
+                                              Boolean visible,
+                                              ScheduleDescription scheduled,
+                                              List<String> accessPermissions,
+                                              String editPermission) throws ObjectNotFoundException, IllegalAccessException {
+    requireNodeId(nodeId, NODE_ID_NOT_ACCEPTED);
+    String username = getCurrentUserName();
+    NodeData node = readEditableNode(nodeId, username, NODE_NOT_FOUND);
+    if (urlName != null && !StringUtils.equals(StringUtils.trim(urlName), node.getName())) {
+      throw new IllegalArgumentException(URL_NAME_NOT_CHANGEABLE);
+    }
+    NodeState state = node.getState() == null ? NodeState.INITIAL : node.getState();
+    PageKey storedPageKey = state.getPageRef();
+    PageState storedPage = storedPageKey == null ? null : readPageState(storedPageKey);
+    NavigationItemType storedType = storedPageKey == null ? NavigationItemType.GROUP :
+                                  isLinkPage(storedPage) ? NavigationItemType.LINK : NavigationItemType.PAGE;
+    NavigationItemType itemType = type == null ? pageRef == null ? storedType : NavigationItemType.EXISTING_PAGE : requireType(type);
+
+    NavigationItemUpdate update = new NavigationItemUpdate();
+    update.setLabel(label == null ? null : requireLabel(label));
+    update.setLabels(requireLabels(labels));
+    update.setIcon(icon == null ? null : requireIcon(icon));
+    update.setVisible(visible);
+    boolean displayed = visible == null ? state.getVisibility() != Visibility.HIDDEN && state.getVisibility() != Visibility.SYSTEM
+                                        : visible;
+    update.setSchedule(requireSchedule(scheduled, displayed));
+    update.setAccessPermissions(requireAccessPermissions(accessPermissions));
+    update.setEditPermission(requireEditPermission(editPermission));
+    switch (itemType) {
+    case PAGE:
+      refuseGiven(url, URL_NOT_ACCEPTED);
+      if (type != null) {
+        update.setNewPage(newPageModel(node.getName(), itemLabel(update, state), PageType.PAGE, null, resolvePageTemplateId(pageTemplateId), null, null));
+      } else {
+        refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
+      }
+      break;
+    case LINK:
+      refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
+      refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
+      if (storedType == NavigationItemType.LINK) {
+        update.setLink(url == null ? null : requireUrl(url));
+      } else {
+        update.setNewPage(newPageModel(node.getName(), itemLabel(update, state), PageType.LINK, requireUrl(url), null, null, null));
+      }
+      break;
+    case EXISTING_PAGE:
+      refuseGiven(url, URL_NOT_ACCEPTED);
+      refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
+      update.setPageRef(requireExistingPage(pageRef, username).format());
+      break;
+    default:
+      refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
+      refuseGiven(url, URL_NOT_ACCEPTED);
+      refuseGiven(target, TARGET_NOT_ACCEPTED);
+      refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
+      refuseGiven(update.getAccessPermissions(), ACCESS_PERMISSIONS_NOT_ACCEPTED);
+      refuseGiven(update.getEditPermission(), EDIT_PERMISSION_NOT_ACCEPTED);
+      update.setDetachPage(storedPageKey != null);
+      break;
+    }
+    if (target != null && itemType != NavigationItemType.GROUP) {
+      update.setTarget(LinkTarget.parse(target).getStateValue());
+    }
+    if (update.getNewPage() == null
+        && (update.getLink() != null || update.getAccessPermissions() != null || update.getEditPermission() != null)) {
+      PageKey pageKey = update.getPageRef() == null ? storedPageKey : PageKey.parse(update.getPageRef());
+      if (pageKey == null) {
+        throw new IllegalArgumentException(update.getLink() == null ? ACCESS_PERMISSIONS_NOT_ACCEPTED : URL_NOT_ACCEPTED);
+      } else if (!aclService.canEditPage(pageKey, username)) {
+        throw new IllegalAccessException(PAGE_NOT_ALLOWED);
+      }
+    }
+    try {
+      navigationLayoutService.updateNodeAndPagePermissions(nodeId, update, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(PAGE_NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(PAGE_NOT_ALLOWED);
+    } catch (RuntimeException e) {
+      throw translateNavigationFailure(e, username, NODE_NOT_SAVED);
+    }
+    return describeStoredItem(node.getSiteKey(), nodeId, username);
+  }
+
+  /**
+   * Deletes a navigation item with the items under it, at once and for every
+   * user, as the navigation drawer does after its confirmation; the page the
+   * item pointed to is kept, as the drawer keeps it. An item the platform
+   * manages itself (system visibility) is refused.
+   */
+  public void deletePage(Long nodeId) throws ObjectNotFoundException, IllegalAccessException {
+    requireNodeId(nodeId, NODE_ID_NOT_ACCEPTED);
+    String username = getCurrentUserName();
+    readEditableNode(nodeId, username, NODE_NOT_FOUND);
+    try {
+      navigationLayoutService.deleteNode(nodeId, 0, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(NODE_NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
+    } catch (RuntimeException e) {
+      LOG.debug("Navigation item {} could not be deleted by {}", nodeId, username, e);
+      throw new IllegalStateException(NODE_NOT_DELETED);
+    }
+  }
+
+  /**
    * The live site the user may edit, read as get_site reads it
    */
   private PortalConfig readEditableSite(long siteId, String username) throws ObjectNotFoundException, IllegalAccessException {
@@ -748,6 +1052,282 @@ public class LayoutMcpTool implements McpToolPlugin {
   private void releaseUpload(String uploadId) {
     if (uploadId != null) {
       uploadService.removeUploadResource(uploadId);
+    }
+  }
+
+  /**
+   * A node the user may change, read whatever their view right on its page;
+   * a draft node is reached through its live node only, never by its own id
+   */
+  private NodeData readEditableNode(long nodeId, String username, String notFound) throws ObjectNotFoundException,
+                                                                                    IllegalAccessException {
+    NodeData node;
+    try {
+      node = navigationLayoutService.getEditableNode(nodeId, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(notFound);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
+    }
+    if (layoutDraftService.isDraftNode(node.getName())) {
+      throw new ObjectNotFoundException(notFound);
+    }
+    return node;
+  }
+
+  /**
+   * @return the parent given, which must be an item of the site, or the
+   *         site's navigation root when none is given
+   */
+  private long resolveParentNodeId(SiteKey siteKey, Long parentNodeId, String username) throws ObjectNotFoundException,
+                                                                                         IllegalAccessException {
+    if (parentNodeId == null) {
+      Long rootNodeId = navigationLayoutService.getRootNodeId(siteKey);
+      if (rootNodeId == null) {
+        throw new ObjectNotFoundException(PARENT_NODE_NOT_FOUND);
+      }
+      return rootNodeId;
+    }
+    requireNodeId(parentNodeId, PARENT_NODE_ID_NOT_ACCEPTED);
+    NodeData parent = readEditableNode(parentNodeId, username, PARENT_NODE_NOT_FOUND);
+    if (!siteKey.equals(parent.getSiteKey())) {
+      throw new ObjectNotFoundException(PARENT_NODE_NOT_FOUND);
+    }
+    return parentNodeId;
+  }
+
+  private NavigationItemDescription describeStoredItem(SiteKey siteKey, long nodeId, String username) throws ObjectNotFoundException {
+    NavigationItemDescription item = layoutDescriptionService.describeNavigationItem(siteKey, nodeId, username);
+    if (item == null) {
+      throw new ObjectNotFoundException(NODE_NOT_FOUND);
+    }
+    return item;
+  }
+
+  /**
+   * A navigation write refused by the service answers a fixed text: the name
+   * rule and the schedule rules their option's, every other failure the given
+   * one, its cause logged
+   */
+  private RuntimeException translateNavigationFailure(RuntimeException e, String username, String refusal) {
+    String message = e.getMessage();
+    if (e instanceof IllegalArgumentException) {
+      if (StringUtils.equals(message, NavigationLayoutService.NODE_NAME_NOT_ACCEPTED)) {
+        return new IllegalArgumentException(URL_NAME_NOT_ACCEPTED);
+      } else if (StringUtils.equalsAny(message,
+                                       NavigationLayoutService.SCHEDULE_END_BEFORE_START,
+                                       NavigationLayoutService.SCHEDULE_START_PAST,
+                                       NavigationLayoutService.SCHEDULE_ON_HIDDEN_NODE)) {
+        return new IllegalArgumentException(SCHEDULED_NOT_ACCEPTED);
+      }
+    }
+    LOG.debug("Navigation item could not be written by {}", username, e);
+    return new IllegalStateException(refusal);
+  }
+
+  private PageState readPageState(PageKey pageKey) throws ObjectNotFoundException {
+    PageContext pageContext = layoutService.getPageContext(pageKey);
+    if (pageContext == null || pageContext.getState() == null) {
+      throw new ObjectNotFoundException(PAGE_NOT_FOUND);
+    }
+    return pageContext.getState();
+  }
+
+  private boolean isLinkPage(PageState pageState) {
+    return pageState != null && PageType.LINK.name().equalsIgnoreCase(pageState.getType());
+  }
+
+  /**
+   * @return the title of a page created on update: the label given, else the
+   *         stored one
+   */
+  private String itemLabel(NavigationItemUpdate update, NodeState state) {
+    return update.getLabel() == null ? state.getLabel() : update.getLabel();
+  }
+
+  private PageCreateModel newPageModel(String name,
+                                       String title,
+                                       PageType pageType,
+                                       String link,
+                                       Long pageTemplateId,
+                                       List<String> accessPermissions,
+                                       String editPermission) {
+    return new PageCreateModel(name,
+                               title,
+                               null,
+                               null,
+                               pageType.name(),
+                               link,
+                               pageTemplateId,
+                               editPermission,
+                               accessPermissions == null ? null : accessPermissions.toArray(new String[0]));
+  }
+
+  private NavigationItemType requireType(String type) {
+    String value = StringUtils.trimToNull(type);
+    if (value == null) {
+      throw new IllegalArgumentException(TYPE_NOT_ACCEPTED);
+    }
+    return Arrays.stream(NavigationItemType.values())
+                 .filter(t -> t.name().equalsIgnoreCase(value))
+                 .findFirst()
+                 .orElseThrow(() -> new IllegalArgumentException(TYPE_NOT_ACCEPTED));
+  }
+
+  /**
+   * The URL name as the drawer's input, or derived from the label as the
+   * drawer derives it when the name is not customized: accents and every
+   * character outside the name's class dropped, lower case
+   */
+  private String requireUrlName(String urlName, String label) {
+    String name = StringUtils.trimToNull(urlName);
+    if (name == null) {
+      name = Normalizer.normalize(label, Normalizer.Form.NFD)
+                       .replaceAll("\\p{M}", "")
+                       .replaceAll("[^a-zA-Z0-9_-]", "")
+                       .toLowerCase();
+    }
+    if (!NAME_PATTERN.matcher(name).matches() || name.contains(LayoutDraftService.DRAFT_NAME_MARKER)) {
+      throw new IllegalArgumentException(URL_NAME_NOT_ACCEPTED);
+    }
+    return name;
+  }
+
+  /**
+   * A link as an agent may write one: an absolute http or https address with
+   * a host, or a site-relative path; any other scheme, javascript included,
+   * a scheme-relative //host and a control character are refused, where the
+   * drawer's own rule is looser
+   */
+  private String requireUrl(String url) {
+    String link = StringUtils.trim(url);
+    if (StringUtils.isEmpty(link) || link.chars().anyMatch(c -> c <= 0x20 || c == 0x7f)) {
+      throw new IllegalArgumentException(URL_NOT_ACCEPTED);
+    } else if (link.startsWith("/")) {
+      if (link.length() > 1 && (link.charAt(1) == '/' || link.charAt(1) == '\\')) {
+        throw new IllegalArgumentException(URL_NOT_ACCEPTED);
+      }
+      return link;
+    } else if (!ABSOLUTE_URL_PATTERN.matcher(link).matches()) {
+      throw new IllegalArgumentException(URL_NOT_ACCEPTED);
+    }
+    return link;
+  }
+
+  /**
+   * @return the schedule's bounds as epoch milliseconds, both null for a
+   *         schedule given empty, which drops the stored one; null when none
+   *         is given
+   */
+  private NodeSchedule requireSchedule(ScheduleDescription scheduled, boolean displayed) {
+    if (scheduled == null) {
+      return null;
+    }
+    String start = StringUtils.trimToNull(scheduled.start());
+    String end = StringUtils.trimToNull(scheduled.end());
+    if (start == null && end == null) {
+      return new NodeSchedule(null, null);
+    } else if (start == null || end == null || !displayed) {
+      throw new IllegalArgumentException(SCHEDULED_NOT_ACCEPTED);
+    }
+    long startTime = parseInstant(start);
+    long endTime = parseInstant(end);
+    if (startTime >= endTime || startTime <= System.currentTimeMillis()) {
+      throw new IllegalArgumentException(SCHEDULED_NOT_ACCEPTED);
+    }
+    return new NodeSchedule(startTime, endTime);
+  }
+
+  private long parseInstant(String value) {
+    try {
+      return OffsetDateTime.parse(value).toInstant().toEpochMilli();
+    } catch (DateTimeParseException e) {
+      throw new IllegalArgumentException(SCHEDULED_NOT_ACCEPTED);
+    }
+  }
+
+  /**
+   * @return the translations given, each for a language the platform
+   *         supports, null entries dropped; null when none given
+   */
+  private Map<String, String> requireLabels(Map<String, String> labels) {
+    if (labels == null) {
+      return null;
+    }
+    Set<String> supported = localeConfigService.getLocalConfigs()
+                                               .stream()
+                                               .map(LocaleConfig::getLocale)
+                                               .map(Locale::toLanguageTag)
+                                               .collect(Collectors.toSet());
+    Map<String, String> translations = new LinkedHashMap<>();
+    labels.forEach((tag, text) -> {
+      if (text != null) {
+        String language = StringUtils.trim(tag);
+        String translation = StringUtils.trimToNull(text);
+        if (!supported.contains(language) || translation == null || translation.length() > LABEL_MAX_LENGTH) {
+          throw new IllegalArgumentException(LABELS_NOT_ACCEPTED);
+        }
+        translations.put(language, translation);
+      }
+    });
+    return translations;
+  }
+
+  /**
+   * @return the translations with the label as the platform default
+   *         language's, as the drawer writes them
+   */
+  private Map<String, String> withDefaultLanguage(Map<String, String> labels, String label) {
+    Map<String, String> translations = new LinkedHashMap<>();
+    if (labels != null) {
+      translations.putAll(labels);
+    }
+    translations.put(localeConfigService.getDefaultLocaleConfig().getLocale().toLanguageTag(), label);
+    return translations;
+  }
+
+  /**
+   * @return the template given, which must be enabled, or the first enabled
+   *         blank one the catalog lists when none is given
+   */
+  private long resolvePageTemplateId(Long pageTemplateId) {
+    if (pageTemplateId == null) {
+      return pageTemplateService.getPageTemplates()
+                                .stream()
+                                .filter(t -> !t.isDisabled() && StringUtils.equals(t.getCategory(), BLANK_TEMPLATE_CATEGORY))
+                                .map(PageTemplate::getId)
+                                .findFirst()
+                                .orElseThrow(() -> new IllegalArgumentException(PAGE_TEMPLATE_NOT_ACCEPTED));
+    }
+    PageTemplate template = pageTemplateId <= 0 ? null : pageTemplateService.getPageTemplate(pageTemplateId);
+    if (template == null || template.isDisabled()) {
+      throw new IllegalArgumentException(PAGE_TEMPLATE_NOT_ACCEPTED);
+    }
+    return pageTemplateId;
+  }
+
+  /**
+   * @return the key of an existing page the user may view, never a draft
+   */
+  private PageKey requireExistingPage(String pageRef, String username) throws ObjectNotFoundException, IllegalAccessException {
+    PageKey pageKey = parsePageKey(pageRef);
+    if (layoutDraftService.isDraftNode(pageKey.getName()) || layoutService.getPageContext(pageKey) == null) {
+      throw new ObjectNotFoundException(PAGE_NOT_FOUND);
+    } else if (!aclService.canViewPage(pageKey, username)) {
+      throw new IllegalAccessException(PAGE_NOT_ALLOWED);
+    }
+    return pageKey;
+  }
+
+  private void refuseGiven(Object value, String refusal) {
+    if (value != null) {
+      throw new IllegalArgumentException(refusal);
+    }
+  }
+
+  private void requireNodeId(Long nodeId, String refusal) {
+    if (nodeId == null || nodeId <= 0) {
+      throw new IllegalArgumentException(refusal);
     }
   }
 
