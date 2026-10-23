@@ -1435,7 +1435,7 @@
                     "properties": {
                       "cell_id": {
                         "type": "string",
-                        "description": "the id of a cell in the layout get_page_layout returned, to keep its stored element; omit to create it"
+                        "description": "the id of a cell of a grid section in the layout get_page_layout returned, to keep its stored element; a dynamic section's cells carry no id and are never addressed; omit to create it"
                       },
                       "row": {
                         "type": "integer",

@@ -351,6 +351,12 @@ public class LayoutDescriptionServiceTest {
                       PageLayoutAssembler.SECTION_NOT_FOUND,
                       List.of(new SectionDescription("999", SectionType.DYNAMIC, 1, null, null, null, null, null)));
     assertPageRefused(ObjectNotFoundException.class, PageLayoutAssembler.CELL_NOT_FOUND, List.of(grid(1, 1, new CellDescription("999", 1, 1, null, null, null))));
+    Container dynamic = flexSection("1", "2");
+    String flexCellId = ((Container) dynamic.getChildren().get(0)).getStorageId();
+    SectionDescription keptDynamic = new SectionDescription(dynamic.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
+    SectionDescription takesFlexCell = grid(1, 1, new CellDescription(flexCellId, 1, 1, null, null, null));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.CELL_ID_NOT_ACCEPTED, List.of(takesFlexCell, keptDynamic), storedPage(dynamic));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.CELL_ID_NOT_ACCEPTED, List.of(keptDynamic, takesFlexCell), storedPage(dynamic));
     assertPageRefused(IllegalArgumentException.class,
                       PageLayoutAssembler.APPLICATIONS_NOT_ACCEPTED,
                       List.of(dynamic(1, List.of(List.of(new ApplicationDescription(null, null, null, null, null, null, null, null, null))))));
@@ -537,8 +543,11 @@ public class LayoutDescriptionServiceTest {
     stored = new Page("page");
     Container section = flexSection("1", "2");
     Container gridCell = cell("grid-cell");
+    Container legacyGrid = container(LayoutDescriptionService.GRID_TEMPLATE,
+                                     "d-flex flex-column d-md-grid grid-cols grid-cols-xl-1 grid-rows grid-rows-xl-1");
+    children(legacyGrid, gridCell);
     footer = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
-    children(footer, section, gridCell);
+    children(footer, section, legacyGrid);
     children(stored, container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null), footer);
     SectionDescription keptSection = new SectionDescription(section.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
     SectionDescription keptCell = grid(1, 1, new CellDescription(gridCell.getStorageId(), 1, 1, null, null, null));
@@ -546,7 +555,8 @@ public class LayoutDescriptionServiceTest {
     List<LayoutModel> sections = movedContainers.getChildren().get(0).getChildren();
     assertEquals(section.getStorageId(), sections.get(0).getStorageId());
     assertEquals(gridCell.getStorageId(), sections.get(1).getChildren().get(0).getStorageId());
-    assertTrue(movedContainers.getChildren().get(1).getChildren().isEmpty());
+    assertEquals(1, movedContainers.getChildren().get(1).getChildren().size());
+    assertTrue(movedContainers.getChildren().get(1).getChildren().get(0).getChildren().isEmpty());
 
     stored = new Page("page");
     legacy = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);

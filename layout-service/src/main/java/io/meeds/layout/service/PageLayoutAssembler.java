@@ -349,11 +349,7 @@ public class PageLayoutAssembler {
         CellDescription described = starts[row][col];
         int rowSpan = described == null ? 1 : span(described.rowSpan());
         int colSpan = described == null ? 1 : span(described.columnSpan());
-        LayoutModel cell = described != null && described.cellId() != null
-                                                                             ? container(described.cellId(),
-                                                                                         LayoutDescriptionService.CELL_TEMPLATE,
-                                                                                         CELL_NOT_FOUND,
-                                                                                         CELL_ID_NOT_ACCEPTED)
+        LayoutModel cell = described != null && described.cellId() != null ? gridCell(described.cellId())
                                                                              : newContainer(LayoutDescriptionService.CELL_TEMPLATE);
         cell.setCssClass(grammar(cell.getCssClass(), cellClass(GRID_CELL_TOKEN, colSpan, rowSpan)));
         cell.setChildren(new ArrayList<>());
@@ -421,9 +417,11 @@ public class PageLayoutAssembler {
 
   /**
    * A kept element leaves its stored container, so a window, a section or a
-   * cell held outside the sections parent, which the call can address by its
-   * id, is moved under the sections rather than written twice; a container
-   * whose children the call rewrites anyway loses nothing by it
+   * grid cell held outside the sections parent, which the call can address
+   * by its id, is moved under the sections rather than written twice; the
+   * containers it leaves are the sections parent, a grid section and a
+   * cell, whose children the call rewrites, or a container outside the
+   * sections parent, which keeps its other children
    */
   private void detach(LayoutModel element) {
     LayoutModel storedParent = parentOf.get(element.getStorageId());
@@ -458,6 +456,24 @@ public class PageLayoutAssembler {
   private void applyStyling(LayoutModel element, StylingDescription styling, StylingDestination destination) {
     StylingDescription merged = LayoutStylingService.merge(storedStyling.apply(element, destination), styling, false);
     stylingService.applyStyling(element, merged, destination, false, false);
+  }
+
+  /**
+   * A cell_id names a cell of a stored grid section, the only cells the read
+   * gives an id to: a dynamic section's cells are never addressed, so a kept
+   * dynamic section keeps them whatever the order of the sections in the call
+   */
+  private LayoutModel gridCell(String storageId) throws ObjectNotFoundException {
+    LayoutModel cell = byId.get(storageId);
+    if (cell == null) {
+      throw new ObjectNotFoundException(CELL_NOT_FOUND);
+    } else if (!isTemplate(cell, LayoutDescriptionService.CELL_TEMPLATE)
+               || !isTemplate(parentOf.get(storageId), LayoutDescriptionService.GRID_TEMPLATE)
+               || !used.add(storageId)) {
+      throw new IllegalArgumentException(CELL_ID_NOT_ACCEPTED);
+    }
+    detach(cell);
+    return cell;
   }
 
   private LayoutModel container(String storageId, String template, String notFound, String notAccepted) throws ObjectNotFoundException {
