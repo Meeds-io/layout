@@ -227,10 +227,11 @@ public class NavigationLayoutService {
       pageKey = pageLayoutService.createPage(pageModel, username).getKey();
       nodeModel.setPageRef(pageKey.format());
     }
+    long startTime = System.currentTimeMillis();
     try {
       return createNode(nodeModel, username);
     } catch (Exception e) {
-      removeNodeLeftBehind(siteKey, parentNodeData.getId(), nodeModel.getNodeId());
+      removeNodeLeftBehind(siteKey, parentNodeData.getId(), nodeModel, startTime);
       if (pageKey != null) {
         removePageLeftBehind(pageKey);
       }
@@ -363,6 +364,7 @@ public class NavigationLayoutService {
     PageState previousPageState = null;
     boolean linkWritten = false;
     boolean permissionsWritten = false;
+    boolean nodeStepStarted = false;
     try {
       if (update.getNewPage() != null) {
         createdPageKey = createItemPage(nodeData.getSiteKey(), update, username);
@@ -383,8 +385,12 @@ public class NavigationLayoutService {
           permissionsWritten = true;
         }
       }
+      nodeStepStarted = true;
       writeNodeState(nodeData, mergeNodeState(storedState, update, pageKey), mergeLabels(storedLabels, update), username);
     } catch (Exception e) {
+      if (nodeStepStarted) {
+        restoreNodeLabels(nodeData.getId(), storedLabels);
+      }
       if (permissionsWritten) {
         restorePagePermissions(pageKey, previousPageState, username);
       }
@@ -802,17 +808,24 @@ public class NavigationLayoutService {
 
   /**
    * A node written by a creation that then failed, its labels for one, is
-   * found by its name under its parent and removed with what it reaches
+   * found by its name under its parent and removed with what it reaches,
+   * provided it is the one this call wrote: its label and its page are the
+   * model's and it was not written before the call, so a node another
+   * caller created under the same name meanwhile is left alone
    */
-  private void removeNodeLeftBehind(SiteKey siteKey, String parentId, String name) {
+  private void removeNodeLeftBehind(SiteKey siteKey, String parentId, NavigationCreateModel nodeModel, long startTime) {
     try {
       NodeContext<NodeContext<Object>> parent = findNodeById(navigationService.loadNode(siteKey), parentId);
-      NodeContext<NodeContext<Object>> child = childNamed(parent, name);
-      if (child != null) {
+      NodeContext<NodeContext<Object>> child = childNamed(parent, nodeModel.getNodeId());
+      NodeState state = child == null ? null : child.getState();
+      if (state != null
+          && state.getUpdatedDate() >= startTime
+          && StringUtils.equals(state.getLabel(), nodeModel.getNodeLabel())
+          && StringUtils.equals(state.getPageRef() == null ? null : state.getPageRef().format(), nodeModel.getPageRef())) {
         deleteNode(Long.parseLong(child.getId()));
       }
     } catch (Exception e) {
-      LOG.warn("Navigation node {} left under node {} by a failed creation could not be removed", name, parentId, e);
+      LOG.warn("Navigation node {} left under node {} by a failed creation could not be removed", nodeModel.getNodeId(), parentId, e);
     }
   }
 
@@ -821,6 +834,14 @@ public class NavigationLayoutService {
       layoutService.remove(pageKey);
     } catch (Exception e) {
       LOG.warn("Page {} left by a failed navigation write could not be removed", pageKey, e);
+    }
+  }
+
+  private void restoreNodeLabels(String nodeId, Map<Locale, State> storedLabels) {
+    try {
+      descriptionService.setDescriptions(nodeId, storedLabels);
+    } catch (Exception e) {
+      LOG.warn("Translations of node {} could not be put back after a failed navigation write", nodeId, e);
     }
   }
 
@@ -904,16 +925,14 @@ public class NavigationLayoutService {
   }
 
   /**
-   * The stored translations with the given ones over them, a label setting
-   * the default language's; null when the node stores none and gets none
+   * The stored translations with the given ones over them, then the label as
+   * the default language's, as the drawer writes it; null when the node
+   * stores none and gets none
    */
   private Map<String, String> mergeLabels(Map<Locale, State> storedLabels, NavigationItemUpdate update) {
     Map<String, String> labels = new HashMap<>();
     if (storedLabels != null) {
       storedLabels.forEach((locale, state) -> labels.put(locale.toLanguageTag(), state.getName()));
-    }
-    if (update.getLabel() != null) {
-      labels.put(localeConfigService.getDefaultLocaleConfig().getLocale().toLanguageTag(), update.getLabel());
     }
     if (update.getLabels() != null) {
       update.getLabels().forEach((tag, text) -> {
@@ -921,6 +940,9 @@ public class NavigationLayoutService {
           labels.put(tag, text);
         }
       });
+    }
+    if (update.getLabel() != null) {
+      labels.put(localeConfigService.getDefaultLocaleConfig().getLocale().toLanguageTag(), update.getLabel());
     }
     return labels.isEmpty() ? null : labels;
   }

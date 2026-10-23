@@ -697,10 +697,12 @@ public class LayoutMcpTool implements McpToolPlugin {
    * different one is refused with that reason. A type given follows the
    * drawer's edit: a group detaches the page, an existing page re-points
    * the item, a link rewrites the item's link page or creates one, a page
-   * creates a new one from a template; the previous page is kept. The page
-   * steps come first, then the item, and what was written is put back when
-   * a later step fails. Applies at once; not a draft. Returns the item as
-   * list_site_pages describes it.
+   * creates a new one from a template; the previous page is kept, so a
+   * repeated call with such a type leaves a page behind each time. The
+   * permissions go on the item's page, never in the call that points it at
+   * another page. The page steps come first, then the item, and what was
+   * written is put back when a later step fails. Applies at once; not a
+   * draft. Returns the item as list_site_pages describes it.
    */
   public NavigationItemDescription updatePage(Long nodeId, // NOSONAR
                                               String label,
@@ -742,6 +744,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     switch (itemType) {
     case PAGE:
       refuseGiven(url, URL_NOT_ACCEPTED);
+      refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
       if (type != null) {
         update.setNewPage(newPageModel(node.getName(), itemLabel(update, state), PageType.PAGE, null, resolvePageTemplateId(pageTemplateId), null, null));
       } else {
@@ -760,6 +763,8 @@ public class LayoutMcpTool implements McpToolPlugin {
     case EXISTING_PAGE:
       refuseGiven(url, URL_NOT_ACCEPTED);
       refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
+      refuseGiven(update.getAccessPermissions(), ACCESS_PERMISSIONS_NOT_ACCEPTED);
+      refuseGiven(update.getEditPermission(), EDIT_PERMISSION_NOT_ACCEPTED);
       update.setPageRef(requireExistingPage(pageRef, username).format());
       break;
     default:

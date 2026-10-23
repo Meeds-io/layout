@@ -42,6 +42,7 @@ import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -891,10 +892,14 @@ public class LayoutMcpToolTest {
     assertNull(page.getEditPermission());
 
     permissions();
+    Map<String, String> labelsWithANull = new HashMap<>();
+    labelsWithANull.put("fr", "Équipe");
+    labelsWithANull.put("en", "Team");
+    labelsWithANull.put("de", null);
     asUser(() -> tool.createPage(SITE_ID,
                                  LIVE_NODE,
                                  "Équipe",
-                                 Map.of("fr", "Équipe", "en", "Team"),
+                                 labelsWithANull,
                                  "team",
                                  "LINK",
                                  null,
@@ -1104,7 +1109,10 @@ public class LayoutMcpToolTest {
     assertNull(update.getEditPermission());
     verify(aclService, never()).canEditPage(any(), any());
 
-    asUser(() -> tool.updatePage(NODE_ID, "Team", Map.of("fr", "Équipe"), null, null, null, null, null, "new_tab", null, true, new ScheduleDescription(FUTURE, LATER), null, null));
+    Map<String, String> labelsWithANull = new HashMap<>();
+    labelsWithANull.put("fr", "Équipe");
+    labelsWithANull.put("en", null);
+    asUser(() -> tool.updatePage(NODE_ID, "Team", labelsWithANull, null, null, null, null, null, "new_tab", null, true, new ScheduleDescription(FUTURE, LATER), null, null));
     verify(navigationLayoutService, times(2)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
     update = updates.getValue();
     assertEquals("Team", update.getLabel());
@@ -1177,6 +1185,12 @@ public class LayoutMcpToolTest {
     assertFalse(updates.getValue().isDetachPage());
     assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED,
                  refusal(() -> tool.updatePage(NODE_ID, null, null, null, "existing_page", null, null, null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, "page", null, otherKey.format(), null, null, null, null, null, null, null)));
+    assertEquals(LayoutMcpTool.ACCESS_PERMISSIONS_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, null, null, otherKey.format(), null, null, null, null, null, List.of("Everyone"), null)));
+    assertEquals(LayoutMcpTool.EDIT_PERMISSION_NOT_ACCEPTED,
+                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, "existing_page", null, otherKey.format(), null, null, null, null, null, null, "*:/platform/users")));
 
     asUser(() -> tool.updatePage(NODE_ID, null, null, null, "group", null, null, null, null, null, null, null, null, null));
     verify(navigationLayoutService, times(4)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));

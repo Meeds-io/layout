@@ -678,7 +678,9 @@ public class NavigationLayoutServiceTest {
     NodeData created = mock(NodeData.class);
     lenient().when(created.getId()).thenReturn("99");
     doAnswer(i -> {
-      children.add(childContext("99", "team"));
+      NodeContext<NodeContext<Object>> written = childContext("99", "team");
+      when(written.getState()).thenReturn(((NodeState) i.getArgument(3)).builder().updatedDate(System.currentTimeMillis()).build());
+      children.add(written);
       return new NodeData[] { parentNodeData, created };
     }).when(navigationService).createNode(any(), any(), any(), any());
     when(navigationService.getNodeById(99L)).thenReturn(created);
@@ -688,6 +690,26 @@ public class NavigationLayoutServiceTest {
     order.verify(navigationService).deleteNode(99L);
     order.verify(layoutService).remove(pageKey);
     verify(layoutService, times(2)).remove(pageKey);
+
+    // a node another caller wrote under the same name meanwhile is left
+    // alone: another label, or written before this call
+    NodeContext<NodeContext<Object>> someoneElses = childContext("77", "team");
+    when(someoneElses.getState()).thenReturn(new NodeState.Builder().label("Their team").pageRef(pageKey).updatedDate(System.currentTimeMillis() + 60_000L).build());
+    NodeContext<NodeContext<Object>> earlier = childContext("78", "team");
+    when(earlier.getState()).thenReturn(new NodeState.Builder().label("Team").pageRef(pageKey).updatedDate(System.currentTimeMillis() - 60_000L).build());
+    lenient().when(navigationService.getNodeById(77L)).thenReturn(mock(NodeData.class));
+    lenient().when(navigationService.getNodeById(78L)).thenReturn(mock(NodeData.class));
+    for (NodeContext<NodeContext<Object>> other : List.of(someoneElses, earlier)) {
+      children.clear();
+      doAnswer(i -> {
+        children.add(other);
+        throw new IllegalStateException("duplicate");
+      }).when(navigationService).createNode(any(), any(), any(), any());
+      assertThrows(IllegalStateException.class, () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER));
+    }
+    verify(navigationService, never()).deleteNode(77L);
+    verify(navigationService, never()).deleteNode(78L);
+    verify(layoutService, times(4)).remove(pageKey);
   }
 
   /**
@@ -739,6 +761,7 @@ public class NavigationLayoutServiceTest {
 
     update = new NavigationItemUpdate();
     update.setLabel("Start");
+    update.setLabels(Map.of("en", "Begin"));
     navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
     verify(descriptionService, times(3)).setDescriptions(eq("2"), descriptions.capture());
     assertEquals("Start", descriptions.getValue().get(Locale.ENGLISH).getName());
@@ -823,10 +846,13 @@ public class NavigationLayoutServiceTest {
     storedNode(2L, stored);
     PageState previous = new PageState("Site", null, false, false, false, null, null, List.of("Everyone"), "*:/platform/users", "LINK", "https://old.example");
     when(layoutService.getPageContext(PAGE_KEY)).thenReturn(new PageContext(PAGE_KEY, previous));
+    Map<Locale, State> storedLabels = Map.of(Locale.ENGLISH, new State("Site", null));
+    when(descriptionService.getDescriptions("2")).thenReturn(storedLabels);
     ArgumentCaptor<PermissionUpdateModel> permissions = ArgumentCaptor.forClass(PermissionUpdateModel.class);
 
     NavigationItemUpdate update = new NavigationItemUpdate();
     update.setLink("https://meeds.io");
+    update.setLabels(Map.of("fr", "Site web"));
     update.setAccessPermissions(List.of("*:/platform/administrators"));
     navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
     InOrder order = inOrder(pageLayoutService, navigationService);
@@ -844,6 +870,9 @@ public class NavigationLayoutServiceTest {
     assertEquals(List.of("Everyone"), permissions.getValue().getAccessPermissions());
     assertEquals("*:/platform/users", permissions.getValue().getEditPermission());
     verify(layoutService, never()).remove(any(PageKey.class));
+    InOrder labels = inOrder(descriptionService);
+    labels.verify(descriptionService).setDescriptions(eq("2"), argThat(m -> m.containsKey(Locale.FRENCH)));
+    labels.verify(descriptionService).setDescriptions("2", storedLabels);
   }
 
   @Test

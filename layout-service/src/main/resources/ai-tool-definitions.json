@@ -1168,7 +1168,7 @@
     {
       "name": "update_page",
       "title": "Update a navigation item",
-      "description": "Update a navigation item's name and translations, type, icon, visibility and schedule, and the permissions of its page, as the navigation drawer's edit does, for every user at once (not a draft). Every option omitted keeps its stored value; a translation given is merged over the stored ones; the label replaces the item's bundle-provided name when the item has none stored. The URL name is chosen at creation and cannot change: a url_name different from the stored one is refused with the reason 'cannot be changed: url_name'. A type given follows the drawer's edit: group detaches the page; existing_page points the item at page_ref; link rewrites the link page's url, or creates a link page when the item had none; page creates a new page from page_template_id (the catalog's first blank template when omitted); the previous page is kept, under no item. Without type, page_ref alone re-points the item, url alone rewrites a link item's address, page_template_id is refused. access_permissions and edit_permission are written on the item's page, merged with its current ones, which needs the right to edit that page; they are refused on a group. visible false hides the item and drops its schedule; a scheduled object with neither bound drops the schedule and keeps the item visible. The page steps come first, then the item, and what was written is put back when a later step fails. Returns the item as list_site_pages describes it.",
+      "description": "Update a navigation item's name and translations, type, icon, visibility and schedule, and the permissions of its page, as the navigation drawer's edit does, for every user at once (not a draft). Every option omitted keeps its stored value; a translation given is merged over the stored ones; the label replaces the item's bundle-provided name when the item has none stored. The URL name is chosen at creation and cannot change: a url_name different from the stored one is refused with the reason 'cannot be changed: url_name'. A type given follows the drawer's edit: group detaches the page; existing_page points the item at page_ref; link rewrites the link page's url, or creates a link page when the item had none; page creates a new page from page_template_id (the catalog's first blank template when omitted); the previous page is kept, under no item, so repeating such a call leaves a page behind each time. Without type, page_ref alone re-points the item, url alone rewrites a link item's address, page_template_id is refused. access_permissions and edit_permission are written on the item's page, merged with its current ones, which needs the right to edit that page; they are refused on a group and in a call that points the item at another page (page_ref): point first, then change that page's permissions in a second call. visible false hides the item and drops its schedule; a scheduled object with neither bound drops the schedule and keeps the item visible. The page steps come first, then the item, and what was written is put back when a later step fails. Returns the item as list_site_pages describes it.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1207,7 +1207,7 @@
           },
           "page_ref": {
             "type": "string",
-            "description": "The page reference, from list_site_pages, of a page the user can view, to point the item at; with type existing_page or alone. Refused with another type"
+            "description": "The page reference, from list_site_pages, of a page the user can view, to point the item at; with type existing_page or alone, and without permissions. Refused with another type"
           },
           "url": {
             "type": "string",
@@ -1246,11 +1246,11 @@
             "items": {
               "type": "string"
             },
-            "description": "Who can view the page, one or more permissions as the sites administration writes them: Everyone, or <membership>:<group> with an existing membership type (* for any) and an existing group, for example *:/platform/users, member:/spaces/marketing; omit to keep them. Refused for a group"
+            "description": "Who can view the page, one or more permissions as the sites administration writes them: Everyone, or <membership>:<group> with an existing membership type (* for any) and an existing group, for example *:/platform/users, member:/spaces/marketing; omit to keep them. Refused for a group and together with page_ref"
           },
           "edit_permission": {
             "type": "string",
-            "description": "Who can edit the page, one permission as the sites administration writes it, <membership>:<group>, for example *:/platform/administrators; omit to keep it. Refused for a group"
+            "description": "Who can edit the page, one permission as the sites administration writes it, <membership>:<group>, for example *:/platform/administrators; omit to keep it. Refused for a group and together with page_ref"
           }
         },
         "required": [
@@ -1260,7 +1260,7 @@
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
-        "idempotentHint": true,
+        "idempotentHint": false,
         "openWorldHint": false
       }
     },
