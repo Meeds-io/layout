@@ -21,6 +21,7 @@ package io.meeds.layout.service;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -29,6 +30,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -51,6 +53,7 @@ import org.exoplatform.portal.mop.navigation.NodeData;
 import org.exoplatform.portal.mop.navigation.NodeState;
 import org.exoplatform.portal.mop.page.PageContext;
 import org.exoplatform.portal.mop.page.PageKey;
+import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.DescriptionService;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
@@ -66,8 +69,12 @@ import org.exoplatform.web.controller.router.Router;
 
 import io.meeds.common.ContainerTransactional;
 import io.meeds.layout.model.NavigationCreateModel;
+import io.meeds.layout.model.NavigationItemUpdate;
 import io.meeds.layout.model.NavigationUpdateModel;
 import io.meeds.layout.model.NodeLabel;
+import io.meeds.layout.model.NodeSchedule;
+import io.meeds.layout.model.PageCreateModel;
+import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.portal.web.handler.PortalTemplateRequestHandler;
 
 @Service
@@ -82,11 +89,25 @@ public class NavigationLayoutService {
    */
   public static final String             PAGE_UNREACHABLE_EVENT              = "layout.page.unreachable";
 
+  public static final String             NODE_NAME_NOT_ACCEPTED              = "navigation.nodeName.notAccepted";
+
+  public static final String             SCHEDULE_END_BEFORE_START           = "end schedule date must be after start schedule date";
+
+  public static final String             SCHEDULE_START_PAST                 = "start schedule date must be after current date";
+
+  public static final String             SCHEDULE_ON_HIDDEN_NODE             = "navigation.schedule.hiddenNode";
+
+  public static final String             SCHEDULE_INCOMPLETE                 = "navigation.schedule.incomplete";
+
+  public static final String             PARENT_NODE_NOT_FOUND_MESSAGE       = "Parent node with id %s doesn't exist";
+
+  public static final String             NODE_NOT_FOUND_MESSAGE              = "Node with id %s doesn't exist";
+
   private static final Log               LOG                                 = ExoLogger.getExoLogger(NavigationLayoutService.class);
 
-  private static final String            NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND = "Node with id %s doesn't exist";
-
   private static final Map<Long, String> QUEUE                               = new ConcurrentHashMap<>();
+
+  private static final Pattern           NODE_NAME_PATTERN                   = Pattern.compile("^[a-zA-Z0-9_-]{1,200}$");
 
   @Autowired
   private NavigationService              navigationService;
@@ -121,7 +142,7 @@ public class NavigationLayoutService {
                                               IllegalArgumentException {
     NodeData parentNodeData = navigationService.getNodeById(nodeModel.getParentNodeId());
     if (parentNodeData == null) {
-      throw new ObjectNotFoundException(String.format("Parent node with id %s doesn't exist", nodeModel.getParentNodeId()));
+      throw new ObjectNotFoundException(String.format(PARENT_NODE_NOT_FOUND_MESSAGE, nodeModel.getParentNodeId()));
     } else if (!aclService.canEditNavigation(parentNodeData.getSiteKey(), username)) {
       throw new IllegalAccessException();
     }
@@ -136,29 +157,151 @@ public class NavigationLayoutService {
                                          nodeModel.getStartScheduleDate(),
                                          nodeModel.getEndScheduleDate(),
                                          nodeModel.isPasteMode());
+    NodeData nodeData = storeNode(nodeModel, nodeState);
+    completeNode(nodeData, nodeModel, nodeState, username);
+    return navigationService.getNodeById(Long.parseLong(nodeData.getId()));
+  }
+
+  /**
+   * The node write itself, without its labels and events
+   */
+  private NodeData storeNode(NavigationCreateModel nodeModel, NodeState nodeState) {
     NodeData[] nodeDatas = navigationService.createNode(nodeModel.getParentNodeId(),
                                                         nodeModel.getPreviousNodeId(),
                                                         nodeModel.getNodeId(),
                                                         nodeState);
     if (nodeDatas == null || nodeDatas.length < 2) {
       throw new IllegalStateException("Missing created node");
-    } else {
-      NodeData nodeData = nodeDatas[1];
-      saveNodeLabels(nodeData.getId(), nodeModel.getLabels());
-
-      // A page becomes reachable — hence searchable — the moment a node starts
-      // pointing at it, and this is the only navigation operation that does so
-      // without any other event firing. Without this, a page whose content
-      // blocks were unindexed when their last node was deleted would stay out
-      // of the search index for good once a new node points at it again, and a
-      // page indexed while it had no node at all would keep an empty pagePath.
-      // Draft nodes are skipped: the connector doesn't index draft pages.
-      if (nodeState.getPageRef() != null && !nodeModel.isDraft()) {
-        broadcastPageUpdated(nodeState.getPageRef(), username);
-      }
-
-      return navigationService.getNodeById(Long.parseLong(nodeData.getId()));
     }
+    return nodeDatas[1];
+  }
+
+  /**
+   * What follows a node write: its labels, and the page it makes reachable
+   */
+  private void completeNode(NodeData nodeData, NavigationCreateModel nodeModel, NodeState nodeState, String username) {
+    saveNodeLabels(nodeData.getId(), nodeModel.getLabels());
+
+    // A page becomes reachable — hence searchable — the moment a node starts
+    // pointing at it, and this is the only navigation operation that does so
+    // without any other event firing. Without this, a page whose content
+    // blocks were unindexed when their last node was deleted would stay out
+    // of the search index for good once a new node points at it again, and a
+    // page indexed while it had no node at all would keep an empty pagePath.
+    // Draft nodes are skipped: the connector doesn't index draft pages.
+    if (nodeState.getPageRef() != null && !nodeModel.isDraft()) {
+      broadcastPageUpdated(nodeState.getPageRef(), username);
+    }
+  }
+
+  /**
+   * Creates a navigation item for a caller outside the navigation drawer, a
+   * tool or an API, with the page it points to when one is to be created.
+   * The name is checked here and never in {@link #createNode}, which keeps
+   * passing the platform's own draft and imported names through: the
+   * drawer's character class, no draft marker, unique among the parent's
+   * stored children, hidden and draft ones included. The item is appended
+   * after the parent's last child when no previous node is named. The page
+   * is created first, in the parent's site, then the node: a node failure
+   * removes the page, and a node whose labels then failed is removed, by the
+   * id its write returned, before it; a second write each, no atomicity. A
+   * node write that throws is taken as having written nothing: this method
+   * never looks a node up by name, which cannot tell its own from one
+   * another caller wrote under that name meanwhile.
+   *
+   * @param  nodeModel                the item, its pageRef set here when a
+   *                                    page model is given
+   * @param  pageModel                the page to create, null for an item
+   *                                    pointing at an existing page or none
+   * @param  username                 the user creating the item
+   * @return                          the created node
+   * @throws ObjectNotFoundException  parent, page template or referenced page
+   *                                    absent
+   * @throws IllegalAccessException   the user cannot edit the site's
+   *                                    navigation
+   * @throws IllegalArgumentException the name refused
+   *                                    ({@link #NODE_NAME_NOT_ACCEPTED}), the
+   *                                    schedule refused, both checked before
+   *                                    the page is created, or the page model
+   */
+  public NodeData createNodeWithPage(NavigationCreateModel nodeModel,
+                                     PageCreateModel pageModel,
+                                     String username) throws ObjectNotFoundException,
+                                                      IllegalAccessException {
+    NodeData parentNodeData = navigationService.getNodeById(nodeModel.getParentNodeId());
+    if (parentNodeData == null) {
+      throw new ObjectNotFoundException(String.format(PARENT_NODE_NOT_FOUND_MESSAGE, nodeModel.getParentNodeId()));
+    } else if (!aclService.canEditNavigation(parentNodeData.getSiteKey(), username)) {
+      throw new IllegalAccessException();
+    }
+    SiteKey siteKey = parentNodeData.getSiteKey();
+    NodeContext<NodeContext<Object>> parent = findNodeById(navigationService.loadNode(siteKey), parentNodeData.getId());
+    requireNodeName(parent, nodeModel.getNodeId());
+    if (nodeModel.isScheduled()) {
+      requireSchedule(nodeModel.getStartScheduleDate(), nodeModel.getEndScheduleDate(), nodeModel.isVisible());
+    }
+    if (nodeModel.getPreviousNodeId() == null && parent != null && parent.getNodeCount() > 0) {
+      nodeModel.setPreviousNodeId(Long.parseLong(parent.get(parent.getNodeCount() - 1).getId()));
+    }
+    PageKey pageKey = null;
+    if (pageModel != null) {
+      pageModel.setPageSiteType(siteKey.getTypeName());
+      pageModel.setPageSiteName(siteKey.getName());
+      pageKey = pageLayoutService.createPage(pageModel, username).getKey();
+      nodeModel.setPageRef(pageKey.format());
+    }
+    NodeData nodeData = null;
+    try {
+      NodeState nodeState = buildNodeState(nodeModel.getNodeLabel(),
+                                           nodeModel.getIcon(),
+                                           getPageKey(nodeModel.getPageRef()),
+                                           nodeModel.getTarget(),
+                                           nodeModel.isVisible(),
+                                           false,
+                                           nodeModel.isScheduled(),
+                                           nodeModel.getStartScheduleDate(),
+                                           nodeModel.getEndScheduleDate(),
+                                           false);
+      nodeData = storeNode(nodeModel, nodeState);
+      completeNode(nodeData, nodeModel, nodeState, username);
+      return navigationService.getNodeById(Long.parseLong(nodeData.getId()));
+    } catch (Exception e) {
+      if (nodeData != null) {
+        removeNodeLeftBehind(Long.parseLong(nodeData.getId()));
+      }
+      if (pageKey != null) {
+        removePageLeftBehind(pageKey);
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * @param  siteKey the site
+   * @return         the id of the site's navigation root, null when the site
+   *                 has no navigation
+   */
+  public Long getRootNodeId(SiteKey siteKey) {
+    NodeContext<NodeContext<Object>> root = navigationService.loadNode(siteKey);
+    return root == null ? null : Long.parseLong(root.getId());
+  }
+
+  /**
+   * @param  nodeId                  the node
+   * @param  username                the user about to change it
+   * @return                         the node, whatever the user's view right
+   *                                 on its page
+   * @throws ObjectNotFoundException the node is absent
+   * @throws IllegalAccessException  the user cannot edit the site's navigation
+   */
+  public NodeData getEditableNode(long nodeId, String username) throws ObjectNotFoundException, IllegalAccessException {
+    NodeData nodeData = navigationService.getNodeById(nodeId);
+    if (nodeData == null) {
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
+    } else if (!aclService.canEditNavigation(nodeData.getSiteKey(), username)) {
+      throw new IllegalAccessException();
+    }
+    return nodeData;
   }
 
   public NodeData createDraftNode(Long nodeId, String username) throws ObjectNotFoundException,
@@ -199,13 +342,10 @@ public class NavigationLayoutService {
                                           IllegalArgumentException {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
     } else if (!aclService.canEditNavigation(nodeData.getSiteKey(), username)) {
       throw new IllegalAccessException();
     }
-
-    NodeState previousState = nodeData.getState();
-    PageKey previousPageKey = previousState == null ? null : previousState.getPageRef();
 
     NodeState nodeState = buildNodeState(nodeModel.getNodeLabel(),
                                          nodeModel.getIcon(),
@@ -217,7 +357,97 @@ public class NavigationLayoutService {
                                          nodeModel.getStartScheduleDate(),
                                          nodeModel.getEndScheduleDate(),
                                          false);
-    saveNodeLabels(nodeData.getId(), nodeModel.getLabels());
+    writeNodeState(nodeData, nodeState, nodeModel.getLabels(), username);
+  }
+
+  /**
+   * Changes on a navigation item what a caller outside the navigation drawer
+   * was given and keeps every other stored value, the schedule a drawer
+   * re-picks included: the node state is merged over the stored one and the
+   * translations over the raw stored descriptions, never over the labels
+   * {@link #getNodeLabels} synthesizes from the navigation bundle, so a
+   * bundle-keyed node keeps its key unless a label is given. The item's page
+   * steps come first and the node last, each step's inverse run on a later
+   * failure: a page created from the model, the LINK page's link, the page's
+   * permissions merged over its current ones; a second write each, no
+   * atomicity.
+   *
+   * @param  nodeId                   the item
+   * @param  update                   what to change
+   * @param  username                 the user changing it
+   * @return                          the node as stored
+   * @throws ObjectNotFoundException  node, page or template absent
+   * @throws IllegalAccessException   the user cannot edit the site's
+   *                                    navigation, or the page whose link or
+   *                                    permissions change
+   * @throws IllegalArgumentException the schedule refused
+   */
+  public NodeData updateNodeAndPagePermissions(long nodeId, // NOSONAR
+                                               NavigationItemUpdate update,
+                                               String username) throws ObjectNotFoundException,
+                                                                IllegalAccessException {
+    NodeData nodeData = getEditableNode(nodeId, username);
+    NodeState storedState = nodeData.getState() == null ? NodeState.INITIAL : nodeData.getState();
+    Map<Locale, State> storedLabels = descriptionService.getDescriptions(nodeData.getId());
+    PageKey pageKey = resolvePageKey(storedState, update);
+    NodeSchedule schedule = update.getSchedule();
+    if (schedule != null && !schedule.isCleared()) {
+      requireSchedule(schedule.start(), schedule.end(), !Boolean.FALSE.equals(update.getVisible()));
+    }
+    PageKey createdPageKey = null;
+    PageState previousPageState = null;
+    boolean linkWritten = false;
+    boolean permissionsWritten = false;
+    boolean nodeStepStarted = false;
+    try {
+      if (update.getNewPage() != null) {
+        createdPageKey = createItemPage(nodeData.getSiteKey(), update, username);
+        pageKey = createdPageKey;
+      } else if (pageKey != null
+                 && (update.getLink() != null || update.getAccessPermissions() != null || update.getEditPermission() != null)) {
+        previousPageState = readPageState(pageKey);
+        if (update.getLink() != null) {
+          pageLayoutService.updatePageLink(pageKey, update.getLink(), username);
+          linkWritten = true;
+        }
+        if (update.getAccessPermissions() != null || update.getEditPermission() != null) {
+          List<String> accessPermissions = update.getAccessPermissions() == null ? previousPageState.getAccessPermissions() :
+                                                                                  update.getAccessPermissions();
+          String editPermission = update.getEditPermission() == null ? previousPageState.getEditPermission() :
+                                                                      update.getEditPermission();
+          pageLayoutService.updatePagePermissions(pageKey, new PermissionUpdateModel(accessPermissions, editPermission), username);
+          permissionsWritten = true;
+        }
+      }
+      nodeStepStarted = true;
+      writeNodeState(nodeData, mergeNodeState(storedState, update, pageKey), mergeLabels(storedLabels, update), username);
+    } catch (Exception e) {
+      if (nodeStepStarted) {
+        restoreNodeLabels(nodeData.getId(), storedLabels);
+      }
+      if (permissionsWritten) {
+        restorePagePermissions(pageKey, previousPageState, username);
+      }
+      if (linkWritten) {
+        restorePageLink(pageKey, previousPageState, username);
+      }
+      if (createdPageKey != null) {
+        removePageLeftBehind(createdPageKey);
+      }
+      throw e;
+    }
+    return navigationService.getNodeById(nodeId);
+  }
+
+  /**
+   * Writes a node's labels and state, then what the page change makes
+   * searchable: the newly referenced page, and the previously referenced one
+   * when this node was its last.
+   */
+  void writeNodeState(NodeData nodeData, NodeState nodeState, Map<String, String> labels, String username) {
+    long nodeId = Long.parseLong(nodeData.getId());
+    PageKey previousPageKey = nodeData.getState() == null ? null : nodeData.getState().getPageRef();
+    saveNodeLabels(nodeData.getId(), labels);
     navigationService.updateNode(nodeId, nodeState);
 
     // A node's name — the only part of its URI it owns — can't be changed
@@ -245,7 +475,7 @@ public class NavigationLayoutService {
                                           IllegalAccessException {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
     } else if (!aclService.canEditNavigation(nodeData.getSiteKey(), username) || isSystemVisibility(nodeData)) {
       throw new IllegalAccessException();
     }
@@ -280,14 +510,14 @@ public class NavigationLayoutService {
                                         IllegalAccessException {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
     }
     if (destinationParentId == null) {
       destinationParentId = Long.parseLong(nodeData.getParentId());
     }
     NodeData destinationNodeData = navigationService.getNodeById(destinationParentId);
     if (destinationNodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, destinationParentId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, destinationParentId));
     } else if (!aclService.canEditNavigation(destinationNodeData.getSiteKey(), username)) {
       throw new IllegalAccessException();
     }
@@ -306,7 +536,7 @@ public class NavigationLayoutService {
                                            IllegalAccessException {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
     } else if (!aclService.canViewNavigation(nodeData.getSiteKey(), nodeData.getState().getPageRef(), username)) {
       throw new IllegalAccessException();
     }
@@ -316,13 +546,17 @@ public class NavigationLayoutService {
   public NodeLabel getNodeLabels(long nodeId, String username) throws ObjectNotFoundException, IllegalAccessException {
     NodeData nodeData = navigationService.getNodeById(nodeId);
     if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND, nodeId));
+      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
     } else {
       SiteKey siteKey = nodeData.getSiteKey();
       if (!aclService.canViewNavigation(siteKey, nodeData.getState().getPageRef(), username)) {
         throw new IllegalAccessException();
       }
     }
+    return getNodeLabels(nodeData, nodeId);
+  }
+
+  private NodeLabel getNodeLabels(NodeData nodeData, long nodeId) {
     Map<Locale, State> nodeLabels = descriptionService.getDescriptions(String.valueOf(nodeId));
     if (MapUtils.isEmpty(nodeLabels)) {
       Map<Locale, State> nodeLocalizedLabels = new HashMap<>();
@@ -544,12 +778,8 @@ public class NavigationLayoutService {
         && scheduled
         && startScheduleDate != null
         && endScheduleDate != null) {
-      if (startScheduleDate > endScheduleDate) {
-        throw new IllegalArgumentException("end schedule date must be after start schedule date");
-      } else if (System.currentTimeMillis() > startScheduleDate && !pasteMode) {
-        throw new IllegalArgumentException("start schedule date must be after current date");
-      } else {
-        return new NodeState(label,
+      checkSchedule(startScheduleDate, endScheduleDate, pasteMode);
+      return new NodeState(label,
                              icon,
                              startScheduleDate,
                              endScheduleDate,
@@ -558,7 +788,6 @@ public class NavigationLayoutService {
                              null,
                              target,
                              System.currentTimeMillis());
-      }
     } else {
       Visibility visibility;
       if (draft) {
@@ -578,6 +807,185 @@ public class NavigationLayoutService {
                            target,
                            System.currentTimeMillis());
     }
+  }
+
+  /**
+   * A schedule given to a caller outside the drawer: both bounds, a visible
+   * node, and the drawer's own rules on the bounds
+   */
+  private void requireSchedule(Long startScheduleDate, Long endScheduleDate, boolean visible) {
+    if (startScheduleDate == null || endScheduleDate == null) {
+      throw new IllegalArgumentException(SCHEDULE_INCOMPLETE);
+    } else if (!visible) {
+      throw new IllegalArgumentException(SCHEDULE_ON_HIDDEN_NODE);
+    }
+    checkSchedule(startScheduleDate, endScheduleDate, false);
+  }
+
+  private void checkSchedule(long startScheduleDate, long endScheduleDate, boolean pasteMode) {
+    if (startScheduleDate > endScheduleDate) {
+      throw new IllegalArgumentException(SCHEDULE_END_BEFORE_START);
+    } else if (System.currentTimeMillis() > startScheduleDate && !pasteMode) {
+      throw new IllegalArgumentException(SCHEDULE_START_PAST);
+    }
+  }
+
+  /**
+   * The drawer's name rule, applied to a caller outside it: the character
+   * class, no draft marker, unique among the parent's stored children
+   */
+  private void requireNodeName(NodeContext<NodeContext<Object>> parent, String name) {
+    if (name == null
+        || !NODE_NAME_PATTERN.matcher(name).matches()
+        || name.contains(LayoutDraftService.DRAFT_NAME_MARKER)
+        || childNamed(parent, name) != null) {
+      throw new IllegalArgumentException(NODE_NAME_NOT_ACCEPTED);
+    }
+  }
+
+  private NodeContext<NodeContext<Object>> childNamed(NodeContext<NodeContext<Object>> parent, String name) {
+    if (parent == null) {
+      return null;
+    }
+    int count = parent.getNodeCount();
+    for (int i = 0; i < count; i++) {
+      NodeContext<NodeContext<Object>> child = parent.get(i);
+      if (StringUtils.equals(child.getName(), name)) {
+        return child;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * A node written by a creation that then failed on its labels is removed
+   * by the id its write returned, with what it reaches
+   */
+  private void removeNodeLeftBehind(long nodeId) {
+    try {
+      deleteNode(nodeId);
+    } catch (Exception e) {
+      LOG.warn("Navigation node {} left by a failed creation could not be removed", nodeId, e);
+    }
+  }
+
+  private void removePageLeftBehind(PageKey pageKey) {
+    try {
+      layoutService.remove(pageKey);
+    } catch (Exception e) {
+      LOG.warn("Page {} left by a failed navigation write could not be removed", pageKey, e);
+    }
+  }
+
+  private void restoreNodeLabels(String nodeId, Map<Locale, State> storedLabels) {
+    try {
+      descriptionService.setDescriptions(nodeId, storedLabels);
+    } catch (Exception e) {
+      LOG.warn("Translations of node {} could not be put back after a failed navigation write", nodeId, e);
+    }
+  }
+
+  private void restorePagePermissions(PageKey pageKey, PageState previousPageState, String username) {
+    try {
+      pageLayoutService.updatePagePermissions(pageKey,
+                                              new PermissionUpdateModel(previousPageState.getAccessPermissions(),
+                                                                        previousPageState.getEditPermission()),
+                                              username);
+    } catch (Exception e) {
+      LOG.warn("Permissions of page {} could not be put back after a failed navigation write", pageKey, e);
+    }
+  }
+
+  private void restorePageLink(PageKey pageKey, PageState previousPageState, String username) {
+    try {
+      pageLayoutService.updatePageLink(pageKey, previousPageState.getLink(), username);
+    } catch (Exception e) {
+      LOG.warn("Link of page {} could not be put back after a failed navigation write", pageKey, e);
+    }
+  }
+
+  private PageKey createItemPage(SiteKey siteKey, NavigationItemUpdate update, String username) throws ObjectNotFoundException,
+                                                                                                 IllegalAccessException {
+    PageCreateModel pageModel = update.getNewPage();
+    pageModel.setPageSiteType(siteKey.getTypeName());
+    pageModel.setPageSiteName(siteKey.getName());
+    if (pageModel.getAccessPermissions() == null && update.getAccessPermissions() != null) {
+      pageModel.setAccessPermissions(update.getAccessPermissions().toArray(new String[0]));
+    }
+    if (pageModel.getEditPermission() == null) {
+      pageModel.setEditPermission(update.getEditPermission());
+    }
+    return pageLayoutService.createPage(pageModel, username).getKey();
+  }
+
+  private PageKey resolvePageKey(NodeState storedState, NavigationItemUpdate update) throws ObjectNotFoundException {
+    if (update.isDetachPage()) {
+      return null;
+    } else if (update.getPageRef() != null) {
+      return getPageKey(update.getPageRef());
+    } else {
+      return storedState.getPageRef();
+    }
+  }
+
+  private PageState readPageState(PageKey pageKey) throws ObjectNotFoundException {
+    PageContext pageContext = layoutService.getPageContext(pageKey);
+    if (pageContext == null || pageContext.getState() == null) {
+      throw new ObjectNotFoundException(String.format("Page with key %s doesn't exist", pageKey));
+    }
+    return pageContext.getState();
+  }
+
+  /**
+   * The stored state with what was given over it: a schedule makes the node
+   * temporal on its bounds, a cleared one displayed when the node was
+   * temporal and leaves any other visibility as it is, visible false hidden,
+   * visible true displayed unless a schedule stands
+   */
+  private NodeState mergeNodeState(NodeState storedState, NavigationItemUpdate update, PageKey pageKey) {
+    NodeState.Builder builder = storedState.builder().pageRef(pageKey).updatedDate(System.currentTimeMillis());
+    if (update.getLabel() != null) {
+      builder.label(update.getLabel());
+    }
+    if (update.getIcon() != null) {
+      builder.icon(update.getIcon());
+    }
+    if (update.getTarget() != null) {
+      builder.target(update.getTarget());
+    }
+    NodeSchedule schedule = update.getSchedule();
+    if (schedule != null && !schedule.isCleared()) {
+      builder.visibility(Visibility.TEMPORAL).startPublicationTime(schedule.start()).endPublicationTime(schedule.end());
+    } else if (Boolean.FALSE.equals(update.getVisible())) {
+      builder.visibility(Visibility.HIDDEN).startPublicationTime(-1).endPublicationTime(-1);
+    } else if ((schedule != null && storedState.getVisibility() == Visibility.TEMPORAL)
+               || (Boolean.TRUE.equals(update.getVisible()) && storedState.getVisibility() != Visibility.TEMPORAL)) {
+      builder.visibility(Visibility.DISPLAYED).startPublicationTime(-1).endPublicationTime(-1);
+    }
+    return builder.build();
+  }
+
+  /**
+   * The stored translations with the given ones over them, then the label as
+   * the default language's, as the drawer writes it; null when the node
+   * stores none and gets none
+   */
+  private Map<String, String> mergeLabels(Map<Locale, State> storedLabels, NavigationItemUpdate update) {
+    Map<String, String> labels = new HashMap<>();
+    if (storedLabels != null) {
+      storedLabels.forEach((locale, state) -> labels.put(locale.toLanguageTag(), state.getName()));
+    }
+    if (update.getLabels() != null) {
+      update.getLabels().forEach((tag, text) -> {
+        if (text != null) {
+          labels.put(tag, text);
+        }
+      });
+    }
+    if (update.getLabel() != null) {
+      labels.put(localeConfigService.getDefaultLocaleConfig().getLocale().toLanguageTag(), update.getLabel());
+    }
+    return labels.isEmpty() ? null : labels;
   }
 
   private void saveNodeLabels(String nodeId, Map<String, String> labels) {

@@ -20,26 +20,42 @@ package io.meeds.layout.service;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.exoplatform.portal.mop.Visibility;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +71,7 @@ import org.exoplatform.portal.mop.navigation.NodeData;
 import org.exoplatform.portal.mop.navigation.NodeState;
 import org.exoplatform.portal.mop.page.PageContext;
 import org.exoplatform.portal.mop.page.PageKey;
+import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.DescriptionService;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
@@ -66,6 +83,10 @@ import org.exoplatform.web.WebAppController;
 import org.exoplatform.web.controller.router.Router;
 
 import io.meeds.layout.model.NavigationCreateModel;
+import io.meeds.layout.model.NavigationItemUpdate;
+import io.meeds.layout.model.NodeSchedule;
+import io.meeds.layout.model.PageCreateModel;
+import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.NavigationUpdateModel;
 import io.meeds.layout.model.NodeLabel;
 
@@ -578,4 +599,446 @@ public class NavigationLayoutServiceTest {
     assertEquals("/test/uri", nodeUri);
   }
 
+
+  @Test
+  public void createNodeWithPageAppliesTheDrawersNameRuleOutsideCreateNode() throws Exception {
+    List<NodeContext<NodeContext<Object>>> children = new ArrayList<>(List.of(childContext("10", "home"),
+                                                                              childContext("11", "team_draft_john"),
+                                                                              childContext("12", "hidden")));
+    parentWithChildren(children);
+    NavigationCreateModel nodeModel = new NavigationCreateModel();
+    nodeModel.setParentNodeId(3L);
+    nodeModel.setNodeLabel("Team");
+
+    nodeModel.setNodeId("team");
+    assertThrows(ObjectNotFoundException.class, () -> navigationLayoutService.createNodeWithPage(nodeModel, null, TEST_USER));
+    when(navigationService.getNodeById(3L)).thenReturn(parentNodeData);
+    when(parentNodeData.getSiteKey()).thenReturn(SITE_KEY);
+    when(parentNodeData.getId()).thenReturn("3");
+    assertThrows(IllegalAccessException.class, () -> navigationLayoutService.createNodeWithPage(nodeModel, null, TEST_USER));
+    when(aclService.canEditNavigation(SITE_KEY, TEST_USER)).thenReturn(true);
+
+    for (String name : Arrays.asList(null, "", "our team", "équipe", "team/1", "x".repeat(201), "home", "hidden", "team_draft_john", "team_draft_x")) {
+      nodeModel.setNodeId(name);
+      assertEquals(NavigationLayoutService.NODE_NAME_NOT_ACCEPTED,
+                   assertThrows(IllegalArgumentException.class,
+                                () -> navigationLayoutService.createNodeWithPage(nodeModel, null, TEST_USER)).getMessage(),
+                   String.valueOf(name));
+    }
+    verify(navigationService, never()).createNode(any(), any(), any(), any());
+    verify(pageLayoutService, never()).createPage(any(), any());
+
+    nodeModel.setNodeId("team");
+    NodeData created = mock(NodeData.class);
+    when(created.getId()).thenReturn("99");
+    when(navigationService.createNode(any(), any(), any(), any())).thenReturn(new NodeData[] { parentNodeData, created });
+    when(navigationService.getNodeById(99L)).thenReturn(created);
+    assertEquals(created, navigationLayoutService.createNodeWithPage(nodeModel, null, TEST_USER));
+    verify(navigationService).createNode(eq(3L), eq(12L), eq("team"), any());
+    verify(pageLayoutService, never()).createPage(any(), any());
+
+    children.clear();
+    nodeModel.setPreviousNodeId(null);
+    navigationLayoutService.createNodeWithPage(nodeModel, null, TEST_USER);
+    verify(navigationService).createNode(eq(3L), isNull(), eq("team"), any());
+  }
+
+  @Test
+  public void createNodeWithPageCreatesThePageFirstAndRemovesWhatIsLeftBehindWhenTheNodeFails() throws Exception {
+    List<NodeContext<NodeContext<Object>>> children = new ArrayList<>(List.of(childContext("10", "home")));
+    parentWithChildren(children);
+    when(navigationService.getNodeById(3L)).thenReturn(parentNodeData);
+    when(parentNodeData.getSiteKey()).thenReturn(SITE_KEY);
+    when(parentNodeData.getId()).thenReturn("3");
+    when(aclService.canEditNavigation(SITE_KEY, TEST_USER)).thenReturn(true);
+    PageKey pageKey = PageKey.parse("portal::test::team_1");
+    when(pageContext.getKey()).thenReturn(pageKey);
+    when(layoutService.getPageContext(pageKey)).thenReturn(pageContext);
+    PageCreateModel pageModel = new PageCreateModel();
+    pageModel.setPageName("team");
+    when(pageLayoutService.createPage(pageModel, TEST_USER)).thenReturn(pageContext);
+    NavigationCreateModel nodeModel = new NavigationCreateModel();
+    nodeModel.setParentNodeId(3L);
+    nodeModel.setNodeLabel("Team");
+    nodeModel.setNodeId("team");
+
+    // a schedule refused is refused before the page is created
+    long future = System.currentTimeMillis() + 3_600_000L;
+    nodeModel.setVisible(true);
+    nodeModel.setScheduled(true);
+    nodeModel.setStartScheduleDate(1000L);
+    nodeModel.setEndScheduleDate(future);
+    assertEquals(NavigationLayoutService.SCHEDULE_START_PAST,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER)).getMessage());
+    nodeModel.setStartScheduleDate(future);
+    nodeModel.setEndScheduleDate(null);
+    assertEquals(NavigationLayoutService.SCHEDULE_INCOMPLETE,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER)).getMessage());
+    nodeModel.setVisible(false);
+    nodeModel.setEndScheduleDate(future + 1000L);
+    assertEquals(NavigationLayoutService.SCHEDULE_ON_HIDDEN_NODE,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER)).getMessage());
+    verify(pageLayoutService, never()).createPage(any(), any());
+    nodeModel.setScheduled(false);
+    nodeModel.setStartScheduleDate(null);
+    nodeModel.setEndScheduleDate(null);
+
+    // the created page is gone before the node state is built: the page goes
+    when(layoutService.getPageContext(pageKey)).thenReturn(null);
+    assertThrows(ObjectNotFoundException.class, () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER));
+    verify(layoutService).remove(pageKey);
+    verify(navigationService, never()).createNode(any(), any(), any(), any());
+    when(layoutService.getPageContext(pageKey)).thenReturn(pageContext);
+
+    // the node write fails before anything is stored: the page goes
+    when(navigationService.createNode(any(), any(), any(), any())).thenThrow(new IllegalStateException("storage"));
+    assertThrows(IllegalStateException.class, () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER));
+    assertEquals(SITE_KEY.getTypeName(), pageModel.getPageSiteType());
+    assertEquals(SITE_KEY.getName(), pageModel.getPageSiteName());
+    assertEquals(pageKey.format(), nodeModel.getPageRef());
+    InOrder order = inOrder(pageLayoutService, navigationService, layoutService);
+    order.verify(pageLayoutService).createPage(pageModel, TEST_USER);
+    order.verify(navigationService).createNode(eq(3L), eq(10L), eq("team"), any());
+    order.verify(layoutService).remove(pageKey);
+    verify(navigationService, never()).deleteNode(any());
+    verify(layoutService, times(2)).remove(pageKey);
+
+    // the node is written and its labels fail: the node goes, by the id its
+    // write returned, then the page; whatever else sits under the parent
+    NodeData created = mock(NodeData.class);
+    lenient().when(created.getId()).thenReturn("99");
+    NodeContext<NodeContext<Object>> someoneElses = childContext("77", "team");
+    lenient().when(someoneElses.getState()).thenReturn(new NodeState.Builder().label("Team").pageRef(pageKey).updatedDate(System.currentTimeMillis() + 60_000L).build());
+    doAnswer(i -> {
+      children.add(someoneElses);
+      return new NodeData[] { parentNodeData, created };
+    }).when(navigationService).createNode(any(), any(), any(), any());
+    when(navigationService.getNodeById(99L)).thenReturn(created);
+    lenient().when(navigationService.getNodeById(77L)).thenReturn(mock(NodeData.class));
+    doThrow(new IllegalArgumentException("locale")).when(descriptionService).setDescriptions(eq("99"), any());
+    assertThrows(IllegalArgumentException.class, () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER));
+    order = inOrder(navigationService, layoutService);
+    order.verify(navigationService).deleteNode(99L);
+    order.verify(layoutService).remove(pageKey);
+    verify(layoutService, times(3)).remove(pageKey);
+    verify(navigationService, never()).deleteNode(77L);
+  }
+
+  /**
+   * Pins the node-labels pitfall: a writer outside the drawer merges over the
+   * raw stored descriptions, never over the labels synthesized from the
+   * navigation bundle, so a bundle-keyed node keeps its key on an icon-only
+   * update and stored translations stay as they are unless one is given
+   */
+  @Test
+  public void updateNodeAndPagePermissionsKeepsWhatIsNotGiven() throws Exception {
+    NodeState stored = new NodeState.Builder().label("#{portal.classic.home}").pageRef(PAGE_KEY).visibility(Visibility.DISPLAYED).build();
+    NodeData node = storedNode(2L, stored);
+    when(descriptionService.getDescriptions("2")).thenReturn(null);
+    lenient().when(localeConfigService.getDefaultLocaleConfig()).thenReturn(defaultLocaleConfig);
+    lenient().when(defaultLocaleConfig.getLocale()).thenReturn(Locale.ENGLISH);
+    ArgumentCaptor<NodeState> states = ArgumentCaptor.forClass(NodeState.class);
+    @SuppressWarnings("unchecked")
+    ArgumentCaptor<Map<Locale, State>> descriptions = ArgumentCaptor.forClass(Map.class);
+
+    NavigationItemUpdate update = new NavigationItemUpdate();
+    update.setIcon("fa-home");
+    assertEquals(node, navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER));
+    verify(navigationService).updateNode(eq(2L), states.capture());
+    assertEquals("#{portal.classic.home}", states.getValue().getLabel());
+    assertEquals("fa-home", states.getValue().getIcon());
+    assertEquals(PAGE_KEY, states.getValue().getPageRef());
+    assertEquals(Visibility.DISPLAYED, states.getValue().getVisibility());
+    verify(descriptionService).setDescriptions(eq("2"), descriptions.capture());
+    assertTrue(descriptions.getValue().isEmpty());
+    verify(pageLayoutService, never()).updatePagePermissions(any(), any(), any());
+    verify(pageLayoutService, never()).updatePageLink(any(), any(), any());
+    verify(pageLayoutService, never()).createPage(any(), any());
+    verify(listenerService, never()).broadcast(any(String.class), any(), any());
+
+    when(descriptionService.getDescriptions("2")).thenReturn(new HashMap<>(Map.of(Locale.ENGLISH,
+                                                                                  new State("Home", null),
+                                                                                  Locale.FRENCH,
+                                                                                  new State("Accueil", null))));
+    update = new NavigationItemUpdate();
+    update.setLabels(new HashMap<>(Map.of("fr", "Maison")));
+    navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
+    verify(descriptionService, times(2)).setDescriptions(eq("2"), descriptions.capture());
+    assertEquals(Set.of(Locale.ENGLISH, Locale.FRENCH), descriptions.getValue().keySet());
+    assertEquals("Home", descriptions.getValue().get(Locale.ENGLISH).getName());
+    assertEquals("Maison", descriptions.getValue().get(Locale.FRENCH).getName());
+    verify(navigationService, times(2)).updateNode(eq(2L), states.capture());
+    assertEquals("#{portal.classic.home}", states.getValue().getLabel());
+    assertNull(states.getValue().getIcon());
+
+    update = new NavigationItemUpdate();
+    update.setLabel("Start");
+    update.setLabels(Map.of("en", "Begin"));
+    navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
+    verify(descriptionService, times(3)).setDescriptions(eq("2"), descriptions.capture());
+    assertEquals("Start", descriptions.getValue().get(Locale.ENGLISH).getName());
+    assertEquals("Accueil", descriptions.getValue().get(Locale.FRENCH).getName());
+    verify(navigationService, times(3)).updateNode(eq(2L), states.capture());
+    assertEquals("Start", states.getValue().getLabel());
+  }
+
+  @Test
+  public void updateNodeAndPagePermissionsMergesTheVisibility() throws Exception {
+    long future = System.currentTimeMillis() + 3_600_000L;
+    NodeState stored = new NodeState.Builder().label("Team").visibility(Visibility.TEMPORAL).startPublicationTime(1000L).endPublicationTime(2000L).build();
+    NodeData node = storedNode(2L, stored);
+    ArgumentCaptor<NodeState> states = ArgumentCaptor.forClass(NodeState.class);
+
+    NavigationItemUpdate update = new NavigationItemUpdate();
+    update.setIcon("fa-users");
+    navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
+    verify(navigationService).updateNode(eq(2L), states.capture());
+    assertEquals(Visibility.TEMPORAL, states.getValue().getVisibility());
+    assertEquals(1000L, states.getValue().getStartPublicationTime());
+    assertEquals(2000L, states.getValue().getEndPublicationTime());
+
+    update = new NavigationItemUpdate();
+    update.setVisible(true);
+    navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
+    verify(navigationService, times(2)).updateNode(eq(2L), states.capture());
+    assertEquals(Visibility.TEMPORAL, states.getValue().getVisibility());
+
+    update = new NavigationItemUpdate();
+    update.setVisible(false);
+    navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
+    verify(navigationService, times(3)).updateNode(eq(2L), states.capture());
+    assertEquals(Visibility.HIDDEN, states.getValue().getVisibility());
+    assertEquals(-1L, states.getValue().getStartPublicationTime());
+
+    update = new NavigationItemUpdate();
+    update.setSchedule(new NodeSchedule(null, null));
+    navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
+    verify(navigationService, times(4)).updateNode(eq(2L), states.capture());
+    assertEquals(Visibility.DISPLAYED, states.getValue().getVisibility());
+    assertEquals(-1L, states.getValue().getEndPublicationTime());
+
+    update = new NavigationItemUpdate();
+    update.setSchedule(new NodeSchedule(future, future + 1000L));
+    navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
+    verify(navigationService, times(5)).updateNode(eq(2L), states.capture());
+    assertEquals(Visibility.TEMPORAL, states.getValue().getVisibility());
+    assertEquals(future, states.getValue().getStartPublicationTime());
+    assertEquals(future + 1000L, states.getValue().getEndPublicationTime());
+
+    NavigationItemUpdate hiddenSchedule = new NavigationItemUpdate();
+    hiddenSchedule.setVisible(false);
+    hiddenSchedule.setSchedule(new NodeSchedule(future, future + 1000L));
+    assertEquals(NavigationLayoutService.SCHEDULE_ON_HIDDEN_NODE,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> navigationLayoutService.updateNodeAndPagePermissions(2L, hiddenSchedule, TEST_USER)).getMessage());
+    NavigationItemUpdate pastSchedule = new NavigationItemUpdate();
+    pastSchedule.setSchedule(new NodeSchedule(1000L, future));
+    assertEquals(NavigationLayoutService.SCHEDULE_START_PAST,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> navigationLayoutService.updateNodeAndPagePermissions(2L, pastSchedule, TEST_USER)).getMessage());
+    NavigationItemUpdate reversedSchedule = new NavigationItemUpdate();
+    reversedSchedule.setSchedule(new NodeSchedule(future + 1000L, future));
+    assertEquals(NavigationLayoutService.SCHEDULE_END_BEFORE_START,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> navigationLayoutService.updateNodeAndPagePermissions(2L, reversedSchedule, TEST_USER)).getMessage());
+    NavigationItemUpdate halfSchedule = new NavigationItemUpdate();
+    halfSchedule.setSchedule(new NodeSchedule(null, future));
+    assertEquals(NavigationLayoutService.SCHEDULE_INCOMPLETE,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> navigationLayoutService.updateNodeAndPagePermissions(2L, halfSchedule, TEST_USER)).getMessage());
+    verify(navigationService, times(5)).updateNode(eq(2L), any());
+
+    storedNode(4L, new NodeState.Builder().label("Docs").visibility(Visibility.HIDDEN).build());
+    update = new NavigationItemUpdate();
+    update.setSchedule(new NodeSchedule(null, null));
+    navigationLayoutService.updateNodeAndPagePermissions(4L, update, TEST_USER);
+    verify(navigationService).updateNode(eq(4L), states.capture());
+    assertEquals(Visibility.HIDDEN, states.getValue().getVisibility());
+    update = new NavigationItemUpdate();
+    update.setVisible(true);
+    navigationLayoutService.updateNodeAndPagePermissions(4L, update, TEST_USER);
+    verify(navigationService, times(2)).updateNode(eq(4L), states.capture());
+    assertEquals(Visibility.DISPLAYED, states.getValue().getVisibility());
+    storedNode(5L, new NodeState.Builder().label("Admin").visibility(Visibility.SYSTEM).build());
+    update = new NavigationItemUpdate();
+    update.setSchedule(new NodeSchedule(null, null));
+    navigationLayoutService.updateNodeAndPagePermissions(5L, update, TEST_USER);
+    verify(navigationService).updateNode(eq(5L), states.capture());
+    assertEquals(Visibility.SYSTEM, states.getValue().getVisibility());
+    assertNotNull(node);
+  }
+
+  @Test
+  public void updateNodeAndPagePermissionsWritesThePageStepsFirstAndPutsThemBackOnFailure() throws Exception {
+    NodeState stored = new NodeState.Builder().label("Site").pageRef(PAGE_KEY).visibility(Visibility.DISPLAYED).build();
+    storedNode(2L, stored);
+    PageState previous = new PageState("Site", null, false, false, false, null, null, List.of("Everyone"), "*:/platform/users", "LINK", "https://old.example");
+    when(layoutService.getPageContext(PAGE_KEY)).thenReturn(new PageContext(PAGE_KEY, previous));
+    Map<Locale, State> storedLabels = Map.of(Locale.ENGLISH, new State("Site", null));
+    when(descriptionService.getDescriptions("2")).thenReturn(storedLabels);
+    ArgumentCaptor<PermissionUpdateModel> permissions = ArgumentCaptor.forClass(PermissionUpdateModel.class);
+
+    NavigationItemUpdate update = new NavigationItemUpdate();
+    update.setLink("https://meeds.io");
+    update.setLabels(Map.of("fr", "Site web"));
+    update.setAccessPermissions(List.of("*:/platform/administrators"));
+    navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
+    InOrder order = inOrder(pageLayoutService, navigationService);
+    order.verify(pageLayoutService).updatePageLink(PAGE_KEY, "https://meeds.io", TEST_USER);
+    order.verify(pageLayoutService).updatePagePermissions(eq(PAGE_KEY), permissions.capture(), eq(TEST_USER));
+    order.verify(navigationService).updateNode(eq(2L), any());
+    assertEquals(List.of("*:/platform/administrators"), permissions.getValue().getAccessPermissions());
+    assertEquals("*:/platform/users", permissions.getValue().getEditPermission());
+
+    doThrow(new IllegalStateException("storage")).when(navigationService).updateNode(eq(2L), any());
+    assertThrows(IllegalStateException.class, () -> navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER));
+    verify(pageLayoutService, times(2)).updatePageLink(PAGE_KEY, "https://meeds.io", TEST_USER);
+    verify(pageLayoutService).updatePageLink(PAGE_KEY, "https://old.example", TEST_USER);
+    verify(pageLayoutService, times(3)).updatePagePermissions(eq(PAGE_KEY), permissions.capture(), eq(TEST_USER));
+    assertEquals(List.of("Everyone"), permissions.getValue().getAccessPermissions());
+    assertEquals("*:/platform/users", permissions.getValue().getEditPermission());
+    verify(layoutService, never()).remove(any(PageKey.class));
+    InOrder labels = inOrder(descriptionService);
+    labels.verify(descriptionService).setDescriptions(eq("2"), argThat(m -> m.containsKey(Locale.FRENCH)));
+    labels.verify(descriptionService).setDescriptions("2", storedLabels);
+  }
+
+  @Test
+  public void updateNodeAndPagePermissionsCreatesThePageAndRemovesItOnFailure() throws Exception {
+    NodeState stored = new NodeState.Builder().label("Team").visibility(Visibility.DISPLAYED).build();
+    storedNode(2L, stored);
+    PageKey createdKey = PageKey.parse("portal::test::team_2");
+    PageCreateModel pageModel = new PageCreateModel();
+    pageModel.setPageName("team");
+    when(pageContext.getKey()).thenReturn(createdKey);
+    when(pageLayoutService.createPage(pageModel, TEST_USER)).thenReturn(pageContext);
+    NodeContext<NodeContext<Object>> root = newNodeContext();
+    lenient().when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    ArgumentCaptor<NodeState> states = ArgumentCaptor.forClass(NodeState.class);
+
+    NavigationItemUpdate update = new NavigationItemUpdate();
+    update.setNewPage(pageModel);
+    update.setAccessPermissions(List.of("Everyone"));
+    update.setEditPermission("*:/platform/users");
+    navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
+    assertEquals(SITE_KEY.getTypeName(), pageModel.getPageSiteType());
+    assertEquals(SITE_KEY.getName(), pageModel.getPageSiteName());
+    assertEquals("*:/platform/users", pageModel.getEditPermission());
+    assertEquals("Everyone", pageModel.getAccessPermissions()[0]);
+    verify(pageLayoutService, never()).updatePagePermissions(any(), any(), any());
+    verify(navigationService).updateNode(eq(2L), states.capture());
+    assertEquals(createdKey, states.getValue().getPageRef());
+    verify(listenerService).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, createdKey.format());
+
+    doThrow(new IllegalStateException("storage")).when(navigationService).updateNode(eq(2L), any());
+    assertThrows(IllegalStateException.class, () -> navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER));
+    verify(layoutService).remove(createdKey);
+  }
+
+  @Test
+  public void updateNodeAndPagePermissionsRePointsOrDetachesAndBroadcasts() throws Exception {
+    PageKey newKey = PageKey.parse("portal::test::new");
+    NodeState stored = new NodeState.Builder().label("Team").pageRef(PAGE_KEY).visibility(Visibility.DISPLAYED).build();
+    storedNode(2L, stored);
+    when(layoutService.getPageContext(newKey)).thenReturn(pageContext);
+    when(pageContext.getKey()).thenReturn(newKey);
+    NodeContext<NodeContext<Object>> root = newNodeContext();
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    when(root.getState()).thenReturn(null);
+    when(root.getNodeCount()).thenReturn(0);
+    Page abandonedPage = mock(Page.class);
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(abandonedPage);
+    ArgumentCaptor<NodeState> states = ArgumentCaptor.forClass(NodeState.class);
+
+    NavigationItemUpdate update = new NavigationItemUpdate();
+    update.setPageRef(newKey.format());
+    update.setTarget("NEW_TAB");
+    navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
+    verify(navigationService).updateNode(eq(2L), states.capture());
+    assertEquals(newKey, states.getValue().getPageRef());
+    assertEquals("NEW_TAB", states.getValue().getTarget());
+    verify(listenerService).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, newKey.format());
+    verify(listenerService).broadcast(NavigationLayoutService.PAGE_UNREACHABLE_EVENT, navigationLayoutService, abandonedPage);
+
+    update = new NavigationItemUpdate();
+    update.setDetachPage(true);
+    navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER);
+    verify(navigationService, times(2)).updateNode(eq(2L), states.capture());
+    assertNull(states.getValue().getPageRef());
+    verify(listenerService, times(2)).broadcast(NavigationLayoutService.PAGE_UNREACHABLE_EVENT, navigationLayoutService, abandonedPage);
+
+    NavigationItemUpdate missing = new NavigationItemUpdate();
+    missing.setPageRef("portal::test::missing");
+    assertThrows(ObjectNotFoundException.class, () -> navigationLayoutService.updateNodeAndPagePermissions(2L, missing, TEST_USER));
+  }
+
+  /**
+   * The name rule of createNodeWithPage leaves createNode and createDraftNode
+   * as they are: the platform's own draft name carries the marker and the
+   * username, a dot included
+   */
+  @Test
+  public void createDraftNodeStaysOutsideTheNameRule() throws Exception {
+    String dottedUser = "john.doe";
+    when(nodeData.getParentId()).thenReturn("3");
+    when(nodeData.getState()).thenReturn(nodeState);
+    when(nodeData.getSiteKey()).thenReturn(SITE_KEY);
+    when(nodeData.getName()).thenReturn("home");
+    when(nodeState.getPageRef()).thenReturn(PAGE_KEY);
+    when(localeConfigService.getDefaultLocaleConfig()).thenReturn(defaultLocaleConfig);
+    when(defaultLocaleConfig.getLocale()).thenReturn(Locale.ENGLISH);
+    when(navigationService.getNodeById(2L)).thenReturn(nodeData);
+    when(aclService.canViewNavigation(SITE_KEY, PAGE_KEY, dottedUser)).thenReturn(true);
+    PageKey clonedPageKey = PageKey.parse("portal::test::home_draft_john.doe");
+    when(pageLayoutService.clonePage(PAGE_KEY, dottedUser)).thenReturn(clonedPageKey);
+    when(navigationService.getNodeById(3L)).thenReturn(parentNodeData);
+    when(parentNodeData.getSiteKey()).thenReturn(SITE_KEY);
+    when(aclService.canEditNavigation(SITE_KEY, dottedUser)).thenReturn(true);
+    when(layoutService.getPageContext(argThat(k -> k.format().equals(clonedPageKey.format())))).thenReturn(pageContext);
+    when(pageContext.getKey()).thenReturn(clonedPageKey);
+    NodeData clonedNodeData = mock(NodeData.class);
+    when(clonedNodeData.getId()).thenReturn("36");
+    when(navigationService.getNodeById(36L)).thenReturn(clonedNodeData);
+    when(navigationService.createNode(any(), any(), any(), any())).thenReturn(new NodeData[] { parentNodeData, clonedNodeData });
+
+    navigationLayoutService.createDraftNode(2L, dottedUser);
+    verify(navigationService).createNode(eq(3L), isNull(), eq("home_draft_john.doe"), any());
+  }
+
+  private NodeData storedNode(long id, NodeState state) {
+    NodeData node = mock(NodeData.class);
+    lenient().when(node.getId()).thenReturn(String.valueOf(id));
+    lenient().when(node.getSiteKey()).thenReturn(SITE_KEY);
+    lenient().when(node.getState()).thenReturn(state);
+    when(navigationService.getNodeById(id)).thenReturn(node);
+    lenient().when(aclService.canEditNavigation(SITE_KEY, TEST_USER)).thenReturn(true);
+    return node;
+  }
+
+  /**
+   * The site's navigation: a root holding the parent node 3, whose children
+   * are the given list, read at every load
+   */
+  private void parentWithChildren(List<NodeContext<NodeContext<Object>>> children) {
+    NodeContext<NodeContext<Object>> root = newNodeContext();
+    NodeContext<NodeContext<Object>> parent = newNodeContext();
+    lenient().when(root.getId()).thenReturn("1");
+    lenient().when(root.getNodeCount()).thenReturn(1);
+    lenient().when(root.get(0)).thenReturn(parent);
+    lenient().when(parent.getId()).thenReturn("3");
+    lenient().when(parent.getNodeCount()).thenAnswer(i -> children.size());
+    lenient().when(parent.get(anyInt())).thenAnswer(i -> children.get(i.getArgument(0)));
+    lenient().when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+  }
+
+  private NodeContext<NodeContext<Object>> childContext(String id, String name) {
+    NodeContext<NodeContext<Object>> child = newNodeContext();
+    lenient().when(child.getId()).thenReturn(id);
+    lenient().when(child.getName()).thenReturn(name);
+    lenient().when(child.getNodeCount()).thenReturn(0);
+    return child;
+  }
 }
