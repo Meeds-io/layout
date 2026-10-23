@@ -153,28 +153,40 @@ public class NavigationLayoutService {
                                          nodeModel.getStartScheduleDate(),
                                          nodeModel.getEndScheduleDate(),
                                          nodeModel.isPasteMode());
+    NodeData nodeData = storeNode(nodeModel, nodeState);
+    completeNode(nodeData, nodeModel, nodeState, username);
+    return navigationService.getNodeById(Long.parseLong(nodeData.getId()));
+  }
+
+  /**
+   * The node write itself, without its labels and events
+   */
+  private NodeData storeNode(NavigationCreateModel nodeModel, NodeState nodeState) {
     NodeData[] nodeDatas = navigationService.createNode(nodeModel.getParentNodeId(),
                                                         nodeModel.getPreviousNodeId(),
                                                         nodeModel.getNodeId(),
                                                         nodeState);
     if (nodeDatas == null || nodeDatas.length < 2) {
       throw new IllegalStateException("Missing created node");
-    } else {
-      NodeData nodeData = nodeDatas[1];
-      saveNodeLabels(nodeData.getId(), nodeModel.getLabels());
+    }
+    return nodeDatas[1];
+  }
 
-      // A page becomes reachable — hence searchable — the moment a node starts
-      // pointing at it, and this is the only navigation operation that does so
-      // without any other event firing. Without this, a page whose content
-      // blocks were unindexed when their last node was deleted would stay out
-      // of the search index for good once a new node points at it again, and a
-      // page indexed while it had no node at all would keep an empty pagePath.
-      // Draft nodes are skipped: the connector doesn't index draft pages.
-      if (nodeState.getPageRef() != null && !nodeModel.isDraft()) {
-        broadcastPageUpdated(nodeState.getPageRef(), username);
-      }
+  /**
+   * What follows a node write: its labels, and the page it makes reachable
+   */
+  private void completeNode(NodeData nodeData, NavigationCreateModel nodeModel, NodeState nodeState, String username) {
+    saveNodeLabels(nodeData.getId(), nodeModel.getLabels());
 
-      return navigationService.getNodeById(Long.parseLong(nodeData.getId()));
+    // A page becomes reachable — hence searchable — the moment a node starts
+    // pointing at it, and this is the only navigation operation that does so
+    // without any other event firing. Without this, a page whose content
+    // blocks were unindexed when their last node was deleted would stay out
+    // of the search index for good once a new node points at it again, and a
+    // page indexed while it had no node at all would keep an empty pagePath.
+    // Draft nodes are skipped: the connector doesn't index draft pages.
+    if (nodeState.getPageRef() != null && !nodeModel.isDraft()) {
+      broadcastPageUpdated(nodeState.getPageRef(), username);
     }
   }
 
@@ -187,8 +199,8 @@ public class NavigationLayoutService {
    * stored children, hidden and draft ones included. The item is appended
    * after the parent's last child when no previous node is named. The page
    * is created first, in the parent's site, then the node: a node failure
-   * removes the page, and a node left behind by a failure after its write
-   * (its labels) is removed before it; a second write each, no atomicity.
+   * removes the page, and a node whose labels then failed is removed, by the
+   * id its write returned, before it; a second write each, no atomicity.
    *
    * @param  nodeModel                the item, its pageRef set here when a
    *                                    page model is given
@@ -227,11 +239,25 @@ public class NavigationLayoutService {
       pageKey = pageLayoutService.createPage(pageModel, username).getKey();
       nodeModel.setPageRef(pageKey.format());
     }
-    long startTime = System.currentTimeMillis();
+    NodeState nodeState = buildNodeState(nodeModel.getNodeLabel(),
+                                         nodeModel.getIcon(),
+                                         getPageKey(nodeModel.getPageRef()),
+                                         nodeModel.getTarget(),
+                                         nodeModel.isVisible(),
+                                         false,
+                                         nodeModel.isScheduled(),
+                                         nodeModel.getStartScheduleDate(),
+                                         nodeModel.getEndScheduleDate(),
+                                         false);
+    NodeData nodeData = null;
     try {
-      return createNode(nodeModel, username);
+      nodeData = storeNode(nodeModel, nodeState);
+      completeNode(nodeData, nodeModel, nodeState, username);
+      return navigationService.getNodeById(Long.parseLong(nodeData.getId()));
     } catch (Exception e) {
-      removeNodeLeftBehind(siteKey, parentNodeData.getId(), nodeModel, startTime);
+      if (nodeData != null) {
+        removeNodeLeftBehind(Long.parseLong(nodeData.getId()));
+      }
       if (pageKey != null) {
         removePageLeftBehind(pageKey);
       }
@@ -807,25 +833,14 @@ public class NavigationLayoutService {
   }
 
   /**
-   * A node written by a creation that then failed, its labels for one, is
-   * found by its name under its parent and removed with what it reaches,
-   * provided it is the one this call wrote: its label and its page are the
-   * model's and it was not written before the call, so a node another
-   * caller created under the same name meanwhile is left alone
+   * A node written by a creation that then failed on its labels is removed
+   * by the id its write returned, with what it reaches
    */
-  private void removeNodeLeftBehind(SiteKey siteKey, String parentId, NavigationCreateModel nodeModel, long startTime) {
+  private void removeNodeLeftBehind(long nodeId) {
     try {
-      NodeContext<NodeContext<Object>> parent = findNodeById(navigationService.loadNode(siteKey), parentId);
-      NodeContext<NodeContext<Object>> child = childNamed(parent, nodeModel.getNodeId());
-      NodeState state = child == null ? null : child.getState();
-      if (state != null
-          && state.getUpdatedDate() >= startTime
-          && StringUtils.equals(state.getLabel(), nodeModel.getNodeLabel())
-          && StringUtils.equals(state.getPageRef() == null ? null : state.getPageRef().format(), nodeModel.getPageRef())) {
-        deleteNode(Long.parseLong(child.getId()));
-      }
+      deleteNode(nodeId);
     } catch (Exception e) {
-      LOG.warn("Navigation node {} left under node {} by a failed creation could not be removed", nodeModel.getNodeId(), parentId, e);
+      LOG.warn("Navigation node {} left by a failed creation could not be removed", nodeId, e);
     }
   }
 

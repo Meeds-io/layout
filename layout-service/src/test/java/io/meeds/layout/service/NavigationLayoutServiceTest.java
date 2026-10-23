@@ -674,42 +674,25 @@ public class NavigationLayoutServiceTest {
     order.verify(layoutService).remove(pageKey);
     verify(navigationService, never()).deleteNode(any());
 
-    // the node is written and its labels fail: the node goes, then the page
+    // the node is written and its labels fail: the node goes, by the id its
+    // write returned, then the page; whatever else sits under the parent
     NodeData created = mock(NodeData.class);
     lenient().when(created.getId()).thenReturn("99");
+    NodeContext<NodeContext<Object>> someoneElses = childContext("77", "team");
+    lenient().when(someoneElses.getState()).thenReturn(new NodeState.Builder().label("Team").pageRef(pageKey).updatedDate(System.currentTimeMillis() + 60_000L).build());
     doAnswer(i -> {
-      NodeContext<NodeContext<Object>> written = childContext("99", "team");
-      when(written.getState()).thenReturn(((NodeState) i.getArgument(3)).builder().updatedDate(System.currentTimeMillis()).build());
-      children.add(written);
+      children.add(someoneElses);
       return new NodeData[] { parentNodeData, created };
     }).when(navigationService).createNode(any(), any(), any(), any());
     when(navigationService.getNodeById(99L)).thenReturn(created);
+    lenient().when(navigationService.getNodeById(77L)).thenReturn(mock(NodeData.class));
     doThrow(new IllegalArgumentException("locale")).when(descriptionService).setDescriptions(eq("99"), any());
     assertThrows(IllegalArgumentException.class, () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER));
     order = inOrder(navigationService, layoutService);
     order.verify(navigationService).deleteNode(99L);
     order.verify(layoutService).remove(pageKey);
     verify(layoutService, times(2)).remove(pageKey);
-
-    // a node another caller wrote under the same name meanwhile is left
-    // alone: another label, or written before this call
-    NodeContext<NodeContext<Object>> someoneElses = childContext("77", "team");
-    when(someoneElses.getState()).thenReturn(new NodeState.Builder().label("Their team").pageRef(pageKey).updatedDate(System.currentTimeMillis() + 60_000L).build());
-    NodeContext<NodeContext<Object>> earlier = childContext("78", "team");
-    when(earlier.getState()).thenReturn(new NodeState.Builder().label("Team").pageRef(pageKey).updatedDate(System.currentTimeMillis() - 60_000L).build());
-    lenient().when(navigationService.getNodeById(77L)).thenReturn(mock(NodeData.class));
-    lenient().when(navigationService.getNodeById(78L)).thenReturn(mock(NodeData.class));
-    for (NodeContext<NodeContext<Object>> other : List.of(someoneElses, earlier)) {
-      children.clear();
-      doAnswer(i -> {
-        children.add(other);
-        throw new IllegalStateException("duplicate");
-      }).when(navigationService).createNode(any(), any(), any(), any());
-      assertThrows(IllegalStateException.class, () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER));
-    }
     verify(navigationService, never()).deleteNode(77L);
-    verify(navigationService, never()).deleteNode(78L);
-    verify(layoutService, times(4)).remove(pageKey);
   }
 
   /**
