@@ -70,12 +70,30 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                "delete_site",
                                                                                "set_site_layout",
                                                                                "publish_layout",
-                                                                               "discard_layout_draft");
+                                                                               "discard_layout_draft",
+                                                                               "create_page",
+                                                                               "update_page",
+                                                                               "delete_page");
 
   private static final Set<String>         APPROVAL_TOOLS            = Set.of("update_theme",
                                                                                "update_navigation_display",
                                                                                "delete_site",
-                                                                               "publish_layout");
+                                                                               "publish_layout",
+                                                                               "delete_page");
+
+  private static final String              CREATE_PAGE_SAMPLE        = """
+      {"site_id": 3, "parent_node_id": 11, "label": "Our team", "labels": {"fr": "Notre équipe"}, "url_name": "our-team",
+       "type": "link", "page_template_id": 4, "page_ref": "portal::mysite::home", "url": "https://meeds.io", "target": "new_tab",
+       "icon": "fa-users", "visible": false, "scheduled": {"start": "2030-01-01T09:00:00Z", "end": "2030-01-02T09:00:00Z"},
+       "access_permissions": ["Everyone"], "edit_permission": "*:/platform/administrators"}
+      """;
+
+  private static final String              UPDATE_PAGE_SAMPLE        = """
+      {"node_id": 12, "label": "Our team", "labels": {"fr": "Notre équipe"}, "url_name": "our-team", "type": "existing_page",
+       "page_template_id": 4, "page_ref": "portal::mysite::home", "url": "https://meeds.io", "target": "same_tab", "icon": "fa-users",
+       "visible": true, "scheduled": {"start": "2030-01-01T09:00:00Z", "end": "2030-01-02T09:00:00Z"},
+       "access_permissions": ["*:/platform/users"], "edit_permission": "*:/platform/administrators"}
+      """;
 
   private static final String              SITE_LAYOUT_SAMPLE        = """
       {"site_id": 3,
@@ -120,7 +138,10 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                      Map.entry("delete_site", "{\"site_id\": 3}"),
                                                                                      Map.entry("set_site_layout", SITE_LAYOUT_SAMPLE),
                                                                                      Map.entry("publish_layout", "{\"site_id\": 3}"),
-                                                                                     Map.entry("discard_layout_draft", "{\"site_id\": 3}"));
+                                                                                     Map.entry("discard_layout_draft", "{\"site_id\": 3}"),
+                                                                                     Map.entry("create_page", CREATE_PAGE_SAMPLE),
+                                                                                     Map.entry("update_page", UPDATE_PAGE_SAMPLE),
+                                                                                     Map.entry("delete_page", "{\"node_id\": 12}"));
 
   @Test
   public void everyPublicMethodHasADefinitionAndEveryDefinitionAMethod() {
