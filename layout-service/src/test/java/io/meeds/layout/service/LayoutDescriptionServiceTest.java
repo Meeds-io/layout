@@ -522,6 +522,17 @@ public class LayoutDescriptionServiceTest {
     SectionDescription placed = dynamic(1, List.of(List.of(new ApplicationDescription("9", null, null, null, null, null, null, null, null))));
     LayoutModel rebuilt = toPageLayout(List.of(placed), stored, false);
     assertEquals("9", rebuilt.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0).getStorageId());
+    assertEquals(1, rebuilt.getChildren().size());
+
+    stored = new Page("page");
+    Container footer = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
+    children(footer, application("9", null, null));
+    Container parent = container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null);
+    children(stored, parent, footer);
+    LayoutModel moved = toPageLayout(List.of(placed), stored, false);
+    assertEquals(2, moved.getChildren().size());
+    assertEquals("9", moved.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0).getStorageId());
+    assertTrue(moved.getChildren().get(1).getChildren().isEmpty());
 
     stored = new Page("page");
     legacy = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);

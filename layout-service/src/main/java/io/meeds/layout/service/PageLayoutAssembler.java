@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -399,6 +400,7 @@ public class PageLayoutAssembler {
         } else if (!used.add(description.applicationId())) {
           throw new IllegalArgumentException(APPLICATION_ID_NOT_ACCEPTED);
         }
+        detach(application);
       } else if (description.instanceId() == null && StringUtils.isBlank(description.contentId())) {
         throw new IllegalArgumentException(APPLICATIONS_NOT_ACCEPTED);
       } else {
@@ -414,6 +416,21 @@ public class PageLayoutAssembler {
       applyStyling(application, description.styling(), destination);
       stylingService.applyDisplay(application, description.display(), destination, DISPLAY_NOT_ACCEPTED);
       cell.getChildren().add(application);
+    }
+  }
+
+  /**
+   * A kept window leaves its stored container, so a window held outside the
+   * sections parent, which the call can address by its id, is moved under
+   * the section rather than written twice; a rebuilt cell's children are
+   * reset before, so there it is a no-op
+   */
+  private void detach(LayoutModel application) {
+    LayoutModel storedParent = parentOf.get(application.getStorageId());
+    if (storedParent != null && children(storedParent).contains(application)) {
+      storedParent.setChildren(children(storedParent).stream()
+                                                     .filter(child -> child != application)
+                                                     .collect(Collectors.toCollection(ArrayList::new)));
     }
   }
 
