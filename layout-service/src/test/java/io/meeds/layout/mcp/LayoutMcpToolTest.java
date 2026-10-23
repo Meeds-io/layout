@@ -1087,6 +1087,8 @@ public class LayoutMcpToolTest {
     NodeData createddocs = node(NODE_ID, "docs");
     when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenReturn(createddocs);
     assertEquals(LayoutMcpTool.NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
+    when(descriptionService.describeNavigationItem(SITE_KEY, NODE_ID, USER)).thenThrow(new IllegalAccessException("internal detail"));
+    assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
   }
 
   @Test
@@ -1298,6 +1300,9 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
     assertEquals(LayoutMcpTool.SCHEDULED_NOT_ACCEPTED, refusal(() -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
     assertEquals(LayoutMcpTool.NODE_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
+    doReturn(null).when(navigationLayoutService).updateNodeAndPagePermissions(eq(NODE_ID), any(), eq(USER));
+    when(descriptionService.describeNavigationItem(SITE_KEY, NODE_ID, USER)).thenThrow(new IllegalAccessException("internal detail"));
+    assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, null, "fa-users", null, null, null, null)));
   }
 
   @Test
