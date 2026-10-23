@@ -25,8 +25,9 @@ import org.apache.commons.lang3.StringUtils;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * Where a navigation item's link opens, as the drawer's "open in the same
- * tab" switch stores it on the node
+ * Where the menus open a navigation item's page (a page, an existing page or
+ * a link), as the drawer's "open in the same tab" switch stores it on the
+ * node
  */
 public enum LinkTarget {
   @JsonProperty("same_tab")

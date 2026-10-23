@@ -1199,11 +1199,11 @@
               "link",
               "group"
             ],
-            "description": "The new kind of the item; omit to keep it. page: a new page from a page template; existing_page: the page page_ref names; link: a link to url; group: a group of pages"
+            "description": "The new kind of the item; omit to keep it. page: a new page from a page template (on an item already pointing at a page, only with page_template_id); existing_page: the page page_ref names; link: a link to url; group: a group of pages"
           },
           "page_template_id": {
             "type": "integer",
-            "description": "With type page: the identifier of an enabled page template; omit for the catalog's first blank template. Refused otherwise"
+            "description": "With type page: the identifier of an enabled page template; omitted, the catalog's first blank template on an item with no page or a link, and no new page on an item already pointing at one. Refused otherwise"
           },
           "page_ref": {
             "type": "string",
