@@ -253,7 +253,7 @@ public class PageLayoutAssembler {
                                                             .filter(c -> isTemplate(c, LayoutDescriptionService.CELL_TEMPLATE))
                                                             .toList()
                                          : Collections.emptyList();
-    List<LayoutModel> cells = dynamic ? dynamicCells(description, section, storedCells) : gridCells(description, section);
+    List<LayoutModel> cells = dynamic ? dynamicCells(description, section, kept, storedCells) : gridCells(description, section);
     StylingDestination destination = dynamic ? StylingDestination.DYNAMIC_SECTION : StylingDestination.GRID_SECTION;
     applyStyling(section, description.styling(), destination);
     stylingService.applyDisplay(section, description.display(), destination, DISPLAY_NOT_ACCEPTED);
@@ -266,11 +266,13 @@ public class PageLayoutAssembler {
    * does; a kept section's stored cells are reused in order when the count is
    * unchanged, with the widths the editor's resize stored, so their ids and
    * the windows pinned in them stay. A new section keeps its applications
-   * sticky as newSection does; a kept one keeps the choice the editor's
-   * section drawer stored, which the description does not carry
+   * sticky as newSection does; a kept one keeps the token as its stored
+   * class holds it, whatever its column count, since the description does
+   * not carry the choice the editor's section drawer stores
    */
   private List<LayoutModel> dynamicCells(SectionDescription description,
                                          LayoutModel section,
+                                         boolean kept,
                                          List<LayoutModel> storedCells) throws ObjectNotFoundException {
     if (description.rows() != null) {
       throw new IllegalArgumentException(ROWS_NOT_ACCEPTED);
@@ -290,7 +292,7 @@ public class PageLayoutAssembler {
     } else if (content != null && (content.size() != columns || content.stream().anyMatch(Objects::isNull))) {
       throw new IllegalArgumentException(COLUMNS_CONTENT_NOT_ACCEPTED);
     }
-    boolean sticky = storedCells.isEmpty() || STICKY_APPLICATION.matcher(StringUtils.defaultString(section.getCssClass())).find();
+    boolean sticky = !kept || STICKY_APPLICATION.matcher(StringUtils.defaultString(section.getCssClass())).find();
     section.setCssClass(grammar(section.getCssClass(), sticky ? FLEX_SECTION_CLASS : FLEX_SECTION_CLASS_NOT_STICKY));
     boolean reuse = storedCells.size() == columns;
     int span = GRID_COLUMNS / columns;

@@ -486,6 +486,14 @@ public class LayoutDescriptionServiceTest {
     LayoutModel fresh = toPageLayout(List.of(dynamic(2, null)), storedPage(), false).getChildren().get(0).getChildren().get(0);
     assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS, fresh.getCssClass());
     assertEquals(6, descriptionService.breakpointValue(fresh.getChildren().get(0).getCssClass(), LayoutDescriptionService.CELL_COLSPAN_PREFIX));
+
+    Container stickySection = container(LayoutDescriptionService.FLEX_TEMPLATE, PageLayoutAssembler.FLEX_SECTION_CLASS + " hidden-sm-and-down");
+    children(stickySection, cell(wide), cell(narrow));
+    SectionDescription widened = new SectionDescription(stickySection.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
+    LayoutModel keptSticky = toPageLayout(List.of(widened), storedPage(stickySection), false).getChildren().get(0).getChildren().get(0);
+    assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS + " " + LayoutDescriptionService.HIDE_MOBILE_TOKEN, keptSticky.getCssClass());
+    assertEquals(3, keptSticky.getChildren().size());
+    assertEquals(4, descriptionService.breakpointValue(keptSticky.getChildren().get(0).getCssClass(), LayoutDescriptionService.CELL_COLSPAN_PREFIX));
   }
 
   @Test
