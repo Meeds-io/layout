@@ -589,8 +589,8 @@ public class LayoutMcpTool implements McpToolPlugin {
    * Creates a navigation item of a site with the 'Add an item' drawer's
    * inputs, as that drawer does: a translatable name, a URL name chosen now
    * and never changed, a type with what it needs (a new page from a page
-   * template, an existing page, a link opening in the same or a new tab, a
-   * group of pages), an icon, a visibility and its schedule, and the
+   * template, an existing page, a link opening in the same or a new tab, the
+   * only kind list_site_pages shows a target on, a group of pages), an icon, a visibility and its schedule, and the
    * permissions of a page created here; the item goes last under its parent.
    * Every value is checked before anything is written: the page first, then
    * the item, a page left behind by an item failure being removed. Applies at
@@ -645,11 +645,11 @@ public class LayoutMcpTool implements McpToolPlugin {
       break;
     case EXISTING_PAGE:
       refuseGiven(url, URL_NOT_ACCEPTED);
+      refuseGiven(target, TARGET_NOT_ACCEPTED);
       refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
       refuseGiven(pageAccessPermissions, ACCESS_PERMISSIONS_NOT_ACCEPTED);
       refuseGiven(pageEditPermission, EDIT_PERMISSION_NOT_ACCEPTED);
       itemPageRef = requireExistingPage(pageRef, username).format();
-      itemTarget = LinkTarget.parse(target).getStateValue();
       break;
     default:
       refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
@@ -749,6 +749,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     case PAGE:
       refuseGiven(url, URL_NOT_ACCEPTED);
       refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
+      refuseGiven(target, TARGET_NOT_ACCEPTED);
       if (type != null && (storedPageKey == null || storedType == NavigationItemType.LINK || pageTemplateId != null)) {
         update.setNewPage(newPageModel(node.getName(), itemLabel(update, state), PageType.PAGE, null, resolvePageTemplateId(pageTemplateId), null, null));
       } else {
@@ -766,6 +767,7 @@ public class LayoutMcpTool implements McpToolPlugin {
       break;
     case EXISTING_PAGE:
       refuseGiven(url, URL_NOT_ACCEPTED);
+      refuseGiven(target, TARGET_NOT_ACCEPTED);
       refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
       refuseGiven(update.getAccessPermissions(), ACCESS_PERMISSIONS_NOT_ACCEPTED);
       refuseGiven(update.getEditPermission(), EDIT_PERMISSION_NOT_ACCEPTED);
@@ -781,7 +783,7 @@ public class LayoutMcpTool implements McpToolPlugin {
       update.setDetachPage(type != null && storedPageKey != null);
       break;
     }
-    if (target != null && itemType != NavigationItemType.GROUP) {
+    if (target != null) {
       update.setTarget(LinkTarget.parse(target).getStateValue());
     }
     if (update.getNewPage() == null
@@ -1136,13 +1138,6 @@ public class LayoutMcpTool implements McpToolPlugin {
   }
 
   /**
-   * @return the stored page an item points at, null when that page no longer
-   *         exists (a page of a deleted site); the item is then a page item
-   *         still, as list_site_pages reads it: a target is accepted on it,
-   *         permissions are refused as not allowed (no page, no edit right),
-   *         and a link needs type link, which creates a link page
-   */
-  /**
    * @return whether a not-found the service answered after the tool's own
    *         checks is the parent's, gone meanwhile, rather than a page's
    */
@@ -1154,6 +1149,13 @@ public class LayoutMcpTool implements McpToolPlugin {
     return StringUtils.equals(e.getMessage(), String.format(NavigationLayoutService.NODE_NOT_FOUND_MESSAGE, nodeId));
   }
 
+  /**
+   * @return the stored page an item points at, null when that page no longer
+   *         exists (a page of a deleted site); the item is then a page item
+   *         still, as list_site_pages reads it: permissions are refused as
+   *         not allowed (no page, no edit right), and a link needs type
+   *         link, which creates a link page
+   */
   private PageState pageStateOrNull(PageKey pageKey) {
     PageContext pageContext = layoutService.getPageContext(pageKey);
     return pageContext == null ? null : pageContext.getState();

@@ -1118,7 +1118,7 @@
               "same_tab",
               "new_tab"
             ],
-            "description": "For a link or an existing page: same_tab (the default) or new_tab, where the item opens; omit for same_tab. Refused for a page or a group"
+            "description": "For a link: same_tab (the default) or new_tab, where it opens, as list_site_pages reads it back; omit for same_tab. Refused for any other type"
           },
           "icon": {
             "type": "string",
@@ -1219,7 +1219,7 @@
               "same_tab",
               "new_tab"
             ],
-            "description": "For a link or an existing page: same_tab (the default) or new_tab, where the item opens; omit to keep it. Refused for a group"
+            "description": "For a link item, or with type link: same_tab or new_tab, where it opens, as list_site_pages reads it back; omit to keep it. Refused on any other item"
           },
           "icon": {
             "type": "string",
