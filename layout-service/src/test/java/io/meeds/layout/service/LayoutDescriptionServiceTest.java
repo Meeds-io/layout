@@ -356,6 +356,7 @@ public class LayoutDescriptionServiceTest {
     assertEquals("home", homeItem.urlName());
     assertEquals(NavigationItemType.PAGE, homeItem.type());
     assertEquals("portal::test::home", homeItem.pageRef());
+    assertEquals("_blank", homeItem.target());
     assertTrue(homeItem.visible());
     assertNull(homeItem.scheduled());
     assertEquals(List.of("Everyone"), homeItem.accessPermissions());
@@ -374,6 +375,7 @@ public class LayoutDescriptionServiceTest {
     NavigationItemDescription groupItem = items.get(2);
     assertEquals(NavigationItemType.GROUP, groupItem.type());
     assertNull(groupItem.pageRef());
+    assertNull(groupItem.target());
     assertTrue(groupItem.children().isEmpty());
   }
 

@@ -880,7 +880,7 @@ public class LayoutMcpToolTest {
     assertFalse(node.isDraft());
     assertFalse(node.isPasteMode());
     assertNull(node.getPageRef());
-    assertNull(node.getTarget());
+    assertEquals("SAME_TAB", node.getTarget());
     assertNull(node.getIcon());
     PageCreateModel page = pages.getValue();
     assertEquals("ourteam", page.getPageName());
@@ -947,7 +947,7 @@ public class LayoutMcpToolTest {
     node = nodes.getValue();
     assertNull(pages.getValue());
     assertEquals(PAGE_KEY.format(), node.getPageRef());
-    assertNull(node.getTarget());
+    assertEquals("SAME_TAB", node.getTarget());
     assertEquals("homeagain", node.getNodeId());
     assertTrue(node.isScheduled());
     assertEquals(Instant.parse(FUTURE).toEpochMilli(), node.getStartScheduleDate());
@@ -957,6 +957,7 @@ public class LayoutMcpToolTest {
     verify(navigationLayoutService, times(4)).createNodeWithPage(nodes.capture(), pages.capture(), eq(USER));
     assertNull(pages.getValue());
     assertNull(nodes.getValue().getPageRef());
+    assertNull(nodes.getValue().getTarget());
     assertFalse(nodes.getValue().isScheduled());
     assertTrue(nodes.getValue().isVisible());
   }
@@ -1033,7 +1034,7 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.TARGET_NOT_ACCEPTED,
                  refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "group", null, null, null, "new_tab", null, null, null, null, null)));
     assertEquals(LayoutMcpTool.TARGET_NOT_ACCEPTED,
-                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "existing_page", null, PAGE_KEY.format(), null, "new_tab", null, null, null, null, null)));
+                 refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "page", 2L, null, null, "popup", null, null, null, null, null)));
     assertEquals(LayoutMcpTool.EDIT_PERMISSION_NOT_ACCEPTED,
                  refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, "docs", "group", null, null, null, null, null, null, null, null, "*:/platform/users")));
 
@@ -1127,14 +1128,12 @@ public class LayoutMcpToolTest {
     Map<String, String> labelsWithANull = new HashMap<>();
     labelsWithANull.put("fr", "Équipe");
     labelsWithANull.put("en", null);
-    assertEquals(LayoutMcpTool.TARGET_NOT_ACCEPTED,
-                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, null, null, null, null, "new_tab", null, null, null, null, null)));
-    asUser(() -> tool.updatePage(NODE_ID, "Team", labelsWithANull, null, null, null, null, null, null, null, true, new ScheduleDescription(FUTURE, LATER), null, null));
+    asUser(() -> tool.updatePage(NODE_ID, "Team", labelsWithANull, null, null, null, null, null, "new_tab", null, true, new ScheduleDescription(FUTURE, LATER), null, null));
     verify(navigationLayoutService, times(2)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
     update = updates.getValue();
     assertEquals("Team", update.getLabel());
     assertEquals(Map.of("fr", "Équipe"), update.getLabels());
-    assertNull(update.getTarget());
+    assertEquals("NEW_TAB", update.getTarget());
     assertTrue(update.getVisible());
     assertEquals(Instant.parse(FUTURE).toEpochMilli(), update.getSchedule().start());
     assertEquals(Instant.parse(LATER).toEpochMilli(), update.getSchedule().end());
@@ -1158,7 +1157,7 @@ public class LayoutMcpToolTest {
   }
 
   @Test
-  public void updatePageChangesTheKindAsTheDrawersEditDoesAndSetsTheTabItself() throws Exception {
+  public void updatePageChangesTheKindAsTheDrawersEditDoes() throws Exception {
     languages();
     permissions();
     templates(pageTemplate(2, "blank", false));
@@ -1175,7 +1174,7 @@ public class LayoutMcpToolTest {
                  refusal(() -> tool.updatePage(NODE_ID, null, null, null, "link", null, null, null, null, null, null, null, null, null)));
 
     asUser(() -> tool.updatePage(NODE_ID, null, null, null, "link", null, null, "/portal/public", "new_tab", null, null, null, List.of("Everyone"), null));
-    verify(navigationLayoutService).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
+    verify(navigationLayoutService, times(1)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
     NavigationItemUpdate update = updates.getValue();
     assertEquals("LINK", update.getNewPage().getPageType());
     assertEquals("/portal/public", update.getNewPage().getLink());
@@ -1187,7 +1186,7 @@ public class LayoutMcpToolTest {
     verify(aclService, never()).canEditPage(any(), any());
     asUser(() -> tool.updatePage(NODE_ID, null, null, null, "link", null, null, "/portal/public", null, null, null, null, null, null));
     verify(navigationLayoutService, times(2)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
-    assertEquals("SAME_TAB", updates.getValue().getTarget());
+    assertNull(updates.getValue().getTarget());
 
     asUser(() -> tool.updatePage(NODE_ID, "Team 2", null, null, "page", null, null, null, null, null, null, null, null, null));
     verify(navigationLayoutService, times(3)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
@@ -1209,10 +1208,10 @@ public class LayoutMcpToolTest {
     assertFalse(updates.getValue().isDetachPage());
     assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED,
                  refusal(() -> tool.updatePage(NODE_ID, null, null, null, "existing_page", null, null, null, null, null, null, null, null, null)));
-    assertEquals(LayoutMcpTool.TARGET_NOT_ACCEPTED,
-                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, "existing_page", null, otherKey.format(), null, "new_tab", null, null, null, null, null)));
-    assertEquals(LayoutMcpTool.TARGET_NOT_ACCEPTED,
-                 refusal(() -> tool.updatePage(NODE_ID, null, null, null, null, null, otherKey.format(), null, "same_tab", null, null, null, null, null)));
+    asUser(() -> tool.updatePage(NODE_ID, null, null, null, "existing_page", null, otherKey.format(), null, "new_tab", null, null, null, null, null));
+    verify(navigationLayoutService, times(6)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
+    assertEquals(otherKey.format(), updates.getValue().getPageRef());
+    assertEquals("NEW_TAB", updates.getValue().getTarget());
     assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED,
                  refusal(() -> tool.updatePage(NODE_ID, null, null, null, "page", null, otherKey.format(), null, null, null, null, null, null, null)));
     assertEquals(LayoutMcpTool.ACCESS_PERMISSIONS_NOT_ACCEPTED,
@@ -1221,7 +1220,7 @@ public class LayoutMcpToolTest {
                  refusal(() -> tool.updatePage(NODE_ID, null, null, null, "existing_page", null, otherKey.format(), null, null, null, null, null, null, "*:/platform/users")));
 
     asUser(() -> tool.updatePage(NODE_ID, null, null, null, "group", null, null, null, null, null, null, null, null, null));
-    verify(navigationLayoutService, times(6)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
+    verify(navigationLayoutService, times(7)).updateNodeAndPagePermissions(eq(NODE_ID), updates.capture(), eq(USER));
     assertTrue(updates.getValue().isDetachPage());
     assertEquals(LayoutMcpTool.TARGET_NOT_ACCEPTED,
                  refusal(() -> tool.updatePage(NODE_ID, null, null, null, "group", null, null, null, "new_tab", null, null, null, null, null)));
@@ -1245,19 +1244,19 @@ public class LayoutMcpToolTest {
     assertNull(updates.getValue().getTarget());
     asUser(() -> tool.updatePage(13L, null, null, null, null, null, otherKey.format(), null, null, null, null, null, null, null));
     verify(navigationLayoutService, times(4)).updateNodeAndPagePermissions(eq(13L), updates.capture(), eq(USER));
-    assertEquals("SAME_TAB", updates.getValue().getTarget());
-    asUser(() -> tool.updatePage(13L, null, null, null, "group", null, null, null, null, null, null, null, null, null));
+    assertNull(updates.getValue().getTarget());
+    asUser(() -> tool.updatePage(13L, null, null, null, "page", 2L, null, null, "new_tab", null, null, null, null, null));
     verify(navigationLayoutService, times(5)).updateNodeAndPagePermissions(eq(13L), updates.capture(), eq(USER));
-    assertEquals("SAME_TAB", updates.getValue().getTarget());
+    assertEquals("NEW_TAB", updates.getValue().getTarget());
+    assertEquals("PAGE", updates.getValue().getNewPage().getPageType());
 
     NodeData dangling = editableNode(15L, "gone", PageKey.parse("portal::deleted::home"), Visibility.DISPLAYED);
     describedItem(dangling);
-    asUser(() -> tool.updatePage(15L, null, null, null, null, null, null, null, null, "fa-link", null, null, null, null));
+    asUser(() -> tool.updatePage(15L, null, null, null, null, null, null, null, "new_tab", "fa-link", null, null, null, null));
     verify(navigationLayoutService).updateNodeAndPagePermissions(eq(15L), updates.capture(), eq(USER));
     assertFalse(updates.getValue().isDetachPage());
     assertNull(updates.getValue().getNewPage());
-    assertEquals(LayoutMcpTool.TARGET_NOT_ACCEPTED,
-                 refusal(() -> tool.updatePage(15L, null, null, null, null, null, null, null, "new_tab", null, null, null, null, null)));
+    assertEquals("NEW_TAB", updates.getValue().getTarget());
     assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED,
                  refusal(IllegalAccessException.class, () -> tool.updatePage(15L, null, null, null, null, null, null, null, null, null, null, null, List.of("Everyone"), null)));
     asUser(() -> tool.updatePage(15L, null, null, null, "page", null, null, null, null, null, null, null, null, null));

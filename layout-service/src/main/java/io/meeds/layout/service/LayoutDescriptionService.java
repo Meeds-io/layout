@@ -737,7 +737,7 @@ public class LayoutDescriptionService {
                                          type,
                                          pageRef == null ? null : pageRef.format(),
                                          link ? pageState.getLink() : null,
-                                         link ? state.getTarget() : null,
+                                         pageRef == null ? null : state.getTarget(),
                                          state.getIcon(),
                                          !hidden,
                                          schedule,

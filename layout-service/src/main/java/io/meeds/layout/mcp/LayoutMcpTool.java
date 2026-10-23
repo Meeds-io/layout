@@ -589,10 +589,10 @@ public class LayoutMcpTool implements McpToolPlugin {
    * Creates a navigation item of a site with the 'Add an item' drawer's
    * inputs: a translatable name, a URL name chosen now and never changed, a
    * type with what it needs (a new page from a page template, an existing
-   * page, a link opening in the same or a new tab, a group of pages), an icon, a visibility and its schedule, and the
+   * page, a link, a group of pages), the tab it opens in, an icon, a visibility and its schedule, and the
    * permissions of a page created here; the item goes last under its parent.
-   * Where the drawer offers a tab for an existing page too, the tool takes
-   * one for a link only, the kind list_site_pages shows it on. Every value is
+   * An item pointing at a page opens from the menus in the same tab unless
+   * its target says otherwise, as the drawer stores it. Every value is
    * checked before anything is written: the page first, then
    * the item, a page left behind by an item failure being removed. Applies at
    * once; not a draft. Returns the item as list_site_pages describes it.
@@ -635,8 +635,8 @@ public class LayoutMcpTool implements McpToolPlugin {
     case PAGE:
       refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
       refuseGiven(url, URL_NOT_ACCEPTED);
-      refuseGiven(target, TARGET_NOT_ACCEPTED);
       pageModel = newPageModel(itemName, itemLabel, PageType.PAGE, null, resolvePageTemplateId(pageTemplateId), pageAccessPermissions, pageEditPermission);
+      itemTarget = LinkTarget.parse(target).getStateValue();
       break;
     case LINK:
       refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
@@ -646,11 +646,11 @@ public class LayoutMcpTool implements McpToolPlugin {
       break;
     case EXISTING_PAGE:
       refuseGiven(url, URL_NOT_ACCEPTED);
-      refuseGiven(target, TARGET_NOT_ACCEPTED);
       refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
       refuseGiven(pageAccessPermissions, ACCESS_PERMISSIONS_NOT_ACCEPTED);
       refuseGiven(pageEditPermission, EDIT_PERMISSION_NOT_ACCEPTED);
       itemPageRef = requireExistingPage(pageRef, username).format();
+      itemTarget = LinkTarget.parse(target).getStateValue();
       break;
     default:
       refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
@@ -701,12 +701,9 @@ public class LayoutMcpTool implements McpToolPlugin {
    * or creates one, a page creates a new one from a template, on an item
    * that already points at a page only when the template is given, so the
    * type read back can be sent back unchanged; the previous page is kept,
-   * so a repeated call that replaces a page leaves one behind each time.
-   * The tab is the tool's own rule, not the drawer's, which keeps the stored
-   * one: an item turned into a link opens in the same tab unless a target is
-   * given, and an item that stops being a link goes back to the same tab,
-   * the value no target can be set to on it and the read never shows. An
-   * item whose page no longer exists
+   * so a repeated call that replaces a page leaves one behind each time;
+   * the tab the item opens in stays as stored unless a target is given, as
+   * the drawer's edit keeps it. An item whose page no longer exists
    * keeps its reference: type group drops it, page_ref points it elsewhere,
    * and type page without a template changes nothing on it. The
    * permissions go on the item's page, never in the call that points it at
@@ -755,7 +752,6 @@ public class LayoutMcpTool implements McpToolPlugin {
     case PAGE:
       refuseGiven(url, URL_NOT_ACCEPTED);
       refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
-      refuseGiven(target, TARGET_NOT_ACCEPTED);
       if (type != null && (storedPageKey == null || storedType == NavigationItemType.LINK || pageTemplateId != null)) {
         update.setNewPage(newPageModel(node.getName(), itemLabel(update, state), PageType.PAGE, null, resolvePageTemplateId(pageTemplateId), null, null));
       } else {
@@ -769,12 +765,10 @@ public class LayoutMcpTool implements McpToolPlugin {
         update.setLink(url == null ? null : requireUrl(url));
       } else {
         update.setNewPage(newPageModel(node.getName(), itemLabel(update, state), PageType.LINK, requireUrl(url), null, null, null));
-        update.setTarget(LinkTarget.parse(target).getStateValue());
       }
       break;
     case EXISTING_PAGE:
       refuseGiven(url, URL_NOT_ACCEPTED);
-      refuseGiven(target, TARGET_NOT_ACCEPTED);
       refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
       refuseGiven(update.getAccessPermissions(), ACCESS_PERMISSIONS_NOT_ACCEPTED);
       refuseGiven(update.getEditPermission(), EDIT_PERMISSION_NOT_ACCEPTED);
@@ -790,10 +784,8 @@ public class LayoutMcpTool implements McpToolPlugin {
       update.setDetachPage(type != null && storedPageKey != null);
       break;
     }
-    if (target != null && update.getTarget() == null) {
+    if (target != null) {
       update.setTarget(LinkTarget.parse(target).getStateValue());
-    } else if (storedType == NavigationItemType.LINK && itemType != NavigationItemType.LINK) {
-      update.setTarget(LinkTarget.SAME_TAB.getStateValue());
     }
     if (update.getNewPage() == null
         && (update.getLink() != null || update.getAccessPermissions() != null || update.getEditPermission() != null)) {
@@ -1161,9 +1153,9 @@ public class LayoutMcpTool implements McpToolPlugin {
   /**
    * @return the stored page an item points at, null when that page no longer
    *         exists (a page of a deleted site); the item is then a page item
-   *         still, as list_site_pages reads it: permissions are refused as
-   *         not allowed (no page, no edit right), and a link needs type
-   *         link, which creates a link page
+   *         still, as list_site_pages reads it: a target is accepted on it,
+   *         permissions are refused as not allowed (no page, no edit
+   *         right), and a link needs type link, which creates a link page
    */
   private PageState pageStateOrNull(PageKey pageKey) {
     PageContext pageContext = layoutService.getPageContext(pageKey);

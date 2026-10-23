@@ -45,7 +45,7 @@
     {
       "name": "list_site_pages",
       "title": "List the pages of a site",
-      "description": "List the navigation items of a site as a tree. Each item carries its node_id, name and labels per language, url_name, type (page, link or group), page_ref, icon, visibility and schedule, the page's access_permissions and edit_permission, and its children. Draft items are never listed; hidden items are listed only when include_hidden is true and the user can edit the site's navigation. Use the page_ref in get_page_layout.",
+      "description": "List the navigation items of a site as a tree. Each item carries its node_id, name and labels per language, url_name, type (page, link or group), page_ref, a link's url, the target the menus open an item's page with (same_tab or new_tab, as the item's tab switch stores it; none on a group), icon, visibility and schedule, the page's access_permissions and edit_permission, and its children. Draft items are never listed; hidden items are listed only when include_hidden is true and the user can edit the site's navigation. Use the page_ref in get_page_layout.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1118,7 +1118,7 @@
               "same_tab",
               "new_tab"
             ],
-            "description": "For a link: same_tab (the default) or new_tab, where it opens, as list_site_pages reads it back; omit for same_tab. Refused for any other type"
+            "description": "For an item pointing at a page (a page, an existing page or a link): same_tab (the default) or new_tab, where the menus open it, as list_site_pages reads it back; omit for same_tab. Refused for a group"
           },
           "icon": {
             "type": "string",
@@ -1168,7 +1168,7 @@
     {
       "name": "update_page",
       "title": "Update a navigation item",
-      "description": "Update a navigation item's name and translations, type, icon, visibility and schedule, and the permissions of its page, as the navigation drawer's edit does, for every user at once (not a draft). Every option omitted keeps its stored value; a translation given is merged over the stored ones; the label replaces the item's bundle-provided name when the item has none stored. The URL name is chosen at creation and cannot change: a url_name different from the stored one is refused with the reason 'cannot be changed: url_name'. A type given follows the drawer's edit: group detaches the page; existing_page points the item at page_ref; link rewrites the link page's url, or creates a link page when the item had none, opening in the same tab unless target says new_tab; an item that stops being a link goes back to the same tab; page creates a new page from page_template_id (the catalog's first blank template when omitted) when the item had no page or a link, and on an item already pointing at a page only when page_template_id is given, so the type read back from list_site_pages can be sent back unchanged; a replaced page is kept, under no item, so repeating such a call leaves a page behind each time. An item whose page no longer exists is still read as a page and keeps its reference: type group drops it, page_ref points it elsewhere, and type page without page_template_id changes nothing on it. Without type, page_ref alone re-points the item, url alone rewrites a link item's address, page_template_id is refused. access_permissions and edit_permission are written on the item's page, merged with its current ones, which needs the right to edit that page; they are refused on a group and in a call that points the item at another page (page_ref): point first, then change that page's permissions in a second call. visible false hides the item and drops its schedule; a scheduled object with neither bound drops the schedule and keeps the item visible. The page steps come first, then the item, and what was written is put back when a later step fails. Returns the item as list_site_pages describes it.",
+      "description": "Update a navigation item's name and translations, type, icon, visibility and schedule, and the permissions of its page, as the navigation drawer's edit does, for every user at once (not a draft). Every option omitted keeps its stored value; a translation given is merged over the stored ones; the label replaces the item's bundle-provided name when the item has none stored. The URL name is chosen at creation and cannot change: a url_name different from the stored one is refused with the reason 'cannot be changed: url_name'. A type given follows the drawer's edit: group detaches the page; existing_page points the item at page_ref; link rewrites the link page's url, or creates a link page when the item had none; page creates a new page from page_template_id (the catalog's first blank template when omitted) when the item had no page or a link, and on an item already pointing at a page only when page_template_id is given, so the type read back from list_site_pages can be sent back unchanged; a replaced page is kept, under no item, so repeating such a call leaves a page behind each time. An item whose page no longer exists is still read as a page and keeps its reference: type group drops it, page_ref points it elsewhere, and type page without page_template_id changes nothing on it. Without type, page_ref alone re-points the item, url alone rewrites a link item's address, page_template_id is refused. access_permissions and edit_permission are written on the item's page, merged with its current ones, which needs the right to edit that page; they are refused on a group and in a call that points the item at another page (page_ref): point first, then change that page's permissions in a second call. visible false hides the item and drops its schedule; a scheduled object with neither bound drops the schedule and keeps the item visible. The page steps come first, then the item, and what was written is put back when a later step fails. Returns the item as list_site_pages describes it.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1219,7 +1219,7 @@
               "same_tab",
               "new_tab"
             ],
-            "description": "For a link item, or with type link: same_tab or new_tab, where it opens, as list_site_pages reads it back; omit to keep a link item's, while an item turned into a link opens in the same tab. Refused on any other item"
+            "description": "For an item pointing at a page (a page, an existing page or a link): same_tab or new_tab, where the menus open it, as list_site_pages reads it back; omit to keep it, through a type change too. Refused for a group"
           },
           "icon": {
             "type": "string",
