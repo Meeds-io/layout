@@ -494,6 +494,12 @@ public class LayoutDescriptionServiceTest {
     assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS + " " + LayoutDescriptionService.HIDE_MOBILE_TOKEN, keptSticky.getCssClass());
     assertEquals(3, keptSticky.getChildren().size());
     assertEquals(4, descriptionService.breakpointValue(keptSticky.getChildren().get(0).getCssClass(), LayoutDescriptionService.CELL_COLSPAN_PREFIX));
+
+    Container emptySection = container(LayoutDescriptionService.FLEX_TEMPLATE, PageLayoutAssembler.FLEX_SECTION_CLASS_NOT_STICKY);
+    SectionDescription keptEmpty = new SectionDescription(emptySection.getStorageId(), SectionType.DYNAMIC, 1, null, null, null, null, null);
+    LayoutModel stillNotSticky = toPageLayout(List.of(keptEmpty), storedPage(emptySection), false).getChildren().get(0).getChildren().get(0);
+    assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS_NOT_STICKY, stillNotSticky.getCssClass());
+    assertEquals(1, stillNotSticky.getChildren().size());
   }
 
   @Test
