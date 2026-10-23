@@ -63,6 +63,7 @@ import io.meeds.layout.mcp.constant.BackgroundMode;
 import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
 import io.meeds.layout.mcp.constant.LayoutVersion;
+import io.meeds.layout.mcp.constant.LinkTarget;
 import io.meeds.layout.mcp.constant.NavigationItemType;
 import io.meeds.layout.mcp.constant.SectionType;
 import io.meeds.layout.mcp.constant.StylingDestination;
@@ -737,7 +738,7 @@ public class LayoutDescriptionService {
                                          type,
                                          pageRef == null ? null : pageRef.format(),
                                          link ? pageState.getLink() : null,
-                                         pageRef == null ? null : state.getTarget(),
+                                         pageRef == null ? null : LinkTarget.fromStateValue(state.getTarget()).getValue(),
                                          state.getIcon(),
                                          !hidden,
                                          schedule,

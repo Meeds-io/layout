@@ -325,6 +325,8 @@ public class LayoutDescriptionServiceTest {
     NodeContext<NodeContext<Object>> root = node(0L, "default", null, Visibility.DISPLAYED);
     NodeContext<NodeContext<Object>> home = node(1L, "home", homeKey, Visibility.DISPLAYED);
     NodeContext<NodeContext<Object>> child = node(2L, "child", childKey, Visibility.TEMPORAL);
+    NodeState childState = child.getState().builder().target("SAME_TAB").build();
+    when(child.getState()).thenReturn(childState);
     NodeContext<NodeContext<Object>> link = node(3L, "link", linkKey, Visibility.DISPLAYED);
     NodeContext<NodeContext<Object>> hidden = node(4L, "hidden", homeKey, Visibility.HIDDEN);
     NodeContext<NodeContext<Object>> draft = node(5L, "home_draft_john", homeKey, Visibility.DISPLAYED);
@@ -356,7 +358,7 @@ public class LayoutDescriptionServiceTest {
     assertEquals("home", homeItem.urlName());
     assertEquals(NavigationItemType.PAGE, homeItem.type());
     assertEquals("portal::test::home", homeItem.pageRef());
-    assertEquals("_blank", homeItem.target());
+    assertEquals("new_tab", homeItem.target());
     assertTrue(homeItem.visible());
     assertNull(homeItem.scheduled());
     assertEquals(List.of("Everyone"), homeItem.accessPermissions());
@@ -371,7 +373,8 @@ public class LayoutDescriptionServiceTest {
     assertEquals("Label", linkItem.name());
     assertNull(linkItem.labels());
     assertEquals("https://meeds.io", linkItem.url());
-    assertEquals("_blank", linkItem.target());
+    assertEquals("new_tab", linkItem.target());
+    assertEquals("same_tab", homeItem.children().get(0).target());
     NavigationItemDescription groupItem = items.get(2);
     assertEquals(NavigationItemType.GROUP, groupItem.type());
     assertNull(groupItem.pageRef());
@@ -1504,7 +1507,7 @@ public class LayoutDescriptionServiceTest {
     NodeContext<NodeContext<Object>> node = mock(NodeContext.class);
     lenient().when(node.getId()).thenReturn(String.valueOf(id));
     lenient().when(node.getName()).thenReturn(name);
-    NodeState.Builder builder = new NodeState.Builder().pageRef(pageRef).visibility(visibility).label("Label").target("_blank");
+    NodeState.Builder builder = new NodeState.Builder().pageRef(pageRef).visibility(visibility).label("Label").target("NEW_TAB");
     if (visibility == Visibility.TEMPORAL) {
       builder.startPublicationTime(1000L).endPublicationTime(2000L);
     }

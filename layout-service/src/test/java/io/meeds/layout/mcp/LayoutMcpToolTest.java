@@ -1272,6 +1272,9 @@ public class LayoutMcpToolTest {
 
     NodeData groupNode = editableNode(14L, "docs", null, Visibility.DISPLAYED);
     describedItem(groupNode);
+    asUser(() -> tool.updatePage(14L, null, null, null, "link", null, null, "https://meeds.io", null, null, null, null, null, null));
+    verify(navigationLayoutService).updateNodeAndPagePermissions(eq(14L), updates.capture(), eq(USER));
+    assertNull(updates.getValue().getTarget());
     assertEquals(LayoutMcpTool.EDIT_PERMISSION_NOT_ACCEPTED,
                  refusal(() -> tool.updatePage(14L, null, null, null, null, null, null, null, null, null, null, null, null, "*:/platform/users")));
     assertEquals(LayoutMcpTool.URL_NOT_ACCEPTED,
@@ -1333,6 +1336,9 @@ public class LayoutMcpToolTest {
   private NodeData editableNode(long nodeId, String name, PageKey pageRef, Visibility visibility) throws Exception {
     NodeData node = node(nodeId, name);
     NodeState.Builder state = new NodeState.Builder().label("Label").pageRef(pageRef).visibility(visibility);
+    if (pageRef != null) {
+      state.target("NEW_TAB");
+    }
     if (visibility == Visibility.TEMPORAL) {
       state.startPublicationTime(1000L).endPublicationTime(2000L);
     }

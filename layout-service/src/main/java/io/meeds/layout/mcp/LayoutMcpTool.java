@@ -591,8 +591,8 @@ public class LayoutMcpTool implements McpToolPlugin {
    * type with what it needs (a new page from a page template, an existing
    * page, a link, a group of pages), the tab it opens in, an icon, a visibility and its schedule, and the
    * permissions of a page created here; the item goes last under its parent.
-   * An item pointing at a page opens from the menus in the same tab unless
-   * its target says otherwise, as the drawer stores it. Every value is
+   * An item opens from the menus in the same tab unless its target says
+   * otherwise; the storage keeps the same tab on a blank one. Every value is
    * checked before anything is written: the page first, then
    * the item, a page left behind by an item failure being removed. Applies at
    * once; not a draft. Returns the item as list_site_pages describes it.

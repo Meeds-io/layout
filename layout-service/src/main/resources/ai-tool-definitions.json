@@ -45,7 +45,7 @@
     {
       "name": "list_site_pages",
       "title": "List the pages of a site",
-      "description": "List the navigation items of a site as a tree. Each item carries its node_id, name and labels per language, url_name, type (page, link or group), page_ref, a link's url, the target the menus open an item's page with (same_tab or new_tab, as the item's tab switch stores it; none on a group), icon, visibility and schedule, the page's access_permissions and edit_permission, and its children. Draft items are never listed; hidden items are listed only when include_hidden is true and the user can edit the site's navigation. Use the page_ref in get_page_layout.",
+      "description": "List the navigation items of a site as a tree. Each item carries its node_id, name and labels per language, url_name, type (page, link or group), page_ref, a link's url, the target the menus open an item's page with (same_tab, or new_tab for any other stored value; none on a group), icon, visibility and schedule, the page's access_permissions and edit_permission, and its children. Draft items are never listed; hidden items are listed only when include_hidden is true and the user can edit the site's navigation. Use the page_ref in get_page_layout.",
       "input_schema": {
         "type": "object",
         "properties": {

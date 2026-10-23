@@ -61,6 +61,15 @@ public enum LinkTarget {
                  .orElseThrow(() -> new IllegalArgumentException(TARGET_NOT_ACCEPTED));
   }
 
+  /**
+   * @param  stateValue the value a node state stores, null included
+   * @return            the target the menus apply: the same tab on the
+   *                    drawer's value for it, a new tab on anything else
+   */
+  public static LinkTarget fromStateValue(String stateValue) {
+    return SAME_TAB.stateValue.equals(stateValue) ? SAME_TAB : NEW_TAB;
+  }
+
   public String getValue() {
     return value;
   }
