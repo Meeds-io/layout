@@ -1295,7 +1295,7 @@
     {
       "name": "set_page_layout",
       "title": "Set the layout of a page",
-      "description": "Replace the whole structure of a page in the current user's draft, in one call, as the page editor's draft save does: its ordered sections, each dynamic (1, 2, 3, 4, 6 or 12 columns, the applications listed in order per column) or grid (1 to 12 rows and columns, one application per cell at its row and column, cells merged with spans), with the styling and display of sections and applications. What is sent is the whole page, as get_page_layout returns it: a section, a cell or an application of the layout absent from the call is removed. Ids address the layout get_page_layout returned (the user's draft when they have one, the published layout otherwise): a section_id or a cell_id keeps the stored element, an application_id keeps the application with its settings, an application given by instance_id or content_id is added, text being the 'Block of content' application. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout; between two calls the page is only a draft. The first draft of a page needs the right to edit the site's navigation, as opening the editor does, and the page must be shown by a navigation item of its site. A page holding elements the user cannot see is refused unless their section or cell is kept. At most 20 sections and 200 elements in one call. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_page_layout does, with the ids of every section, cell and application to use in later calls; after publish_layout the ids change, read the page again. Settings and widget code are not accepted by this tool, nor new images.",
+      "description": "Replace the whole structure of a page in the current user's draft, in one call, as the page editor's draft save does: its ordered sections, each dynamic (1, 2, 3, 4, 6 or 12 columns, the applications listed in order per column) or grid (1 to 12 rows and columns, one application per cell at its row and column, cells merged with spans), with the styling and display of sections and applications. What is sent is the whole page, as get_page_layout returns it: a section, a cell or an application of the layout absent from the call is removed. Ids address the layout get_page_layout returned (the user's draft when they have one, the published layout otherwise): a section_id or a cell_id keeps the stored element, an application_id keeps the application with its settings, an application given by instance_id or content_id is added, text being the 'Block of content' application. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout; between two calls the page is only a draft. The first draft of a page needs the right to edit the site's navigation, as opening the editor does, and the page must be shown by a navigation item of its site. A page holding a section or a cell the user cannot see is refused; a window the user cannot see stays where it is when its column or cell is kept (the section_id of its dynamic section with the same number of columns, the cell_id of its grid cell, which then takes no application), the call being refused otherwise. At most 20 sections and 200 elements in one call. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_page_layout does, with the ids of every section, cell and application to use in later calls; after publish_layout the ids change, read the page again. Settings and widget code are not accepted by this tool, nor new images.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1546,7 +1546,7 @@
                       }
                     }
                   },
-                  "description": "grid only: the cells to fill or merge, each at its row and column; every other position is an empty cell. Two cells on one position are refused as taken"
+                  "description": "grid only: the cells to fill or merge, each at its row and column; every other position is an empty cell. A second cell starting on a position already taken is refused as taken; a cell overlapping the span of another one is not accepted"
                 },
                 "styling": {
                   "type": "object",
@@ -1579,7 +1579,7 @@
                     "hide_mobile",
                     "hide_desktop"
                   ],
-                  "description": "dynamic section only, where it shows; omit to keep it (both on a new section). Refused on a grid section, as the editor offers none there"
+                  "description": "dynamic section only, where it shows; omit to keep it (both on a new section). A grid section shows on every device, as the editor offers no choice there: hide_mobile and hide_desktop are refused on it"
                 }
               }
             },

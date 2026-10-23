@@ -870,7 +870,11 @@ public class LayoutMcpToolTest {
   @Test
   public void setPageLayoutRefusalsCarryTheFixedTexts() throws Exception {
     List<SectionDescription> sections = List.of();
+    when(layoutService.getPage(DRAFT_KEY)).thenReturn(new Page());
     assertEquals(LayoutMcpTool.PAGE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.setPageLayout(DRAFT_KEY.format(), sections)));
+    assertEquals(LayoutMcpTool.PAGE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.publishLayout(null, DRAFT_KEY.format())));
+    assertEquals(LayoutMcpTool.PAGE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.discardLayoutDraft(null, DRAFT_KEY.format())));
+    verify(aclService, never()).canEditPage(DRAFT_KEY, USER);
     assertEquals(LayoutMcpTool.PAGE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
     when(layoutService.getPage(PAGE_KEY)).thenReturn(new Page());
     assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
