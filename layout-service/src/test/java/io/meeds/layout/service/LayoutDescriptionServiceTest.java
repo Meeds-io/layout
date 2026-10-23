@@ -535,6 +535,20 @@ public class LayoutDescriptionServiceTest {
     assertTrue(moved.getChildren().get(1).getChildren().isEmpty());
 
     stored = new Page("page");
+    Container section = flexSection("1", "2");
+    Container gridCell = cell("grid-cell");
+    footer = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
+    children(footer, section, gridCell);
+    children(stored, container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null), footer);
+    SectionDescription keptSection = new SectionDescription(section.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
+    SectionDescription keptCell = grid(1, 1, new CellDescription(gridCell.getStorageId(), 1, 1, null, null, null));
+    LayoutModel movedContainers = toPageLayout(List.of(keptSection, keptCell), stored, false);
+    List<LayoutModel> sections = movedContainers.getChildren().get(0).getChildren();
+    assertEquals(section.getStorageId(), sections.get(0).getStorageId());
+    assertEquals(gridCell.getStorageId(), sections.get(1).getChildren().get(0).getStorageId());
+    assertTrue(movedContainers.getChildren().get(1).getChildren().isEmpty());
+
+    stored = new Page("page");
     legacy = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
     Application hidden = application("9", null, null);
     children(legacy, hidden);

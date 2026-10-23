@@ -420,16 +420,16 @@ public class PageLayoutAssembler {
   }
 
   /**
-   * A kept window leaves its stored container, so a window held outside the
-   * sections parent, which the call can address by its id, is moved under
-   * the section rather than written twice; a rebuilt cell's children are
-   * reset before, so there it is a no-op
+   * A kept element leaves its stored container, so a window, a section or a
+   * cell held outside the sections parent, which the call can address by its
+   * id, is moved under the sections rather than written twice; a container
+   * whose children the call rewrites anyway loses nothing by it
    */
-  private void detach(LayoutModel application) {
-    LayoutModel storedParent = parentOf.get(application.getStorageId());
-    if (storedParent != null && children(storedParent).contains(application)) {
+  private void detach(LayoutModel element) {
+    LayoutModel storedParent = parentOf.get(element.getStorageId());
+    if (storedParent != null && children(storedParent).contains(element)) {
       storedParent.setChildren(children(storedParent).stream()
-                                                     .filter(child -> child != application)
+                                                     .filter(child -> child != element)
                                                      .collect(Collectors.toCollection(ArrayList::new)));
     }
   }
@@ -467,6 +467,7 @@ public class PageLayoutAssembler {
     } else if (!isTemplate(container, template) || !used.add(storageId)) {
       throw new IllegalArgumentException(notAccepted);
     }
+    detach(container);
     return container;
   }
 
