@@ -595,7 +595,9 @@ public class LayoutMcpTool implements McpToolPlugin {
    * otherwise; the storage keeps the same tab on a blank one. Every value is
    * checked before anything is written: the page first, then
    * the item, a page left behind by an item failure being removed. Applies at
-   * once; not a draft. Returns the item as list_site_pages describes it.
+   * once; not a draft. Returns the item as list_site_pages describes it, its
+   * labels omitted when the permissions written leave the caller no view
+   * right on the page, as the navigation drawer cannot read them then either.
    */
   public NavigationItemDescription createPage(Long siteId, // NOSONAR
                                               Long parentNodeId,
@@ -709,7 +711,9 @@ public class LayoutMcpTool implements McpToolPlugin {
    * permissions go on the item's page, never in the call that points it at
    * another page. The page steps come first, then the item, and what was
    * written is put back when a later step fails. Applies at once; not a
-   * draft. Returns the item as list_site_pages describes it.
+   * draft. Returns the item as list_site_pages describes it, its labels
+   * omitted when the permissions written leave the caller no view right on
+   * the page, as the navigation drawer cannot read them then either.
    */
   public NavigationItemDescription updatePage(Long nodeId, // NOSONAR
                                               String label,
@@ -1108,8 +1112,14 @@ public class LayoutMcpTool implements McpToolPlugin {
     return parentNodeId;
   }
 
-  private NavigationItemDescription describeStoredItem(SiteKey siteKey, long nodeId, String username) throws ObjectNotFoundException {
-    NavigationItemDescription item = layoutDescriptionService.describeNavigationItem(siteKey, nodeId, username);
+  private NavigationItemDescription describeStoredItem(SiteKey siteKey, long nodeId, String username) throws ObjectNotFoundException,
+                                                                                                        IllegalAccessException {
+    NavigationItemDescription item;
+    try {
+      item = layoutDescriptionService.describeNavigationItem(siteKey, nodeId, username);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
+    }
     if (item == null) {
       throw new ObjectNotFoundException(NODE_NOT_FOUND);
     }

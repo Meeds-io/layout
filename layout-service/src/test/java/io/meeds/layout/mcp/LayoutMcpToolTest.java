@@ -1355,6 +1355,7 @@ public class LayoutMcpToolTest {
     return node;
   }
 
+  @SneakyThrows
   private NavigationItemDescription describedItem(NodeData node) {
     NavigationItemDescription expected = mock(NavigationItemDescription.class);
     lenient().when(descriptionService.describeNavigationItem(SITE_KEY, Long.parseLong(node.getId()), USER)).thenReturn(expected);

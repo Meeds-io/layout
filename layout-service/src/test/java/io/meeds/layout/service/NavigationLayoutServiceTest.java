@@ -555,14 +555,10 @@ public class NavigationLayoutServiceTest {
 
     assertThrows(IllegalAccessException.class, () -> navigationLayoutService.getNodeLabels(2, TEST_USER));
     verify(descriptionService, never()).getDescriptions("2");
-    assertThrows(ObjectNotFoundException.class, () -> navigationLayoutService.getNodeLabels(3));
-    navigationLayoutService.getNodeLabels(2);
-    verify(descriptionService).getDescriptions("2");
-    verify(aclService).canViewNavigation(SITE_KEY, PAGE_KEY, TEST_USER);
 
     when(aclService.canViewNavigation(SITE_KEY, PAGE_KEY, TEST_USER)).thenReturn(true);
     navigationLayoutService.getNodeLabels(2, TEST_USER);
-    verify(descriptionService, times(2)).getDescriptions("2");
+    verify(descriptionService).getDescriptions("2");
 
     when(localeConfigService.getDefaultLocaleConfig()).thenReturn(defaultLocaleConfig);
     when(defaultLocaleConfig.getLocale()).thenReturn(Locale.FRENCH);

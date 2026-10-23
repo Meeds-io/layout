@@ -438,18 +438,25 @@ public class LayoutDescriptionService {
 
   /**
    * One navigation item with its children, as describeNavigation lists it,
-   * read back by the user who just wrote it: the hidden items they may edit
-   * are included, and the item itself, its labels included, is not filtered
-   * by the view right the permissions just written may have taken from them;
-   * its children are listed as describeNavigation lists them.
+   * for a user who edits the site's navigation, the writer of the item: the
+   * hidden items are included, and the item itself is not filtered by the
+   * view right on its page, which the permissions just written may have
+   * taken from them; its labels are, as the navigation drawer's own label
+   * read is, so they are omitted then; its children are listed as
+   * describeNavigation lists them.
    *
-   * @param  siteKey  the site the item belongs to
-   * @param  nodeId   the item
-   * @param  username the writer
-   * @return          the item, null when it is absent from the site's
-   *                  navigation or is a draft
+   * @param  siteKey                 the site the item belongs to
+   * @param  nodeId                  the item
+   * @param  username                the reader
+   * @return                         the item, null when it is absent from
+   *                                 the site's navigation or is a draft
+   * @throws IllegalAccessException  the user cannot edit the site's
+   *                                 navigation
    */
-  public NavigationItemDescription describeNavigationItem(SiteKey siteKey, long nodeId, String username) {
+  public NavigationItemDescription describeNavigationItem(SiteKey siteKey, long nodeId, String username) throws IllegalAccessException {
+    if (!aclService.canEditNavigation(siteKey, username)) {
+      throw new IllegalAccessException();
+    }
     NodeContext<NodeContext<Object>> node = findNodeById(navigationService.loadNode(siteKey), String.valueOf(nodeId));
     NodeState state = node == null ? null : node.getState();
     if (state == null || layoutDraftService.isDraftNode(node.getName())) {
@@ -459,8 +466,7 @@ public class LayoutDescriptionService {
     if (visibility == Visibility.DRAFT) {
       return null;
     }
-    boolean withHidden = aclService.canEditNavigation(siteKey, username);
-    return toNavigationItem(node, state, visibility, siteKey, withHidden, username, true);
+    return toNavigationItem(node, state, visibility, siteKey, true, username);
   }
 
   /**
@@ -698,25 +704,19 @@ public class LayoutDescriptionService {
           || !aclService.canViewNavigation(siteKey, state.getPageRef(), username)) {
         continue;
       }
-      items.add(toNavigationItem(node, state, visibility, siteKey, withHidden, username, false));
+      items.add(toNavigationItem(node, state, visibility, siteKey, withHidden, username));
     }
     return items;
   }
 
-  /**
-   * @param ownRead whether the item is read back by the user who just wrote
-   *                  it, whose labels are then read without the view right
-   *                  the permissions they wrote may have taken from them
-   */
   private NavigationItemDescription toNavigationItem(NodeContext<NodeContext<Object>> node, // NOSONAR
                                                      NodeState state,
                                                      Visibility visibility,
                                                      SiteKey siteKey,
                                                      boolean withHidden,
-                                                     String username,
-                                                     boolean ownRead) {
+                                                     String username) {
     long nodeId = Long.parseLong(node.getId());
-    Map<String, String> labels = readLabels(nodeId, username, ownRead);
+    Map<String, String> labels = readLabels(nodeId, username);
     String name = labels.isEmpty() ? state.getLabel() : labels.values().iterator().next();
     PageKey pageRef = state.getPageRef();
     PageState pageState = null;
@@ -770,9 +770,9 @@ public class LayoutDescriptionService {
     return null;
   }
 
-  private Map<String, String> readLabels(long nodeId, String username, boolean ownRead) {
+  private Map<String, String> readLabels(long nodeId, String username) {
     try {
-      NodeLabel nodeLabel = ownRead ? navigationLayoutService.getNodeLabels(nodeId) : navigationLayoutService.getNodeLabels(nodeId, username);
+      NodeLabel nodeLabel = navigationLayoutService.getNodeLabels(nodeId, username);
       Map<String, String> labels = nodeLabel == null ? null : nodeLabel.getLabels();
       if (labels == null || labels.isEmpty()) {
         return Collections.emptyMap();

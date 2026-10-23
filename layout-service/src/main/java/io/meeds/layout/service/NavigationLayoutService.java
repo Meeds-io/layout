@@ -556,22 +556,6 @@ public class NavigationLayoutService {
     return getNodeLabels(nodeData, nodeId);
   }
 
-  /**
-   * The labels of a node the caller just wrote, read without the view right
-   * the permissions they wrote may have taken from them
-   *
-   * @param  nodeId                  the node
-   * @return                         its labels, as {@link #getNodeLabels(long, String)} answers them
-   * @throws ObjectNotFoundException the node is absent
-   */
-  public NodeLabel getNodeLabels(long nodeId) throws ObjectNotFoundException {
-    NodeData nodeData = navigationService.getNodeById(nodeId);
-    if (nodeData == null) {
-      throw new ObjectNotFoundException(String.format(NODE_NOT_FOUND_MESSAGE, nodeId));
-    }
-    return getNodeLabels(nodeData, nodeId);
-  }
-
   private NodeLabel getNodeLabels(NodeData nodeData, long nodeId) {
     Map<Locale, State> nodeLabels = descriptionService.getDescriptions(String.valueOf(nodeId));
     if (MapUtils.isEmpty(nodeLabels)) {
