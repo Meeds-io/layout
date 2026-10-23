@@ -731,7 +731,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     NodeState state = node.getState() == null ? NodeState.INITIAL : node.getState();
     PageKey storedPageKey = state.getPageRef();
     PageState storedPage = storedPageKey == null ? null : pageStateOrNull(storedPageKey);
-    NavigationItemType storedType = storedPage == null ? NavigationItemType.GROUP :
+    NavigationItemType storedType = storedPageKey == null ? NavigationItemType.GROUP :
                                   isLinkPage(storedPage) ? NavigationItemType.LINK : NavigationItemType.PAGE;
     NavigationItemType itemType = type == null ? pageRef == null ? storedType : NavigationItemType.EXISTING_PAGE : requireType(type);
 
@@ -1137,9 +1137,10 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   /**
    * @return the stored page an item points at, null when that page no longer
-   *         exists (a page of a deleted site), in which case the item keeps
-   *         its reference and takes no page step until it is pointed
-   *         elsewhere or detached
+   *         exists (a page of a deleted site); the item is then a page item
+   *         still, as list_site_pages reads it: a target is accepted on it,
+   *         permissions are refused as not allowed (no page, no edit right),
+   *         and a link needs type link, which creates a link page
    */
   /**
    * @return whether a not-found the service answered after the tool's own

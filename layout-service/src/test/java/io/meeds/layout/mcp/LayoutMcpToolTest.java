@@ -1232,10 +1232,13 @@ public class LayoutMcpToolTest {
 
     NodeData dangling = editableNode(15L, "gone", PageKey.parse("portal::deleted::home"), Visibility.DISPLAYED);
     describedItem(dangling);
-    asUser(() -> tool.updatePage(15L, null, null, null, null, null, null, null, null, "fa-link", null, null, null, null));
+    asUser(() -> tool.updatePage(15L, null, null, null, null, null, null, null, "new_tab", "fa-link", null, null, null, null));
     verify(navigationLayoutService).updateNodeAndPagePermissions(eq(15L), updates.capture(), eq(USER));
     assertFalse(updates.getValue().isDetachPage());
     assertNull(updates.getValue().getNewPage());
+    assertEquals("NEW_TAB", updates.getValue().getTarget());
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED,
+                 refusal(IllegalAccessException.class, () -> tool.updatePage(15L, null, null, null, null, null, null, null, null, null, null, null, List.of("Everyone"), null)));
     asUser(() -> tool.updatePage(15L, null, null, null, "page", null, null, null, null, null, null, null, null, null));
     verify(navigationLayoutService, times(2)).updateNodeAndPagePermissions(eq(15L), updates.capture(), eq(USER));
     assertNull(updates.getValue().getNewPage());
