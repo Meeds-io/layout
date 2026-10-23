@@ -394,6 +394,8 @@ public class LayoutDescriptionServiceTest {
     when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
     when(layoutDraftService.isDraftNode("team_draft_john")).thenReturn(true);
     lenient().when(navigationLayoutService.getNodeLabels(anyLong(), eq(USER))).thenReturn(nodeLabel("Label"));
+    when(navigationLayoutService.getNodeLabels(5L, USER)).thenThrow(new IllegalAccessException("no view right after the write"));
+    when(navigationLayoutService.getNodeLabels(5L)).thenReturn(nodeLabel("Team"));
     PageContext teamContext = new PageContext(pageKey, pageState("PAGE", null, "*:/platform/users", "*:/platform/administrators"));
     when(layoutService.getPageContext(pageKey)).thenReturn(teamContext);
     when(aclService.canViewNavigation(eq(SITE_KEY), any(), eq(USER))).thenReturn(true);
@@ -404,6 +406,9 @@ public class LayoutDescriptionServiceTest {
     assertNotNull(item);
     assertEquals(5L, item.nodeId());
     assertEquals("team", item.urlName());
+    assertEquals("Team", item.name());
+    assertEquals(Map.of("en", "Team"), item.labels());
+    assertEquals("Label", item.children().get(0).name());
     assertFalse(item.visible());
     assertEquals(List.of("*:/platform/administrators"), item.accessPermissions());
     assertEquals(1, item.children().size());

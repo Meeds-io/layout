@@ -1249,6 +1249,10 @@ public class LayoutMcpToolTest {
     verify(navigationLayoutService, times(5)).updateNodeAndPagePermissions(eq(13L), updates.capture(), eq(USER));
     assertEquals("NEW_TAB", updates.getValue().getTarget());
     assertEquals("PAGE", updates.getValue().getNewPage().getPageType());
+    asUser(() -> tool.updatePage(13L, null, null, null, "page", null, null, null, null, null, null, null, null, null));
+    verify(navigationLayoutService, times(6)).updateNodeAndPagePermissions(eq(13L), updates.capture(), eq(USER));
+    assertEquals("PAGE", updates.getValue().getNewPage().getPageType());
+    assertEquals(2L, updates.getValue().getNewPage().getPageTemplateId());
 
     NodeData dangling = editableNode(15L, "gone", PageKey.parse("portal::deleted::home"), Visibility.DISPLAYED);
     describedItem(dangling);
@@ -1275,6 +1279,10 @@ public class LayoutMcpToolTest {
     asUser(() -> tool.updatePage(14L, null, null, null, "link", null, null, "https://meeds.io", null, null, null, null, null, null));
     verify(navigationLayoutService).updateNodeAndPagePermissions(eq(14L), updates.capture(), eq(USER));
     assertNull(updates.getValue().getTarget());
+    asUser(() -> tool.updatePage(14L, null, null, null, "page", null, null, null, null, null, null, null, null, null));
+    verify(navigationLayoutService, times(2)).updateNodeAndPagePermissions(eq(14L), updates.capture(), eq(USER));
+    assertEquals("PAGE", updates.getValue().getNewPage().getPageType());
+    assertEquals(2L, updates.getValue().getNewPage().getPageTemplateId());
     assertEquals(LayoutMcpTool.EDIT_PERMISSION_NOT_ACCEPTED,
                  refusal(() -> tool.updatePage(14L, null, null, null, null, null, null, null, null, null, null, null, null, "*:/platform/users")));
     assertEquals(LayoutMcpTool.URL_NOT_ACCEPTED,
