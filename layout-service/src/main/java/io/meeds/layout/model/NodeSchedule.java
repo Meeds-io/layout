@@ -20,7 +20,8 @@ package io.meeds.layout.model;
 
 /**
  * The bounds of a navigation item's scheduled visibility, as epoch
- * milliseconds; both null when the caller drops the schedule
+ * milliseconds: both given for a schedule, both null when the caller drops
+ * it; one alone is refused by the service
  */
 public record NodeSchedule(Long start, Long end) {
 

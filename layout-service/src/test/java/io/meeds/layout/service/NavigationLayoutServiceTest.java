@@ -662,6 +662,37 @@ public class NavigationLayoutServiceTest {
     nodeModel.setNodeLabel("Team");
     nodeModel.setNodeId("team");
 
+    // a schedule refused is refused before the page is created
+    long future = System.currentTimeMillis() + 3_600_000L;
+    nodeModel.setVisible(true);
+    nodeModel.setScheduled(true);
+    nodeModel.setStartScheduleDate(1000L);
+    nodeModel.setEndScheduleDate(future);
+    assertEquals(NavigationLayoutService.SCHEDULE_START_PAST,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER)).getMessage());
+    nodeModel.setStartScheduleDate(future);
+    nodeModel.setEndScheduleDate(null);
+    assertEquals(NavigationLayoutService.SCHEDULE_INCOMPLETE,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER)).getMessage());
+    nodeModel.setVisible(false);
+    nodeModel.setEndScheduleDate(future + 1000L);
+    assertEquals(NavigationLayoutService.SCHEDULE_ON_HIDDEN_NODE,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER)).getMessage());
+    verify(pageLayoutService, never()).createPage(any(), any());
+    nodeModel.setScheduled(false);
+    nodeModel.setStartScheduleDate(null);
+    nodeModel.setEndScheduleDate(null);
+
+    // the created page is gone before the node state is built: the page goes
+    when(layoutService.getPageContext(pageKey)).thenReturn(null);
+    assertThrows(ObjectNotFoundException.class, () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER));
+    verify(layoutService).remove(pageKey);
+    verify(navigationService, never()).createNode(any(), any(), any(), any());
+    when(layoutService.getPageContext(pageKey)).thenReturn(pageContext);
+
     // the node write fails before anything is stored: the page goes
     when(navigationService.createNode(any(), any(), any(), any())).thenThrow(new IllegalStateException("storage"));
     assertThrows(IllegalStateException.class, () -> navigationLayoutService.createNodeWithPage(nodeModel, pageModel, TEST_USER));
@@ -673,6 +704,7 @@ public class NavigationLayoutServiceTest {
     order.verify(navigationService).createNode(eq(3L), eq(10L), eq("team"), any());
     order.verify(layoutService).remove(pageKey);
     verify(navigationService, never()).deleteNode(any());
+    verify(layoutService, times(2)).remove(pageKey);
 
     // the node is written and its labels fail: the node goes, by the id its
     // write returned, then the page; whatever else sits under the parent
@@ -691,7 +723,7 @@ public class NavigationLayoutServiceTest {
     order = inOrder(navigationService, layoutService);
     order.verify(navigationService).deleteNode(99L);
     order.verify(layoutService).remove(pageKey);
-    verify(layoutService, times(2)).remove(pageKey);
+    verify(layoutService, times(3)).remove(pageKey);
     verify(navigationService, never()).deleteNode(77L);
   }
 
@@ -812,6 +844,11 @@ public class NavigationLayoutServiceTest {
     assertEquals(NavigationLayoutService.SCHEDULE_END_BEFORE_START,
                  assertThrows(IllegalArgumentException.class,
                               () -> navigationLayoutService.updateNodeAndPagePermissions(2L, reversedSchedule, TEST_USER)).getMessage());
+    NavigationItemUpdate halfSchedule = new NavigationItemUpdate();
+    halfSchedule.setSchedule(new NodeSchedule(null, future));
+    assertEquals(NavigationLayoutService.SCHEDULE_INCOMPLETE,
+                 assertThrows(IllegalArgumentException.class,
+                              () -> navigationLayoutService.updateNodeAndPagePermissions(2L, halfSchedule, TEST_USER)).getMessage());
     verify(navigationService, times(5)).updateNode(eq(2L), any());
 
     storedNode(4L, new NodeState.Builder().label("Docs").visibility(Visibility.HIDDEN).build());

@@ -680,7 +680,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     try {
       node = navigationLayoutService.createNodeWithPage(nodeModel, pageModel, username);
     } catch (ObjectNotFoundException e) {
-      throw new ObjectNotFoundException(PARENT_NODE_NOT_FOUND);
+      throw new ObjectNotFoundException(pageModel == null && itemPageRef == null ? PARENT_NODE_NOT_FOUND : PAGE_NOT_FOUND);
     } catch (IllegalAccessException e) {
       throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
     } catch (RuntimeException e) {
@@ -697,8 +697,11 @@ public class LayoutMcpTool implements McpToolPlugin {
    * different one is refused with that reason. A type given follows the
    * drawer's edit: a group detaches the page, an existing page re-points
    * the item, a link rewrites the item's link page or creates one, a page
-   * creates a new one from a template; the previous page is kept, so a
-   * repeated call with such a type leaves a page behind each time. The
+   * creates a new one from a template, on an item that already has a page
+   * only when the template is given, so the type read back can be sent back
+   * unchanged; the previous page is kept, so a repeated call that replaces
+   * a page leaves one behind each time. An item whose page no longer exists
+   * is handled as a group until it is pointed elsewhere. The
    * permissions go on the item's page, never in the call that points it at
    * another page. The page steps come first, then the item, and what was
    * written is put back when a later step fails. Applies at once; not a
@@ -726,8 +729,8 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     NodeState state = node.getState() == null ? NodeState.INITIAL : node.getState();
     PageKey storedPageKey = state.getPageRef();
-    PageState storedPage = storedPageKey == null ? null : readPageState(storedPageKey);
-    NavigationItemType storedType = storedPageKey == null ? NavigationItemType.GROUP :
+    PageState storedPage = storedPageKey == null ? null : pageStateOrNull(storedPageKey);
+    NavigationItemType storedType = storedPage == null ? NavigationItemType.GROUP :
                                   isLinkPage(storedPage) ? NavigationItemType.LINK : NavigationItemType.PAGE;
     NavigationItemType itemType = type == null ? pageRef == null ? storedType : NavigationItemType.EXISTING_PAGE : requireType(type);
 
@@ -745,7 +748,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     case PAGE:
       refuseGiven(url, URL_NOT_ACCEPTED);
       refuseGiven(pageRef, PAGE_REF_NOT_ACCEPTED);
-      if (type != null) {
+      if (type != null && (storedType != NavigationItemType.PAGE || pageTemplateId != null)) {
         update.setNewPage(newPageModel(node.getName(), itemLabel(update, state), PageType.PAGE, null, resolvePageTemplateId(pageTemplateId), null, null));
       } else {
         refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
@@ -774,7 +777,7 @@ public class LayoutMcpTool implements McpToolPlugin {
       refuseGiven(pageTemplateId, PAGE_TEMPLATE_NOT_ACCEPTED);
       refuseGiven(update.getAccessPermissions(), ACCESS_PERMISSIONS_NOT_ACCEPTED);
       refuseGiven(update.getEditPermission(), EDIT_PERMISSION_NOT_ACCEPTED);
-      update.setDetachPage(storedPageKey != null);
+      update.setDetachPage(type != null && storedPageKey != null);
       break;
     }
     if (target != null && itemType != NavigationItemType.GROUP) {
@@ -1122,7 +1125,8 @@ public class LayoutMcpTool implements McpToolPlugin {
       } else if (StringUtils.equalsAny(message,
                                        NavigationLayoutService.SCHEDULE_END_BEFORE_START,
                                        NavigationLayoutService.SCHEDULE_START_PAST,
-                                       NavigationLayoutService.SCHEDULE_ON_HIDDEN_NODE)) {
+                                       NavigationLayoutService.SCHEDULE_ON_HIDDEN_NODE,
+                                       NavigationLayoutService.SCHEDULE_INCOMPLETE)) {
         return new IllegalArgumentException(SCHEDULED_NOT_ACCEPTED);
       }
     }
@@ -1130,12 +1134,14 @@ public class LayoutMcpTool implements McpToolPlugin {
     return new IllegalStateException(refusal);
   }
 
-  private PageState readPageState(PageKey pageKey) throws ObjectNotFoundException {
+  /**
+   * @return the stored page an item points at, null when that page no longer
+   *         exists (a page of a deleted site), in which case the item is
+   *         handled as a group until it is pointed elsewhere
+   */
+  private PageState pageStateOrNull(PageKey pageKey) {
     PageContext pageContext = layoutService.getPageContext(pageKey);
-    if (pageContext == null || pageContext.getState() == null) {
-      throw new ObjectNotFoundException(PAGE_NOT_FOUND);
-    }
-    return pageContext.getState();
+    return pageContext == null ? null : pageContext.getState();
   }
 
   private boolean isLinkPage(PageState pageState) {

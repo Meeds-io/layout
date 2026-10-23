@@ -89,10 +89,6 @@ public class NavigationLayoutService {
    */
   public static final String             PAGE_UNREACHABLE_EVENT              = "layout.page.unreachable";
 
-  private static final Log               LOG                                 = ExoLogger.getExoLogger(NavigationLayoutService.class);
-
-  private static final String            NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND = "Node with id %s doesn't exist";
-
   public static final String             NODE_NAME_NOT_ACCEPTED              = "navigation.nodeName.notAccepted";
 
   public static final String             SCHEDULE_END_BEFORE_START           = "end schedule date must be after start schedule date";
@@ -100,6 +96,12 @@ public class NavigationLayoutService {
   public static final String             SCHEDULE_START_PAST                 = "start schedule date must be after current date";
 
   public static final String             SCHEDULE_ON_HIDDEN_NODE             = "navigation.schedule.hiddenNode";
+
+  public static final String             SCHEDULE_INCOMPLETE                 = "navigation.schedule.incomplete";
+
+  private static final Log               LOG                                 = ExoLogger.getExoLogger(NavigationLayoutService.class);
+
+  private static final String            NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND = "Node with id %s doesn't exist";
 
   private static final Map<Long, String> QUEUE                               = new ConcurrentHashMap<>();
 
@@ -216,8 +218,9 @@ public class NavigationLayoutService {
    * @throws IllegalAccessException   the user cannot edit the site's
    *                                    navigation
    * @throws IllegalArgumentException the name refused
-   *                                    ({@link #NODE_NAME_NOT_ACCEPTED}), or
-   *                                    the schedule or the page model
+   *                                    ({@link #NODE_NAME_NOT_ACCEPTED}), the
+   *                                    schedule refused, both checked before
+   *                                    the page is created, or the page model
    */
   public NodeData createNodeWithPage(NavigationCreateModel nodeModel,
                                      PageCreateModel pageModel,
@@ -232,6 +235,9 @@ public class NavigationLayoutService {
     SiteKey siteKey = parentNodeData.getSiteKey();
     NodeContext<NodeContext<Object>> parent = findNodeById(navigationService.loadNode(siteKey), parentNodeData.getId());
     requireNodeName(parent, nodeModel.getNodeId());
+    if (nodeModel.isScheduled()) {
+      requireSchedule(nodeModel.getStartScheduleDate(), nodeModel.getEndScheduleDate(), nodeModel.isVisible());
+    }
     if (nodeModel.getPreviousNodeId() == null && parent != null && parent.getNodeCount() > 0) {
       nodeModel.setPreviousNodeId(Long.parseLong(parent.get(parent.getNodeCount() - 1).getId()));
     }
@@ -242,18 +248,18 @@ public class NavigationLayoutService {
       pageKey = pageLayoutService.createPage(pageModel, username).getKey();
       nodeModel.setPageRef(pageKey.format());
     }
-    NodeState nodeState = buildNodeState(nodeModel.getNodeLabel(),
-                                         nodeModel.getIcon(),
-                                         getPageKey(nodeModel.getPageRef()),
-                                         nodeModel.getTarget(),
-                                         nodeModel.isVisible(),
-                                         false,
-                                         nodeModel.isScheduled(),
-                                         nodeModel.getStartScheduleDate(),
-                                         nodeModel.getEndScheduleDate(),
-                                         false);
     NodeData nodeData = null;
     try {
+      NodeState nodeState = buildNodeState(nodeModel.getNodeLabel(),
+                                           nodeModel.getIcon(),
+                                           getPageKey(nodeModel.getPageRef()),
+                                           nodeModel.getTarget(),
+                                           nodeModel.isVisible(),
+                                           false,
+                                           nodeModel.isScheduled(),
+                                           nodeModel.getStartScheduleDate(),
+                                           nodeModel.getEndScheduleDate(),
+                                           false);
       nodeData = storeNode(nodeModel, nodeState);
       completeNode(nodeData, nodeModel, nodeState, username);
       return navigationService.getNodeById(Long.parseLong(nodeData.getId()));
@@ -384,10 +390,7 @@ public class NavigationLayoutService {
     PageKey pageKey = resolvePageKey(storedState, update);
     NodeSchedule schedule = update.getSchedule();
     if (schedule != null && !schedule.isCleared()) {
-      if (Boolean.FALSE.equals(update.getVisible())) {
-        throw new IllegalArgumentException(SCHEDULE_ON_HIDDEN_NODE);
-      }
-      checkSchedule(schedule.start(), schedule.end(), false);
+      requireSchedule(schedule.start(), schedule.end(), !Boolean.FALSE.equals(update.getVisible()));
     }
     PageKey createdPageKey = null;
     PageState previousPageState = null;
@@ -798,6 +801,19 @@ public class NavigationLayoutService {
                            target,
                            System.currentTimeMillis());
     }
+  }
+
+  /**
+   * A schedule given to a caller outside the drawer: both bounds, a visible
+   * node, and the drawer's own rules on the bounds
+   */
+  private void requireSchedule(Long startScheduleDate, Long endScheduleDate, boolean visible) {
+    if (startScheduleDate == null || endScheduleDate == null) {
+      throw new IllegalArgumentException(SCHEDULE_INCOMPLETE);
+    } else if (!visible) {
+      throw new IllegalArgumentException(SCHEDULE_ON_HIDDEN_NODE);
+    }
+    checkSchedule(startScheduleDate, endScheduleDate, false);
   }
 
   private void checkSchedule(long startScheduleDate, long endScheduleDate, boolean pasteMode) {
