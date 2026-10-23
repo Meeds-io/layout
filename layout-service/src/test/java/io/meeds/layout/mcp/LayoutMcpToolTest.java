@@ -90,6 +90,10 @@ import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
+import io.meeds.layout.util.EntityMapper;
+import io.meeds.layout.service.PageLayoutAssembler;
+import io.meeds.layout.mcp.constant.SectionType;
+import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.ScheduleDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.service.SiteLayoutAssembler;
@@ -786,21 +790,21 @@ public class LayoutMcpToolTest {
     PortalConfig site = editableSite();
     SiteDescription expected = describedSite(site);
 
-    assertEquals(expected, asUser(() -> tool.publishLayout(SITE_ID)));
+    assertEquals(expected, asUser(() -> tool.publishLayout(SITE_ID, null)));
     verify(draftService).publishSite(site, USER);
 
     doThrow(new ObjectNotFoundException("no draft")).when(draftService).publishSite(site, USER);
-    assertEquals(LayoutMcpTool.DRAFT_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.publishLayout(SITE_ID)));
+    assertEquals(LayoutMcpTool.DRAFT_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.publishLayout(SITE_ID, null)));
     doThrow(new IllegalAccessException("internal detail")).when(draftService).publishSite(site, USER);
-    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.publishLayout(SITE_ID)));
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.publishLayout(SITE_ID, null)));
     doThrow(new IllegalStateException("Application wasn't found with state x")).when(draftService).publishSite(site, USER);
-    assertEquals(LayoutMcpTool.SITE_LAYOUT_NOT_PUBLISHED, refusal(IllegalStateException.class, () -> tool.publishLayout(SITE_ID)));
+    assertEquals(LayoutMcpTool.SITE_LAYOUT_NOT_PUBLISHED, refusal(IllegalStateException.class, () -> tool.publishLayout(SITE_ID, null)));
     doThrow(new IllegalStateException(SiteLayoutService.SITE_OUTDATED_MESSAGE)).when(draftService).publishSite(site, USER);
-    assertEquals(LayoutMcpTool.LAYOUT_OUTDATED, refusal(IllegalStateException.class, () -> tool.publishLayout(SITE_ID)));
+    assertEquals(LayoutMcpTool.LAYOUT_OUTDATED, refusal(IllegalStateException.class, () -> tool.publishLayout(SITE_ID, null)));
 
     when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(false);
-    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.publishLayout(SITE_ID)));
-    assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, refusal(() -> tool.publishLayout(null)));
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.publishLayout(SITE_ID, null)));
+    assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, refusal(() -> tool.publishLayout(null, null)));
     verify(draftService, times(5)).publishSite(site, USER);
   }
 
@@ -814,15 +818,167 @@ public class LayoutMcpToolTest {
     when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
     SiteDescription expected = describedSite(site, draftSite);
 
-    assertEquals(expected, asUser(() -> tool.discardLayoutDraft(SITE_ID)));
+    assertEquals(expected, asUser(() -> tool.discardLayoutDraft(SITE_ID, null)));
 
     doThrow(new ObjectNotFoundException("no draft")).when(draftService).discardDraftSite(site, USER);
-    assertEquals(LayoutMcpTool.DRAFT_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.discardLayoutDraft(SITE_ID)));
+    assertEquals(LayoutMcpTool.DRAFT_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.discardLayoutDraft(SITE_ID, null)));
     doThrow(new IllegalStateException("engine detail")).when(draftService).discardDraftSite(site, USER);
-    assertEquals(LayoutMcpTool.SITE_LAYOUT_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.discardLayoutDraft(SITE_ID)));
+    assertEquals(LayoutMcpTool.SITE_LAYOUT_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.discardLayoutDraft(SITE_ID, null)));
     when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(false);
-    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.discardLayoutDraft(SITE_ID)));
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.discardLayoutDraft(SITE_ID, null)));
     verify(draftService, times(3)).discardDraftSite(site, USER);
+  }
+
+  @Test
+  public void setPageLayoutBuildsTheDraftFromTheLivePageOnTheFirstWrite() throws Exception {
+    editablePage();
+    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null, DRAFT_KEY);
+    Page stored = new Page("live");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
+    List<SectionDescription> sections = List.of(new SectionDescription(null, SectionType.DYNAMIC, 2, null, null, null, null, null));
+    LayoutModel layout = pageLayout();
+    when(descriptionService.toPageLayout(sections, stored, true, USER, Locale.FRENCH)).thenReturn(layout);
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    PageDescription expected = describedDraft();
+
+    assertEquals(expected, asUserInFrench(() -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+
+    ArgumentCaptor<Page> saved = ArgumentCaptor.forClass(Page.class);
+    verify(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), saved.capture(), eq(false), eq(USER));
+    assertEquals(EntityMapper.PAGE_LAYOUT_TEMPLATE, ((Container) saved.getValue().getChildren().get(0)).getTemplate());
+    verify(draftService).createDraftPage(LIVE_NODE, USER);
+  }
+
+  @Test
+  public void setPageLayoutWritesTheExistingDraftTheRevisionNames() throws Exception {
+    editablePage();
+    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    Page stored = new Page("draft");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(stored);
+    List<SectionDescription> sections = List.of();
+    when(descriptionService.toPageLayout(sections, stored, false, USER, Locale.FRENCH)).thenReturn(pageLayout());
+    PageDescription expected = describedDraft();
+
+    assertEquals(expected, asUserInFrench(() -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+
+    verify(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(Page.class), eq(false), eq(USER));
+    verify(draftService, never()).createDraftPage(anyLong(), any());
+  }
+
+  @Test
+  public void setPageLayoutRefusalsCarryTheFixedTexts() throws Exception {
+    List<SectionDescription> sections = List.of();
+    assertEquals(LayoutMcpTool.PAGE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.setPageLayout(DRAFT_KEY.format(), sections)));
+    assertEquals(LayoutMcpTool.PAGE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(new Page());
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+    when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
+    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(null);
+    assertEquals(LayoutMcpTool.NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+    verify(descriptionService, never()).toPageLayout(any(), any(), anyBoolean(), any(), any());
+
+    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    Page stored = new Page("live");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
+    when(descriptionService.toPageLayout(sections, stored, true, USER, Locale.FRENCH)).thenThrow(new IllegalArgumentException(PageLayoutAssembler.COLUMNS_NOT_ACCEPTED));
+    assertEquals(PageLayoutAssembler.COLUMNS_NOT_ACCEPTED, refusalInFrench(IllegalArgumentException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+    verify(draftService, never()).createDraftPage(anyLong(), any());
+    verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
+
+    doReturn(pageLayout()).when(descriptionService).toPageLayout(sections, stored, true, USER, Locale.FRENCH);
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenThrow(new IllegalAccessException("internal detail"));
+    assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusalInFrench(IllegalAccessException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+    verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
+
+    doReturn(DRAFT_KEY).when(draftService).createDraftPage(LIVE_NODE, USER);
+    when(pageLayoutService.updatePageLayout(eq(DRAFT_KEY.format()), any(), eq(false), eq(USER))).thenThrow(new IllegalArgumentException("internal detail"));
+    assertEquals(LayoutMcpTool.STYLING_NOT_ACCEPTED, refusalInFrench(IllegalArgumentException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+    doThrow(new IllegalStateException(LayoutMcpTool.PAGE_OUTDATED_MESSAGE)).when(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(), eq(false), eq(USER));
+    assertEquals(LayoutMcpTool.LAYOUT_OUTDATED, refusalInFrench(IllegalStateException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+    doThrow(new IllegalStateException("engine detail")).when(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(), eq(false), eq(USER));
+    assertEquals(LayoutMcpTool.PAGE_LAYOUT_NOT_SAVED, refusalInFrench(IllegalStateException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+    doThrow(new IllegalAccessException("internal detail")).when(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(), eq(false), eq(USER));
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusalInFrench(IllegalAccessException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+  }
+
+  @Test
+  public void publishLayoutOnAPagePublishesTheRevisionsDraftAndAnswersThePublishedPage() throws Exception {
+    assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED, refusal(() -> tool.publishLayout(SITE_ID, PAGE_KEY.format())));
+    assertEquals(LayoutMcpTool.PAGE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.publishLayout(null, PAGE_KEY.format())));
+    editablePage();
+    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    ModelObject tree = new Container("published");
+    PageDescription expected = mock(PageDescription.class);
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(tree);
+    when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(expected);
+
+    assertEquals(expected, asUser(() -> tool.publishLayout(null, PAGE_KEY.format())));
+
+    verify(draftService).publishPage(PAGE_KEY, LIVE_NODE, USER);
+    verify(draftService, never()).publishSite(any(), any());
+    doThrow(new ObjectNotFoundException("no draft")).when(draftService).publishPage(PAGE_KEY, LIVE_NODE, USER);
+    assertEquals(LayoutMcpTool.DRAFT_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.publishLayout(null, PAGE_KEY.format())));
+    doThrow(new IllegalAccessException("internal detail")).when(draftService).publishPage(PAGE_KEY, LIVE_NODE, USER);
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.publishLayout(null, PAGE_KEY.format())));
+    doThrow(new IllegalArgumentException("internal detail")).when(draftService).publishPage(PAGE_KEY, LIVE_NODE, USER);
+    assertEquals(LayoutMcpTool.STYLING_NOT_ACCEPTED, refusal(IllegalArgumentException.class, () -> tool.publishLayout(null, PAGE_KEY.format())));
+    doThrow(new IllegalStateException(LayoutMcpTool.PAGE_OUTDATED_MESSAGE)).when(draftService).publishPage(PAGE_KEY, LIVE_NODE, USER);
+    assertEquals(LayoutMcpTool.LAYOUT_OUTDATED, refusal(IllegalStateException.class, () -> tool.publishLayout(null, PAGE_KEY.format())));
+    doThrow(new IllegalStateException("engine detail")).when(draftService).publishPage(PAGE_KEY, LIVE_NODE, USER);
+    assertEquals(LayoutMcpTool.PAGE_LAYOUT_NOT_PUBLISHED, refusal(IllegalStateException.class, () -> tool.publishLayout(null, PAGE_KEY.format())));
+    when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(false);
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.publishLayout(null, PAGE_KEY.format())));
+    verify(draftService, times(6)).publishPage(PAGE_KEY, LIVE_NODE, USER);
+  }
+
+  @Test
+  public void discardLayoutDraftOnAPageStartsAgainFromThePublishedPage() throws Exception {
+    assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED, refusal(() -> tool.discardLayoutDraft(SITE_ID, PAGE_KEY.format())));
+    editablePage();
+    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.discardDraftPage(PAGE_KEY, LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    PageDescription expected = describedDraft();
+
+    assertEquals(expected, asUser(() -> tool.discardLayoutDraft(null, PAGE_KEY.format())));
+
+    verify(draftService, never()).discardDraftSite(any(), any());
+    doThrow(new ObjectNotFoundException("no draft")).when(draftService).discardDraftPage(PAGE_KEY, LIVE_NODE, USER);
+    assertEquals(LayoutMcpTool.DRAFT_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.discardLayoutDraft(null, PAGE_KEY.format())));
+    doThrow(new IllegalAccessException("internal detail")).when(draftService).discardDraftPage(PAGE_KEY, LIVE_NODE, USER);
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.discardLayoutDraft(null, PAGE_KEY.format())));
+    doThrow(new IllegalStateException("engine detail")).when(draftService).discardDraftPage(PAGE_KEY, LIVE_NODE, USER);
+    assertEquals(LayoutMcpTool.PAGE_LAYOUT_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.discardLayoutDraft(null, PAGE_KEY.format())));
+    verify(draftService, times(4)).discardDraftPage(PAGE_KEY, LIVE_NODE, USER);
+  }
+
+  private void editablePage() {
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(new Page());
+    when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
+  }
+
+  /**
+   * The page as a write answers it: the user's draft, read as get_page_layout
+   * reads it
+   */
+  private PageDescription describedDraft() throws Exception {
+    PageDescription expected = mock(PageDescription.class);
+    ModelObject tree = new Container("draft");
+    lenient().when(pageLayoutService.getPageLayout(DRAFT_KEY, USER)).thenReturn(tree);
+    lenient().when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.DRAFT)).thenReturn(expected);
+    return expected;
+  }
+
+  private LayoutModel pageLayout() {
+    LayoutModel parent = new LayoutModel();
+    parent.setTemplate(EntityMapper.PAGE_LAYOUT_TEMPLATE);
+    parent.setChildren(new ArrayList<>());
+    LayoutModel page = new LayoutModel();
+    page.setChildren(new ArrayList<>(List.of(parent)));
+    return page;
   }
 
   private PortalConfig editableSite() throws Exception {

@@ -82,6 +82,12 @@ public class LayoutDraftServiceTest {
   @MockitoBean
   private SiteLayoutService    siteLayoutService;
 
+  @MockitoBean
+  private NavigationLayoutService navigationLayoutService;
+
+  @MockitoBean
+  private PageLayoutService    pageLayoutService;
+
   @Autowired
   private LayoutDraftService   layoutDraftService;
 
@@ -197,6 +203,69 @@ public class LayoutDraftServiceTest {
   }
 
   @Test
+  public void createDraftPageRecordsTheDraftNodeIdAsTheUsersRevision() throws Exception {
+    NodeData draftNode = node("home_draft_john", DRAFT_PAGE);
+    when(draftNode.getId()).thenReturn(String.valueOf(DRAFT_NODE));
+    when(navigationLayoutService.createDraftNode(LIVE_NODE, USER)).thenReturn(draftNode);
+
+    assertEquals(DRAFT_PAGE, layoutDraftService.createDraftPage(LIVE_NODE, USER));
+
+    verify(coeditingService).setRevision(USER, navigationKey(), String.valueOf(DRAFT_NODE));
+  }
+
+  @Test
+  public void publishPageWritesTheRevisionsDraftOverTheLivePageAndRemovesTheRevision() throws Exception {
+    ownDraftPage();
+    Page draftPage = new Page("draft");
+    when(pageLayoutService.getPageLayout(DRAFT_PAGE)).thenReturn(draftPage);
+
+    layoutDraftService.publishPage(LIVE_PAGE, LIVE_NODE, USER);
+
+    verify(pageLayoutService).updatePageLayout(LIVE_PAGE.format(), draftPage, true, USER);
+    verify(coeditingService).removeRevision(USER, navigationKey());
+    verify(navigationLayoutService, never()).createDraftNode(anyLong(), any());
+  }
+
+  /**
+   * A leftover draft page without a revision, or a revision naming another
+   * user's draft, reads as no draft: nothing is published or re-cloned
+   */
+  @Test
+  public void publishAndDiscardPageWithoutADraftOfTheUserWriteNothing() throws Exception {
+    when(coeditingService.getRevision(any(), any())).thenReturn(null);
+    when(layoutService.getPage(DRAFT_PAGE)).thenReturn(new Page());
+    assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.publishPage(LIVE_PAGE, LIVE_NODE, USER));
+    assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.discardDraftPage(LIVE_PAGE, LIVE_NODE, USER));
+
+    revision(LayoutDraftService.NAVIGATION_OBJECT_TYPE, String.valueOf(LIVE_NODE), String.valueOf(DRAFT_NODE));
+    NodeData liveNode = node("home", LIVE_PAGE);
+    NodeData otherUsersDraft = node("home_draft_bob", DRAFT_PAGE);
+    when(navigationService.getNodeById(LIVE_NODE)).thenReturn(liveNode);
+    when(navigationService.getNodeById(DRAFT_NODE)).thenReturn(otherUsersDraft);
+    assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.publishPage(LIVE_PAGE, LIVE_NODE, USER));
+    assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.discardDraftPage(LIVE_PAGE, LIVE_NODE, USER));
+
+    verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
+    verify(navigationLayoutService, never()).createDraftNode(anyLong(), any());
+    verify(coeditingService, never()).removeRevision(any(), any());
+    verify(coeditingService, never()).setRevision(any(), any(), any());
+  }
+
+  @Test
+  public void discardDraftPageReclonesTheLivePageAndRecordsTheNewDraft() throws Exception {
+    ownDraftPage();
+    NodeData recloned = node("home_draft_john", DRAFT_PAGE);
+    when(recloned.getId()).thenReturn(String.valueOf(DRAFT_NODE));
+    when(navigationLayoutService.createDraftNode(LIVE_NODE, USER)).thenReturn(recloned);
+
+    assertEquals(DRAFT_PAGE, layoutDraftService.discardDraftPage(LIVE_PAGE, LIVE_NODE, USER));
+
+    verify(navigationLayoutService).createDraftNode(LIVE_NODE, USER);
+    verify(coeditingService).setRevision(USER, navigationKey(), String.valueOf(DRAFT_NODE));
+    verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
+  }
+
+  @Test
   public void createDraftSiteRecordsTheDraftIdAsTheUsersRevision() throws Exception {
     PortalConfig liveSite = new PortalConfig("portal", "test", "portal_" + SITE_ID);
     SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
@@ -272,6 +341,19 @@ public class LayoutDraftServiceTest {
     assertTrue(layoutDraftService.isDraftNode("home_draft_john"));
     assertFalse(layoutDraftService.isDraftNode("home"));
     assertFalse(layoutDraftService.isDraftNode(null));
+  }
+
+  private void ownDraftPage() {
+    revision(LayoutDraftService.NAVIGATION_OBJECT_TYPE, String.valueOf(LIVE_NODE), String.valueOf(DRAFT_NODE));
+    NodeData liveNode = node("home", LIVE_PAGE);
+    NodeData draftNode = node("home_draft_john", DRAFT_PAGE);
+    when(navigationService.getNodeById(LIVE_NODE)).thenReturn(liveNode);
+    when(navigationService.getNodeById(DRAFT_NODE)).thenReturn(draftNode);
+    when(layoutService.getPage(DRAFT_PAGE)).thenReturn(new Page());
+  }
+
+  private CoeditionObjectKey navigationKey() {
+    return new CoeditionObjectKey(LayoutDraftService.NAVIGATION_OBJECT_TYPE, String.valueOf(LIVE_NODE));
   }
 
   private void revision(String type, String id, String revision) {

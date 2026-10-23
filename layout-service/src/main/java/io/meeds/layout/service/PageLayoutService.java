@@ -265,6 +265,10 @@ public class PageLayoutService {
     page.resetStorage();
     page.setName(page.getName() + "_draft_" + username);
     page.setTitle(page.getTitle() + " Draft " + username);
+    // A draft carries no access permission of its own: UserACL falls back to
+    // the edit permission copied from the live page, so only the page's
+    // editors open the draft, by its address, the REST and the tools alike
+    page.setAccessPermissions(null);
 
     layoutService.save(new PageContext(page.getPageKey(), Utils.toPageState(page)), page);
     return page.getPageKey();
