@@ -1158,7 +1158,7 @@ public class LayoutMcpToolTest {
   }
 
   @Test
-  public void updatePageFollowsTheDrawersEditFlowOnATypeChange() throws Exception {
+  public void updatePageChangesTheKindAsTheDrawersEditDoesAndSetsTheTabItself() throws Exception {
     languages();
     permissions();
     templates(pageTemplate(2, "blank", false));
@@ -1239,6 +1239,15 @@ public class LayoutMcpToolTest {
     asUser(() -> tool.updatePage(13L, null, null, null, "link", null, null, null, "same_tab", null, null, null, null, null));
     verify(navigationLayoutService, times(2)).updateNodeAndPagePermissions(eq(13L), updates.capture(), eq(USER));
     assertNull(updates.getValue().getLink());
+    assertEquals("SAME_TAB", updates.getValue().getTarget());
+    asUser(() -> tool.updatePage(13L, null, null, null, null, null, null, null, null, "fa-link", null, null, null, null));
+    verify(navigationLayoutService, times(3)).updateNodeAndPagePermissions(eq(13L), updates.capture(), eq(USER));
+    assertNull(updates.getValue().getTarget());
+    asUser(() -> tool.updatePage(13L, null, null, null, null, null, otherKey.format(), null, null, null, null, null, null, null));
+    verify(navigationLayoutService, times(4)).updateNodeAndPagePermissions(eq(13L), updates.capture(), eq(USER));
+    assertEquals("SAME_TAB", updates.getValue().getTarget());
+    asUser(() -> tool.updatePage(13L, null, null, null, "group", null, null, null, null, null, null, null, null, null));
+    verify(navigationLayoutService, times(5)).updateNodeAndPagePermissions(eq(13L), updates.capture(), eq(USER));
     assertEquals("SAME_TAB", updates.getValue().getTarget());
 
     NodeData dangling = editableNode(15L, "gone", PageKey.parse("portal::deleted::home"), Visibility.DISPLAYED);

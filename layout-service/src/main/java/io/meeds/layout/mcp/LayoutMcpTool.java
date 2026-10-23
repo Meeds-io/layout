@@ -695,14 +695,18 @@ public class LayoutMcpTool implements McpToolPlugin {
    * visibility and schedule and the permissions of its page: an option
    * omitted keeps its stored value, a translation given is merged over the
    * stored ones. The URL name is chosen at creation and cannot change: a
-   * different one is refused with that reason. A type given follows the
-   * drawer's edit: a group detaches the page, an existing page re-points
-   * the item, a link rewrites the item's link page or creates one, opening
-   * in the same tab unless a target is given, a page
-   * creates a new one from a template, on an item that already points at a
-   * page only when the template is given, so the type read back can be sent
-   * back unchanged; the previous page is kept, so a repeated call that replaces
-   * a page leaves one behind each time. An item whose page no longer exists
+   * different one is refused with that reason. A type given changes the
+   * item's page as the drawer's edit does: a group detaches the page, an
+   * existing page re-points the item, a link rewrites the item's link page
+   * or creates one, a page creates a new one from a template, on an item
+   * that already points at a page only when the template is given, so the
+   * type read back can be sent back unchanged; the previous page is kept,
+   * so a repeated call that replaces a page leaves one behind each time.
+   * The tab is the tool's own rule, not the drawer's, which keeps the stored
+   * one: an item turned into a link opens in the same tab unless a target is
+   * given, and an item that stops being a link goes back to the same tab,
+   * the value no target can be set to on it and the read never shows. An
+   * item whose page no longer exists
    * keeps its reference: type group drops it, page_ref points it elsewhere,
    * and type page without a template changes nothing on it. The
    * permissions go on the item's page, never in the call that points it at
@@ -788,6 +792,8 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     if (target != null && update.getTarget() == null) {
       update.setTarget(LinkTarget.parse(target).getStateValue());
+    } else if (storedType == NavigationItemType.LINK && itemType != NavigationItemType.LINK) {
+      update.setTarget(LinkTarget.SAME_TAB.getStateValue());
     }
     if (update.getNewPage() == null
         && (update.getLink() != null || update.getAccessPermissions() != null || update.getEditPermission() != null)) {
