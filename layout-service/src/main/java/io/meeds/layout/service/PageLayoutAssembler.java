@@ -67,6 +67,11 @@ public class PageLayoutAssembler {
   public static final String                                FLEX_SECTION_CLASS           =
                                                                                "d-flex flex-column d-md-grid layout-sticky-application grid-cols grid-cols-md-12 grid-cols-lg-12 grid-cols-xl-12";
 
+  public static final String                                FLEX_SECTION_CLASS_NOT_STICKY =
+                                                                                        "d-flex flex-column d-md-grid grid-cols grid-cols-md-12 grid-cols-lg-12 grid-cols-xl-12";
+
+  public static final String                                STICKY_APPLICATION_TOKEN     = "layout-sticky-application";
+
   public static final String                                GRID_SECTION_CLASS           = "d-flex flex-column d-md-grid";
 
   public static final String                                FLEX_CELL_TOKEN              = "flex-cell";
@@ -124,6 +129,9 @@ public class PageLayoutAssembler {
   public static final String                                TITLE_NOT_ACCEPTED           = SiteLayoutAssembler.TITLE_NOT_ACCEPTED;
 
   public static final String                                DISPLAY_NOT_ACCEPTED         = "value is not accepted for display";
+
+  private static final Pattern                              STICKY_APPLICATION           =
+                                                                               Pattern.compile("(^| )layout-sticky-application(?= |$)");
 
   private static final Pattern                              GRAMMAR_TOKENS               =
                                                                            Pattern.compile("(^| )(d-flex|flex-column|d-md-grid|layout-sticky-application|flex-cell|grid-cell|grid-cols(-(md|lg|xl)-\\d+)?|grid-rows(-(md|lg|xl)-\\d+)?|grid-cell-colspan(-(md|lg|xl)-\\d+)?|grid-cell-rowspan(-(md|lg|xl)-\\d+)?)(?= |$)");
@@ -256,7 +264,10 @@ public class PageLayoutAssembler {
   /**
    * One cell per column, each spanning 12 / N as the editor's newSection
    * does; a kept section's stored cells are reused in order when the count is
-   * unchanged, so their ids and the windows pinned in them stay
+   * unchanged, with the widths the editor's resize stored, so their ids and
+   * the windows pinned in them stay. A new section keeps its applications
+   * sticky as newSection does; a kept one keeps the choice the editor's
+   * section drawer stored, which the description does not carry
    */
   private List<LayoutModel> dynamicCells(SectionDescription description,
                                          LayoutModel section,
@@ -279,7 +290,8 @@ public class PageLayoutAssembler {
     } else if (content != null && (content.size() != columns || content.stream().anyMatch(Objects::isNull))) {
       throw new IllegalArgumentException(COLUMNS_CONTENT_NOT_ACCEPTED);
     }
-    section.setCssClass(grammar(section.getCssClass(), FLEX_SECTION_CLASS));
+    boolean sticky = storedCells.isEmpty() || STICKY_APPLICATION.matcher(StringUtils.defaultString(section.getCssClass())).find();
+    section.setCssClass(grammar(section.getCssClass(), sticky ? FLEX_SECTION_CLASS : FLEX_SECTION_CLASS_NOT_STICKY));
     boolean reuse = storedCells.size() == columns;
     int span = GRID_COLUMNS / columns;
     List<LayoutModel> cells = new ArrayList<>();
@@ -288,7 +300,9 @@ public class PageLayoutAssembler {
       if (reuse && cell.getStorageId() != null) {
         used.add(cell.getStorageId());
       }
-      cell.setCssClass(grammar(cell.getCssClass(), cellClass(FLEX_CELL_TOKEN, span, 1)));
+      if (!reuse) {
+        cell.setCssClass(cellClass(FLEX_CELL_TOKEN, span, 1));
+      }
       cell.setChildren(new ArrayList<>());
       placeApplications(content == null ? Collections.emptyList() : content.get(i), cell, StylingDestination.APPLICATION);
       restoreHidden(cell);

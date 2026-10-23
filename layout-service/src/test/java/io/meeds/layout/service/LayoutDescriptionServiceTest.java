@@ -463,6 +463,31 @@ public class LayoutDescriptionServiceTest {
     assertEquals(List.of("9", "8", "6", "5"), written.stream().map(LayoutModel::getStorageId).toList());
   }
 
+  /**
+   * A dynamic section the editor resized to unequal columns and made not
+   * sticky, read and resent as get_page_layout returned it, keeps both: the
+   * description carries neither
+   */
+  @Test
+  public void keptDynamicSectionKeepsItsColumnWidthsAndItsStickyChoice() throws Exception {
+    Container section = container(LayoutDescriptionService.FLEX_TEMPLATE, PageLayoutAssembler.FLEX_SECTION_CLASS_NOT_STICKY);
+    String wide = "flex-cell grid-cell-colspan grid-cell-colspan-md-8 grid-cell-colspan-lg-8 grid-cell-colspan-xl-8 grid-cell-rowspan grid-cell-rowspan-md-1 grid-cell-rowspan-lg-1 grid-cell-rowspan-xl-1";
+    String narrow = "flex-cell grid-cell-colspan grid-cell-colspan-md-4 grid-cell-colspan-lg-4 grid-cell-colspan-xl-4 grid-cell-rowspan grid-cell-rowspan-md-1 grid-cell-rowspan-lg-1 grid-cell-rowspan-xl-1";
+    children(section, cell(wide), cell(narrow));
+    SectionDescription read = descriptionService.toPageDescription(storedPage(section), PAGE_REF, LayoutVersion.DRAFT).sections().get(0);
+    assertEquals(2, read.columns());
+
+    LayoutModel result = toPageLayout(List.of(read), storedPage(section), false);
+    LayoutModel written = result.getChildren().get(0).getChildren().get(0);
+    assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS_NOT_STICKY, written.getCssClass());
+    assertEquals(wide, written.getChildren().get(0).getCssClass());
+    assertEquals(narrow, written.getChildren().get(1).getCssClass());
+
+    LayoutModel fresh = toPageLayout(List.of(dynamic(2, null)), storedPage(), false).getChildren().get(0).getChildren().get(0);
+    assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS, fresh.getCssClass());
+    assertEquals(6, descriptionService.breakpointValue(fresh.getChildren().get(0).getCssClass(), LayoutDescriptionService.CELL_COLSPAN_PREFIX));
+  }
+
   @Test
   public void firstPageWriteMakesKeptWindowsCopiesWithTheirPreferencesAndALaterWriteKeepsTheirIds() throws Exception {
     doAnswer(invocation -> {

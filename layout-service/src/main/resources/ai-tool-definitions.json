@@ -1311,7 +1311,7 @@
               "properties": {
                 "section_id": {
                   "type": "string",
-                  "description": "the id of a section in the layout get_page_layout returned, to keep its stored element and styling (its type must be unchanged); omit to create it"
+                  "description": "the id of a section in the layout get_page_layout returned, to keep its stored element and styling (its type must be unchanged); a kept dynamic section whose number of columns is unchanged keeps its cells with the column widths and the sticky choice the editor stored, which this description does not carry; omit to create it"
                 },
                 "type": {
                   "type": "string",
