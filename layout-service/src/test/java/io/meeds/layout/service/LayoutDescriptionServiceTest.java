@@ -356,7 +356,8 @@ public class LayoutDescriptionServiceTest {
     SectionDescription keptDynamic = new SectionDescription(dynamic.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
     SectionDescription takesFlexCell = grid(1, 1, new CellDescription(flexCellId, 1, 1, null, null, null));
     assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.CELL_ID_NOT_ACCEPTED, List.of(takesFlexCell, keptDynamic), storedPage(dynamic));
-    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.CELL_ID_NOT_ACCEPTED, List.of(keptDynamic, takesFlexCell), storedPage(dynamic));
+    SectionDescription narrowedDynamic = new SectionDescription(dynamic.getStorageId(), SectionType.DYNAMIC, 2, null, null, null, null, null);
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.CELL_ID_NOT_ACCEPTED, List.of(narrowedDynamic, takesFlexCell), storedPage(dynamic));
     assertPageRefused(IllegalArgumentException.class,
                       PageLayoutAssembler.APPLICATIONS_NOT_ACCEPTED,
                       List.of(dynamic(1, List.of(List.of(new ApplicationDescription(null, null, null, null, null, null, null, null, null))))));
