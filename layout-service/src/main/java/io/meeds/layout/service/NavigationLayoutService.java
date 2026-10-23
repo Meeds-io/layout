@@ -200,7 +200,10 @@ public class NavigationLayoutService {
    * after the parent's last child when no previous node is named. The page
    * is created first, in the parent's site, then the node: a node failure
    * removes the page, and a node whose labels then failed is removed, by the
-   * id its write returned, before it; a second write each, no atomicity.
+   * id its write returned, before it; a second write each, no atomicity. A
+   * node write that throws is taken as having written nothing: this method
+   * never looks a node up by name, which cannot tell its own from one
+   * another caller wrote under that name meanwhile.
    *
    * @param  nodeModel                the item, its pageRef set here when a
    *                                    page model is given
