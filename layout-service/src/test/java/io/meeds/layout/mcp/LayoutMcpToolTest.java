@@ -88,6 +88,7 @@ import org.exoplatform.upload.UploadService;
 
 import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.constant.SectionType;
+import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
@@ -110,6 +111,7 @@ import io.meeds.layout.model.SiteTemplate;
 import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
 import io.meeds.layout.service.LayoutDraftService;
+import io.meeds.layout.service.LayoutStylesAssembler;
 import io.meeds.layout.service.NavigationLayoutService;
 import io.meeds.layout.service.PageLayoutAssembler;
 import io.meeds.layout.service.PageLayoutService;
@@ -905,6 +907,139 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.PAGE_LAYOUT_NOT_SAVED, refusalInFrench(IllegalStateException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
     doThrow(new IllegalAccessException("internal detail")).when(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(), eq(false), eq(USER));
     assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusalInFrench(IllegalAccessException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
+  }
+
+  @Test
+  public void setLayoutStylesOnAPageBuildsTheDraftFromTheLivePageOnTheFirstWrite() throws Exception {
+    editablePage();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null, DRAFT_KEY);
+    Page stored = new Page("live");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
+    when(descriptionService.toStyledPage(elements, stored, true, USER)).thenReturn(pageLayout());
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    PageDescription expected = describedDraft();
+
+    assertEquals(expected, asUser(() -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
+
+    ArgumentCaptor<Page> saved = ArgumentCaptor.forClass(Page.class);
+    verify(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), saved.capture(), eq(false), eq(USER));
+    assertEquals(EntityMapper.PAGE_LAYOUT_TEMPLATE, ((Container) saved.getValue().getChildren().get(0)).getTemplate());
+    verify(draftService).createDraftPage(LIVE_NODE, USER);
+  }
+
+  @Test
+  public void setLayoutStylesOnAPageWritesTheExistingDraftTheRevisionNames() throws Exception {
+    editablePage();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    Page stored = new Page("draft");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(stored);
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
+    when(descriptionService.toStyledPage(elements, stored, false, USER)).thenReturn(pageLayout());
+    PageDescription expected = describedDraft();
+
+    assertEquals(expected, asUser(() -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
+
+    verify(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(Page.class), eq(false), eq(USER));
+    verify(draftService, never()).createDraftPage(anyLong(), any());
+  }
+
+  @Test
+  public void setLayoutStylesOnASiteBuildsTheDraftFromTheLiveLayoutOnTheFirstWrite() throws Exception {
+    PortalConfig site = editableSite();
+    SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null, draftKey);
+    when(descriptionService.toStyledSite(elements, site, true, USER)).thenReturn(siteLayout());
+    when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(new Container("draft"));
+    when(siteLayoutService.getSite(draftKey, USER)).thenReturn(draftSite);
+    SiteDescription expected = describedSite(site, draftSite);
+
+    assertEquals(expected, asUser(() -> tool.setLayoutStyles(SITE_ID, null, elements)));
+
+    verify(siteLayoutService).updateSiteLayout(eq(draftKey), any(PortalConfig.class), eq(false), eq(USER));
+    verify(draftService).createDraftSite(site, USER);
+  }
+
+  @Test
+  public void setLayoutStylesOnASiteWritesTheExistingDraftTheRevisionNames() throws Exception {
+    PortalConfig site = editableSite();
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(new Container("draft"));
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
+    when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
+    when(descriptionService.toStyledSite(elements, draftSite, false, USER)).thenReturn(siteLayout());
+    SiteDescription expected = describedSite(site, draftSite);
+
+    assertEquals(expected, asUser(() -> tool.setLayoutStyles(SITE_ID, null, elements)));
+
+    verify(siteLayoutService).updateSiteLayout(eq(draftSite.getSiteKey()), any(PortalConfig.class), eq(false), eq(USER));
+    verify(draftService, never()).createDraftSite(any(), any());
+  }
+
+  @Test
+  public void setLayoutStylesRefusalsCarryTheFixedTexts() throws Exception {
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
+    assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED, refusal(() -> tool.setLayoutStyles(SITE_ID, PAGE_KEY.format(), elements)));
+    assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, refusal(() -> tool.setLayoutStyles(null, null, elements)));
+    assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED, refusal(() -> tool.setLayoutStyles(null, " ", elements)));
+
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(new Page());
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
+    when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(null);
+    assertEquals(LayoutMcpTool.NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
+    verify(descriptionService, never()).toStyledPage(any(), any(), anyBoolean(), any());
+
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    Page stored = new Page("live");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
+    when(descriptionService.toStyledPage(elements, stored, true, USER)).thenThrow(new ObjectNotFoundException(LayoutStylesAssembler.ELEMENT_NOT_FOUND));
+    assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
+                 refusal(ObjectNotFoundException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
+    doThrow(new IllegalArgumentException("value is not accepted for styling.border")).when(descriptionService).toStyledPage(elements, stored, true, USER);
+    assertEquals("value is not accepted for styling.border",
+                 refusal(IllegalArgumentException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
+    verify(draftService, never()).createDraftPage(anyLong(), any());
+    verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
+
+    doReturn(pageLayout()).when(descriptionService).toStyledPage(elements, stored, true, USER);
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenThrow(new IllegalAccessException("internal detail"));
+    assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED,
+                 refusal(IllegalAccessException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
+    doReturn(DRAFT_KEY).when(draftService).createDraftPage(LIVE_NODE, USER);
+    doThrow(new IllegalStateException(LayoutMcpTool.PAGE_OUTDATED_MESSAGE)).when(pageLayoutService)
+                                                                          .updatePageLayout(eq(DRAFT_KEY.format()), any(), eq(false), eq(USER));
+    assertEquals(LayoutMcpTool.LAYOUT_OUTDATED, refusal(IllegalStateException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
+
+    when(siteLayoutService.getSite(1L, USER)).thenThrow(new ObjectNotFoundException("internal detail"));
+    assertEquals(LayoutMcpTool.SITE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.setLayoutStyles(1L, null, elements)));
+    PortalConfig site = site("portal", "test", "Test");
+    when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site);
+    when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(false);
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.setLayoutStyles(SITE_ID, null, elements)));
+    verify(descriptionService, never()).toStyledSite(any(), any(), anyBoolean(), any());
+
+    when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(true);
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
+    when(descriptionService.toStyledSite(elements, site, true, USER)).thenThrow(new IllegalArgumentException("value is not accepted for styling.border"));
+    assertEquals("value is not accepted for styling.border", refusal(IllegalArgumentException.class, () -> tool.setLayoutStyles(SITE_ID, null, elements)));
+    verify(draftService, never()).createDraftSite(any(), any());
+    verify(siteLayoutService, never()).updateSiteLayout(any(), any(), anyBoolean(), any());
+
+    SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
+    doReturn(siteLayout()).when(descriptionService).toStyledSite(elements, site, true, USER);
+    when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
+    doThrow(new IllegalArgumentException("Invalid css value input javascript:alert(1)")).when(siteLayoutService)
+                                                                                         .updateSiteLayout(eq(draftKey), any(), eq(false), eq(USER));
+    assertEquals(LayoutMcpTool.STYLING_NOT_ACCEPTED, refusal(IllegalArgumentException.class, () -> tool.setLayoutStyles(SITE_ID, null, elements)));
+    doThrow(new IllegalStateException("engine detail")).when(siteLayoutService).updateSiteLayout(eq(draftKey), any(), eq(false), eq(USER));
+    assertEquals(LayoutMcpTool.SITE_LAYOUT_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.setLayoutStyles(SITE_ID, null, elements)));
   }
 
   @Test

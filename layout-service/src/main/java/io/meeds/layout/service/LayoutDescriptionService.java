@@ -74,6 +74,7 @@ import io.meeds.layout.mcp.model.BackgroundImageBlock;
 import io.meeds.layout.mcp.model.BorderBlock;
 import io.meeds.layout.mcp.model.CellDescription;
 import io.meeds.layout.mcp.model.CornersBlock;
+import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.HeightBlock;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.MarginsBlock;
@@ -372,6 +373,70 @@ public class LayoutDescriptionService {
     }
     try {
       LayoutStyleValidator.validate(result.toPage());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
+    }
+    return result;
+  }
+
+  /**
+   * @param  elements    the elements of a set_layout_styles call
+   * @param  stored      the stored page the ids address: the live page when
+   *                       the user has no draft, their draft otherwise
+   * @param  copyWindows whether the result is written over a draft built from
+   *                       the live page by this call, in which case every
+   *                       window becomes a copy carrying its preferences
+   * @param  username    the editing user
+   * @return             the page to write, its structure as stored
+   */
+  public LayoutModel toStyledPage(List<ElementStyling> elements,
+                                  Page stored,
+                                  boolean copyWindows,
+                                  String username) throws ObjectNotFoundException {
+    Set<String> hiddenIds = new HashSet<>();
+    collectHiddenIds(stored, username, false, hiddenIds);
+    LayoutModel root = copyWindows ? new LayoutModel(stored, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(stored);
+    LayoutModel result = new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling).stylePage(elements);
+    if (copyWindows) {
+      result.resetStorage();
+    }
+    try {
+      LayoutStyleValidator.validate(result.toPage());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
+    }
+    return result;
+  }
+
+  /**
+   * @param  elements    the elements of a set_layout_styles call
+   * @param  stored      the site whose stored layout the ids address, the
+   *                       user's draft or the live site
+   * @param  copyWindows whether the result becomes a new draft built from the
+   *                       live layout, in which case every window becomes a
+   *                       copy carrying its preferences
+   * @param  username    the editing user
+   * @return             the site layout to write, its structure as stored
+   */
+  public LayoutModel toStyledSite(List<ElementStyling> elements,
+                                  PortalConfig stored,
+                                  boolean copyWindows,
+                                  String username) throws ObjectNotFoundException {
+    Container layout = stored.getPortalLayout();
+    if (layout == null) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
+    }
+    Set<String> hiddenIds = new HashSet<>();
+    collectHiddenIds(layout, username, false, hiddenIds);
+    LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(layout);
+    LayoutModel result = new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling).styleSite(elements);
+    if (copyWindows) {
+      result.resetStorage();
+    }
+    try {
+      LayoutStyleValidator.validate(EntityMapper.toModelObject(result));
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
     }
@@ -885,6 +950,20 @@ public class LayoutDescriptionService {
           collectHidden(child, username, hiddenWindows, hiddenContainerRefusal);
         }
       }
+    }
+  }
+
+  /**
+   * Collects the storage id of every element the read leaves out: an element
+   * the user has no access permission on, and everything under it
+   */
+  private void collectHiddenIds(ModelObject object, String username, boolean underHidden, Set<String> hiddenIds) {
+    boolean hidden = underHidden || !aclService.hasAccessPermission(object, username);
+    if (hidden && StringUtils.isNotBlank(object.getStorageId())) {
+      hiddenIds.add(object.getStorageId());
+    }
+    if (object instanceof Container container && container.getChildren() != null) {
+      container.getChildren().forEach(child -> collectHiddenIds(child, username, hidden, hiddenIds));
     }
   }
 

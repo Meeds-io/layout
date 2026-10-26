@@ -178,12 +178,16 @@ public class LayoutStylingService {
                            boolean sticky,
                            boolean plainColorOnly) {
     if (styling != null) {
-      applyMargins(target, styling.margins(), destination);
-      applyBorder(target, styling.border(), destination);
-      applyCorners(target, styling.corners(), destination);
-      applyBackground(target, styling.background(), sticky, plainColorOnly);
-      applyText(target, styling.text(), destination);
-      applyHeight(target, styling.height(), destination);
+      StylingDescription offered = offered(styling, destination);
+      applyMargins(target, offered.margins(), destination);
+      applyBorder(target, offered.border());
+      applyCorners(target, offered.corners());
+      applyBackground(target, offered.background(), sticky, plainColorOnly);
+      applyText(target, offered.text());
+      applyHeight(target, offered.height());
+      if (destination == StylingDestination.GRID_CELL_APPLICATION) {
+        target.setHeight(null);
+      }
     }
     if (destination.isApplication()) {
       target.setCssClass(strip(target.getCssClass(), GENERATED_TOKENS));
@@ -223,6 +227,34 @@ public class LayoutStylingService {
 
   public static String append(String cssClass, String token) {
     return StringUtils.isBlank(cssClass) ? token : cssClass.trim() + " " + token;
+  }
+
+  /**
+   * Checks the blocks against the destination before any field is written: a
+   * block the destination does not offer is refused naming it when the call
+   * turns it on, and dropped when the call turns it off, the element holding
+   * none to clear: an application the call writes in a grid cell, which
+   * sizes it, is saved without a height. A read answers an application's height turned off,
+   * which an application moved into a grid cell then carries
+   *
+   * @return the blocks to write
+   */
+  private StylingDescription offered(StylingDescription styling, StylingDestination destination) {
+    return new StylingDescription(styling.margins(),
+                                  offered(styling.border(), styling.border() == null ? null : styling.border().enabled(), destination.hasBorder(), "border"),
+                                  offered(styling.corners(), styling.corners() == null ? null : styling.corners().enabled(), destination.hasCorners(), "corners"),
+                                  styling.background(),
+                                  offered(styling.text(), styling.text() == null ? null : styling.text().enabled(), destination.hasText(), "text"),
+                                  offered(styling.height(), styling.height() == null ? null : styling.height().enabled(), destination.hasHeight(), "height"));
+  }
+
+  private <T> T offered(T block, Boolean enabled, boolean offered, String path) {
+    if (block == null || offered) {
+      return block;
+    } else if (off(enabled)) {
+      return null;
+    }
+    throw refusal(path);
   }
 
   private static MarginsBlock mergeMargins(MarginsBlock stored, MarginsBlock input) {
@@ -466,18 +498,14 @@ public class LayoutStylingService {
     target.setMarginLeft(left);
   }
 
-  private void applyBorder(LayoutModel target, BorderBlock border, StylingDestination destination) {
+  private void applyBorder(LayoutModel target, BorderBlock border) {
     if (border == null) {
       return;
     } else if (!on(border.enabled())) {
-      if (destination.hasBorder()) {
-        target.setBorderColor(null);
-        target.setBorderSize("0");
-        target.setBoxShadow(null);
-      }
+      target.setBorderColor(null);
+      target.setBorderSize("0");
+      target.setBoxShadow(null);
       return;
-    } else if (!destination.hasBorder()) {
-      throw refusal("border");
     }
     String color = hex(border.color(), "border.color");
     int size = range(border.size() == null ? DEFAULT_BORDER_SIZE : border.size(), 0, BORDER_SIZE_MAX, "border.size");
@@ -486,7 +514,7 @@ public class LayoutStylingService {
     target.setBoxShadow(Boolean.TRUE.equals(border.shadow()) ? "true" : null);
   }
 
-  private void applyCorners(LayoutModel target, CornersBlock corners, StylingDestination destination) {
+  private void applyCorners(LayoutModel target, CornersBlock corners) {
     if (corners == null) {
       return;
     } else if (!on(corners.enabled())) {
@@ -495,8 +523,6 @@ public class LayoutStylingService {
       target.setRadiusBottomRight(null);
       target.setRadiusBottomLeft(null);
       return;
-    } else if (!destination.hasCorners()) {
-      throw refusal("corners");
     }
     int topLeft = side(corners.topLeft(), corners.all(), 0, 0, CORNER_MAX, "corners.top_left");
     int topRight = side(corners.topRight(), corners.all(), 0, 0, CORNER_MAX, "corners.top_right");
@@ -618,7 +644,7 @@ public class LayoutStylingService {
     }
   }
 
-  private void applyText(LayoutModel target, TextBlock text, StylingDestination destination) { // NOSONAR
+  private void applyText(LayoutModel target, TextBlock text) { // NOSONAR
     if (text == null) {
       return;
     } else if (!on(text.enabled())) {
@@ -642,8 +668,6 @@ public class LayoutStylingService {
       clearTitleBackground(target);
       clearHeaderBackground(target);
       return;
-    } else if (!destination.hasText()) {
-      throw refusal("text");
     }
     TextRoleBlock title = text.title();
     TextRoleBlock header = text.header();
@@ -814,16 +838,12 @@ public class LayoutStylingService {
            + side(corners.bottomLeft(), corners.all(), 0, 0, TEXT_CORNER_MAX, path + ".bottom_left") + "px";
   }
 
-  private void applyHeight(LayoutModel target, HeightBlock height, StylingDestination destination) {
+  private void applyHeight(LayoutModel target, HeightBlock height) {
     if (height == null) {
       return;
     } else if (!on(height.enabled())) {
-      if (destination.hasHeight()) {
-        target.setHeight(null);
-      }
+      target.setHeight(null);
       return;
-    } else if (!destination.hasHeight()) {
-      throw refusal("height");
     } else if (height.fixed() == null) {
       throw refusal("height.fixed");
     } else if (height.fixed() == HeightPreset.CUSTOM) {

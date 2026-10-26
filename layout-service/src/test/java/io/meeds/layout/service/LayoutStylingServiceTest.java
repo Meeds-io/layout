@@ -658,6 +658,56 @@ public class LayoutStylingServiceTest {
     assertNull(application.getCssClass());
   }
 
+  @Test
+  public void aBlockTheDestinationDoesNotOfferIsRefusedTurnedOnBeforeAnyFieldIsWritten() {
+    LayoutModel section = new LayoutModel();
+
+    assertEquals("value is not accepted for styling.text",
+                 refused(() -> service.applyStyling(section,
+                                                    styling(new MarginsBlock(true, 10, null, null, null, null),
+                                                            null,
+                                                            null,
+                                                            null,
+                                                            new TextBlock(null, new TextRoleBlock("#333333", null, null, null, null), null, null, null, null),
+                                                            null),
+                                                    StylingDestination.DYNAMIC_SECTION,
+                                                    false,
+                                                    false)));
+    assertNull(section.getMarginTop());
+    assertEquals("value is not accepted for styling.height",
+                 refused(() -> service.applyStyling(section,
+                                                    styling(null, null, null, null, null, new HeightBlock(true, HeightPreset.SMALL, null)),
+                                                    StylingDestination.GRID_CELL_APPLICATION,
+                                                    false,
+                                                    false)));
+  }
+
+  @Test
+  public void aBlockTheDestinationDoesNotOfferIsDroppedTurnedOffWritingNothing() {
+    LayoutModel section = new LayoutModel();
+    section.setTextTitleFontWeight("bold");
+    section.setBorderSize("2");
+    section.setRadiusTopLeft(4);
+    section.setHeight("300px");
+
+    service.applyStyling(section,
+                         styling(new MarginsBlock(true, 10, null, null, null, null),
+                                 new BorderBlock(false, null, null, null),
+                                 new CornersBlock(false, null, null, null, null, null),
+                                 null,
+                                 new TextBlock(false, null, null, null, null, null),
+                                 new HeightBlock(false, null, null)),
+                         StylingDestination.DYNAMIC_SECTION,
+                         false,
+                         false);
+
+    assertEquals(10, section.getMarginTop());
+    assertEquals("bold", section.getTextTitleFontWeight());
+    assertEquals("2", section.getBorderSize());
+    assertEquals(4, section.getRadiusTopLeft());
+    assertEquals("300px", section.getHeight());
+  }
+
   private String refused(Runnable call) {
     return assertThrows(IllegalArgumentException.class, call::run).getMessage();
   }
