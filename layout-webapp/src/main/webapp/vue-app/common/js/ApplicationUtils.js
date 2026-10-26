@@ -724,10 +724,14 @@ const SHARED_TOP_BAR_PAGE_IMAGE_PROPERTIES = ['background-image', 'background-re
 // opaque one as the body colour (getStyle), a partly transparent one as the lowest layer, over the site or Branding
 // colour as the page body painted it. The layer is sized and positioned against the viewport, whatever the page's
 // attachment: it stays fixed on a desktop, where the body does not scroll, and scrolls with the content on a tablet
-// or a phone. A page background without an image or a gradient removes the layer an earlier page container wrote.
+// or a phone. A partly transparent page colour without an image or a gradient moves to the body the same way, unless
+// the scroller paints a site or Branding image, which would cover it there. Any other page background removes the
+// layer an earlier page container wrote.
 function setSharedTopBarPageImage(container, style, topBannerTransparency) {
   const layers = getPageImageLayers(container);
-  if (!layers.length) {
+  const colorAlpha = !topBannerTransparency && container.backgroundColor && getColorAlpha(container.backgroundColor);
+  const colorLayer = colorAlpha > 0 && colorAlpha < 1 && (layers.length > 0 || !hasBodyBackgroundImage());
+  if (!layers.length && !colorLayer) {
     removeSharedTopBarPageImage();
     return;
   }
@@ -739,8 +743,7 @@ function setSharedTopBarPageImage(container, style, topBannerTransparency) {
     // Under a transparent top banner the colour is already on the body and the page body paints nothing
     style['--pageBodyBackgroundImage'] = 'none';
     style['--pageBodyBackgroundColor'] = 'transparent';
-    const colorAlpha = container.backgroundColor && getColorAlpha(container.backgroundColor);
-    if (colorAlpha > 0 && colorAlpha < 1) {
+    if (colorLayer) {
       layerValues.push({
         image: `linear-gradient(${container.backgroundColor},${container.backgroundColor})`,
         repeat: 'repeat',
@@ -759,6 +762,11 @@ function setSharedTopBarPageImage(container, style, topBannerTransparency) {
 
 function removeSharedTopBarPageImage() {
   SHARED_TOP_BAR_PAGE_IMAGE_PROPERTIES.forEach(property => document.body.style.removeProperty(property));
+}
+
+function hasBodyBackgroundImage() {
+  const image = window.getComputedStyle(document.body).getPropertyValue('--allPagesBackgroundImage').trim();
+  return !!image && image !== 'none';
 }
 
 function getPageImageLayers(container) {
