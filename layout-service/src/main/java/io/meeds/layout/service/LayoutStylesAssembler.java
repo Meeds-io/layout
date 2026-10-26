@@ -47,8 +47,7 @@ import io.meeds.layout.util.EntityMapper;
  * cell; on a site, a topbar, a bottom bar, a sidebar by the id of the cell
  * the read answers, and an application of one of them. Each one takes the
  * call's blocks merged over its stored styling, written for its place in the
- * editor's matrix, as the two layout assemblers write them, a block the
- * place does not offer being refused even when turned off; every other
+ * editor's matrix, as the two layout assemblers write them; every other
  * application the caller can see is saved with its generated margin and
  * radius tokens stripped, as the two assemblers save theirs. A grid cell,
  * which the editor styles through its section and its application, is
@@ -143,7 +142,6 @@ public class LayoutStylesAssembler {
       }
       LayoutModel target = targets.get(elementId);
       StylingDestination destination = destinations.get(elementId);
-      checkOffered(element.styling(), destination);
       boolean sticky = stickyTargets.contains(elementId);
       StylingDescription merged = LayoutStylingService.merge(storedStyling.apply(target, destination), element.styling(), sticky);
       stylingService.applyStyling(target, merged, destination, sticky, plainColorTargets.contains(elementId));
@@ -155,25 +153,6 @@ public class LayoutStylesAssembler {
       }
     });
     return root;
-  }
-
-  /**
-   * A block the element's place does not offer is refused whether the call
-   * turns it on or off, so that a call never answers success for a block it
-   * could not have set
-   */
-  private void checkOffered(StylingDescription styling, StylingDestination destination) {
-    if (styling == null) {
-      return;
-    } else if (styling.border() != null && !destination.hasBorder()) {
-      throw new IllegalArgumentException(LayoutStylingService.REFUSAL_PREFIX + "border");
-    } else if (styling.corners() != null && !destination.hasCorners()) {
-      throw new IllegalArgumentException(LayoutStylingService.REFUSAL_PREFIX + "corners");
-    } else if (styling.text() != null && !destination.hasText()) {
-      throw new IllegalArgumentException(LayoutStylingService.REFUSAL_PREFIX + "text");
-    } else if (styling.height() != null && !destination.hasHeight()) {
-      throw new IllegalArgumentException(LayoutStylingService.REFUSAL_PREFIX + "height");
-    }
   }
 
   /**

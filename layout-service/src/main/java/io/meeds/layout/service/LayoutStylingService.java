@@ -178,12 +178,13 @@ public class LayoutStylingService {
                            boolean sticky,
                            boolean plainColorOnly) {
     if (styling != null) {
+      checkOffered(styling, destination);
       applyMargins(target, styling.margins(), destination);
-      applyBorder(target, styling.border(), destination);
-      applyCorners(target, styling.corners(), destination);
+      applyBorder(target, styling.border());
+      applyCorners(target, styling.corners());
       applyBackground(target, styling.background(), sticky, plainColorOnly);
-      applyText(target, styling.text(), destination);
-      applyHeight(target, styling.height(), destination);
+      applyText(target, styling.text());
+      applyHeight(target, styling.height());
     }
     if (destination.isApplication()) {
       target.setCssClass(strip(target.getCssClass(), GENERATED_TOKENS));
@@ -223,6 +224,23 @@ public class LayoutStylingService {
 
   public static String append(String cssClass, String token) {
     return StringUtils.isBlank(cssClass) ? token : cssClass.trim() + " " + token;
+  }
+
+  /**
+   * A block the destination does not offer is refused whether the call turns
+   * it on or off, before any field is written, so that a call never answers
+   * success for a block it could not have set
+   */
+  private void checkOffered(StylingDescription styling, StylingDestination destination) {
+    if (styling.border() != null && !destination.hasBorder()) {
+      throw refusal("border");
+    } else if (styling.corners() != null && !destination.hasCorners()) {
+      throw refusal("corners");
+    } else if (styling.text() != null && !destination.hasText()) {
+      throw refusal("text");
+    } else if (styling.height() != null && !destination.hasHeight()) {
+      throw refusal("height");
+    }
   }
 
   private static MarginsBlock mergeMargins(MarginsBlock stored, MarginsBlock input) {
@@ -466,18 +484,14 @@ public class LayoutStylingService {
     target.setMarginLeft(left);
   }
 
-  private void applyBorder(LayoutModel target, BorderBlock border, StylingDestination destination) {
+  private void applyBorder(LayoutModel target, BorderBlock border) {
     if (border == null) {
       return;
     } else if (!on(border.enabled())) {
-      if (destination.hasBorder()) {
-        target.setBorderColor(null);
-        target.setBorderSize("0");
-        target.setBoxShadow(null);
-      }
+      target.setBorderColor(null);
+      target.setBorderSize("0");
+      target.setBoxShadow(null);
       return;
-    } else if (!destination.hasBorder()) {
-      throw refusal("border");
     }
     String color = hex(border.color(), "border.color");
     int size = range(border.size() == null ? DEFAULT_BORDER_SIZE : border.size(), 0, BORDER_SIZE_MAX, "border.size");
@@ -486,7 +500,7 @@ public class LayoutStylingService {
     target.setBoxShadow(Boolean.TRUE.equals(border.shadow()) ? "true" : null);
   }
 
-  private void applyCorners(LayoutModel target, CornersBlock corners, StylingDestination destination) {
+  private void applyCorners(LayoutModel target, CornersBlock corners) {
     if (corners == null) {
       return;
     } else if (!on(corners.enabled())) {
@@ -495,8 +509,6 @@ public class LayoutStylingService {
       target.setRadiusBottomRight(null);
       target.setRadiusBottomLeft(null);
       return;
-    } else if (!destination.hasCorners()) {
-      throw refusal("corners");
     }
     int topLeft = side(corners.topLeft(), corners.all(), 0, 0, CORNER_MAX, "corners.top_left");
     int topRight = side(corners.topRight(), corners.all(), 0, 0, CORNER_MAX, "corners.top_right");
@@ -618,7 +630,7 @@ public class LayoutStylingService {
     }
   }
 
-  private void applyText(LayoutModel target, TextBlock text, StylingDestination destination) { // NOSONAR
+  private void applyText(LayoutModel target, TextBlock text) { // NOSONAR
     if (text == null) {
       return;
     } else if (!on(text.enabled())) {
@@ -642,8 +654,6 @@ public class LayoutStylingService {
       clearTitleBackground(target);
       clearHeaderBackground(target);
       return;
-    } else if (!destination.hasText()) {
-      throw refusal("text");
     }
     TextRoleBlock title = text.title();
     TextRoleBlock header = text.header();
@@ -814,16 +824,12 @@ public class LayoutStylingService {
            + side(corners.bottomLeft(), corners.all(), 0, 0, TEXT_CORNER_MAX, path + ".bottom_left") + "px";
   }
 
-  private void applyHeight(LayoutModel target, HeightBlock height, StylingDestination destination) {
+  private void applyHeight(LayoutModel target, HeightBlock height) {
     if (height == null) {
       return;
     } else if (!on(height.enabled())) {
-      if (destination.hasHeight()) {
-        target.setHeight(null);
-      }
+      target.setHeight(null);
       return;
-    } else if (!destination.hasHeight()) {
-      throw refusal("height");
     } else if (height.fixed() == null) {
       throw refusal("height.fixed");
     } else if (height.fixed() == HeightPreset.CUSTOM) {

@@ -658,6 +658,46 @@ public class LayoutStylingServiceTest {
     assertNull(application.getCssClass());
   }
 
+  @Test
+  public void aBlockTheDestinationDoesNotOfferIsRefusedTurnedOffBeforeAnyFieldIsWritten() {
+    LayoutModel section = new LayoutModel();
+    section.setTextTitleFontWeight("bold");
+    section.setBorderSize("2");
+
+    assertEquals("value is not accepted for styling.text",
+                 refused(() -> service.applyStyling(section,
+                                                    styling(new MarginsBlock(true, 10, null, null, null, null),
+                                                            null,
+                                                            null,
+                                                            null,
+                                                            new TextBlock(false, null, null, null, null, null),
+                                                            null),
+                                                    StylingDestination.DYNAMIC_SECTION,
+                                                    false,
+                                                    false)));
+    assertEquals("value is not accepted for styling.border",
+                 refused(() -> service.applyStyling(section,
+                                                    styling(null, new BorderBlock(false, null, null, null), null, null, null, null),
+                                                    StylingDestination.GRID_SECTION,
+                                                    false,
+                                                    false)));
+    assertEquals("value is not accepted for styling.corners",
+                 refused(() -> service.applyStyling(section,
+                                                    styling(null, null, new CornersBlock(false, null, null, null, null, null), null, null, null),
+                                                    StylingDestination.SIDEBAR,
+                                                    false,
+                                                    false)));
+    assertEquals("value is not accepted for styling.height",
+                 refused(() -> service.applyStyling(section,
+                                                    styling(null, null, null, null, null, new HeightBlock(false, null, null)),
+                                                    StylingDestination.GRID_CELL_APPLICATION,
+                                                    false,
+                                                    false)));
+    assertEquals("bold", section.getTextTitleFontWeight());
+    assertEquals("2", section.getBorderSize());
+    assertNull(section.getMarginTop());
+  }
+
   private String refused(Runnable call) {
     return assertThrows(IllegalArgumentException.class, call::run).getMessage();
   }
