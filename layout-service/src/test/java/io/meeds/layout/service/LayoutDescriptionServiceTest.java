@@ -625,6 +625,24 @@ public class LayoutDescriptionServiceTest {
     children(stored, legacy);
     when(aclService.hasAccessPermission(hidden, USER)).thenReturn(false);
     assertPageRefused(IllegalAccessException.class, PageLayoutAssembler.PAGE_LAYOUT_HIDDEN, List.of(), stored);
+
+    Container editorSection = flexSection("7", "8");
+    Application hiddenInSection = (Application) ((Container) editorSection.getChildren().get(1)).getChildren().get(0);
+    when(aclService.hasAccessPermission(hiddenInSection, USER)).thenReturn(false);
+    Container foreign = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
+    Container mixedParent = container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null);
+    children(mixedParent, editorSection, foreign);
+    Page mixed = new Page("page");
+    children(mixed, mixedParent);
+    assertFalse(descriptionService.toPageDescription(mixed, PAGE_REF, LayoutVersion.DRAFT).editorCompatible());
+    assertPageRefused(IllegalAccessException.class,
+                      String.format(PageLayoutAssembler.KEEP_SECTION_FORMAT, editorSection.getStorageId(), 3),
+                      List.of(),
+                      mixed);
+    SectionDescription keptEditorSection = new SectionDescription(editorSection.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
+    LayoutModel resent = toPageLayout(List.of(keptEditorSection), mixed, false);
+    assertEquals(1, resent.getChildren().get(0).getChildren().size());
+    assertEquals("7", resent.getChildren().get(0).getChildren().get(0).getChildren().get(1).getChildren().get(0).getStorageId());
   }
 
   @Test
