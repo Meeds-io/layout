@@ -579,7 +579,10 @@ public class LayoutStylesAssemblerTest {
     String topbarId = findContainer(root, LayoutDescriptionService.BANNER_TEMPLATE, 0).getStorageId();
     String bottomBarId = findContainer(root, LayoutDescriptionService.BANNER_TEMPLATE, 1).getStorageId();
     String sidebarCellId = findContainer(root, LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0).getStorageId();
+    String bannerCellId = findContainer(root, LayoutDescriptionService.BANNER_CELL_TEMPLATE, 0).getStorageId();
 
+    assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> displaySite(site, visible(bannerCellId, DisplayMode.HIDE_MOBILE))).getMessage());
     assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displaySite(site, visible(topbarId, DisplayMode.HIDE_DESKTOP))));
     assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displaySite(site, visible(bottomBarId, DisplayMode.HIDE_DESKTOP))));
     assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displaySite(site, visible(sidebarCellId, DisplayMode.HIDE_DESKTOP))));
