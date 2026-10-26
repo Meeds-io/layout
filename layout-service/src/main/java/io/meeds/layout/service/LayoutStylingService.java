@@ -178,13 +178,16 @@ public class LayoutStylingService {
                            boolean sticky,
                            boolean plainColorOnly) {
     if (styling != null) {
-      checkOffered(styling, destination);
-      applyMargins(target, styling.margins(), destination);
-      applyBorder(target, styling.border());
-      applyCorners(target, styling.corners());
-      applyBackground(target, styling.background(), sticky, plainColorOnly);
-      applyText(target, styling.text());
-      applyHeight(target, styling.height());
+      StylingDescription offered = offered(styling, destination);
+      applyMargins(target, offered.margins(), destination);
+      applyBorder(target, offered.border());
+      applyCorners(target, offered.corners());
+      applyBackground(target, offered.background(), sticky, plainColorOnly);
+      applyText(target, offered.text());
+      applyHeight(target, offered.height());
+      if (destination == StylingDestination.GRID_CELL_APPLICATION) {
+        target.setHeight(null);
+      }
     }
     if (destination.isApplication()) {
       target.setCssClass(strip(target.getCssClass(), GENERATED_TOKENS));
@@ -227,20 +230,31 @@ public class LayoutStylingService {
   }
 
   /**
-   * A block the destination does not offer is refused whether the call turns
-   * it on or off, before any field is written, so that a call never answers
-   * success for a block it could not have set
+   * Checks the blocks against the destination before any field is written: a
+   * block the destination does not offer is refused naming it when the call
+   * turns it on, and dropped when the call turns it off, the element holding
+   * none to clear: an application the call writes in a grid cell, which
+   * sizes it, is saved without a height. A read answers an application's height turned off,
+   * which an application moved into a grid cell then carries
+   *
+   * @return the blocks to write
    */
-  private void checkOffered(StylingDescription styling, StylingDestination destination) {
-    if (styling.border() != null && !destination.hasBorder()) {
-      throw refusal("border");
-    } else if (styling.corners() != null && !destination.hasCorners()) {
-      throw refusal("corners");
-    } else if (styling.text() != null && !destination.hasText()) {
-      throw refusal("text");
-    } else if (styling.height() != null && !destination.hasHeight()) {
-      throw refusal("height");
+  private StylingDescription offered(StylingDescription styling, StylingDestination destination) {
+    return new StylingDescription(styling.margins(),
+                                  offered(styling.border(), styling.border() == null ? null : styling.border().enabled(), destination.hasBorder(), "border"),
+                                  offered(styling.corners(), styling.corners() == null ? null : styling.corners().enabled(), destination.hasCorners(), "corners"),
+                                  styling.background(),
+                                  offered(styling.text(), styling.text() == null ? null : styling.text().enabled(), destination.hasText(), "text"),
+                                  offered(styling.height(), styling.height() == null ? null : styling.height().enabled(), destination.hasHeight(), "height"));
+  }
+
+  private <T> T offered(T block, Boolean enabled, boolean offered, String path) {
+    if (block == null || offered) {
+      return block;
+    } else if (off(enabled)) {
+      return null;
     }
+    throw refusal(path);
   }
 
   private static MarginsBlock mergeMargins(MarginsBlock stored, MarginsBlock input) {

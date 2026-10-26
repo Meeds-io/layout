@@ -203,24 +203,47 @@ public class LayoutStylesAssemblerTest {
   }
 
   @Test
-  public void aBlockThePlaceDoesNotOfferIsRefusedEvenTurnedOff() {
+  public void aBlockThePlaceDoesNotOfferTurnedOffWritesNothingOnTheElement() throws Exception {
     Page stored = storedPage();
     String sectionId = flexSection.getStorageId();
-    PortalConfig site = storedSite();
-    String sidebarId = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0).getStorageId();
 
-    assertEquals("value is not accepted for styling.text",
-                 refused(() -> stylePage(stored,
-                                         element(sectionId,
-                                                 styling(null, null, null, new TextBlock(false, null, null, null, null, null), null)))));
-    assertEquals("value is not accepted for styling.height",
-                 refused(() -> stylePage(stored, element("3", styling(null, null, null, null, new HeightBlock(false, null, null))))));
-    assertEquals("value is not accepted for styling.border",
-                 refused(() -> styleSite(site, element(sidebarId, styling(null, new BorderBlock(false, null, null, null), null, null, null)))));
-    assertEquals("value is not accepted for styling.corners",
-                 refused(() -> stylePage(stored,
-                                         element(sectionId,
-                                                 new StylingDescription(null, null, new CornersBlock(false, null, null, null, null, null), null, null, null)))));
+    LayoutModel result = stylePage(stored,
+                                   element(sectionId,
+                                           new StylingDescription(null,
+                                                                  new BorderBlock(false, null, null, null),
+                                                                  new CornersBlock(false, null, null, null, null, null),
+                                                                  solid("#123456"),
+                                                                  new TextBlock(false, null, null, null, null, null),
+                                                                  null)),
+                                   element("3", styling(null, null, null, null, new HeightBlock(false, null, null))));
+
+    LayoutModel section = sections(result).get(0);
+    assertEquals("#123456", section.getBackgroundColor());
+    assertNull(section.getTextTitleFontWeight());
+    assertNull(section.getBorderSize());
+  }
+
+  @Test
+  public void anApplicationTheCallDoesNotAddressKeepsItsStoredHeight() throws Exception {
+    Page stored = storedPage();
+    ((Application) gridCell.getChildren().get(0)).setHeight("300px");
+
+    LayoutModel result = stylePage(stored, element("1", styling(new MarginsBlock(true, 30, null, null, null, null), null, null, null, null)));
+
+    assertEquals("300px", sections(result).get(1).getChildren().get(0).getChildren().get(0).getHeight());
+  }
+
+  @Test
+  public void aSidebarApplicationKeepsTheHeightTheSiteEditorGaveIt() throws Exception {
+    PortalConfig site = storedSite();
+    Container sidebarCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
+    ((Application) sidebarCell.getChildren().get(0)).setHeight("300px");
+
+    LayoutModel result = styleSite(site, element("1", styling(new MarginsBlock(true, 30, null, null, null, null), null, null, null, null)));
+
+    LayoutModel application = result.getChildren().get(0).getChildren().get(0).getChildren().get(0);
+    assertEquals(30, application.getMarginTop());
+    assertEquals("300px", application.getHeight());
   }
 
   @Test
