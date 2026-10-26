@@ -725,8 +725,8 @@ const SHARED_TOP_BAR_PAGE_IMAGE_PROPERTIES = ['background-image', 'background-re
 // colour as the page body painted it. The layer is sized and positioned against the viewport, whatever the page's
 // attachment: it stays fixed on a desktop, where the body does not scroll, and scrolls with the content on a tablet
 // or a phone. A partly transparent page colour without an image or a gradient moves to the body the same way, unless
-// the scroller paints a site or Branding image, which would cover it there. Any other page background removes the
-// layer an earlier page container wrote.
+// the scroller paints a site or Branding image or gradient, which would cover it there. Any other page background
+// removes the layer an earlier page container wrote.
 function setSharedTopBarPageImage(container, style, topBannerTransparency) {
   const layers = getPageImageLayers(container);
   const colorAlpha = !topBannerTransparency && container.backgroundColor && getColorAlpha(container.backgroundColor);
