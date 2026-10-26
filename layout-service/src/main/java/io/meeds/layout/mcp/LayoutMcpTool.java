@@ -62,6 +62,7 @@ import org.exoplatform.upload.UploadService;
 import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.constant.LinkTarget;
 import io.meeds.layout.mcp.constant.NavigationItemType;
+import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
@@ -532,8 +533,20 @@ public class LayoutMcpTool implements McpToolPlugin {
                                                                createDraft,
                                                                username,
                                                                getCurrentUserLocale());
+    writeSiteDraft(site, draftSite, layout, username);
+    return describeStoredSite(siteKey, username);
+  }
+
+  /**
+   * Saves a site layout over the user's draft site, created from the live
+   * site first when the user has none
+   */
+  private void writeSiteDraft(PortalConfig site,
+                              PortalConfig draftSite,
+                              LayoutModel layout,
+                              String username) throws ObjectNotFoundException, IllegalAccessException {
     try {
-      SiteKey draftSiteKey = createDraft ? layoutDraftService.createDraftSite(site, username) : draftSite.getSiteKey();
+      SiteKey draftSiteKey = draftSite == null ? layoutDraftService.createDraftSite(site, username) : draftSite.getSiteKey();
       siteLayoutService.updateSiteLayout(draftSiteKey, layout.toSite(), false, username);
     } catch (ObjectNotFoundException e) {
       throw new ObjectNotFoundException(SITE_NOT_FOUND);
@@ -542,9 +555,8 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException(STYLING_NOT_ACCEPTED);
     } catch (RuntimeException e) {
-      throw translateWriteFailure(e, siteKey, username, SITE_LAYOUT_NOT_SAVED);
+      throw translateWriteFailure(e, site.getSiteKey(), username, SITE_LAYOUT_NOT_SAVED);
     }
-    return describeStoredSite(siteKey, username);
   }
 
   /**
@@ -629,8 +641,66 @@ public class LayoutMcpTool implements McpToolPlugin {
       throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
     }
     LayoutModel layout = layoutDescriptionService.toPageLayout(sections, stored, createDraft, username, getCurrentUserLocale());
+    writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+    return describeStoredPage(pageKey, liveNodeId, username);
+  }
+
+  /**
+   * Sets the styling of sections, applications, topbars, bottom bars and
+   * sidebars of the current user's draft of a page or a site, as the editors'
+   * styling drawers do, in one draft save: each element addressed by the id
+   * the read answered takes the blocks given merged over its stored ones,
+   * every other element staying as it is. Exactly one of site_id and page_ref
+   * names the layout. Ids address the layout get_page_layout or get_site
+   * returned: the user's draft when they have one, the published layout
+   * otherwise, in which case the draft is created by this call. Every value
+   * is checked before anything is written. Returns the draft as
+   * get_page_layout or get_site does, with its ids.
+   */
+  public Object setLayoutStyles(Long siteId, String pageRef, List<ElementStyling> elements) throws ObjectNotFoundException,
+                                                                                              IllegalAccessException {
+    if (pageRef != null) {
+      refuseGiven(siteId, PAGE_REF_NOT_ACCEPTED);
+      return setPageStyles(pageRef, elements);
+    }
+    requireSiteId(siteId);
+    String username = getCurrentUserName();
+    PortalConfig site = readEditableSite(siteId, username);
+    PortalConfig draftSite = readDraftSite(siteId, username);
+    boolean createDraft = draftSite == null;
+    LayoutModel layout = layoutDescriptionService.toStyledSite(elements, createDraft ? site : draftSite, createDraft, username);
+    writeSiteDraft(site, draftSite, layout, username);
+    return describeStoredSite(site.getSiteKey(), username);
+  }
+
+  private PageDescription setPageStyles(String pageRef, List<ElementStyling> elements) throws ObjectNotFoundException,
+                                                                                       IllegalAccessException {
+    PageKey pageKey = parsePageKey(pageRef);
+    String username = getCurrentUserName();
+    readEditablePage(pageKey, username);
+    long liveNodeId = requireLiveNodeId(pageKey, username);
+    PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
+    boolean createDraft = draftPageKey == null;
+    Page stored = pageLayoutService.getPageLayout(createDraft ? pageKey : draftPageKey);
+    if (stored == null) {
+      throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
+    }
+    LayoutModel layout = layoutDescriptionService.toStyledPage(elements, stored, createDraft, username);
+    writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+    return describeStoredPage(pageKey, liveNodeId, username);
+  }
+
+  /**
+   * Saves a page layout over the user's draft, the draft being created
+   * through the editor's own path first when the user has none
+   */
+  private void writePageDraft(PageKey pageKey,
+                              long liveNodeId,
+                              PageKey draftPageKey,
+                              LayoutModel layout,
+                              String username) throws ObjectNotFoundException, IllegalAccessException {
     PageKey targetPageKey = draftPageKey;
-    if (createDraft) {
+    if (draftPageKey == null) {
       try {
         targetPageKey = layoutDraftService.createDraftPage(liveNodeId, username);
       } catch (ObjectNotFoundException e) {
@@ -652,7 +722,6 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (RuntimeException e) {
       throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
     }
-    return describeStoredPage(pageKey, liveNodeId, username);
   }
 
   /**
