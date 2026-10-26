@@ -87,19 +87,17 @@ import org.exoplatform.upload.UploadResource;
 import org.exoplatform.upload.UploadService;
 
 import io.meeds.layout.mcp.constant.LayoutVersion;
+import io.meeds.layout.mcp.constant.SectionType;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
-import io.meeds.layout.util.EntityMapper;
-import io.meeds.layout.service.PageLayoutAssembler;
-import io.meeds.layout.mcp.constant.SectionType;
-import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.ScheduleDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.service.SiteLayoutAssembler;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
+import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.SiteSummary;
 import io.meeds.layout.model.NavigationCreateModel;
 import io.meeds.layout.model.NavigationItemUpdate;
@@ -114,10 +112,12 @@ import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
 import io.meeds.layout.service.LayoutDraftService;
 import io.meeds.layout.service.NavigationLayoutService;
+import io.meeds.layout.service.PageLayoutAssembler;
 import io.meeds.layout.service.PageLayoutService;
 import io.meeds.layout.service.PageTemplateService;
 import io.meeds.layout.service.SiteLayoutService;
 import io.meeds.layout.service.SiteTemplateService;
+import io.meeds.layout.util.EntityMapper;
 
 import lombok.SneakyThrows;
 

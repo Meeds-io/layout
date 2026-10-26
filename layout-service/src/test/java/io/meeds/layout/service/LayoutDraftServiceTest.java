@@ -88,6 +88,9 @@ public class LayoutDraftServiceTest {
   @MockitoBean
   private PageLayoutService    pageLayoutService;
 
+  @MockitoBean
+  private LayoutAclService     aclService;
+
   @Autowired
   private LayoutDraftService   layoutDraftService;
 
@@ -213,9 +216,46 @@ public class LayoutDraftServiceTest {
     verify(coeditingService).setRevision(USER, navigationKey(), String.valueOf(DRAFT_NODE));
   }
 
+  /**
+   * The draft node's page reference is the user's to re-point through the
+   * navigation: a node of the right name pointing at any other page reads
+   * as no draft, so nothing of that page is published or answered
+   */
+  @Test
+  public void draftNodeRepointedAtAnotherPageReadsAsNoDraft() throws Exception {
+    PageKey otherPage = PageKey.parse("portal::other::secret");
+    revision(LayoutDraftService.NAVIGATION_OBJECT_TYPE, String.valueOf(LIVE_NODE), String.valueOf(DRAFT_NODE));
+    NodeData liveNode = node("home", LIVE_PAGE);
+    NodeData repointed = node("home_draft_john", otherPage);
+    when(navigationService.getNodeById(LIVE_NODE)).thenReturn(liveNode);
+    when(navigationService.getNodeById(DRAFT_NODE)).thenReturn(repointed);
+    lenient().when(layoutService.getPage(otherPage)).thenReturn(new Page());
+
+    assertNull(layoutDraftService.getDraftPageKey(LIVE_NODE, USER));
+    assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.publishPage(LIVE_PAGE, LIVE_NODE, USER));
+    assertThrows(ObjectNotFoundException.class, () -> layoutDraftService.discardDraftPage(LIVE_PAGE, LIVE_NODE, USER));
+    verify(pageLayoutService, never()).getPageLayout(any(PageKey.class));
+    verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
+    verify(navigationLayoutService, never()).createDraftNode(anyLong(), any());
+    verify(coeditingService, never()).removeRevision(any(), any());
+  }
+
+  @Test
+  public void publishPageRefusesADraftTheUserMayNotEdit() throws Exception {
+    ownDraftPage();
+    when(aclService.canEditPage(DRAFT_PAGE, USER)).thenReturn(false);
+
+    assertThrows(IllegalAccessException.class, () -> layoutDraftService.publishPage(LIVE_PAGE, LIVE_NODE, USER));
+
+    verify(pageLayoutService, never()).getPageLayout(any(PageKey.class));
+    verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
+    verify(coeditingService, never()).removeRevision(any(), any());
+  }
+
   @Test
   public void publishPageWritesTheRevisionsDraftOverTheLivePageAndRemovesTheRevision() throws Exception {
     ownDraftPage();
+    when(aclService.canEditPage(DRAFT_PAGE, USER)).thenReturn(true);
     Page draftPage = new Page("draft");
     when(pageLayoutService.getPageLayout(DRAFT_PAGE)).thenReturn(draftPage);
 

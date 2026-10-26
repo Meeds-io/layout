@@ -131,7 +131,7 @@ public class PageLayoutAssembler {
   public static final String                                DISPLAY_NOT_ACCEPTED         = "value is not accepted for display";
 
   private static final Pattern                              STICKY_APPLICATION           =
-                                                                               Pattern.compile("(^| )layout-sticky-application(?= |$)");
+                                                                               Pattern.compile("(^| )" + Pattern.quote(STICKY_APPLICATION_TOKEN) + "(?= |$)");
 
   private static final Pattern                              GRAMMAR_TOKENS               =
                                                                            Pattern.compile("(^| )(d-flex|flex-column|d-md-grid|layout-sticky-application|flex-cell|grid-cell|grid-cols(-(md|lg|xl)-\\d+)?|grid-rows(-(md|lg|xl)-\\d+)?|grid-cell-colspan(-(md|lg|xl)-\\d+)?|grid-cell-rowspan(-(md|lg|xl)-\\d+)?)(?= |$)");

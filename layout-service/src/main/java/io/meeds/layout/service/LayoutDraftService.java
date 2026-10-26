@@ -75,12 +75,18 @@ public class LayoutDraftService {
   @Autowired
   private PageLayoutService  pageLayoutService;
 
+  @Autowired
+  private LayoutAclService   aclService;
+
   /**
    * @param  liveNodeId the navigation node of the live page
    * @param  username   the user whose draft is looked up
    * @return the key of the draft page the user's revision names, null when
    *         the user has no draft of that page: the named node must be the
-   *         draft node the editor creates for this user and this live node
+   *         draft node the editor creates for this user and this live node,
+   *         and point at the page clonePage names for them, since the node's
+   *         page reference is the user's to re-point through the navigation
+   *         and would otherwise make any page their draft
    */
   public PageKey getDraftPageKey(long liveNodeId, String username) {
     String revision = getRevision(username, NAVIGATION_OBJECT_TYPE, String.valueOf(liveNodeId));
@@ -92,9 +98,12 @@ public class LayoutDraftService {
     if (liveNode == null || draftNode == null || !StringUtils.equals(draftNode.getName(), draftNodeName(liveNode.getName(), username))) {
       return null;
     }
-    NodeState state = draftNode.getState();
-    PageKey draftPageKey = state == null ? null : state.getPageRef();
-    return draftPageKey != null && layoutService.getPage(draftPageKey) != null ? draftPageKey : null;
+    PageKey livePageKey = liveNode.getState() == null ? null : liveNode.getState().getPageRef();
+    PageKey draftPageKey = draftNode.getState() == null ? null : draftNode.getState().getPageRef();
+    return livePageKey != null
+           && draftPageKey != null
+           && StringUtils.equals(draftPageKey.format(), draftPageKey(livePageKey, username).format())
+           && layoutService.getPage(draftPageKey) != null ? draftPageKey : null;
   }
 
   /**
@@ -195,9 +204,11 @@ public class LayoutDraftService {
   /**
    * Publishes the draft the user's revision names over the live page, as the
    * editor's publish does, then removes the revision; a leftover draft
-   * without a revision is never published. The draft is read as stored,
-   * unfiltered, so a window the user cannot see is published in place as the
-   * editor publishes it, and the live page keeps its own permissions.
+   * without a revision is never published, nor a page the draft node was
+   * re-pointed at. The draft, which the user must be able to edit, is read
+   * as stored, unfiltered, so a window the user cannot see is published in
+   * place as the editor publishes it, and the live page keeps its own
+   * permissions.
    *
    * @param  livePageKey             the page published
    * @param  liveNodeId              the navigation node of the live page
@@ -208,6 +219,9 @@ public class LayoutDraftService {
   public void publishPage(PageKey livePageKey, long liveNodeId, String username) throws ObjectNotFoundException,
                                                                                    IllegalAccessException {
     PageKey draftPageKey = requireDraftPageKey(livePageKey, liveNodeId, username);
+    if (!aclService.canEditPage(draftPageKey, username)) {
+      throw new IllegalAccessException(String.format(NO_PAGE_DRAFT_MESSAGE, username, livePageKey.format()));
+    }
     Page draftPage = pageLayoutService.getPageLayout(draftPageKey);
     if (draftPage == null) {
       throw new ObjectNotFoundException(String.format(NO_PAGE_DRAFT_MESSAGE, username, livePageKey.format()));
@@ -256,6 +270,15 @@ public class LayoutDraftService {
    */
   public String draftNodeName(String liveNodeName, String username) {
     return liveNodeName + DRAFT_NAME_MARKER + username;
+  }
+
+  /**
+   * @param  livePageKey the live page
+   * @param  username    the editing user
+   * @return the key PageLayoutService.clonePage gives that user's draft page
+   */
+  public PageKey draftPageKey(PageKey livePageKey, String username) {
+    return new PageKey(livePageKey.getSite(), livePageKey.getName() + DRAFT_NAME_MARKER + username);
   }
 
   /**
