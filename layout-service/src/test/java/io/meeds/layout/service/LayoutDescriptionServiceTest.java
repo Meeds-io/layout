@@ -40,6 +40,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -48,19 +49,22 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.function.Executable;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.ModelStyle;
+import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PageBody;
 import org.exoplatform.portal.config.model.PersistentApplicationState;
 import org.exoplatform.portal.config.model.PortalConfig;
-import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.config.model.TransientApplicationState;
 import org.exoplatform.portal.mop.SiteFilter;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
@@ -72,21 +76,10 @@ import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
+import org.exoplatform.portal.pom.spi.portlet.Portlet;
 
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
-import io.meeds.layout.mcp.model.SiteContainerDescription;
-import io.meeds.layout.mcp.model.SiteContainerOptions;
-import io.meeds.layout.mcp.model.StylingDescription;
-import io.meeds.layout.mcp.model.TextRoleBlock;
-import io.meeds.layout.mcp.model.TextBlock;
-import io.meeds.layout.mcp.model.MarginsBlock;
-import io.meeds.layout.mcp.model.CornersBlock;
-import io.meeds.layout.mcp.model.BorderBlock;
-import io.meeds.layout.mcp.model.SiteLayoutUpdate;
-import org.exoplatform.portal.pom.spi.portlet.Portlet;
-import org.exoplatform.portal.config.model.TransientApplicationState;
-import org.junit.jupiter.api.function.Executable;
 
 import io.meeds.layout.mcp.constant.BackgroundMode;
 import io.meeds.layout.mcp.constant.DisplayMode;
@@ -96,13 +89,22 @@ import io.meeds.layout.mcp.constant.NavigationItemType;
 import io.meeds.layout.mcp.constant.SectionType;
 import io.meeds.layout.mcp.model.ApplicationDescription;
 import io.meeds.layout.mcp.model.BackgroundBlock;
+import io.meeds.layout.mcp.model.BorderBlock;
 import io.meeds.layout.mcp.model.CellDescription;
+import io.meeds.layout.mcp.model.CornersBlock;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
+import io.meeds.layout.mcp.model.MarginsBlock;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
+import io.meeds.layout.mcp.model.SiteContainerDescription;
+import io.meeds.layout.mcp.model.SiteContainerOptions;
 import io.meeds.layout.mcp.model.SiteDescription;
+import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.SiteSummary;
+import io.meeds.layout.mcp.model.StylingDescription;
+import io.meeds.layout.mcp.model.TextBlock;
+import io.meeds.layout.mcp.model.TextRoleBlock;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PortletInstance;
@@ -227,6 +229,420 @@ public class LayoutDescriptionServiceTest {
     assertNull(description.styling().height());
     assertNotNull(description.styling().border());
     assertEquals(DisplayMode.BOTH, description.display());
+  }
+
+  @Test
+  public void pageLayoutWritesTheEditorsTokensForEachDynamicColumnCount() throws Exception {
+    Container shippedCell = (Container) shippedSection("flexSection").getChildren().get(0);
+    for (int columns : PageLayoutAssembler.DYNAMIC_COLUMNS) {
+      SectionDescription section = new SectionDescription(null, SectionType.DYNAMIC, columns, null, null, null, null, null);
+      LayoutModel result = toPageLayout(List.of(section), storedPage(), false);
+      LayoutModel parent = result.getChildren().get(0);
+      assertEquals(EntityMapper.PAGE_LAYOUT_TEMPLATE, parent.getTemplate());
+      LayoutModel written = parent.getChildren().get(0);
+      assertEquals(LayoutDescriptionService.FLEX_TEMPLATE, written.getTemplate());
+      assertEquals(FLEX_CLASS, written.getCssClass());
+      assertEquals(columns, written.getChildren().size());
+      written.getChildren().forEach(cell -> {
+        assertEquals(LayoutDescriptionService.CELL_TEMPLATE, cell.getTemplate());
+        assertTrue(cell.getCssClass().startsWith(PageLayoutAssembler.FLEX_CELL_TOKEN + " "), cell.getCssClass());
+        assertEquals(12 / columns, descriptionService.breakpointValue(cell.getCssClass(), LayoutDescriptionService.CELL_COLSPAN_PREFIX));
+        assertEquals(1, descriptionService.breakpointValue(cell.getCssClass(), LayoutDescriptionService.CELL_ROWSPAN_PREFIX));
+      });
+      if (columns == 3) {
+        assertEquals(shippedCell.getCssClass().trim(), written.getChildren().get(0).getCssClass());
+      }
+      SectionDescription read = descriptionService.toPageDescription(result.toPage(), PAGE_REF, LayoutVersion.DRAFT).sections().get(0);
+      assertEquals(SectionType.DYNAMIC, read.type());
+      assertEquals(columns, read.columns());
+      assertEquals(DisplayMode.BOTH, read.display());
+    }
+  }
+
+  @Test
+  public void pageLayoutWritesTheGridMatrixInReadingOrderAndReadsBackAtTheSamePositions() throws Exception {
+    instance(10L, "content/NewsListView", "News");
+    PortletInstance linksInstance = instance(11L, "layout/Links", "Links");
+    when(portletInstanceService.getPortletInstances(0, USER, Locale.ENGLISH, true)).thenReturn(List.of(linksInstance));
+    Container shippedCell = (Container) shippedSection("gridSection").getChildren().get(0);
+    ApplicationDescription news = new ApplicationDescription(null, null, 10L, null, null, null, null, null, null);
+    ApplicationDescription links = new ApplicationDescription(null, "layout/Links", null, "Links", null, DisplayMode.HIDE_MOBILE, null, null, null);
+    SectionDescription grid = new SectionDescription(null,
+                                                     SectionType.GRID,
+                                                     3,
+                                                     2,
+                                                     null,
+                                                     List.of(new CellDescription(null, 1, 1, null, 2, news),
+                                                             new CellDescription(null, 2, 3, null, null, links)),
+                                                     null,
+                                                     null);
+    LayoutModel result = toPageLayout(List.of(grid), storedPage(), false);
+    LayoutModel written = result.getChildren().get(0).getChildren().get(0);
+    assertEquals(LayoutDescriptionService.GRID_TEMPLATE, written.getTemplate());
+    assertEquals("d-flex flex-column d-md-grid grid-cols grid-cols-md-3 grid-cols-lg-3 grid-cols-xl-3 grid-rows grid-rows-md-2 grid-rows-lg-2 grid-rows-xl-2",
+                 written.getCssClass());
+    assertEquals(5, written.getChildren().size());
+    LayoutModel first = written.getChildren().get(0);
+    assertEquals("grid-cell grid-cell-colspan grid-cell-colspan-md-2 grid-cell-colspan-lg-2 grid-cell-colspan-xl-2 grid-cell-rowspan grid-cell-rowspan-md-1 grid-cell-rowspan-lg-1 grid-cell-rowspan-xl-1",
+                 first.getCssClass());
+    assertEquals("content/NewsListView", first.getChildren().get(0).getContentId());
+    assertEquals(shippedCell.getCssClass().trim(), written.getChildren().get(1).getCssClass());
+    assertTrue(written.getChildren().get(1).getChildren().isEmpty());
+    LayoutModel last = written.getChildren().get(4);
+    assertEquals("Links", last.getChildren().get(0).getTitle());
+    assertTrue(last.getChildren().get(0).getCssClass().contains(LayoutDescriptionService.HIDE_MOBILE_TOKEN));
+
+    SectionDescription read = descriptionService.toPageDescription(result.toPage(), PAGE_REF, LayoutVersion.DRAFT).sections().get(0);
+    assertEquals(SectionType.GRID, read.type());
+    assertEquals(3, read.columns());
+    assertEquals(2, read.rows());
+    assertEquals(5, read.cells().size());
+    assertEquals(1, read.cells().get(0).row());
+    assertEquals(1, read.cells().get(0).column());
+    assertEquals(2, read.cells().get(0).columnSpan());
+    assertEquals("content/NewsListView", read.cells().get(0).application().contentId());
+    assertNull(read.cells().get(1).application());
+    assertEquals(1, read.cells().get(1).row());
+    assertEquals(3, read.cells().get(1).column());
+    assertEquals(2, read.cells().get(4).row());
+    assertEquals(3, read.cells().get(4).column());
+    assertEquals("Links", read.cells().get(4).application().title());
+    assertEquals(DisplayMode.HIDE_MOBILE, read.cells().get(4).application().display());
+  }
+
+  @Test
+  public void pageLayoutRefusesEachValueOutsideTheGrammar() throws Exception {
+    ApplicationDescription news = new ApplicationDescription(null, null, 10L, null, null, null, null, null, null);
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.SECTIONS_NOT_ACCEPTED, Collections.nCopies(21, dynamic(1, null)));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.SECTIONS_NOT_ACCEPTED, Collections.singletonList(null));
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.ELEMENTS_NOT_ACCEPTED,
+                      Collections.nCopies(20, dynamic(1, List.of(Collections.nCopies(10, news)))));
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.TYPE_NOT_ACCEPTED,
+                      List.of(new SectionDescription(null, null, 1, null, null, null, null, null)));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.COLUMNS_NOT_ACCEPTED, List.of(dynamic(5, null)));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.COLUMNS_NOT_ACCEPTED, List.of(dynamic(null, null)));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.COLUMNS_CONTENT_NOT_ACCEPTED, List.of(dynamic(2, List.of(List.of()))));
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.ROWS_NOT_ACCEPTED,
+                      List.of(new SectionDescription(null, SectionType.DYNAMIC, 1, 1, null, null, null, null)));
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.CELLS_NOT_ACCEPTED,
+                      List.of(new SectionDescription(null, SectionType.DYNAMIC, 1, null, null, List.of(), null, null)));
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.COLUMNS_CONTENT_NOT_ACCEPTED,
+                      List.of(new SectionDescription(null, SectionType.GRID, 1, 1, List.of(), null, null, null)));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.COLUMNS_NOT_ACCEPTED, List.of(grid(13, 1)));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.ROWS_NOT_ACCEPTED, List.of(grid(1, 0)));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.CELLS_NOT_ACCEPTED, List.of(grid(2, 2, new CellDescription(null, 3, 1, null, null, null))));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.CELLS_NOT_ACCEPTED, List.of(grid(2, 2, new CellDescription(null, 1, 2, null, 2, null))));
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.CELLS_NOT_ACCEPTED,
+                      List.of(grid(2, 2, new CellDescription(null, 1, 1, null, 2, null), new CellDescription(null, 1, 2, null, null, null))));
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.CELL_TAKEN,
+                      List.of(grid(2, 2, new CellDescription(null, 1, 1, null, null, null), new CellDescription(null, 1, 1, null, null, news))));
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.DISPLAY_NOT_ACCEPTED,
+                      List.of(new SectionDescription(null, SectionType.GRID, 1, 1, null, null, null, DisplayMode.HIDE_MOBILE)));
+    assertPageRefused(ObjectNotFoundException.class,
+                      PageLayoutAssembler.SECTION_NOT_FOUND,
+                      List.of(new SectionDescription("999", SectionType.DYNAMIC, 1, null, null, null, null, null)));
+    assertPageRefused(ObjectNotFoundException.class, PageLayoutAssembler.CELL_NOT_FOUND, List.of(grid(1, 1, new CellDescription("999", 1, 1, null, null, null))));
+    Container dynamic = flexSection("1", "2");
+    String flexCellId = ((Container) dynamic.getChildren().get(0)).getStorageId();
+    SectionDescription keptDynamic = new SectionDescription(dynamic.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
+    SectionDescription takesFlexCell = grid(1, 1, new CellDescription(flexCellId, 1, 1, null, null, null));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.CELL_ID_NOT_ACCEPTED, List.of(takesFlexCell, keptDynamic), storedPage(dynamic));
+    SectionDescription narrowedDynamic = new SectionDescription(dynamic.getStorageId(), SectionType.DYNAMIC, 2, null, null, null, null, null);
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.CELL_ID_NOT_ACCEPTED, List.of(narrowedDynamic, takesFlexCell), storedPage(dynamic));
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.APPLICATIONS_NOT_ACCEPTED,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription(null, null, null, null, null, null, null, null, null))))));
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.APPLICATIONS_NOT_ACCEPTED,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription(null, null, 10L, null, null, null, Map.of("k", "v"), null, null))))));
+    assertPageRefused(ObjectNotFoundException.class,
+                      PageLayoutAssembler.APPLICATION_NOT_FOUND,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription("999", null, null, null, null, null, null, null, null))))));
+    Page pageItself = storedPage(flexSection("1", "2"));
+    assertPageRefused(ObjectNotFoundException.class,
+                      PageLayoutAssembler.APPLICATION_NOT_FOUND,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription(pageItself.getStorageId(), null, null, null, null, null, null, null, null))))),
+                      pageItself);
+    String sectionId = ((Container) pageItself.getChildren().get(0)).getChildren().get(0).getStorageId();
+    assertPageRefused(ObjectNotFoundException.class,
+                      PageLayoutAssembler.APPLICATION_NOT_FOUND,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription(sectionId, null, null, null, null, null, null, null, null))))),
+                      pageItself);
+    Container templateLess = container(null, null);
+    Page withTemplateLessContainer = storedPage(templateLess);
+    assertPageRefused(ObjectNotFoundException.class,
+                      PageLayoutAssembler.APPLICATION_NOT_FOUND,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription(templateLess.getStorageId(), null, null, null, null, null, null, null, null))))),
+                      withTemplateLessContainer);
+    instance(10L, "content/NewsListView", "News");
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.TITLE_NOT_ACCEPTED,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription(null, null, 10L, "x".repeat(201), null, null, null, null, null))))));
+    verify(portletInstanceService, never()).expandPortletPreferences(any(), any());
+  }
+
+  @Test
+  public void keptSectionKeepsItsCellsAndHiddenWindowsStayPinnedOrRefuseTheCall() throws Exception {
+    Container section = flexSection("7", "8");
+    Container hiddenCell = (Container) section.getChildren().get(1);
+    Application hidden = (Application) hiddenCell.getChildren().get(0);
+    when(aclService.hasAccessPermission(hidden, USER)).thenReturn(false);
+    ApplicationDescription shown = new ApplicationDescription("8", null, null, null, null, null, null, null, null);
+    SectionDescription kept = new SectionDescription(section.getStorageId(),
+                                                     SectionType.DYNAMIC,
+                                                     3,
+                                                     null,
+                                                     List.of(List.of(), List.of(shown), List.of()),
+                                                     null,
+                                                     null,
+                                                     null);
+    LayoutModel result = toPageLayout(List.of(kept), storedPage(section), false);
+    LayoutModel written = result.getChildren().get(0).getChildren().get(0);
+    assertEquals(section.getStorageId(), written.getStorageId());
+    assertEquals(hiddenCell.getStorageId(), written.getChildren().get(1).getStorageId());
+    List<LayoutModel> column = written.getChildren().get(1).getChildren();
+    assertEquals(2, column.size());
+    assertEquals("7", column.get(0).getStorageId());
+    assertEquals("8", column.get(1).getStorageId());
+    assertTrue(written.getChildren().get(0).getChildren().isEmpty());
+
+    section = flexSection("7", "8");
+    hidden = (Application) ((Container) section.getChildren().get(1)).getChildren().get(0);
+    when(aclService.hasAccessPermission(hidden, USER)).thenReturn(false);
+    SectionDescription narrowed = new SectionDescription(section.getStorageId(), SectionType.DYNAMIC, 2, null, null, null, null, null);
+    String keepSection = String.format(PageLayoutAssembler.KEEP_SECTION_FORMAT, section.getStorageId(), 3);
+    assertPageRefused(IllegalAccessException.class, keepSection, List.of(narrowed), storedPage(section));
+    assertPageRefused(IllegalAccessException.class, keepSection, List.of(), storedPage(section));
+    assertPageRefused(IllegalArgumentException.class,
+                      PageLayoutAssembler.SECTION_ID_NOT_ACCEPTED,
+                      List.of(new SectionDescription(section.getStorageId(), SectionType.GRID, 1, 1, null, null, null, null)),
+                      storedPage(section));
+    assertPageRefused(ObjectNotFoundException.class,
+                      PageLayoutAssembler.APPLICATION_NOT_FOUND,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription("7", null, null, null, null, null, null, null, null))))),
+                      storedPage(section));
+    when(aclService.hasAccessPermission(section.getChildren().get(0), USER)).thenReturn(false);
+    assertPageRefused(IllegalAccessException.class, PageLayoutAssembler.PAGE_LAYOUT_HIDDEN, List.of(kept), storedPage(section));
+
+    Container grid = container(LayoutDescriptionService.GRID_TEMPLATE,
+                               "d-flex flex-column d-md-grid grid-cols grid-cols-xl-2 grid-rows grid-rows-xl-1");
+    Container pinnedCell = cell("grid-cell");
+    Application pinned = application("9", null, null);
+    children(pinnedCell, pinned);
+    children(grid, pinnedCell, cell("grid-cell"));
+    when(aclService.hasAccessPermission(pinned, USER)).thenReturn(false);
+    SectionDescription taken = grid(2, 1, new CellDescription(pinnedCell.getStorageId(), 1, 1, null, null, shown));
+    assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.CELL_TAKEN, List.of(taken), storedPage(grid));
+    assertPageRefused(IllegalAccessException.class,
+                      String.format(PageLayoutAssembler.KEEP_CELL_FORMAT, pinnedCell.getStorageId()),
+                      List.of(grid(2, 1)),
+                      storedPage(grid));
+    SectionDescription keptCell = grid(2, 1, new CellDescription(pinnedCell.getStorageId(), 1, 1, null, null, null));
+    LayoutModel gridResult = toPageLayout(List.of(keptCell), storedPage(grid), false);
+    LayoutModel writtenCell = gridResult.getChildren().get(0).getChildren().get(0).getChildren().get(0);
+    assertEquals(pinnedCell.getStorageId(), writtenCell.getStorageId());
+    assertEquals("9", writtenCell.getChildren().get(0).getStorageId());
+  }
+
+  /**
+   * Two hidden windows at the head of a column come back in their stored
+   * order, which rests on the hidden windows being collected in tree order:
+   * the ids are chosen so that a hash-ordered walk reverses them whatever
+   * the table size a two-entry map takes (4 or 16 buckets)
+   */
+  @Test
+  public void hiddenWindowsOfOneColumnKeepTheirStoredOrder() throws Exception {
+    String cellClass = "flex-cell grid-cell-colspan grid-cell-colspan-xl-12 grid-cell-rowspan grid-cell-rowspan-xl-1";
+    Container section = container(LayoutDescriptionService.FLEX_TEMPLATE, FLEX_CLASS);
+    Container column = cell(cellClass);
+    Application firstHidden = application("9", null, null);
+    Application secondHidden = application("8", null, null);
+    children(column, firstHidden, secondHidden, application("5", null, null), application("6", null, null));
+    children(section, column);
+    when(aclService.hasAccessPermission(firstHidden, USER)).thenReturn(false);
+    when(aclService.hasAccessPermission(secondHidden, USER)).thenReturn(false);
+    SectionDescription kept = new SectionDescription(section.getStorageId(),
+                                                     SectionType.DYNAMIC,
+                                                     1,
+                                                     null,
+                                                     List.of(List.of(new ApplicationDescription("6", null, null, null, null, null, null, null, null),
+                                                                     new ApplicationDescription("5", null, null, null, null, null, null, null, null))),
+                                                     null,
+                                                     null,
+                                                     null);
+    LayoutModel result = toPageLayout(List.of(kept), storedPage(section), false);
+    List<LayoutModel> written = result.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren();
+    assertEquals(List.of("9", "8", "6", "5"), written.stream().map(LayoutModel::getStorageId).toList());
+  }
+
+  /**
+   * A dynamic section the editor resized to unequal columns and made not
+   * sticky, read and resent as get_page_layout returned it, keeps both: the
+   * description carries neither
+   */
+  @Test
+  public void keptDynamicSectionKeepsItsColumnWidthsAndItsStickyChoice() throws Exception {
+    Container section = container(LayoutDescriptionService.FLEX_TEMPLATE, PageLayoutAssembler.FLEX_SECTION_CLASS_NOT_STICKY);
+    String wide = "flex-cell grid-cell-colspan grid-cell-colspan-md-8 grid-cell-colspan-lg-8 grid-cell-colspan-xl-8 grid-cell-rowspan grid-cell-rowspan-md-1 grid-cell-rowspan-lg-1 grid-cell-rowspan-xl-1";
+    String narrow = "flex-cell grid-cell-colspan grid-cell-colspan-md-4 grid-cell-colspan-lg-4 grid-cell-colspan-xl-4 grid-cell-rowspan grid-cell-rowspan-md-1 grid-cell-rowspan-lg-1 grid-cell-rowspan-xl-1";
+    children(section, cell(wide), cell(narrow));
+    SectionDescription read = descriptionService.toPageDescription(storedPage(section), PAGE_REF, LayoutVersion.DRAFT).sections().get(0);
+    assertEquals(2, read.columns());
+
+    LayoutModel result = toPageLayout(List.of(read), storedPage(section), false);
+    LayoutModel written = result.getChildren().get(0).getChildren().get(0);
+    assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS_NOT_STICKY, written.getCssClass());
+    assertEquals(wide, written.getChildren().get(0).getCssClass());
+    assertEquals(narrow, written.getChildren().get(1).getCssClass());
+
+    LayoutModel fresh = toPageLayout(List.of(dynamic(2, null)), storedPage(), false).getChildren().get(0).getChildren().get(0);
+    assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS, fresh.getCssClass());
+    assertEquals(6, descriptionService.breakpointValue(fresh.getChildren().get(0).getCssClass(), LayoutDescriptionService.CELL_COLSPAN_PREFIX));
+
+    Container stickySection = container(LayoutDescriptionService.FLEX_TEMPLATE, PageLayoutAssembler.FLEX_SECTION_CLASS + " hidden-sm-and-down");
+    children(stickySection, cell(wide), cell(narrow));
+    SectionDescription widened = new SectionDescription(stickySection.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
+    LayoutModel keptSticky = toPageLayout(List.of(widened), storedPage(stickySection), false).getChildren().get(0).getChildren().get(0);
+    assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS + " " + LayoutDescriptionService.HIDE_MOBILE_TOKEN, keptSticky.getCssClass());
+    assertEquals(3, keptSticky.getChildren().size());
+    assertEquals(4, descriptionService.breakpointValue(keptSticky.getChildren().get(0).getCssClass(), LayoutDescriptionService.CELL_COLSPAN_PREFIX));
+
+    Container emptySection = container(LayoutDescriptionService.FLEX_TEMPLATE, PageLayoutAssembler.FLEX_SECTION_CLASS_NOT_STICKY);
+    SectionDescription keptEmpty = new SectionDescription(emptySection.getStorageId(), SectionType.DYNAMIC, 1, null, null, null, null, null);
+    LayoutModel stillNotSticky = toPageLayout(List.of(keptEmpty), storedPage(emptySection), false).getChildren().get(0).getChildren().get(0);
+    assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS_NOT_STICKY, stillNotSticky.getCssClass());
+    assertEquals(1, stillNotSticky.getChildren().size());
+  }
+
+  @Test
+  public void firstPageWriteMakesKeptWindowsCopiesWithTheirPreferencesAndALaterWriteKeepsTheirIds() throws Exception {
+    doAnswer(invocation -> {
+      Application application = invocation.getArgument(0);
+      TransientApplicationState state = new TransientApplicationState("social/Menu");
+      Portlet portlet = new Portlet();
+      portlet.setValue("key", "value");
+      state.setContentState(portlet);
+      application.setState(state);
+      return null;
+    }).when(portletInstanceService).expandPortletPreferences(any(), any());
+    Container section = flexSection("1", "2");
+    SectionDescription kept = new SectionDescription(section.getStorageId(),
+                                                     SectionType.DYNAMIC,
+                                                     3,
+                                                     null,
+                                                     List.of(List.of(new ApplicationDescription("1", null, null, null, null, null, null, null, null)),
+                                                             List.of(),
+                                                             List.of()),
+                                                     null,
+                                                     null,
+                                                     null);
+    LayoutModel result = toPageLayout(List.of(kept), storedPage(section), true);
+    LayoutModel writtenSection = result.getChildren().get(0).getChildren().get(0);
+    assertNull(writtenSection.getStorageId());
+    LayoutModel window = writtenSection.getChildren().get(0).getChildren().get(0);
+    assertNull(window.getStorageId());
+    assertEquals("social/Menu", window.getContentId());
+    assertEquals("value", window.getPreferences().get(0).getValue());
+    Application copy = (Application) ((Container) ((Container) ((Container) result.toPage().getChildren().get(0)).getChildren().get(0)).getChildren().get(0)).getChildren().get(0);
+    assertTrue(copy.getState() instanceof TransientApplicationState);
+
+    section = flexSection("1", "2");
+    SectionDescription keptAgain = new SectionDescription(section.getStorageId(),
+                                                          kept.type(),
+                                                          kept.columns(),
+                                                          null,
+                                                          kept.columnsContent(),
+                                                          null,
+                                                          null,
+                                                          null);
+    LayoutModel later = toPageLayout(List.of(keptAgain), storedPage(section), false);
+    LayoutModel keptWindow = later.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0);
+    assertEquals("1", keptWindow.getStorageId());
+    Application persistent = (Application) ((Container) ((Container) ((Container) later.toPage().getChildren().get(0)).getChildren().get(0)).getChildren().get(0)).getChildren().get(0);
+    assertTrue(persistent.getState() instanceof PersistentApplicationState);
+  }
+
+  @Test
+  public void emptySectionsEmptyThePageAndAPageWithoutTheEditorsParentIsRebuilt() throws Exception {
+    Container legacy = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
+    children(legacy, application("9", null, null));
+    Page stored = new Page("page");
+    children(stored, legacy);
+    LayoutModel result = toPageLayout(List.of(), stored, false);
+    assertEquals(1, result.getChildren().size());
+    assertEquals(EntityMapper.PAGE_LAYOUT_TEMPLATE, result.getChildren().get(0).getTemplate());
+    assertTrue(result.getChildren().get(0).getChildren().isEmpty());
+
+    stored = new Page("page");
+    legacy = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
+    children(legacy, application("9", null, null));
+    children(stored, legacy);
+    SectionDescription placed = dynamic(1, List.of(List.of(new ApplicationDescription("9", null, null, null, null, null, null, null, null))));
+    LayoutModel rebuilt = toPageLayout(List.of(placed), stored, false);
+    assertEquals("9", rebuilt.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0).getStorageId());
+    assertEquals(1, rebuilt.getChildren().size());
+
+    stored = new Page("page");
+    Container footer = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
+    children(footer, application("9", null, null));
+    Container parent = container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null);
+    children(stored, parent, footer);
+    LayoutModel moved = toPageLayout(List.of(placed), stored, false);
+    assertEquals(2, moved.getChildren().size());
+    assertEquals("9", moved.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0).getStorageId());
+    assertTrue(moved.getChildren().get(1).getChildren().isEmpty());
+
+    stored = new Page("page");
+    Container section = flexSection("1", "2");
+    Container gridCell = cell("grid-cell");
+    Container legacyGrid = container(LayoutDescriptionService.GRID_TEMPLATE,
+                                     "d-flex flex-column d-md-grid grid-cols grid-cols-xl-1 grid-rows grid-rows-xl-1");
+    children(legacyGrid, gridCell);
+    footer = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
+    children(footer, section, legacyGrid);
+    children(stored, container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null), footer);
+    SectionDescription keptSection = new SectionDescription(section.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
+    SectionDescription keptCell = grid(1, 1, new CellDescription(gridCell.getStorageId(), 1, 1, null, null, null));
+    LayoutModel movedContainers = toPageLayout(List.of(keptSection, keptCell), stored, false);
+    List<LayoutModel> sections = movedContainers.getChildren().get(0).getChildren();
+    assertEquals(section.getStorageId(), sections.get(0).getStorageId());
+    assertEquals(gridCell.getStorageId(), sections.get(1).getChildren().get(0).getStorageId());
+    assertEquals(1, movedContainers.getChildren().get(1).getChildren().size());
+    assertTrue(movedContainers.getChildren().get(1).getChildren().get(0).getChildren().isEmpty());
+
+    stored = new Page("page");
+    legacy = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
+    Application hidden = application("9", null, null);
+    children(legacy, hidden);
+    children(stored, legacy);
+    when(aclService.hasAccessPermission(hidden, USER)).thenReturn(false);
+    assertPageRefused(IllegalAccessException.class, PageLayoutAssembler.PAGE_LAYOUT_HIDDEN, List.of(), stored);
+
+    Container editorSection = flexSection("7", "8");
+    Application hiddenInSection = (Application) ((Container) editorSection.getChildren().get(1)).getChildren().get(0);
+    when(aclService.hasAccessPermission(hiddenInSection, USER)).thenReturn(false);
+    Container foreign = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
+    Container mixedParent = container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null);
+    children(mixedParent, editorSection, foreign);
+    Page mixed = new Page("page");
+    children(mixed, mixedParent);
+    assertFalse(descriptionService.toPageDescription(mixed, PAGE_REF, LayoutVersion.DRAFT).editorCompatible());
+    assertPageRefused(IllegalAccessException.class,
+                      String.format(PageLayoutAssembler.KEEP_SECTION_FORMAT, editorSection.getStorageId(), 3),
+                      List.of(),
+                      mixed);
+    SectionDescription keptEditorSection = new SectionDescription(editorSection.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
+    LayoutModel resent = toPageLayout(List.of(keptEditorSection), mixed, false);
+    assertEquals(1, resent.getChildren().get(0).getChildren().size());
+    assertEquals("7", resent.getChildren().get(0).getChildren().get(0).getChildren().get(1).getChildren().get(0).getStorageId());
   }
 
   @Test
@@ -1434,6 +1850,47 @@ public class LayoutDescriptionServiceTest {
                              .columnsContent()
                              .get(0)
                              .get(0);
+  }
+
+  private LayoutModel toPageLayout(List<SectionDescription> sections, Page stored, boolean copyWindows) throws Exception {
+    return descriptionService.toPageLayout(sections, stored, copyWindows, USER, Locale.ENGLISH);
+  }
+
+  private void assertPageRefused(Class<? extends Exception> type, String refusal, List<SectionDescription> sections) {
+    assertPageRefused(type, refusal, sections, storedPage());
+  }
+
+  private void assertPageRefused(Class<? extends Exception> type, String refusal, List<SectionDescription> sections, Page stored) {
+    assertEquals(refusal, assertThrows(type, () -> toPageLayout(sections, stored, false)).getMessage());
+  }
+
+  private SectionDescription dynamic(Integer columns, List<List<ApplicationDescription>> content) {
+    return new SectionDescription(null, SectionType.DYNAMIC, columns, null, content, null, null, null);
+  }
+
+  private SectionDescription grid(int columns, int rows, CellDescription... cells) {
+    return new SectionDescription(null, SectionType.GRID, columns, rows, null, List.of(cells), null, null);
+  }
+
+  /**
+   * A stored three-column dynamic section whose middle column holds the two
+   * given windows
+   */
+  private Container flexSection(String firstWindow, String secondWindow) {
+    String cellClass = "flex-cell grid-cell-colspan grid-cell-colspan-xl-4 grid-cell-rowspan grid-cell-rowspan-xl-1";
+    Container section = container(LayoutDescriptionService.FLEX_TEMPLATE, FLEX_CLASS);
+    Container middle = cell(cellClass);
+    children(middle, application(firstWindow, null, null), application(secondWindow, null, null));
+    children(section, cell(cellClass), middle, cell(cellClass));
+    return section;
+  }
+
+  private Page storedPage(Container... sections) {
+    Container parent = container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null);
+    children(parent, sections);
+    Page page = new Page("page");
+    children(page, parent);
+    return page;
   }
 
   @SneakyThrows

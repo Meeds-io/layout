@@ -70,7 +70,7 @@
     {
       "name": "get_page_layout",
       "title": "Get the layout of a page",
-      "description": "Read the whole page in the shape set_page_layout takes: its ordered sections, each with its section_id and type (dynamic: columns and columns_content, one ordered list of applications per column; grid: rows, columns and cells with their cell_id, row, column, spans and application), the styling and display of sections and applications, and every application's application_id, content_id, instance_id and title. Returns the user's draft by default when they have one, the published layout otherwise; version selects one explicitly.",
+      "description": "Read the whole page in the shape set_page_layout takes: its ordered sections, each with its section_id and type (dynamic: columns and columns_content, one ordered list of applications per column; grid: rows, columns and cells with their cell_id, row, column, spans and application), the styling and display of sections and applications, and every application's application_id, content_id, instance_id and title. Returns the user's draft by default when they have one, the published layout otherwise; version selects one explicitly. A page not built with the editor's sections is answered with editor_compatible false and no sections: set_page_layout rewrites the content of its sections parent (the whole page when it has none), keeping only what its description addresses by id.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -377,7 +377,7 @@
     {
       "name": "set_site_layout",
       "title": "Set the layout of a site",
-      "description": "Replace the structure of the site layout shared by every page of the site, in the current user's draft, as the site layout editor does: the left and right sidebars, the topbars and the bottom bars, each with its options, styling and applications. What is sent is the whole structure, as get_site returns it: a sidebar omitted is removed, topbars or bottom_bars omitted means none. Ids address the layout get_site returned (the user's draft when they have one, the published layout otherwise): a container_id keeps the stored container (a topbar its cells), an application_id keeps the application with its settings, an application given by instance_id or content_id is added, and an application of the layout absent from the call is removed. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. On a kept container or application, an option, a styling block or a display omitted keeps what it holds; enabled false clears a block. A site whose stored layout holds two sidebars on one side, which get_site reports as one, is refused. At most 200 containers and applications in one call. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_site does, with the ids to use in later calls; after publish_layout the ids change, read the site again. New images are not accepted by this tool: a stored image stays unless its background block is turned off.",
+      "description": "Replace the structure of the site layout shared by every page of the site, in the current user's draft, as the site layout editor does: the left and right sidebars, the topbars and the bottom bars, each with its options, styling and applications. What is sent is the whole structure, as get_site returns it: a sidebar omitted is removed, topbars or bottom_bars omitted means none. Ids address the layout get_site returned (the user's draft when they have one, the published layout otherwise): a container_id keeps the stored container (a topbar its cells), an application_id keeps the application with its settings, an application given by instance_id or content_id is added, and an application of the layout absent from the call is removed. A site layout holding a container the user cannot see is refused; an application the user cannot see stays where it is when its container is kept by container_id, the call being refused otherwise. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. On a kept container or application, an option, a styling block or a display omitted keeps what it holds; enabled false clears a block. A site whose stored layout holds two sidebars on one side, which get_site reports as one, is refused. At most 200 containers and applications in one call. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_site does, with the ids to use in later calls; after publish_layout the ids change, read the site again. New images are not accepted by this tool: a stored image stays unless its background block is turned off.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1015,19 +1015,21 @@
     },
     {
       "name": "publish_layout",
-      "title": "Publish the draft of a site layout",
-      "description": "Make the current user's site draft the published layout, for every user at once, as the site layout editor's publish does: in the platform's assistant the user confirms it before it applies; an external client asks for confirmation only if its own settings do. Fails when the user has no draft of the site. The draft ends and every container and application takes a new id: returns the site as published, with the new ids.",
+      "title": "Publish the draft of a layout",
+      "description": "Make the current user's draft the published layout, for every user at once, as the layout editors' publish does: in the platform's assistant the user confirms it before it applies; an external client asks for confirmation only if its own settings do. Exactly one of site_id and page_ref names what is published: a site's layout, shared by every page of the site, or a page's content. Fails when the user has no draft of it. The draft ends and every container and application takes a new id: returns the site as get_site does, or the page as get_page_layout does, as published, with the new ids.",
       "input_schema": {
         "type": "object",
         "properties": {
           "site_id": {
             "type": "integer",
-            "description": "The site identifier, from list_sites"
+            "description": "The site identifier, from list_sites; omit when page_ref is given"
+          },
+          "page_ref": {
+            "type": "string",
+            "description": "The page reference, from list_site_pages (for example portal::mysite::home); omit when site_id is given"
           }
         },
-        "required": [
-          "site_id"
-        ]
+        "required": []
       },
       "annotations": {
         "readOnlyHint": false,
@@ -1039,19 +1041,21 @@
     },
     {
       "name": "discard_layout_draft",
-      "title": "Discard the draft of a site layout",
-      "description": "Drop the current user's site draft and start a new one from the published layout, as the site layout editor's \"start again\" does; nothing published changes. Fails when the user has no draft of the site. Returns the new draft, with its ids.",
+      "title": "Discard the draft of a layout",
+      "description": "Drop the current user's draft and start a new one from the published layout, as the layout editors' \"start again\" does; nothing published changes. Exactly one of site_id and page_ref names the site or the page. Fails when the user has no draft of it. Returns the new draft, with its ids.",
       "input_schema": {
         "type": "object",
         "properties": {
           "site_id": {
             "type": "integer",
-            "description": "The site identifier, from list_sites"
+            "description": "The site identifier, from list_sites; omit when page_ref is given"
+          },
+          "page_ref": {
+            "type": "string",
+            "description": "The page reference, from list_site_pages (for example portal::mysite::home); omit when site_id is given"
           }
         },
-        "required": [
-          "site_id"
-        ]
+        "required": []
       },
       "annotations": {
         "readOnlyHint": false,
@@ -1287,6 +1291,312 @@
         "openWorldHint": false
       },
       "require_approval": true
+    },
+    {
+      "name": "set_page_layout",
+      "title": "Set the layout of a page",
+      "description": "Replace the whole structure of a page in the current user's draft, in one call, as the page editor's draft save does: its ordered sections, each dynamic (1, 2, 3, 4, 6 or 12 columns, the applications listed in order per column) or grid (1 to 12 rows and columns, one application per cell at its row and column, cells merged with spans), with the styling and display of sections and applications. What is sent is the whole page, as get_page_layout returns it: a section, a cell or an application of the layout absent from the call is removed. Ids address the layout get_page_layout returned (the user's draft when they have one, the published layout otherwise): a section_id or a cell_id keeps the stored element, an application_id keeps the application with its settings, an application given by instance_id or content_id is added, text being the 'Block of content' application. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout; between two calls the page is only a draft. The first draft of a page needs the right to edit the site's navigation, as opening the editor does, and the page must be referenced by a navigation item of its site, hidden or not. A page get_page_layout answers with editor_compatible false (not built with the editor's sections) is rewritten from the description under its sections parent, whose content is dropped unless the call addresses it by an id, which get_page_layout does not show for such a page; what the page holds outside that parent stays, a page with no sections parent at all is replaced whole, and when such a page holds a window the user cannot see the call is refused: naming the cell_id, or the section_id and its number of columns, to keep when the window sits in a section of the editor's kind, with no element to keep otherwise. A page holding a section or a cell the user cannot see is refused; a window the user cannot see stays where it is when its column or cell is kept (the section_id of its dynamic section with the same number of columns, the cell_id of its grid cell, which then takes no application), the call being refused otherwise with the cell_id, or the section_id and its number of columns, to keep. At most 20 sections and 200 elements in one call. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_page_layout does, with the ids of every section, cell and application to use in later calls; after publish_layout the ids change, read the page again. Settings and widget code are not accepted by this tool, nor new images.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "page_ref": {
+            "type": "string",
+            "description": "The page reference, from list_site_pages (for example portal::mysite::home)"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "a section of the page, in order",
+              "properties": {
+                "section_id": {
+                  "type": "string",
+                  "description": "the id of a section in the layout get_page_layout returned, to keep its stored element and styling (its type must be unchanged); a kept dynamic section keeps the sticky choice the editor stored and, when its number of columns is unchanged, its cells with the column widths the editor stored, neither of which this description carries; omit to create it"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "dynamic",
+                    "grid"
+                  ],
+                  "description": "dynamic: columns holding applications in order; grid: rows and columns holding one application per cell"
+                },
+                "columns": {
+                  "type": "integer",
+                  "description": "dynamic: 1, 2, 3, 4, 6 or 12, as the editor offers (omit for the size of columns_content); grid: 1 to 12"
+                },
+                "rows": {
+                  "type": "integer",
+                  "description": "grid only: 1 to 12"
+                },
+                "columns_content": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "description": "an application in a column or a cell",
+                      "properties": {
+                        "application_id": {
+                          "type": "string",
+                          "description": "the id of an application already in the layout get_page_layout returned, to keep it with its settings; omit to add a new one"
+                        },
+                        "instance_id": {
+                          "type": "integer",
+                          "description": "the catalog instance to add, from list_layout_applications; omit when application_id or content_id is given"
+                        },
+                        "content_id": {
+                          "type": "string",
+                          "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                        },
+                        "title": {
+                          "type": "string",
+                          "description": "the title shown, at most 200 characters; omit for the catalog name or the stored title"
+                        },
+                        "styling": {
+                          "type": "object",
+                          "description": "the styling blocks as get_page_layout returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                          "properties": {
+                            "margins": {
+                              "type": "object",
+                              "description": "enabled, then all or top/right/bottom/left on the editor scale, -40 to 80 (20 none)",
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                }
+                              }
+                            },
+                            "border": {
+                              "type": "object",
+                              "description": "enabled, color (#RRGGBB or #RRGGBBAA), size 0 to 8 (default 1), shadow",
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                }
+                              }
+                            },
+                            "corners": {
+                              "type": "object",
+                              "description": "enabled, then all or top_left/top_right/bottom_right/bottom_left, 0 to 20",
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                }
+                              }
+                            },
+                            "background": {
+                              "type": "object",
+                              "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                }
+                              }
+                            },
+                            "text": {
+                              "type": "object",
+                              "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                }
+                              }
+                            },
+                            "height": {
+                              "type": "object",
+                              "description": "enabled, then fixed small (150px), medium (300px) or large (500px), or custom with custom_px 10 to 1000; in a dynamic section only",
+                              "properties": {
+                                "enabled": {
+                                  "type": "boolean"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        "display": {
+                          "type": "string",
+                          "enum": [
+                            "both",
+                            "hide_mobile",
+                            "hide_desktop"
+                          ],
+                          "description": "where the application shows; omit to keep it (both on a new application)"
+                        }
+                      }
+                    }
+                  },
+                  "description": "dynamic only: one ordered list of applications per column, as many lists as columns; an application is below another one because it comes after it; omit for empty columns"
+                },
+                "cells": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "a grid cell holding at most one application",
+                    "properties": {
+                      "cell_id": {
+                        "type": "string",
+                        "description": "the id of a cell of a grid section in the layout get_page_layout returned, to keep its stored element; a dynamic section's cells carry no id and are never addressed; omit to create it"
+                      },
+                      "row": {
+                        "type": "integer",
+                        "description": "1-based, as the editor numbers them"
+                      },
+                      "column": {
+                        "type": "integer",
+                        "description": "1-based"
+                      },
+                      "row_span": {
+                        "type": "integer",
+                        "description": "rows the cell covers, inside the section and overlapping no other cell; omit for 1"
+                      },
+                      "column_span": {
+                        "type": "integer",
+                        "description": "columns the cell covers; omit for 1"
+                      },
+                      "application": {
+                        "type": "object",
+                        "description": "an application in a column or a cell",
+                        "properties": {
+                          "application_id": {
+                            "type": "string",
+                            "description": "the id of an application already in the layout get_page_layout returned, to keep it with its settings; omit to add a new one"
+                          },
+                          "instance_id": {
+                            "type": "integer",
+                            "description": "the catalog instance to add, from list_layout_applications; omit when application_id or content_id is given"
+                          },
+                          "content_id": {
+                            "type": "string",
+                            "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                          },
+                          "title": {
+                            "type": "string",
+                            "description": "the title shown, at most 200 characters; omit for the catalog name or the stored title"
+                          },
+                          "styling": {
+                            "type": "object",
+                            "description": "the styling blocks as get_page_layout returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                            "properties": {
+                              "margins": {
+                                "type": "object",
+                                "description": "enabled, then all or top/right/bottom/left on the editor scale, -40 to 80 (20 none)",
+                                "properties": {
+                                  "enabled": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              "border": {
+                                "type": "object",
+                                "description": "enabled, color (#RRGGBB or #RRGGBBAA), size 0 to 8 (default 1), shadow",
+                                "properties": {
+                                  "enabled": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              "corners": {
+                                "type": "object",
+                                "description": "enabled, then all or top_left/top_right/bottom_right/bottom_left, 0 to 20",
+                                "properties": {
+                                  "enabled": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              "background": {
+                                "type": "object",
+                                "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                                "properties": {
+                                  "enabled": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              "text": {
+                                "type": "object",
+                                "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                                "properties": {
+                                  "enabled": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              },
+                              "height": {
+                                "type": "object",
+                                "description": "enabled, then fixed small (150px), medium (300px) or large (500px), or custom with custom_px 10 to 1000; in a dynamic section only",
+                                "properties": {
+                                  "enabled": {
+                                    "type": "boolean"
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "display": {
+                            "type": "string",
+                            "enum": [
+                              "both",
+                              "hide_mobile",
+                              "hide_desktop"
+                            ],
+                            "description": "where the application shows; omit to keep it (both on a new application)"
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "description": "grid only: the cells to fill or merge, each at its row and column; every other position is an empty cell. A second cell starting on a position already taken is refused as taken; a cell overlapping the span of another one is not accepted"
+                },
+                "styling": {
+                  "type": "object",
+                  "description": "the styling blocks as get_page_layout returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                  "properties": {
+                    "margins": {
+                      "type": "object",
+                      "description": "enabled, then all or top/right/bottom/left, -60 to 60 (0 none)",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "background": {
+                      "type": "object",
+                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                },
+                "display": {
+                  "type": "string",
+                  "enum": [
+                    "both",
+                    "hide_mobile",
+                    "hide_desktop"
+                  ],
+                  "description": "dynamic section only, where it shows; omit to keep it (both on a new section). A grid section shows on every device, as the editor offers no choice there: hide_mobile and hide_desktop are refused on it"
+                }
+              }
+            },
+            "description": "the sections of the page, in order; an empty list empties the page"
+          }
+        },
+        "required": [
+          "page_ref",
+          "sections"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
     }
   ]
 }
