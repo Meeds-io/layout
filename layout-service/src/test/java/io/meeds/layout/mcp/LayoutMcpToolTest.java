@@ -1027,8 +1027,13 @@ public class LayoutMcpToolTest {
 
     when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(true);
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
+    when(descriptionService.toStyledSite(elements, site, true, USER)).thenThrow(new IllegalArgumentException("value is not accepted for styling.border"));
+    assertEquals("value is not accepted for styling.border", refusal(IllegalArgumentException.class, () -> tool.setLayoutStyles(SITE_ID, null, elements)));
+    verify(draftService, never()).createDraftSite(any(), any());
+    verify(siteLayoutService, never()).updateSiteLayout(any(), any(), anyBoolean(), any());
+
     SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
-    when(descriptionService.toStyledSite(elements, site, true, USER)).thenReturn(siteLayout());
+    doReturn(siteLayout()).when(descriptionService).toStyledSite(elements, site, true, USER);
     when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
     doThrow(new IllegalArgumentException("Invalid css value input javascript:alert(1)")).when(siteLayoutService)
                                                                                          .updateSiteLayout(eq(draftKey), any(), eq(false), eq(USER));

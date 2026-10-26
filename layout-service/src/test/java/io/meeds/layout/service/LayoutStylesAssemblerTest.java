@@ -227,14 +227,15 @@ public class LayoutStylesAssemblerTest {
   }
 
   @Test
-  public void anIdTheReadAnswersWithNoStylingOfItsOwnIsRefusedAndAnUnknownOneDoesNotExist() {
+  public void aGridCellIsRefusedAndAnIdTheReadDoesNotAnswerDoesNotExist() {
     Page stored = storedPage();
     String flexCellId = flexCell.getStorageId();
     String gridCellId = gridCell.getStorageId();
     String sectionsParentId = ((Container) stored.getChildren().get(0)).getStorageId();
 
     assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> stylePage(stored, element(gridCellId, null))));
-    assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> stylePage(stored, element(flexCellId, null))));
+    assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> stylePage(stored, element(flexCellId, null))).getMessage());
     assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
                  assertThrows(ObjectNotFoundException.class, () -> stylePage(stored, element("unknown", null))).getMessage());
     assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
@@ -296,6 +297,19 @@ public class LayoutStylesAssemblerTest {
     assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
                  assertThrows(ObjectNotFoundException.class,
                               () -> stylePage(stored, element(flexSection.getStorageId(), null))).getMessage());
+  }
+
+  @Test
+  public void aHiddenContainerBesideTheSectionsLeavesThemStylableAsTheReadAnswersThem() throws Exception {
+    Container legacy = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
+    Page stored = storedPage();
+    ((Container) stored.getChildren().get(0)).getChildren().add(legacy);
+    when(aclService.hasAccessPermission(legacy, USER)).thenReturn(false);
+
+    LayoutModel result = stylePage(stored, element(flexSection.getStorageId(), styling(null, null, solid("#123456"), null, null)));
+
+    assertEquals("#123456", sections(result).get(0).getBackgroundColor());
+    assertEquals(3, sections(result).size());
   }
 
   @Test
@@ -390,7 +404,8 @@ public class LayoutStylesAssemblerTest {
                  refused(() -> styleSite(site, element(sidebarId, styling(null, new BorderBlock(true, "#111111", 1, false), null, null, null)))));
     assertEquals("value is not accepted for styling.height",
                  refused(() -> styleSite(site, element("2", styling(null, null, null, null, new HeightBlock(true, HeightPreset.SMALL, null))))));
-    assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> styleSite(site, element(bannerCellId, null))));
+    assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> styleSite(site, element(bannerCellId, null))).getMessage());
     assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
                  assertThrows(ObjectNotFoundException.class, () -> styleSite(site, element(root.getStorageId(), null))).getMessage());
   }
