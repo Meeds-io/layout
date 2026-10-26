@@ -61,6 +61,7 @@ import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
 import io.meeds.layout.mcp.model.BackgroundBlock;
 import io.meeds.layout.mcp.model.BorderBlock;
+import io.meeds.layout.mcp.model.CornersBlock;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.HeightBlock;
 import io.meeds.layout.mcp.model.MarginsBlock;
@@ -199,6 +200,37 @@ public class LayoutStylesAssemblerTest {
                  refused(() -> stylePage(stored, element("3", styling(null, null, null, null, new HeightBlock(true, HeightPreset.SMALL, null))))));
     assertEquals("value is not accepted for styling.margins.top",
                  refused(() -> stylePage(stored, element(sectionId, styling(new MarginsBlock(true, null, 61, null, null, null), null, null, null, null)))));
+  }
+
+  @Test
+  public void aBlockThePlaceDoesNotOfferIsRefusedEvenTurnedOff() {
+    Page stored = storedPage();
+    String sectionId = flexSection.getStorageId();
+    PortalConfig site = storedSite();
+    String sidebarId = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0).getStorageId();
+
+    assertEquals("value is not accepted for styling.text",
+                 refused(() -> stylePage(stored,
+                                         element(sectionId,
+                                                 styling(null, null, null, new TextBlock(false, null, null, null, null, null), null)))));
+    assertEquals("value is not accepted for styling.height",
+                 refused(() -> stylePage(stored, element("3", styling(null, null, null, null, new HeightBlock(false, null, null))))));
+    assertEquals("value is not accepted for styling.border",
+                 refused(() -> styleSite(site, element(sidebarId, styling(null, new BorderBlock(false, null, null, null), null, null, null)))));
+    assertEquals("value is not accepted for styling.corners",
+                 refused(() -> stylePage(stored,
+                                         element(sectionId,
+                                                 new StylingDescription(null, null, new CornersBlock(false, null, null, null, null, null), null, null, null)))));
+  }
+
+  @Test
+  public void everyVisibleApplicationIsSavedWithoutItsGeneratedTokens() throws Exception {
+    Page stored = storedPage();
+    ((Application) flexCell.getChildren().get(1)).setCssClass("brtr-4 mt-n2 my-class");
+
+    LayoutModel result = stylePage(stored, element("1", styling(new MarginsBlock(true, 30, null, null, null, null), null, null, null, null)));
+
+    assertEquals("my-class", sections(result).get(0).getChildren().get(0).getChildren().get(1).getCssClass());
   }
 
   @Test
