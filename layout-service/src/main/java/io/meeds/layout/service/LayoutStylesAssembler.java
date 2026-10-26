@@ -131,7 +131,7 @@ public class LayoutStylesAssembler {
       String elementId = StringUtils.trimToNull(element.elementId());
       if (elementId == null) {
         throw new IllegalArgumentException(ELEMENT_ID_NOT_ACCEPTED);
-      } else if (hiddenIds.contains(elementId) || (!targets.containsKey(elementId) && !nonTargets.contains(elementId))) {
+      } else if (!targets.containsKey(elementId) && !nonTargets.contains(elementId)) {
         throw new ObjectNotFoundException(ELEMENT_NOT_FOUND);
       } else if (nonTargets.contains(elementId) || !used.add(elementId)) {
         throw new IllegalArgumentException(ELEMENT_ID_NOT_ACCEPTED);
@@ -149,15 +149,14 @@ public class LayoutStylesAssembler {
 
   /**
    * The sections the read describes: the children of the sections parent,
-   * when every one of them the caller can see is a section of the editor's
-   * kind; of their cells, only a grid cell has an id in the read
+   * when every one of them is a section of the editor's kind; of their
+   * cells, only a grid cell has an id in the read
    */
   private void indexPage() {
     LayoutModel parent = findSectionsParent(root);
     List<LayoutModel> sections = children(parent);
     if (sections.stream()
-                .anyMatch(s -> !hiddenIds.contains(s.getStorageId())
-                               && !isTemplate(s, LayoutDescriptionService.FLEX_TEMPLATE)
+                .anyMatch(s -> !isTemplate(s, LayoutDescriptionService.FLEX_TEMPLATE)
                                && !isTemplate(s, LayoutDescriptionService.GRID_TEMPLATE))) {
       return;
     }
@@ -280,7 +279,17 @@ public class LayoutStylesAssembler {
     return model != null && StringUtils.equals(model.getTemplate(), template);
   }
 
+  /**
+   * The children the caller can see: the reads walk the tree filtered by
+   * access permission, so the targets, the first child the descent to the
+   * sections parent follows and the positions of the site's containers are
+   * found among these only
+   */
   private List<LayoutModel> children(LayoutModel model) {
-    return model == null || model.getChildren() == null ? Collections.emptyList() : model.getChildren();
+    return model == null || model.getChildren() == null ? Collections.emptyList()
+                                                        : model.getChildren()
+                                                               .stream()
+                                                               .filter(c -> !hiddenIds.contains(c.getStorageId()))
+                                                               .toList();
   }
 }

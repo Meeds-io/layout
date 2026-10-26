@@ -313,6 +313,35 @@ public class LayoutStylesAssemblerTest {
   }
 
   @Test
+  public void aHiddenContainerBeforeTheSectionsParentLeavesTheSectionsStylableAsTheReadAnswersThem() throws Exception {
+    Container legacy = container("system:/groovy/portal/webui/container/UIContainer.gtmpl", null);
+    Page stored = storedPage();
+    stored.getChildren().add(0, legacy);
+    when(aclService.hasAccessPermission(legacy, USER)).thenReturn(false);
+
+    LayoutModel result = stylePage(stored, element("1", styling(new MarginsBlock(true, 30, null, null, null, null), null, null, null, null)));
+
+    assertEquals(30, result.getChildren().get(1).getChildren().get(0).getChildren().get(0).getChildren().get(0).getMarginTop());
+  }
+
+  @Test
+  public void aHiddenSidebarShiftsTheSiteContainersAsTheReadSeesThem() throws Exception {
+    PortalConfig site = storedSite();
+    Container root = site.getPortalLayout();
+    Container outerLeft = (Container) root.getChildren().get(0);
+    Container outerRight = (Container) root.getChildren().get(2);
+    Container rightCell = container(LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, null);
+    children(outerRight, rightCell);
+    when(aclService.hasAccessPermission(outerLeft, USER)).thenReturn(false);
+    String topbarId = findContainer(root, LayoutDescriptionService.BANNER_TEMPLATE, 0).getStorageId();
+
+    assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> styleSite(site, element(rightCell.getStorageId(), null))).getMessage());
+    LayoutModel result = styleSite(site, element(topbarId, styling(null, null, solid("#121212"), null, null)));
+    assertEquals("#121212@#121212", result.getChildren().get(1).getChildren().get(0).getBackgroundColor());
+  }
+
+  @Test
   public void aStoredValueTheValidatorRefusesRefusesTheWholeCall() {
     Page stored = storedPage();
     ModelStyle style = new ModelStyle();
