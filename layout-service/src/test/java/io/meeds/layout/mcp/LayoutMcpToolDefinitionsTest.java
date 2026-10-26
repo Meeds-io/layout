@@ -20,6 +20,7 @@ package io.meeds.layout.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
@@ -73,7 +74,8 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                "discard_layout_draft",
                                                                                "create_page",
                                                                                "update_page",
-                                                                               "delete_page");
+                                                                               "delete_page",
+                                                                               "set_page_layout");
 
   private static final Set<String>         APPROVAL_TOOLS            = Set.of("update_theme",
                                                                                "update_navigation_display",
@@ -107,6 +109,17 @@ public class LayoutMcpToolDefinitionsTest {
        "bottom_bars": []}
       """;
 
+  private static final String              PAGE_LAYOUT_SAMPLE        = """
+      {"page_ref": "portal::mysite::home",
+       "sections": [{"section_id": "20", "type": "dynamic", "columns": 2,
+                     "columns_content": [[{"application_id": "5", "title": "News"}, {"instance_id": 10, "display": "hide_mobile"}], []],
+                     "styling": {"margins": {"enabled": true, "all": 10}}, "display": "both"},
+                    {"type": "grid", "rows": 2, "columns": 3,
+                     "cells": [{"row": 1, "column": 1, "column_span": 2, "application": {"content_id": "layout/Links",
+                                "styling": {"border": {"enabled": true, "color": "#123456", "size": 2, "shadow": true}}}},
+                               {"cell_id": "31", "row": 2, "column": 3}]}]}
+      """;
+
   private static final String              CREATE_SITE_SAMPLE        = """
       {"name": "marketing", "label": "Marketing", "description": "About us", "template": "basic",
        "banner_upload_id": "u1", "access_permissions": ["Everyone"], "edit_permission": "*:/platform/administrators",
@@ -137,11 +150,14 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                      Map.entry("update_site", UPDATE_SITE_SAMPLE),
                                                                                      Map.entry("delete_site", "{\"site_id\": 3}"),
                                                                                      Map.entry("set_site_layout", SITE_LAYOUT_SAMPLE),
-                                                                                     Map.entry("publish_layout", "{\"site_id\": 3}"),
-                                                                                     Map.entry("discard_layout_draft", "{\"site_id\": 3}"),
+                                                                                     Map.entry("publish_layout",
+                                                                                               "{\"site_id\": 3, \"page_ref\": \"portal::mysite::home\"}"),
+                                                                                     Map.entry("discard_layout_draft",
+                                                                                               "{\"site_id\": 3, \"page_ref\": \"portal::mysite::home\"}"),
                                                                                      Map.entry("create_page", CREATE_PAGE_SAMPLE),
                                                                                      Map.entry("update_page", UPDATE_PAGE_SAMPLE),
-                                                                                     Map.entry("delete_page", "{\"node_id\": 12}"));
+                                                                                     Map.entry("delete_page", "{\"node_id\": 12}"),
+                                                                                     Map.entry("set_page_layout", PAGE_LAYOUT_SAMPLE));
 
   @Test
   public void everyPublicMethodHasADefinitionAndEveryDefinitionAMethod() {
@@ -222,6 +238,42 @@ public class LayoutMcpToolDefinitionsTest {
     assertEquals(DisplayMode.HIDE_DESKTOP, left.applications().get(1).display());
     assertEquals(2, left.applications().get(1).styling().border().size());
     assertEquals(true, left.applications().get(1).styling().text().title().bold());
+  }
+
+  /**
+   * The sections list binds through the method's generic parameter type, so
+   * each section, its columns' applications and its cells arrive as records
+   */
+  @Test
+  public void pageLayoutSectionsBindTheirRecordsThroughTheParameterizedType() throws Exception {
+    Method method = toolMethods().get("set_page_layout");
+    Map<String, Object> arguments = JSON_HELPER.fromJsonToMap(PAGE_LAYOUT_SAMPLE);
+    Parameter sections = Arrays.stream(method.getParameters()).filter(p -> p.getName().equals("sections")).findFirst().orElseThrow();
+    @SuppressWarnings("unchecked")
+    List<SectionDescription> typed = (List<SectionDescription>) JSON_HELPER.fromJson(JSON_HELPER.toJson(arguments.get("sections")),
+                                                                                    sections.getParameterizedType());
+    SectionDescription dynamic = typed.get(0);
+    assertEquals("20", dynamic.sectionId());
+    assertEquals(SectionType.DYNAMIC, dynamic.type());
+    assertEquals(2, dynamic.columns());
+    assertEquals(2, dynamic.columnsContent().size());
+    assertEquals("5", dynamic.columnsContent().get(0).get(0).applicationId());
+    assertEquals("News", dynamic.columnsContent().get(0).get(0).title());
+    assertEquals(10L, dynamic.columnsContent().get(0).get(1).instanceId());
+    assertEquals(DisplayMode.HIDE_MOBILE, dynamic.columnsContent().get(0).get(1).display());
+    assertEquals(10, dynamic.styling().margins().all());
+    assertEquals(DisplayMode.BOTH, dynamic.display());
+    SectionDescription grid = typed.get(1);
+    assertEquals(SectionType.GRID, grid.type());
+    assertEquals(2, grid.rows());
+    assertEquals(3, grid.columns());
+    assertEquals(2, grid.cells().get(0).columnSpan());
+    assertEquals("layout/Links", grid.cells().get(0).application().contentId());
+    assertEquals(2, grid.cells().get(0).application().styling().border().size());
+    assertEquals("31", grid.cells().get(1).cellId());
+    assertEquals(2, grid.cells().get(1).row());
+    assertEquals(3, grid.cells().get(1).column());
+    assertNull(grid.cells().get(1).application());
   }
 
   @Test
