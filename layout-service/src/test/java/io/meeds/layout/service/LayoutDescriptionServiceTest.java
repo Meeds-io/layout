@@ -418,8 +418,9 @@ public class LayoutDescriptionServiceTest {
     hidden = (Application) ((Container) section.getChildren().get(1)).getChildren().get(0);
     when(aclService.hasAccessPermission(hidden, USER)).thenReturn(false);
     SectionDescription narrowed = new SectionDescription(section.getStorageId(), SectionType.DYNAMIC, 2, null, null, null, null, null);
-    assertPageRefused(IllegalAccessException.class, PageLayoutAssembler.PAGE_LAYOUT_HIDDEN, List.of(narrowed), storedPage(section));
-    assertPageRefused(IllegalAccessException.class, PageLayoutAssembler.PAGE_LAYOUT_HIDDEN, List.of(), storedPage(section));
+    String keepSection = String.format(PageLayoutAssembler.KEEP_SECTION_FORMAT, section.getStorageId(), 3);
+    assertPageRefused(IllegalAccessException.class, keepSection, List.of(narrowed), storedPage(section));
+    assertPageRefused(IllegalAccessException.class, keepSection, List.of(), storedPage(section));
     assertPageRefused(IllegalArgumentException.class,
                       PageLayoutAssembler.SECTION_ID_NOT_ACCEPTED,
                       List.of(new SectionDescription(section.getStorageId(), SectionType.GRID, 1, 1, null, null, null, null)),
@@ -440,6 +441,10 @@ public class LayoutDescriptionServiceTest {
     when(aclService.hasAccessPermission(pinned, USER)).thenReturn(false);
     SectionDescription taken = grid(2, 1, new CellDescription(pinnedCell.getStorageId(), 1, 1, null, null, shown));
     assertPageRefused(IllegalArgumentException.class, PageLayoutAssembler.CELL_TAKEN, List.of(taken), storedPage(grid));
+    assertPageRefused(IllegalAccessException.class,
+                      String.format(PageLayoutAssembler.KEEP_CELL_FORMAT, pinnedCell.getStorageId()),
+                      List.of(grid(2, 1)),
+                      storedPage(grid));
     SectionDescription keptCell = grid(2, 1, new CellDescription(pinnedCell.getStorageId(), 1, 1, null, null, null));
     LayoutModel gridResult = toPageLayout(List.of(keptCell), storedPage(grid), false);
     LayoutModel writtenCell = gridResult.getChildren().get(0).getChildren().get(0).getChildren().get(0);

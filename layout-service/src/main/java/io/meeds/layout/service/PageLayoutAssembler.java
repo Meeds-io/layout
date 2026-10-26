@@ -95,6 +95,11 @@ public class PageLayoutAssembler {
   public static final String                                PAGE_LAYOUT_HIDDEN           =
                                                                                "not allowed: page holds elements you cannot see";
 
+  public static final String                                KEEP_CELL_FORMAT             = PAGE_LAYOUT_HIDDEN + "; keep cell_id %s";
+
+  public static final String                                KEEP_SECTION_FORMAT          =
+                                                                                PAGE_LAYOUT_HIDDEN + "; keep section_id %s with %d columns";
+
   public static final String                                SECTIONS_NOT_ACCEPTED        = "value is not accepted for sections";
 
   public static final String                                ELEMENTS_NOT_ACCEPTED        =
@@ -152,6 +157,8 @@ public class PageLayoutAssembler {
 
   private final Set<String>                                 windows                      = new HashSet<>();
 
+  private final Map<String, Long>                           storedColumns                = new HashMap<>();
+
   private final Set<String>                                 used                         = new HashSet<>();
 
   private final Set<String>                                 placedHidden                 = new HashSet<>();
@@ -195,7 +202,7 @@ public class PageLayoutAssembler {
       newSections.add(section(description));
     }
     if (placedHidden.size() < hiddenWindows.size()) {
-      throw new IllegalAccessException(PAGE_LAYOUT_HIDDEN);
+      throw new IllegalAccessException(hiddenRefusal());
     }
     if (parent == null) {
       parent = newContainer(SECTIONS_PARENT_TEMPLATE);
@@ -218,6 +225,10 @@ public class PageLayoutAssembler {
         if (StringUtils.isBlank(model.getTemplate()) && model.getChildren() == null) {
           windows.add(model.getStorageId());
         }
+      }
+      if (isTemplate(model, LayoutDescriptionService.FLEX_TEMPLATE)) {
+        storedColumns.put(model.getStorageId(),
+                          children(model).stream().filter(c -> isTemplate(c, LayoutDescriptionService.CELL_TEMPLATE)).count());
       }
     }
     children(model).forEach(child -> index(child, model));
@@ -469,6 +480,31 @@ public class PageLayoutAssembler {
         children.add(Math.min(index, children.size()), byId.get(storageId));
       }
     });
+  }
+
+  /**
+   * @return the refusal naming what the call must keep for the first window
+   *         left unplaced, as the note has it: the grid cell's id, or the
+   *         dynamic section's id with its column count; the plain text when
+   *         the window is held outside the editor's sections
+   */
+  private String hiddenRefusal() {
+    for (String storageId : hiddenWindows.keySet()) {
+      if (placedHidden.contains(storageId)) {
+        continue;
+      }
+      LayoutModel cell = parentOf.get(storageId);
+      LayoutModel section = cell == null || cell.getStorageId() == null ? null : parentOf.get(cell.getStorageId());
+      if (isTemplate(cell, LayoutDescriptionService.CELL_TEMPLATE) && isTemplate(section, LayoutDescriptionService.GRID_TEMPLATE)) {
+        return String.format(KEEP_CELL_FORMAT, cell.getStorageId());
+      } else if (isTemplate(cell, LayoutDescriptionService.CELL_TEMPLATE)
+                 && isTemplate(section, LayoutDescriptionService.FLEX_TEMPLATE)
+                 && section.getStorageId() != null) {
+        return String.format(KEEP_SECTION_FORMAT, section.getStorageId(), storedColumns.get(section.getStorageId()));
+      }
+      return PAGE_LAYOUT_HIDDEN;
+    }
+    return PAGE_LAYOUT_HIDDEN;
   }
 
   private boolean hasHiddenWindow(LayoutModel cell) {
