@@ -40,6 +40,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserACL;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
 import org.exoplatform.portal.mop.PageType;
@@ -64,6 +65,7 @@ import io.meeds.layout.mcp.constant.NavigationItemType;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
+import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.ScheduleDescription;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
@@ -100,8 +102,8 @@ import io.meeds.mcp.server.plugin.McpToolPlugin;
  * <object>}, {@code not allowed: <object>}, {@code value is not accepted for
  * <option>}. A change to a site's properties applies at once, as the sites
  * administration's does, and so does a change to its navigation, as the
- * navigation drawer's; a change to its layout is the user's draft until
- * publish_layout, as in the site layout editor.
+ * navigation drawer's; a change to its layout, or to a page's, is the user's
+ * draft until publish_layout, as in the layout editors.
  */
 @Service
 @Profile("mcp-server")
@@ -156,6 +158,12 @@ public class LayoutMcpTool implements McpToolPlugin {
   public static final String       SITE_LAYOUT_NOT_PUBLISHED = "could not be published: site layout";
 
   public static final String       LAYOUT_OUTDATED       = "layout outdated, re-read it";
+
+  public static final String       PAGE_LAYOUT_NOT_SAVED = "could not be saved: page layout";
+
+  public static final String       PAGE_LAYOUT_NOT_PUBLISHED = "could not be published: page layout";
+
+  public static final String       PAGE_OUTDATED_MESSAGE = "layout.pageOutdatedError";
 
   public static final String       STYLING_NOT_ACCEPTED  = SiteLayoutAssembler.STYLING_NOT_ACCEPTED;
 
@@ -304,7 +312,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } else if (!aclService.canViewPage(pageKey, username) || !aclService.canViewSite(pageKey.getSite(), username)) {
       throw new IllegalAccessException(PAGE_NOT_ALLOWED);
     }
-    Long liveNodeId = layoutDraftService.findLiveNodeId(pageKey);
+    Long liveNodeId = layoutDraftService.findLiveNodeId(pageKey, username);
     PageKey draftPageKey = liveNodeId == null ? null : layoutDraftService.getDraftPageKey(liveNodeId, username);
     if (requested == LayoutVersion.DRAFT && draftPageKey == null) {
       throw new ObjectNotFoundException(DRAFT_NOT_FOUND);
@@ -540,13 +548,18 @@ public class LayoutMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Makes the user's site draft the published layout, for every viewer at
-   * once, as the site layout editor's publish does: the draft the user's
-   * revision names is written over the live site, every container and
-   * application taking a new id, and the draft ends. Returns the site as
-   * published, with the new ids.
+   * Makes the user's draft the published layout, for every viewer at once,
+   * as the editors' publish does: the draft the user's revision names is
+   * written over the live site or page, every container and application
+   * taking a new id, and the draft ends. Exactly one of site_id and page_ref
+   * names what is published. Returns the site as get_site does, or the page
+   * as get_page_layout does, as published, with the new ids.
    */
-  public SiteDescription publishLayout(Long siteId) throws ObjectNotFoundException, IllegalAccessException {
+  public Object publishLayout(Long siteId, String pageRef) throws ObjectNotFoundException, IllegalAccessException {
+    if (pageRef != null) {
+      refuseGiven(siteId, PAGE_REF_NOT_ACCEPTED);
+      return publishPageLayout(pageRef);
+    }
     requireSiteId(siteId);
     String username = getCurrentUserName();
     PortalConfig site = readEditableSite(siteId, username);
@@ -564,11 +577,15 @@ public class LayoutMcpTool implements McpToolPlugin {
   }
 
   /**
-   * Drops the user's site draft and starts a new one from the published
-   * layout, as the site layout editor's "start again" does. Returns the new
-   * draft, with its ids.
+   * Drops the user's draft and starts a new one from the published layout,
+   * as the editors' "start again" does. Exactly one of site_id and page_ref
+   * names the site or the page. Returns the new draft, with its ids.
    */
-  public SiteDescription discardLayoutDraft(Long siteId) throws ObjectNotFoundException, IllegalAccessException {
+  public Object discardLayoutDraft(Long siteId, String pageRef) throws ObjectNotFoundException, IllegalAccessException {
+    if (pageRef != null) {
+      refuseGiven(siteId, PAGE_REF_NOT_ACCEPTED);
+      return discardPageDraft(pageRef);
+    }
     requireSiteId(siteId);
     String username = getCurrentUserName();
     PortalConfig site = readEditableSite(siteId, username);
@@ -583,6 +600,59 @@ public class LayoutMcpTool implements McpToolPlugin {
       throw translateWriteFailure(e, siteKey, username, SITE_LAYOUT_NOT_SAVED);
     }
     return describeStoredSite(siteKey, username);
+  }
+
+  /**
+   * Replaces the whole content of the current user's draft of a page, as the
+   * page editor's draft save does: the sections in order, each a dynamic
+   * section of 1, 2, 3, 4, 6 or 12 columns holding its applications in
+   * order per column, or a grid of up to 12 rows and 12 columns holding one
+   * application per cell, with the styling and display of sections and
+   * applications. Ids address the layout get_page_layout returned: the
+   * user's draft when they have one, the published layout otherwise, in
+   * which case the draft is created by this call through the editor's own
+   * path and every kept application becomes a copy carrying its
+   * preferences. Every value is checked before anything is written; one
+   * save. Returns the draft as get_page_layout does, with the ids of every
+   * section, cell and application.
+   */
+  public PageDescription setPageLayout(String pageRef, List<SectionDescription> sections) throws ObjectNotFoundException,
+                                                                                            IllegalAccessException {
+    PageKey pageKey = parsePageKey(pageRef);
+    String username = getCurrentUserName();
+    readEditablePage(pageKey, username);
+    long liveNodeId = requireLiveNodeId(pageKey, username);
+    PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
+    boolean createDraft = draftPageKey == null;
+    Page stored = pageLayoutService.getPageLayout(createDraft ? pageKey : draftPageKey);
+    if (stored == null) {
+      throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
+    }
+    LayoutModel layout = layoutDescriptionService.toPageLayout(sections, stored, createDraft, username, getCurrentUserLocale());
+    PageKey targetPageKey = draftPageKey;
+    if (createDraft) {
+      try {
+        targetPageKey = layoutDraftService.createDraftPage(liveNodeId, username);
+      } catch (ObjectNotFoundException e) {
+        throw new ObjectNotFoundException(PAGE_NOT_FOUND);
+      } catch (IllegalAccessException e) {
+        throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
+      } catch (RuntimeException e) {
+        throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
+      }
+    }
+    try {
+      pageLayoutService.updatePageLayout(targetPageKey.format(), layout.toPage(), false, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(DRAFT_NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(PAGE_NOT_ALLOWED);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(STYLING_NOT_ACCEPTED);
+    } catch (RuntimeException e) {
+      throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
+    }
+    return describeStoredPage(pageKey, liveNodeId, username);
   }
 
   /**
@@ -849,12 +919,96 @@ public class LayoutMcpTool implements McpToolPlugin {
    * A layout write refused by the storage answers a fixed text: the outdated
    * draft its own, every other failure the given one, its cause logged
    */
-  private RuntimeException translateWriteFailure(RuntimeException e, SiteKey siteKey, String username, String refusal) {
-    if (StringUtils.equals(e.getMessage(), SiteLayoutService.SITE_OUTDATED_MESSAGE)) {
+  private RuntimeException translateWriteFailure(RuntimeException e, Object layoutKey, String username, String refusal) {
+    if (StringUtils.equals(e.getMessage(), SiteLayoutService.SITE_OUTDATED_MESSAGE)
+        || StringUtils.equals(e.getMessage(), PAGE_OUTDATED_MESSAGE)) {
       return new IllegalStateException(LAYOUT_OUTDATED);
     }
-    LOG.debug("Site layout {} could not be written by {}", siteKey, username, e);
+    LOG.debug("Layout {} could not be written by {}", layoutKey, username, e);
     return new IllegalStateException(refusal);
+  }
+
+  private PageDescription publishPageLayout(String pageRef) throws ObjectNotFoundException, IllegalAccessException {
+    PageKey pageKey = parsePageKey(pageRef);
+    String username = getCurrentUserName();
+    readEditablePage(pageKey, username);
+    long liveNodeId = requireLiveNodeId(pageKey, username);
+    try {
+      layoutDraftService.publishPage(pageKey, liveNodeId, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(DRAFT_NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(PAGE_NOT_ALLOWED);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(STYLING_NOT_ACCEPTED);
+    } catch (RuntimeException e) {
+      throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_PUBLISHED);
+    }
+    return describeStoredPage(pageKey, liveNodeId, username);
+  }
+
+  private PageDescription discardPageDraft(String pageRef) throws ObjectNotFoundException, IllegalAccessException {
+    PageKey pageKey = parsePageKey(pageRef);
+    String username = getCurrentUserName();
+    readEditablePage(pageKey, username);
+    long liveNodeId = requireLiveNodeId(pageKey, username);
+    try {
+      layoutDraftService.discardDraftPage(pageKey, liveNodeId, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(DRAFT_NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(PAGE_NOT_ALLOWED);
+    } catch (RuntimeException e) {
+      throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
+    }
+    return describeStoredPage(pageKey, liveNodeId, username);
+  }
+
+  /**
+   * A live page the current user may edit: a draft page addressed by its own
+   * reference does not exist for the tools
+   */
+  private void readEditablePage(PageKey pageKey, String username) throws ObjectNotFoundException, IllegalAccessException {
+    if (layoutDraftService.isDraftNode(pageKey.getName()) || layoutService.getPage(pageKey) == null) {
+      throw new ObjectNotFoundException(PAGE_NOT_FOUND);
+    } else if (!aclService.canEditPage(pageKey, username)) {
+      throw new IllegalAccessException(PAGE_NOT_ALLOWED);
+    }
+  }
+
+  /**
+   * The navigation item of the page's own site a draft of the page hangs on:
+   * the item the user's draft was opened from when they have one, else the
+   * first item showing the page
+   */
+  private long requireLiveNodeId(PageKey pageKey, String username) throws ObjectNotFoundException {
+    Long liveNodeId = layoutDraftService.findLiveNodeId(pageKey, username);
+    if (liveNodeId == null) {
+      throw new ObjectNotFoundException(NODE_NOT_FOUND);
+    }
+    return liveNodeId;
+  }
+
+  /**
+   * The page as a write of the current user leaves it, read as
+   * get_page_layout reads it: their draft when their revision names one, the
+   * published layout otherwise
+   */
+  private PageDescription describeStoredPage(PageKey pageKey, long liveNodeId, String username) throws ObjectNotFoundException,
+                                                                                                  IllegalAccessException {
+    PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
+    boolean draft = draftPageKey != null;
+    ModelObject tree;
+    try {
+      tree = pageLayoutService.getPageLayout(draft ? draftPageKey : pageKey, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(draft ? DRAFT_NOT_FOUND : PAGE_NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(PAGE_NOT_ALLOWED);
+    }
+    return layoutDescriptionService.toPageDescription(tree,
+                                                      pageKey.format(),
+                                                      draft ? LayoutVersion.DRAFT : LayoutVersion.PUBLISHED);
   }
 
   /**

@@ -375,6 +375,8 @@ public class PageLayoutServiceTest {
     pageLayoutService.clonePage(PAGE_KEY, TEST_USER);
     verify(page).resetStorage();
     verify(page).setName(PAGE_KEY.getName() + "_draft_" + TEST_USER);
+    verify(page).setAccessPermissions(null);
+    verify(page, never()).setEditPermission(any());
     verify(layoutService).save(any(PageContext.class), eq(page));
   }
 
