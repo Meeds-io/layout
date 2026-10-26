@@ -325,7 +325,7 @@ public class LayoutMcpToolTest {
   @Test
   public void draftIsReadByDefaultWhenTheRevisionNamesOne() throws Exception {
     viewablePage();
-    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     ModelObject tree = new Container("draft");
     PageDescription expected = mock(PageDescription.class);
@@ -344,14 +344,14 @@ public class LayoutMcpToolTest {
     when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(tree);
     when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(expected);
 
-    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     assertEquals(expected, asUser(() -> tool.getPageLayout(PAGE_KEY.format(), "published")));
 
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
     assertEquals(expected, asUser(() -> tool.getPageLayout(PAGE_KEY.format(), null)));
 
-    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(null);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(null);
     assertEquals(expected, asUser(() -> tool.getPageLayout(PAGE_KEY.format(), null)));
     verify(pageLayoutService, never()).getPageLayout(DRAFT_KEY, USER);
   }
@@ -359,7 +359,7 @@ public class LayoutMcpToolTest {
   @Test
   public void explicitDraftWithoutARevisionDoesNotExist() throws Exception {
     viewablePage();
-    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
 
     assertEquals(LayoutMcpTool.DRAFT_NOT_FOUND,
@@ -832,7 +832,7 @@ public class LayoutMcpToolTest {
   @Test
   public void setPageLayoutBuildsTheDraftFromTheLivePageOnTheFirstWrite() throws Exception {
     editablePage();
-    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null, DRAFT_KEY);
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
@@ -853,7 +853,7 @@ public class LayoutMcpToolTest {
   @Test
   public void setPageLayoutWritesTheExistingDraftTheRevisionNames() throws Exception {
     editablePage();
-    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     Page stored = new Page("draft");
     when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(stored);
@@ -879,11 +879,11 @@ public class LayoutMcpToolTest {
     when(layoutService.getPage(PAGE_KEY)).thenReturn(new Page());
     assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
     when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
-    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(null);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(null);
     assertEquals(LayoutMcpTool.NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
     verify(descriptionService, never()).toPageLayout(any(), any(), anyBoolean(), any(), any());
 
-    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
     when(descriptionService.toPageLayout(sections, stored, true, USER, Locale.FRENCH)).thenThrow(new IllegalArgumentException(PageLayoutAssembler.COLUMNS_NOT_ACCEPTED));
@@ -912,7 +912,7 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED, refusal(() -> tool.publishLayout(SITE_ID, PAGE_KEY.format())));
     assertEquals(LayoutMcpTool.PAGE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.publishLayout(null, PAGE_KEY.format())));
     editablePage();
-    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
     ModelObject tree = new Container("published");
     PageDescription expected = mock(PageDescription.class);
@@ -942,7 +942,7 @@ public class LayoutMcpToolTest {
   public void discardLayoutDraftOnAPageStartsAgainFromThePublishedPage() throws Exception {
     assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED, refusal(() -> tool.discardLayoutDraft(SITE_ID, PAGE_KEY.format())));
     editablePage();
-    when(draftService.findLiveNodeId(PAGE_KEY)).thenReturn(LIVE_NODE);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     when(draftService.discardDraftPage(PAGE_KEY, LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     PageDescription expected = describedDraft();

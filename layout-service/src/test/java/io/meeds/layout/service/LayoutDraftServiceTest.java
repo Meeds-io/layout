@@ -192,8 +192,33 @@ public class LayoutDraftServiceTest {
     children(root, draft, other);
     children(other, live);
     when(navigationService.loadNode(SiteKey.portal("test"))).thenReturn(root);
+    when(coeditingService.getRevision(any(), any())).thenReturn(null);
 
-    assertEquals(LIVE_NODE, layoutDraftService.findLiveNodeId(LIVE_PAGE));
+    assertEquals(LIVE_NODE, layoutDraftService.findLiveNodeId(LIVE_PAGE, USER));
+  }
+
+  /**
+   * A page shown by two items: the item whose revision names the user's
+   * draft wins, so a draft built in the editor from either item is the one
+   * the tools resume rather than re-cloned away
+   */
+  @Test
+  public void liveNodeIsTheOneWhoseRevisionNamesTheUsersDraftWhenThePageHasSeveral() {
+    long secondNode = 14L;
+    NodeContext<NodeContext<Object>> root = context("default", null, 0L);
+    NodeContext<NodeContext<Object>> first = context("home", LIVE_PAGE, LIVE_NODE);
+    NodeContext<NodeContext<Object>> second = context("home-again", LIVE_PAGE, secondNode);
+    children(root, first, second);
+    when(navigationService.loadNode(SiteKey.portal("test"))).thenReturn(root);
+    when(coeditingService.getRevision(any(), any())).thenReturn(null);
+    revision(LayoutDraftService.NAVIGATION_OBJECT_TYPE, String.valueOf(secondNode), String.valueOf(DRAFT_NODE));
+    NodeData secondLive = node("home-again", LIVE_PAGE);
+    NodeData draftNode = node("home-again_draft_john", DRAFT_PAGE);
+    when(navigationService.getNodeById(secondNode)).thenReturn(secondLive);
+    when(navigationService.getNodeById(DRAFT_NODE)).thenReturn(draftNode);
+    when(layoutService.getPage(DRAFT_PAGE)).thenReturn(new Page());
+
+    assertEquals(secondNode, layoutDraftService.findLiveNodeId(LIVE_PAGE, USER));
   }
 
   @Test
@@ -202,7 +227,7 @@ public class LayoutDraftServiceTest {
     children(root, context("other", PageKey.parse("portal::test::other"), 13L));
     when(navigationService.loadNode(SiteKey.portal("test"))).thenReturn(root);
 
-    assertNull(layoutDraftService.findLiveNodeId(LIVE_PAGE));
+    assertNull(layoutDraftService.findLiveNodeId(LIVE_PAGE, USER));
   }
 
   @Test

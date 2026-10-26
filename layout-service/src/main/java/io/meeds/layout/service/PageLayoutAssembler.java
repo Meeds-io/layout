@@ -150,6 +150,8 @@ public class PageLayoutAssembler {
 
   private final Map<String, LayoutModel>                    parentOf                     = new HashMap<>();
 
+  private final Set<String>                                 windows                      = new HashSet<>();
+
   private final Set<String>                                 used                         = new HashSet<>();
 
   private final Set<String>                                 placedHidden                 = new HashSet<>();
@@ -203,11 +205,19 @@ public class PageLayoutAssembler {
     return root;
   }
 
+  /**
+   * A window is a stored element with no template and no children list,
+   * which has a container: the page itself, stored without a template, is
+   * never one
+   */
   private void index(LayoutModel model, LayoutModel parent) {
     if (StringUtils.isNotBlank(model.getStorageId())) {
       byId.put(model.getStorageId(), model);
       if (parent != null) {
         parentOf.put(model.getStorageId(), parent);
+        if (StringUtils.isBlank(model.getTemplate()) && model.getChildren() == null) {
+          windows.add(model.getStorageId());
+        }
       }
     }
     children(model).forEach(child -> index(child, model));
@@ -406,7 +416,7 @@ public class PageLayoutAssembler {
       if (description.applicationId() != null) {
         application = byId.get(description.applicationId());
         if (application == null
-            || StringUtils.isNotBlank(application.getTemplate())
+            || !windows.contains(description.applicationId())
             || hiddenWindows.containsKey(description.applicationId())) {
           throw new ObjectNotFoundException(APPLICATION_NOT_FOUND);
         } else if (!used.add(description.applicationId())) {

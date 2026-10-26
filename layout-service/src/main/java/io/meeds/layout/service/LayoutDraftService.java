@@ -18,6 +18,8 @@
  */
 package io.meeds.layout.service;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -248,14 +250,22 @@ public class LayoutDraftService {
   }
 
   /**
-   * @param  pageKey a page
-   * @return the id of the first navigation node of the page's own site that
-   *         references it, draft nodes excluded, null when no node does
+   * @param  pageKey  a page
+   * @param  username the user whose draft is looked up
+   * @return the id of the navigation node of the page's own site the tools
+   *         work from: the non-draft node referencing the page on which the
+   *         user's revision names a draft, so a draft built in the editor
+   *         from any item of the page is the one resumed, else the first
+   *         such node in tree order; null when no node references the page
    */
-  public Long findLiveNodeId(PageKey pageKey) {
+  public Long findLiveNodeId(PageKey pageKey, String username) {
     NodeContext<NodeContext<Object>> root = navigationService.loadNode(pageKey.getSite());
-    NodeContext<NodeContext<Object>> node = findNodeByPage(root, pageKey);
-    return node == null ? null : Long.parseLong(node.getId());
+    List<Long> nodeIds = new ArrayList<>();
+    collectNodesByPage(root, pageKey, nodeIds);
+    return nodeIds.stream()
+                  .filter(nodeId -> getDraftPageKey(nodeId, username) != null)
+                  .findFirst()
+                  .orElse(nodeIds.isEmpty() ? null : nodeIds.get(0));
   }
 
   public boolean isDraftNode(String nodeName) {
@@ -291,21 +301,17 @@ public class LayoutDraftService {
     return liveSite.getType() + "_" + liveSite.getName() + DRAFT_NAME_MARKER + username;
   }
 
-  private NodeContext<NodeContext<Object>> findNodeByPage(NodeContext<NodeContext<Object>> node, PageKey pageKey) {
+  private void collectNodesByPage(NodeContext<NodeContext<Object>> node, PageKey pageKey, List<Long> nodeIds) {
     if (node == null) {
-      return null;
+      return;
     }
     NodeState state = node.getState();
     if (state != null && pageKey.equals(state.getPageRef()) && !isDraftNode(node.getName())) {
-      return node;
+      nodeIds.add(Long.parseLong(node.getId()));
     }
     for (int i = 0; i < node.getNodeCount(); i++) {
-      NodeContext<NodeContext<Object>> result = findNodeByPage(node.get(i), pageKey);
-      if (result != null) {
-        return result;
-      }
+      collectNodesByPage(node.get(i), pageKey, nodeIds);
     }
-    return null;
   }
 
   private SiteKey requireDraftSiteKey(PortalConfig liveSite, String username) throws ObjectNotFoundException {

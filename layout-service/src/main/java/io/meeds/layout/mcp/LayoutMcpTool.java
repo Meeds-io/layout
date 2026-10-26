@@ -312,7 +312,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } else if (!aclService.canViewPage(pageKey, username) || !aclService.canViewSite(pageKey.getSite(), username)) {
       throw new IllegalAccessException(PAGE_NOT_ALLOWED);
     }
-    Long liveNodeId = layoutDraftService.findLiveNodeId(pageKey);
+    Long liveNodeId = layoutDraftService.findLiveNodeId(pageKey, username);
     PageKey draftPageKey = liveNodeId == null ? null : layoutDraftService.getDraftPageKey(liveNodeId, username);
     if (requested == LayoutVersion.DRAFT && draftPageKey == null) {
       throw new ObjectNotFoundException(DRAFT_NOT_FOUND);
@@ -621,7 +621,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
     readEditablePage(pageKey, username);
-    long liveNodeId = requireLiveNodeId(pageKey);
+    long liveNodeId = requireLiveNodeId(pageKey, username);
     PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
     boolean createDraft = draftPageKey == null;
     Page stored = pageLayoutService.getPageLayout(createDraft ? pageKey : draftPageKey);
@@ -932,7 +932,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
     readEditablePage(pageKey, username);
-    long liveNodeId = requireLiveNodeId(pageKey);
+    long liveNodeId = requireLiveNodeId(pageKey, username);
     try {
       layoutDraftService.publishPage(pageKey, liveNodeId, username);
     } catch (ObjectNotFoundException e) {
@@ -951,7 +951,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
     readEditablePage(pageKey, username);
-    long liveNodeId = requireLiveNodeId(pageKey);
+    long liveNodeId = requireLiveNodeId(pageKey, username);
     try {
       layoutDraftService.discardDraftPage(pageKey, liveNodeId, username);
     } catch (ObjectNotFoundException e) {
@@ -977,11 +977,12 @@ public class LayoutMcpTool implements McpToolPlugin {
   }
 
   /**
-   * The navigation item of the page's own site the editor is opened from,
-   * which a draft of the page hangs on
+   * The navigation item of the page's own site a draft of the page hangs on:
+   * the item the user's draft was opened from when they have one, else the
+   * first item showing the page
    */
-  private long requireLiveNodeId(PageKey pageKey) throws ObjectNotFoundException {
-    Long liveNodeId = layoutDraftService.findLiveNodeId(pageKey);
+  private long requireLiveNodeId(PageKey pageKey, String username) throws ObjectNotFoundException {
+    Long liveNodeId = layoutDraftService.findLiveNodeId(pageKey, username);
     if (liveNodeId == null) {
       throw new ObjectNotFoundException(NODE_NOT_FOUND);
     }

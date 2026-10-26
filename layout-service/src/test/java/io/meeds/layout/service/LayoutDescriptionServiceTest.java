@@ -366,6 +366,16 @@ public class LayoutDescriptionServiceTest {
     assertPageRefused(ObjectNotFoundException.class,
                       PageLayoutAssembler.APPLICATION_NOT_FOUND,
                       List.of(dynamic(1, List.of(List.of(new ApplicationDescription("999", null, null, null, null, null, null, null, null))))));
+    Page pageItself = storedPage(flexSection("1", "2"));
+    assertPageRefused(ObjectNotFoundException.class,
+                      PageLayoutAssembler.APPLICATION_NOT_FOUND,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription(pageItself.getStorageId(), null, null, null, null, null, null, null, null))))),
+                      pageItself);
+    String sectionId = ((Container) pageItself.getChildren().get(0)).getChildren().get(0).getStorageId();
+    assertPageRefused(ObjectNotFoundException.class,
+                      PageLayoutAssembler.APPLICATION_NOT_FOUND,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription(sectionId, null, null, null, null, null, null, null, null))))),
+                      pageItself);
     instance(10L, "content/NewsListView", "News");
     assertPageRefused(IllegalArgumentException.class,
                       PageLayoutAssembler.TITLE_NOT_ACCEPTED,
