@@ -45,6 +45,7 @@ import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.PageType;
 import org.exoplatform.portal.mop.SiteFilter;
@@ -320,7 +321,7 @@ public class LayoutDescriptionService {
       throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
     }
     Map<String, Integer> hiddenWindows = new LinkedHashMap<>();
-    collectHidden(layout, username, hiddenWindows);
+    collectHidden(layout, username, hiddenWindows, SiteLayoutAssembler.SITE_LAYOUT_HIDDEN);
     LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
                                    new LayoutModel(layout);
     LayoutModel result = new SiteLayoutAssembler(root,
@@ -333,6 +334,44 @@ public class LayoutDescriptionService {
     }
     try {
       LayoutStyleValidator.validate(EntityMapper.toModelObject(result));
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
+    }
+    return result;
+  }
+
+  /**
+   * @param  sections    the page's sections as set_page_layout takes them
+   * @param  stored      the stored page the ids address, as the storage holds
+   *                       it: the live page when the user has no draft, their
+   *                       draft otherwise
+   * @param  copyWindows whether the result is written over a draft built from
+   *                       the live page by this call, in which case every kept
+   *                       window becomes a copy carrying its preferences
+   * @param  username    the editing user
+   * @param  locale      the user's language, for the catalog names
+   * @return             the page to write, its sections parent's children
+   *                       replaced
+   */
+  public LayoutModel toPageLayout(List<SectionDescription> sections,
+                                  Page stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  Locale locale) throws ObjectNotFoundException, IllegalAccessException {
+    Map<String, Integer> hiddenWindows = new LinkedHashMap<>();
+    collectHidden(stored, username, hiddenWindows, PageLayoutAssembler.PAGE_LAYOUT_HIDDEN);
+    LayoutModel root = copyWindows ? new LayoutModel(stored, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(stored);
+    LayoutModel result = new PageLayoutAssembler(root,
+                                                 hiddenWindows,
+                                                 stylingService,
+                                                 this::toStyling,
+                                                 description -> newApplication(description, username, locale)).assemble(sections);
+    if (copyWindows) {
+      result.resetStorage();
+    }
+    try {
+      LayoutStyleValidator.validate(result.toPage());
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
     }
@@ -827,10 +866,13 @@ public class LayoutDescriptionService {
     }
   }
 
-  private void collectHidden(ModelObject object, String username, Map<String, Integer> hiddenWindows) throws IllegalAccessException {
+  private void collectHidden(ModelObject object,
+                             String username,
+                             Map<String, Integer> hiddenWindows,
+                             String hiddenContainerRefusal) throws IllegalAccessException {
     if (object instanceof Container container) {
       if (!aclService.hasAccessPermission(container, username)) {
-        throw new IllegalAccessException(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN);
+        throw new IllegalAccessException(hiddenContainerRefusal);
       }
       List<ModelObject> children = container.getChildren() == null ? Collections.emptyList() : container.getChildren();
       for (int i = 0; i < children.size(); i++) {
@@ -840,7 +882,7 @@ public class LayoutDescriptionService {
             hiddenWindows.put(application.getStorageId(), i);
           }
         } else {
-          collectHidden(child, username, hiddenWindows);
+          collectHidden(child, username, hiddenWindows, hiddenContainerRefusal);
         }
       }
     }
