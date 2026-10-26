@@ -1262,6 +1262,21 @@ public class LayoutDescriptionServiceTest {
   }
 
   @Test
+  public void aSidebarApplicationKeepsTheHeightTheSiteEditorGaveIt() throws Exception {
+    PortalConfig site = storedSite();
+    Container outerLeftCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
+    ((Application) outerLeftCell.getChildren().get(0)).setHeight("300px");
+    SiteContainerDescription left = new SiteContainerDescription(outerLeftCell.getStorageId(),
+                                                                 null,
+                                                                 null,
+                                                                 List.of(new ApplicationDescription("1", null, null, null, null, null, null, false, null)));
+
+    LayoutModel result = descriptionService.toSiteLayout(new SiteLayoutUpdate(left, null, null, null), site, false, USER, Locale.ENGLISH);
+
+    assertEquals("300px", result.getChildren().get(0).getChildren().get(0).getChildren().get(0).getHeight());
+  }
+
+  @Test
   public void innerSidebarsSitBetweenTheBanners() throws Exception {
     PortalConfig site = storedSite();
     SiteContainerDescription right = new SiteContainerDescription(null, new SiteContainerOptions(null, null, false, null, false), null, null);
@@ -1850,6 +1865,78 @@ public class LayoutDescriptionServiceTest {
                              .columnsContent()
                              .get(0)
                              .get(0);
+  }
+
+  /**
+   * The read answers an application of a dynamic section with its height
+   * turned off; moved as read into a grid cell, which offers no height, it is
+   * placed with that block dropped
+   */
+  @Test
+  public void anApplicationMovedAsReadIntoAGridCellIsPlaced() throws Exception {
+    Container grid = container(LayoutDescriptionService.GRID_TEMPLATE,
+                               "d-flex flex-column d-md-grid grid-cols grid-cols-xl-1 grid-rows grid-rows-xl-1");
+    children(grid, cell("grid-cell grid-cell-colspan grid-cell-colspan-xl-1 grid-cell-rowspan grid-cell-rowspan-xl-1"));
+    Page stored = storedPage(flexSection("5", "6"), grid);
+    PageDescription read = descriptionService.toPageDescription(stored, PAGE_REF, LayoutVersion.PUBLISHED);
+    SectionDescription dynamicRead = read.sections().get(0);
+    ApplicationDescription moved = dynamicRead.columnsContent().get(1).get(0);
+    assertEquals(Boolean.FALSE, moved.styling().height().enabled());
+    SectionDescription dynamicKept = new SectionDescription(dynamicRead.sectionId(),
+                                                            SectionType.DYNAMIC,
+                                                            3,
+                                                            null,
+                                                            List.of(List.of(), List.of(dynamicRead.columnsContent().get(1).get(1)), List.of()),
+                                                            null,
+                                                            null,
+                                                            null);
+    SectionDescription gridRead = read.sections().get(1);
+    SectionDescription gridKept = new SectionDescription(gridRead.sectionId(),
+                                                         SectionType.GRID,
+                                                         1,
+                                                         1,
+                                                         null,
+                                                         List.of(new CellDescription(gridRead.cells().get(0).cellId(), 1, 1, null, null, moved)),
+                                                         null,
+                                                         null);
+
+    LayoutModel result = toPageLayout(List.of(dynamicKept, gridKept), stored, false);
+
+    LayoutModel placed = result.getChildren().get(0).getChildren().get(1).getChildren().get(0).getChildren().get(0);
+    assertEquals("5", placed.getStorageId());
+    assertNull(placed.getHeight());
+  }
+
+  @Test
+  public void anApplicationMovedIntoAGridCellLeavesItsHeightBehind() throws Exception {
+    Container grid = container(LayoutDescriptionService.GRID_TEMPLATE,
+                               "d-flex flex-column d-md-grid grid-cols grid-cols-xl-1 grid-rows grid-rows-xl-1");
+    children(grid, cell("grid-cell grid-cell-colspan grid-cell-colspan-xl-1 grid-cell-rowspan grid-cell-rowspan-xl-1"));
+    Container dynamic = flexSection("5", "6");
+    ((Application) ((Container) dynamic.getChildren().get(1)).getChildren().get(0)).setHeight("300px");
+    Page stored = storedPage(dynamic, grid);
+    PageDescription read = descriptionService.toPageDescription(stored, PAGE_REF, LayoutVersion.PUBLISHED);
+    ApplicationDescription withHeight = read.sections().get(0).columnsContent().get(1).get(0);
+    assertEquals(Boolean.TRUE, withHeight.styling().height().enabled());
+    SectionDescription gridKept = new SectionDescription(read.sections().get(1).sectionId(),
+                                                         SectionType.GRID,
+                                                         1,
+                                                         1,
+                                                         null,
+                                                         List.of(new CellDescription(read.sections().get(1).cells().get(0).cellId(),
+                                                                                     1,
+                                                                                     1,
+                                                                                     null,
+                                                                                     null,
+                                                                                     new ApplicationDescription("5", null, null, null, null, null, null, false, null))),
+                                                         null,
+                                                         null);
+
+    LayoutModel result = toPageLayout(List.of(gridKept), stored, false);
+
+    LayoutModel placed = result.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0);
+    assertEquals("5", placed.getStorageId());
+    assertNull(placed.getHeight());
   }
 
   private LayoutModel toPageLayout(List<SectionDescription> sections, Page stored, boolean copyWindows) throws Exception {

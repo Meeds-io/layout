@@ -1355,7 +1355,7 @@
                         },
                         "styling": {
                           "type": "object",
-                          "description": "the styling blocks as get_page_layout returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                          "description": "the styling blocks as get_page_layout returns them: a block omitted keeps what the element holds (nothing on a new one), except the height of an application in a grid cell, saved without one, a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
                           "properties": {
                             "margins": {
                               "type": "object",
@@ -1404,7 +1404,7 @@
                             },
                             "height": {
                               "type": "object",
-                              "description": "enabled, then fixed small (150px), medium (300px) or large (500px), or custom with custom_px 10 to 1000; in a dynamic section only",
+                              "description": "enabled, then fixed small (150px), medium (300px) or large (500px), or custom with custom_px 10 to 1000; in a dynamic section only; an application this call styles in a grid cell is saved without a height, even when the block is omitted",
                               "properties": {
                                 "enabled": {
                                   "type": "boolean"
@@ -1475,7 +1475,7 @@
                           },
                           "styling": {
                             "type": "object",
-                            "description": "the styling blocks as get_page_layout returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                            "description": "the styling blocks as get_page_layout returns them: a block omitted keeps what the element holds (nothing on a new one), except the height of an application in a grid cell, saved without one, a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
                             "properties": {
                               "margins": {
                                 "type": "object",
@@ -1524,7 +1524,7 @@
                               },
                               "height": {
                                 "type": "object",
-                                "description": "enabled, then fixed small (150px), medium (300px) or large (500px), or custom with custom_px 10 to 1000; in a dynamic section only",
+                                "description": "enabled, then fixed small (150px), medium (300px) or large (500px), or custom with custom_px 10 to 1000; in a dynamic section only; an application this call styles in a grid cell is saved without a height, even when the block is omitted",
                                 "properties": {
                                   "enabled": {
                                     "type": "boolean"
@@ -1550,7 +1550,7 @@
                 },
                 "styling": {
                   "type": "object",
-                  "description": "the styling blocks as get_page_layout returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                  "description": "the styling blocks as get_page_layout returns them: a block omitted keeps what the element holds (nothing on a new one), except the height of an application in a grid cell, saved without one, a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
                   "properties": {
                     "margins": {
                       "type": "object",
@@ -1589,6 +1589,110 @@
         "required": [
           "page_ref",
           "sections"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "set_layout_styles",
+      "title": "Set the styling of layout elements",
+      "description": "Set the styling of sections, applications, topbars, bottom bars and sidebars of a page or a site in the current user's draft, any number of them in one call, as the editors' styling drawers do: margins, border, rounded corners, background, text and height. Exactly one of page_ref and site_id names the layout. Each element is addressed by the id get_page_layout or get_site returned (the user's draft when they have one, the published layout otherwise): on a page the section_id of a section or the application_id of an application; on a site the container_id of a topbar, a bottom bar or a sidebar, or the application_id of an application they hold. A cell_id is refused: a grid cell is styled through the application it holds or its section. An id the read does not answer does not exist for this tool, an element the user cannot see included. Each element takes the blocks given merged over its stored styling: a block omitted keeps what the element holds, except the height of an application in a grid cell, which is saved without one, a block with enabled false clears it, and inside a block a value omitted keeps the stored one. A block the element's place does not offer is refused naming it when turned on, and ignored when turned off, the place holding none to clear, following the specification's matrix: a section takes margins and background; a topbar, a bottom bar or a sidebar margins, background and text; an application every block, height only in a dynamic section; the height the site editor also offers an application of a sidebar is neither read nor written by these tools and stays as stored. Every element the call does not address stays as it is. At most 200 elements, each given once. A device visibility (display) and a new image are not accepted by this tool. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. The first draft of a page needs the right to edit the site's navigation, as opening the editor does, and the page must be referenced by a navigation item of its site. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_page_layout or get_site does, with its ids, which change when this call creates the draft: use the returned ones in later calls.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "page_ref": {
+            "type": "string",
+            "description": "The page reference, from list_site_pages (for example portal::mysite::home); omit when site_id is given"
+          },
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites; omit when page_ref is given"
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "an element to style",
+              "properties": {
+                "element_id": {
+                  "type": "string",
+                  "description": "the id of a section, an application, a topbar, a bottom bar or a sidebar in the layout get_page_layout or get_site returned"
+                },
+                "styling": {
+                  "type": "object",
+                  "description": "the styling blocks to change, in the shape get_page_layout and get_site return them: a block omitted keeps what the element holds, except the height of an application in a grid cell, saved without one, a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                  "properties": {
+                    "margins": {
+                      "type": "object",
+                      "description": "enabled, then all or top/right/bottom/left: an application on the editor scale, -40 to 80 (20 none); a section, a topbar, a bottom bar or a sidebar -60 to 60 (0 none)",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "border": {
+                      "type": "object",
+                      "description": "enabled, color (#RRGGBB or #RRGGBBAA), size 0 to 8 (default 1), shadow",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "corners": {
+                      "type": "object",
+                      "description": "enabled, then all or top_left/top_right/bottom_right/bottom_left, 0 to 20",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "background": {
+                      "type": "object",
+                      "description": "enabled, then mode solid (default, color, and scroll_color on a sticky topbar or sidebar) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left), a topbar taking a solid colour only; colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "text": {
+                      "type": "object",
+                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    },
+                    "height": {
+                      "type": "object",
+                      "description": "enabled, then fixed small (150px), medium (300px) or large (500px), or custom with custom_px 10 to 1000; an application of a dynamic section only; an application this call styles in a grid cell is saved without a height, even when the block is omitted",
+                      "properties": {
+                        "enabled": {
+                          "type": "boolean"
+                        }
+                      }
+                    }
+                  }
+                }
+              },
+              "required": [
+                "element_id"
+              ]
+            },
+            "description": "the elements to style, 1 to 200, each given once"
+          }
+        },
+        "required": [
+          "elements"
         ]
       },
       "annotations": {
