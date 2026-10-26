@@ -57,6 +57,7 @@ import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.portal.pom.spi.portlet.Portlet;
 
 import io.meeds.layout.mcp.constant.BackgroundMode;
+import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
 import io.meeds.layout.mcp.model.BackgroundBlock;
 import io.meeds.layout.mcp.model.BorderBlock;
@@ -253,7 +254,16 @@ public class LayoutStylesAssemblerTest {
     assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toStyledPage(withNull, stored, false, USER)));
     assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toStyledPage(tooMany, stored, false, USER)));
     assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> stylePage(stored, element(" ", null))));
-    assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> stylePage(stored, element("1", null), element("1", null))));
+    assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> stylePage(stored, element("1", null), element("1", null))));  }
+
+  @Test
+  public void aDeviceVisibilityIsRefusedRatherThanDropped() {
+    Page stored = storedPage();
+
+    assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED,
+                 refused(() -> stylePage(stored, new ElementStyling("1", null, DisplayMode.HIDE_MOBILE))));
+    assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED,
+                 refused(() -> stylePage(stored, new ElementStyling(flexSection.getStorageId(), null, DisplayMode.BOTH))));
   }
 
   @Test
@@ -440,7 +450,7 @@ public class LayoutStylesAssemblerTest {
   }
 
   private ElementStyling element(String elementId, StylingDescription styling) {
-    return new ElementStyling(elementId, styling);
+    return new ElementStyling(elementId, styling, null);
   }
 
   private StylingDescription styling(MarginsBlock margins,

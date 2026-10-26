@@ -130,7 +130,8 @@ public class LayoutMcpToolDefinitionsTest {
                                                      "background": {"enabled": true, "mode": "linear", "from": "#FF000080",
                                                                     "to": "#0000FFFF", "ratio": 40, "direction": "to_right"}}},
                     {"element_id": "5", "styling": {"height": {"enabled": true, "fixed": "custom", "custom_px": 420},
-                                                    "corners": {"enabled": false}}}]}
+                                                    "corners": {"enabled": false}},
+                     "display": "hide_mobile"}]}
       """;
 
   private static final String              CREATE_SITE_SAMPLE        = """
@@ -313,6 +314,8 @@ public class LayoutMcpToolDefinitionsTest {
     assertEquals(HeightPreset.CUSTOM, typed.get(1).styling().height().fixed());
     assertEquals(420, typed.get(1).styling().height().customPx());
     assertEquals(false, typed.get(1).styling().corners().enabled());
+    assertNull(typed.get(0).display());
+    assertEquals(DisplayMode.HIDE_MOBILE, typed.get(1).display());
   }
 
   @Test

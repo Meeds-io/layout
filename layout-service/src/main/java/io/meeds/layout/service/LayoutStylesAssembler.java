@@ -48,9 +48,9 @@ import io.meeds.layout.util.EntityMapper;
  * the read answers, and an application of one of them. Each one takes the
  * call's blocks merged over its stored styling, written for its place in the
  * editor's matrix, as the two layout assemblers write them. A cell or a
- * column, which the editor styles through its section, is refused; an id the
- * read does not answer, an element the caller cannot see included, does not
- * exist.
+ * column, which the editor styles through its section, is refused, and so is
+ * a device visibility; an id the read does not answer, an element the caller
+ * cannot see included, does not exist.
  */
 public class LayoutStylesAssembler {
 
@@ -59,6 +59,8 @@ public class LayoutStylesAssembler {
   public static final String                                          ELEMENT_ID_NOT_ACCEPTED = "value is not accepted for element_id";
 
   public static final String                                          ELEMENT_NOT_FOUND       = "does not exist: element";
+
+  public static final String                                          DISPLAY_NOT_ACCEPTED    = "value is not accepted for display";
 
   public static final int                                             MAX_ELEMENTS            = SiteLayoutAssembler.MAX_ELEMENTS;
 
@@ -133,6 +135,8 @@ public class LayoutStylesAssembler {
         throw new ObjectNotFoundException(ELEMENT_NOT_FOUND);
       } else if (nonTargets.contains(elementId) || !used.add(elementId)) {
         throw new IllegalArgumentException(ELEMENT_ID_NOT_ACCEPTED);
+      } else if (element.display() != null) {
+        throw new IllegalArgumentException(DISPLAY_NOT_ACCEPTED);
       }
       LayoutModel target = targets.get(elementId);
       StylingDestination destination = destinations.get(elementId);

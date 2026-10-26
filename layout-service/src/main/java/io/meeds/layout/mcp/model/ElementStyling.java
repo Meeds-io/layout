@@ -20,11 +20,16 @@ package io.meeds.layout.mcp.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.meeds.layout.mcp.constant.DisplayMode;
+
 /**
  * An element of set_layout_styles: the id the read answers for a section, an
  * application, a topbar, a bottom bar or a sidebar, with the styling blocks
- * that change, in the shape the read answers them
+ * that change, in the shape the read answers them. The display the read
+ * answers beside the styling is bound only to be refused, since an argument
+ * the binder does not know is dropped without a word
  */
 public record ElementStyling(@JsonProperty("element_id") String elementId,
-                             @JsonProperty("styling") StylingDescription styling) {
+                             @JsonProperty("styling") StylingDescription styling,
+                             @JsonProperty("display") DisplayMode display) {
 }

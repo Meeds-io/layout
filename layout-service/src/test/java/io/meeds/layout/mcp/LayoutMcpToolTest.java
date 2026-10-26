@@ -916,7 +916,7 @@ public class LayoutMcpToolTest {
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null, DRAFT_KEY);
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
-    List<ElementStyling> elements = List.of(new ElementStyling("12", null));
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
     when(descriptionService.toStyledPage(elements, stored, true, USER)).thenReturn(pageLayout());
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     PageDescription expected = describedDraft();
@@ -936,7 +936,7 @@ public class LayoutMcpToolTest {
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     Page stored = new Page("draft");
     when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(stored);
-    List<ElementStyling> elements = List.of(new ElementStyling("12", null));
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
     when(descriptionService.toStyledPage(elements, stored, false, USER)).thenReturn(pageLayout());
     PageDescription expected = describedDraft();
 
@@ -950,7 +950,7 @@ public class LayoutMcpToolTest {
   public void setLayoutStylesOnASiteBuildsTheDraftFromTheLiveLayoutOnTheFirstWrite() throws Exception {
     PortalConfig site = editableSite();
     SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
-    List<ElementStyling> elements = List.of(new ElementStyling("12", null));
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null, draftKey);
     when(descriptionService.toStyledSite(elements, site, true, USER)).thenReturn(siteLayout());
     when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
@@ -972,7 +972,7 @@ public class LayoutMcpToolTest {
     draftSite.setPortalLayout(new Container("draft"));
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
     when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
-    List<ElementStyling> elements = List.of(new ElementStyling("12", null));
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
     when(descriptionService.toStyledSite(elements, draftSite, false, USER)).thenReturn(siteLayout());
     SiteDescription expected = describedSite(site, draftSite);
 
@@ -984,7 +984,7 @@ public class LayoutMcpToolTest {
 
   @Test
   public void setLayoutStylesRefusalsCarryTheFixedTexts() throws Exception {
-    List<ElementStyling> elements = List.of(new ElementStyling("12", null));
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
     assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED, refusal(() -> tool.setLayoutStyles(SITE_ID, PAGE_KEY.format(), elements)));
     assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, refusal(() -> tool.setLayoutStyles(null, null, elements)));
     assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED, refusal(() -> tool.setLayoutStyles(null, " ", elements)));
