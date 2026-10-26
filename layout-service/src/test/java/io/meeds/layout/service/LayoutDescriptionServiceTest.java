@@ -376,6 +376,12 @@ public class LayoutDescriptionServiceTest {
                       PageLayoutAssembler.APPLICATION_NOT_FOUND,
                       List.of(dynamic(1, List.of(List.of(new ApplicationDescription(sectionId, null, null, null, null, null, null, null, null))))),
                       pageItself);
+    Container templateLess = container(null, null);
+    Page withTemplateLessContainer = storedPage(templateLess);
+    assertPageRefused(ObjectNotFoundException.class,
+                      PageLayoutAssembler.APPLICATION_NOT_FOUND,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription(templateLess.getStorageId(), null, null, null, null, null, null, null, null))))),
+                      withTemplateLessContainer);
     instance(10L, "content/NewsListView", "News");
     assertPageRefused(IllegalArgumentException.class,
                       PageLayoutAssembler.TITLE_NOT_ACCEPTED,
