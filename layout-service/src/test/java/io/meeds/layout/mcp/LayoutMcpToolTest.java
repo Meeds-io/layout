@@ -1389,6 +1389,29 @@ public class LayoutMcpToolTest {
   }
 
   @Test
+  public void configureLayoutApplicationsOnASitePublishedBetweenTheReadAndTheCloneSaysTheLayoutIsOutdated() throws Exception {
+    PortalConfig site = editableSite();
+    realSettingsHelpers();
+    site.setPortalLayout(containerHolding("30"));
+    PortalConfig republished = site("portal", "test", "Test");
+    republished.setPortalLayout(containerHolding("40"));
+    SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(site, republished);
+    when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> i.getArgument(0));
+    when(descriptionService.toSiteDescription(eq(site), any(), isNull(), isNull(), eq(false))).thenReturn(siteReading("31", "30"));
+    when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(containerHolding("140"));
+    when(layoutService.getPortalConfig(draftKey)).thenReturn(draftSite);
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("30", Map.of("max_apps_to_list", 6)));
+
+    assertEquals("draft created, read the layout again for its ids; layout outdated, re-read it",
+                 refusal(IllegalStateException.class, () -> tool.configureLayoutApplications(SITE_ID, null, applications)));
+    verify(applicationSettingsService, never()).apply(any(), any(), any());
+  }
+
+  @Test
   public void configureLayoutApplicationsOnASiteWritesTheExistingDraftTheRevisionNames() throws Exception {
     PortalConfig site = editableSite();
     realSettingsHelpers();
