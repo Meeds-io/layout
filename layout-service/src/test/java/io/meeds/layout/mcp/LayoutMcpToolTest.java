@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -1412,6 +1413,53 @@ public class LayoutMcpToolTest {
   }
 
   @Test
+  public void configureLayoutApplicationsOnASiteRefusesAHiddenApplicationAndAContainerId() throws Exception {
+    PortalConfig site = editableSite();
+    realSettingsHelpers();
+    Container layout = containerHolding("30", "40");
+    site.setPortalLayout(layout);
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(site);
+    when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> containerHolding("30"));
+    when(descriptionService.toSiteDescription(eq(site), any(), isNull(), isNull(), eq(false))).thenAnswer(i -> {
+      Container read = i.getArgument(1);
+      return siteReading("31", read.getChildren().stream().map(ModelObject::getStorageId).toArray(String[]::new));
+    });
+
+    assertEquals(LayoutMcpTool.APPLICATION_NOT_FOUND,
+                 refusal(ObjectNotFoundException.class,
+                         () -> tool.configureLayoutApplications(SITE_ID, null, List.of(new ApplicationSettingsEntry("40", null)))));
+    assertEquals(LayoutMcpTool.APPLICATION_ID_NOT_ACCEPTED,
+                 refusal(() -> tool.configureLayoutApplications(SITE_ID, null, List.of(new ApplicationSettingsEntry("31", null)))));
+    verify(applicationSettingsService, never()).validate(any(), any(), any());
+    verify(draftService, never()).createDraftSite(any(), any());
+  }
+
+  @Test
+  public void configureLayoutApplicationsFailingUnexpectedlyAfterCreatingTheDraftAnswersAFixedTextWithItsCause() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(pageHolding("20"));
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "20"));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    RuntimeException storageFailure = new RuntimeException("SQL error on JDBC connection");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenThrow(storageFailure);
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("20", Map.of("type", "CARD")));
+
+    IllegalStateException failure = assertThrows(IllegalStateException.class,
+                                                 () -> asUser(() -> tool.configureLayoutApplications(null,
+                                                                                                     PAGE_KEY.format(),
+                                                                                                     applications)));
+
+    assertEquals("draft created, read the layout again for its ids; could not be saved: application", failure.getMessage());
+    assertSame(storageFailure, failure.getCause());
+  }
+
+  @Test
   public void configureLayoutApplicationsOnASiteWritesTheExistingDraftTheRevisionNames() throws Exception {
     PortalConfig site = editableSite();
     realSettingsHelpers();
@@ -1597,10 +1645,20 @@ public class LayoutMcpToolTest {
                                null);
   }
 
-  private SiteDescription siteReading(String containerId, String applicationId) {
-    ApplicationDescription application = new ApplicationDescription(applicationId, "app-center/AppCenterMyApplicationsPortlet", null, null, null, null, null, true, null);
+  private SiteDescription siteReading(String containerId, String... applicationIds) {
+    List<ApplicationDescription> applications = Arrays.stream(applicationIds)
+                                                      .map(id -> new ApplicationDescription(id,
+                                                                                            "app-center/AppCenterMyApplicationsPortlet",
+                                                                                            null,
+                                                                                            null,
+                                                                                            null,
+                                                                                            null,
+                                                                                            null,
+                                                                                            true,
+                                                                                            null))
+                                                      .toList();
     return new SiteDescription(SITE_ID, "portal", "test", "Test", null, false, true, null, null, false, null, null,
-                               List.of(new SiteContainerDescription(containerId, null, null, List.of(application))),
+                               List.of(new SiteContainerDescription(containerId, null, null, applications)),
                                List.of());
   }
 

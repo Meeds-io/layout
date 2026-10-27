@@ -886,8 +886,12 @@ public class LayoutMcpTool implements McpToolPlugin {
                                    List<String> applicationIds) {
     try {
       applicationSettingsService.apply(draftContexts.get(), settings, applicationIds);
-    } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
-      throw new IllegalStateException(String.format(DRAFT_CREATED_BEFORE_FAILURE, e.getMessage()));
+    } catch (ObjectNotFoundException | IllegalAccessException | IllegalArgumentException | IllegalStateException e) {
+      throw new IllegalStateException(String.format(DRAFT_CREATED_BEFORE_FAILURE, e.getMessage()), e);
+    } catch (RuntimeException e) {
+      LOG.warn("Applications {} could not be configured on the draft just created", applicationIds, e);
+      throw new IllegalStateException(String.format(DRAFT_CREATED_BEFORE_FAILURE, ApplicationSettingsService.APPLICATION_NOT_SAVED),
+                                      e);
     }
   }
 
