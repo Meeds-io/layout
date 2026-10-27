@@ -177,6 +177,8 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   public static final String       APPLICATION_NOT_FOUND = ApplicationSettingsService.APPLICATION_NOT_FOUND;
 
+  public static final String       DRAFT_CREATED_BEFORE_FAILURE = "draft created, read the layout again for its ids; %s";
+
   public static final String       PAGE_LAYOUT_NOT_SAVED = "could not be saved: page layout";
 
   public static final String       PAGE_LAYOUT_NOT_PUBLISHED = "could not be published: page layout";
@@ -736,7 +738,8 @@ public class LayoutMcpTool implements McpToolPlugin {
    * by this call. Every application is validated, its own permission rule
    * included, before the first one is written; then they are written one
    * after the other, and a failure names the applications already written,
-   * which stay written. Returns the draft as get_page_layout or get_site
+   * which stay written, and says when the call created the draft, which
+   * stays. Returns the draft as get_page_layout or get_site
    * does, with the settings of each configurable application.
    */
   public Object configureLayoutApplications(Long siteId,
@@ -798,7 +801,7 @@ public class LayoutMcpTool implements McpToolPlugin {
                                                                             true,
                                                                             username));
     }
-    applicationSettingsService.apply(contexts, settings, applicationIds);
+    applyOnDraft(contexts, settings, applicationIds, createDraft);
     return describeStoredSite(site.getSiteKey(), username);
   }
 
@@ -861,8 +864,27 @@ public class LayoutMcpTool implements McpToolPlugin {
                                                                             true,
                                                                             username));
     }
-    applicationSettingsService.apply(contexts, settings, applicationIds);
+    applyOnDraft(contexts, settings, applicationIds, createDraft);
     return describeStoredPage(pageKey, liveNodeId, username);
+  }
+
+  /**
+   * Applies the validated settings; when this call created the draft, a
+   * failure says so, since the draft stays and its ids replace the ones the
+   * caller read
+   */
+  private void applyOnDraft(List<ApplicationSettingsContext> contexts,
+                            List<Map<String, Object>> settings,
+                            List<String> applicationIds,
+                            boolean draftCreated) throws ObjectNotFoundException, IllegalAccessException {
+    try {
+      applicationSettingsService.apply(contexts, settings, applicationIds);
+    } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
+      if (draftCreated) {
+        throw new IllegalStateException(String.format(DRAFT_CREATED_BEFORE_FAILURE, e.getMessage()));
+      }
+      throw e;
+    }
   }
 
   /**
