@@ -80,6 +80,8 @@ public class ApplicationSettingsService {
 
   public static final String                             APPLIED_BEFORE_FAILURE             = "applied before the failure: %s; %s";
 
+  public static final String                             VALUE_NOT_ACCEPTED                 = "value is not accepted for %s";
+
   private static final Log                               LOG                                =
                                                              ExoLogger.getLogger(ApplicationSettingsService.class);
 
@@ -163,16 +165,9 @@ public class ApplicationSettingsService {
                                                String pageReference,
                                                boolean draft,
                                                String username) {
-    Portlet portlet = layoutService.load(window.getState());
-    Map<String, String> preferences = new LinkedHashMap<>();
-    if (portlet != null) {
-      StreamSupport.stream(portlet.spliterator(), false)
-                   .filter(p -> p.getValue() != null)
-                   .forEach(p -> preferences.put(p.getName(), p.getValue()));
-    }
     return new ApplicationSettingsContext(Long.parseLong(window.getStorageId()),
                                           layoutService.getId(window.getState()),
-                                          preferences,
+                                          preferencesOf(window),
                                           pageKey == null,
                                           draft,
                                           pageKey,
@@ -193,8 +188,11 @@ public class ApplicationSettingsService {
     }
     try {
       return getPlugin(context.getContentId()).read(context);
-    } catch (Exception e) {
+    } catch (IllegalAccessException | ObjectNotFoundException e) {
       LOG.debug("Settings of application {} are not readable by {}", context.getApplicationId(), context.getUsername(), e);
+      return null;
+    } catch (RuntimeException e) {
+      LOG.warn("Settings of application {} could not be read for {}", context.getApplicationId(), context.getUsername(), e);
       return null;
     }
   }
@@ -223,6 +221,10 @@ public class ApplicationSettingsService {
         throw new IllegalArgumentException(String.format(NOT_CONFIGURABLE, requestedIds.get(i)));
       } else if (context.isSiteContainer() && !plugin.isConfigurableInSiteContainer()) {
         throw new IllegalArgumentException(String.format(NOT_CONFIGURABLE_IN_SITE_CONTAINER, requestedIds.get(i)));
+      }
+      String optionWithNullItem = findNullListItem(settings.get(i));
+      if (optionWithNullItem != null) {
+        throw new IllegalArgumentException(String.format(VALUE_NOT_ACCEPTED, optionWithNullItem));
       }
       try {
         plugin.validate(context, settings.get(i));
@@ -265,7 +267,7 @@ public class ApplicationSettingsService {
       } catch (IllegalArgumentException | IllegalStateException e) {
         throwFailure(applied, e);
       } catch (RuntimeException e) {
-        LOG.debug("Application {} settings could not be saved by {}", context.getApplicationId(), context.getUsername(), e);
+        LOG.warn("Application {} settings could not be saved by {}", context.getApplicationId(), context.getUsername(), e);
         throwFailure(applied, new IllegalStateException(APPLICATION_NOT_SAVED));
       }
     }
@@ -387,6 +389,44 @@ public class ApplicationSettingsService {
     return current instanceof Application application ? application : null;
   }
 
+  private Map<String, String> preferencesOf(Application window) {
+    Portlet portlet = layoutService.load(window.getState());
+    Map<String, String> preferences = new LinkedHashMap<>();
+    if (portlet != null) {
+      StreamSupport.stream(portlet.spliterator(), false)
+                   .filter(p -> p.getValue() != null)
+                   .forEach(p -> preferences.put(p.getName(), p.getValue()));
+    }
+    return preferences;
+  }
+
+  /**
+   * @return the option holding a null list item, at any depth, null when
+   *         none does
+   */
+  @SuppressWarnings("unchecked")
+  private String findNullListItem(Map<String, Object> settings) {
+    for (Map.Entry<String, Object> entry : settings.entrySet()) {
+      if (entry.getValue() instanceof Map<?, ?> map) {
+        String option = findNullListItem((Map<String, Object>) map);
+        if (option != null) {
+          return option;
+        }
+      } else if (entry.getValue() instanceof List<?> list) {
+        if (list.stream().anyMatch(Objects::isNull)) {
+          return entry.getKey();
+        }
+        for (Object item : list) {
+          String option = item instanceof Map<?, ?> map ? findNullListItem((Map<String, Object>) map) : null;
+          if (option != null) {
+            return option;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   private ApplicationSettingsPlugin getPlugin(String contentId) {
     String portletName = StringUtils.substringAfter(StringUtils.defaultString(contentId), "/");
     return StringUtils.isBlank(portletName) ? null : plugins.get(portletName);
@@ -408,6 +448,10 @@ public class ApplicationSettingsService {
       throw new IllegalStateException(LAYOUT_BUSY);
     }
     try {
+      Application window = layoutService.getApplicationModel(String.valueOf(context.getApplicationId()));
+      if (window != null) {
+        context.setPreferences(preferencesOf(window));
+      }
       plugin.apply(context, settings);
     } finally {
       lock.unlock();

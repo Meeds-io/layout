@@ -932,7 +932,8 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   /**
    * The windows of the draft just cloned from the live layout, each at the
-   * place its live window held
+   * place its live window held and of the same application, the layout
+   * being outdated otherwise
    */
   private List<ApplicationSettingsContext> toDraftContexts(List<Application> liveWindows,
                                                            ModelObject liveLayout,
@@ -943,7 +944,8 @@ public class LayoutMcpTool implements McpToolPlugin {
                                                     : applicationSettingsService.atPath(draftLayout,
                                                                                         applicationSettingsService.pathOf(liveLayout,
                                                                                                                           window.getStorageId()));
-      if (draftWindow == null || !StringUtils.isNumeric(draftWindow.getStorageId())) {
+      if (draftWindow == null || !StringUtils.isNumeric(draftWindow.getStorageId())
+          || !StringUtils.equals(layoutService.getId(draftWindow.getState()), layoutService.getId(window.getState()))) {
         throw new IllegalStateException(LAYOUT_OUTDATED);
       }
       return context.apply(draftWindow);

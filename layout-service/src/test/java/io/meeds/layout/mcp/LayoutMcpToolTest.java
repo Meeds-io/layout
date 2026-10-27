@@ -69,6 +69,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.Page;
+import org.exoplatform.portal.config.model.PersistentApplicationState;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.localization.LocaleContextInfoUtils;
@@ -1337,6 +1338,64 @@ public class LayoutMcpToolTest {
                  refusal(IllegalStateException.class,
                          () -> tool.configureLayoutApplications(null, PAGE_KEY.format(), applications)));
     verify(applicationSettingsService, never()).apply(any(), any(), any());
+  }
+
+  @Test
+  public void configureLayoutApplicationsFindingAnotherApplicationAtTheDraftPlaceSaysTheLayoutIsOutdated() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    Page live = pageHolding("20");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(live);
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "20"));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    Page draft = pageHolding("120");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(draft);
+    Application liveWindow = (Application) ((Container) live.getChildren().get(0)).getChildren().get(0);
+    Application draftWindow = (Application) ((Container) draft.getChildren().get(0)).getChildren().get(0);
+    liveWindow.setState(new PersistentApplicationState("20"));
+    draftWindow.setState(new PersistentApplicationState("120"));
+    when(layoutService.getId(liveWindow.getState())).thenReturn("content/Links");
+    when(layoutService.getId(draftWindow.getState())).thenReturn("content/Image");
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("20", Map.of("type", "CARD")));
+
+    assertEquals("draft created, read the layout again for its ids; layout outdated, re-read it",
+                 refusal(IllegalStateException.class,
+                         () -> tool.configureLayoutApplications(null, PAGE_KEY.format(), applications)));
+    verify(applicationSettingsService, never()).apply(any(), any(), any());
+  }
+
+  @Test
+  public void configureLayoutApplicationsOnASiteWritesTheExistingDraftTheRevisionNames() throws Exception {
+    PortalConfig site = editableSite();
+    realSettingsHelpers();
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(containerHolding("130"));
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
+    when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
+    when(layoutService.getPortalConfig(draftSite.getSiteKey())).thenReturn(draftSite);
+    when(descriptionService.toSiteDescription(eq(site), any(), isNull(), isNull(), eq(false))).thenReturn(siteReading("31", "130"));
+    SiteDescription expected = describedSite(site, draftSite);
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("130", Map.of("max_apps_to_list", 6)));
+
+    assertEquals(expected, asUser(() -> tool.configureLayoutApplications(SITE_ID, null, applications)));
+
+    ArgumentCaptor<List<ApplicationSettingsContext>> applied = contextsCaptor();
+    verify(applicationSettingsService).apply(applied.capture(), any(), eq(List.of("130")));
+    ApplicationSettingsContext window = applied.getValue().get(0);
+    assertEquals(130L, window.getApplicationId());
+    assertTrue(window.isDraft());
+    assertTrue(window.isSiteContainer());
+    assertEquals(draftSite.getSiteKey(), window.getSiteKey());
+    verify(draftService, never()).createDraftSite(any(), any());
+
+    doThrow(new IllegalAccessException(ApplicationSettingsService.APPLICATION_NOT_ALLOWED)).when(applicationSettingsService)
+                                                                                           .apply(any(), any(), any());
+    assertEquals(ApplicationSettingsService.APPLICATION_NOT_ALLOWED,
+                 refusal(IllegalAccessException.class, () -> tool.configureLayoutApplications(SITE_ID, null, applications)));
   }
 
   @Test

@@ -162,6 +162,51 @@ public class ApplicationSettingsServiceTest {
 
   @Test
   @SneakyThrows
+  public void aNullListItemIsRefusedNamingItsOptionBeforeThePluginSeesIt() {
+    ApplicationSettingsPlugin links = plugin("Links", false);
+    service.addPlugin(links);
+    Map<String, Object> link = new HashMap<>();
+    link.put("tags", Arrays.asList("a", null));
+    List<ApplicationSettingsContext> contexts = List.of(context(20, "content/Links", false));
+
+    assertEquals("value is not accepted for links",
+                 assertThrows(IllegalArgumentException.class,
+                              () -> service.validate(contexts,
+                                                     List.of(Map.of("links", Arrays.asList(Map.of("url", "u"), null))),
+                                                     List.of("20"))).getMessage());
+    assertEquals("value is not accepted for tags",
+                 assertThrows(IllegalArgumentException.class,
+                              () -> service.validate(contexts,
+                                                     List.of(Map.of("links", List.of(link))),
+                                                     List.of("20"))).getMessage());
+    verify(links, never()).validate(any(), any());
+  }
+
+  @Test
+  @SneakyThrows
+  public void aWriterTakingTheLockReadsTheWindowAsTheWriterBeforeItLeftIt() {
+    ApplicationSettingsPlugin links = plugin("Links", false);
+    service.addPlugin(links);
+    Application stored = new Application("120");
+    Portlet portlet = new Portlet();
+    portlet.setValue("name", "copy-links");
+    portlet.setValue(ApplicationSettingsService.OWNER_PREFERENCE, "120");
+    when(layoutService.getApplicationModel("120")).thenReturn(stored);
+    when(layoutService.load(stored.getState())).thenReturn(portlet);
+    List<Map<String, String>> seen = new ArrayList<>();
+    doAnswer(i -> seen.add(new HashMap<>(((ApplicationSettingsContext) i.getArgument(0)).getPreferences()))).when(links)
+                                                                                                         .apply(any(), any());
+    ApplicationSettingsContext window = context(120, "content/Links", false);
+    window.setPreferences(Map.of("name", "live-links"));
+
+    service.apply(List.of(window), List.of(Map.of("type", "ROW")), List.of("20"));
+
+    assertEquals(Map.of("name", "copy-links", ApplicationSettingsService.OWNER_PREFERENCE, "120"), seen.get(0));
+    assertTrue(service.isOwner(window));
+  }
+
+  @Test
+  @SneakyThrows
   public void aFailureOfTheFirstApplicationIsAnsweredAsIsAndALaterOneNamesTheApplicationsAlreadyApplied() {
     ApplicationSettingsPlugin links = plugin("Links", false);
     service.addPlugin(links);

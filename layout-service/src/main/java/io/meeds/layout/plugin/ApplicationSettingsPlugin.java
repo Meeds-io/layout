@@ -53,7 +53,10 @@ public interface ApplicationSettingsPlugin {
 
   /**
    * @return the JSON schema of the settings object, as the read tools expose
-   *         it
+   *         it. A null never reaches the plugin, the service dropping it as
+   *         "unchanged", so an option the drawer can clear names its
+   *         non-null clearing value in its description: false to hide, an
+   *         empty text to remove a link or a translation.
    */
   Map<String, Object> getSettingsSchema();
 
