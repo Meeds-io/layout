@@ -101,6 +101,9 @@ public class LayoutStylesAssemblerTest {
   @MockitoBean
   private LayoutDraftService       layoutDraftService;
 
+  @MockitoBean
+  private ApplicationSettingsService applicationSettingsService;
+
   @Autowired
   private LayoutDescriptionService descriptionService;
 

@@ -93,6 +93,7 @@ import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.mcp.model.TextBackgroundBlock;
 import io.meeds.layout.mcp.model.TextBlock;
 import io.meeds.layout.mcp.model.TextRoleBlock;
+import io.meeds.layout.model.ApplicationReadScope;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PortletInstance;
@@ -199,6 +200,9 @@ public class LayoutDescriptionService {
   @Autowired
   private LayoutStylingService   stylingService;
 
+  @Autowired
+  private ApplicationSettingsService applicationSettingsService;
+
   /**
    * Drops, recursively, every container and application the user has no
    * access permission on. Only page permissions are considered by the
@@ -219,7 +223,28 @@ public class LayoutDescriptionService {
   }
 
   public PageDescription toPageDescription(ModelObject pageTree, String pageRef, LayoutVersion version) {
-    Map<String, String> contentIds = collectContentIds(pageTree);
+    return toPageDescription(pageTree, pageRef, version, null);
+  }
+
+  /**
+   * @param  pageTree the page read, filtered by access permission
+   * @param  pageRef  the live page reference
+   * @param  version  the version read
+   * @param  username the reader, whose settings the configurable
+   *                    applications answer; null to read no settings
+   * @return          the page description
+   */
+  public PageDescription toPageDescription(ModelObject pageTree, String pageRef, LayoutVersion version, String username) {
+    PageKey pageKey = pageTree instanceof Page storedPage ? storedPage.getPageKey() : null;
+    SiteKey liveSiteKey = pageKey == null ? null : PageKey.parse(pageRef).getSite();
+    ApplicationReadScope scope = new ApplicationReadScope(collectContentIds(pageTree),
+                                                          collectWindows(pageTree),
+                                                          pageKey,
+                                                          liveSiteKey,
+                                                          liveSiteKey,
+                                                          pageRef,
+                                                          version == LayoutVersion.DRAFT,
+                                                          pageKey == null ? null : username);
     LayoutModel page = new LayoutModel(pageTree);
     LayoutModel sectionsParent = findSectionsParent(page);
     List<LayoutModel> sections = sectionsParent == null ? null : children(sectionsParent);
@@ -230,7 +255,7 @@ public class LayoutDescriptionService {
     }
     return new PageDescription(pageRef,
                                version,
-                               sections.stream().map(s -> toSection(s, contentIds)).toList(),
+                               sections.stream().map(s -> toSection(s, scope)).toList(),
                                null);
   }
 
@@ -248,7 +273,39 @@ public class LayoutDescriptionService {
                                            String label,
                                            String description,
                                            boolean draft) {
-    Map<String, String> contentIds = collectContentIds(layout);
+    return toSiteDescription(site, layout, label, description, null, draft, null);
+  }
+
+  /**
+   * @param  site          the live site, for its properties
+   * @param  layout        the site layout to describe, the draft's when the
+   *                         user has one, already filtered by access
+   *                         permission
+   * @param  label         the site label resolved in the user's language
+   * @param  description   the site description resolved in the user's
+   *                         language
+   * @param  layoutSiteKey the site holding the layout, the user's draft site
+   *                         or the live site; null to read no settings
+   * @param  draft         whether the layout is the user's draft
+   * @param  username      the reader, whose settings the configurable
+   *                         applications answer; null to read no settings
+   * @return               the site description
+   */
+  public SiteDescription toSiteDescription(PortalConfig site, // NOSONAR
+                                           ModelObject layout,
+                                           String label,
+                                           String description,
+                                           SiteKey layoutSiteKey,
+                                           boolean draft,
+                                           String username) {
+    ApplicationReadScope scope = new ApplicationReadScope(collectContentIds(layout),
+                                                          collectWindows(layout),
+                                                          null,
+                                                          layoutSiteKey,
+                                                          site.getSiteKey(),
+                                                          null,
+                                                          draft,
+                                                          layoutSiteKey == null ? null : username);
     LayoutModel root = layout == null ? new LayoutModel() : new LayoutModel(layout);
     List<LayoutModel> children = children(root);
     LayoutModel outerLeft = sidebarAt(children, 0);
@@ -266,7 +323,7 @@ public class LayoutDescriptionService {
     for (int i = 0; i < middleChildren.size(); i++) {
       LayoutModel child = middleChildren.get(i);
       if (isTemplate(child, BANNER_TEMPLATE)) {
-        (centerIndex < 0 || i < centerIndex ? topbars : bottomBars).add(toBanner(child, contentIds));
+        (centerIndex < 0 || i < centerIndex ? topbars : bottomBars).add(toBanner(child, scope));
       }
     }
     List<LayoutModel> centerChildren = centerIndex < 0 ? Collections.emptyList() : children(middleChildren.get(centerIndex));
@@ -282,8 +339,8 @@ public class LayoutDescriptionService {
                                site.getAccessPermissions() == null ? null : List.of(site.getAccessPermissions()),
                                site.getEditPermission(),
                                draft,
-                               toSidebar(outerLeft, innerLeft, contentIds),
-                               toSidebar(outerRight, innerRight, contentIds),
+                               toSidebar(outerLeft, innerLeft, scope),
+                               toSidebar(outerRight, innerRight, scope),
                                topbars,
                                bottomBars);
   }
@@ -602,8 +659,9 @@ public class LayoutDescriptionService {
                                                                              instance.getName(),
                                                                              instance.getDescription(),
                                                                              categories.get(instance.getCategoryId()),
-                                                                             false,
-                                                                             null))
+                                                                             applicationSettingsService.isConfigurable(instance.getContentId(),
+                                                                                                                       false),
+                                                                             applicationSettingsService.getSettingsSchema(instance.getContentId())))
                                  .toList();
   }
 
@@ -688,11 +746,11 @@ public class LayoutDescriptionService {
     return result;
   }
 
-  private SectionDescription toSection(LayoutModel section, Map<String, String> contentIds) {
+  private SectionDescription toSection(LayoutModel section, ApplicationReadScope scope) {
     List<LayoutModel> cells = children(section).stream().filter(c -> isTemplate(c, CELL_TEMPLATE)).toList();
     if (isTemplate(section, FLEX_TEMPLATE)) {
       List<List<ApplicationDescription>> columns = cells.stream()
-                                                        .map(cell -> toApplications(cell, contentIds, StylingDestination.APPLICATION))
+                                                        .map(cell -> toApplications(cell, scope, StylingDestination.APPLICATION))
                                                         .toList();
       return new SectionDescription(section.getStorageId(),
                                     SectionType.DYNAMIC,
@@ -710,7 +768,7 @@ public class LayoutDescriptionService {
                                     columns,
                                     rows,
                                     null,
-                                    toGridCells(cells, rows, columns, contentIds),
+                                    toGridCells(cells, rows, columns, scope),
                                     toStyling(section, StylingDestination.GRID_SECTION),
                                     null);
     }
@@ -720,7 +778,7 @@ public class LayoutDescriptionService {
    * Places the cells as the editor does: in reading order, each cell taking
    * the first free position, its spans marking the positions it covers.
    */
-  private List<CellDescription> toGridCells(List<LayoutModel> cells, int rows, int columns, Map<String, String> contentIds) {
+  private List<CellDescription> toGridCells(List<LayoutModel> cells, int rows, int columns, ApplicationReadScope scope) {
     boolean[][] taken = new boolean[rows][columns];
     List<CellDescription> result = new ArrayList<>();
     int rowIndex = 0;
@@ -740,7 +798,7 @@ public class LayoutDescriptionService {
           taken[row][col] = true;
         }
       }
-      List<ApplicationDescription> applications = toApplications(cell, contentIds, StylingDestination.GRID_CELL_APPLICATION);
+      List<ApplicationDescription> applications = toApplications(cell, scope, StylingDestination.GRID_CELL_APPLICATION);
       result.add(new CellDescription(cell.getStorageId(),
                                      rowIndex + 1,
                                      colIndex + 1,
@@ -756,11 +814,11 @@ public class LayoutDescriptionService {
     return result;
   }
 
-  private SiteContainerDescription toBanner(LayoutModel banner, Map<String, String> contentIds) {
+  private SiteContainerDescription toBanner(LayoutModel banner, ApplicationReadScope scope) {
     List<ApplicationDescription> applications = children(banner).stream()
                                                                 .filter(c -> isTemplate(c, BANNER_CELL_TEMPLATE))
                                                                 .flatMap(cell -> toApplications(cell,
-                                                                                                contentIds,
+                                                                                                scope,
                                                                                                 StylingDestination.SITE_CONTAINER_APPLICATION).stream())
                                                                 .toList();
     SiteContainerOptions options = new SiteContainerOptions(parsePixels(banner.getHeight()),
@@ -781,7 +839,7 @@ public class LayoutDescriptionService {
    * the width, the mobile visibility, the styling and the applications; the
    * sidebar itself carries the sticky token.
    */
-  private SiteContainerDescription toSidebar(LayoutModel outer, LayoutModel inner, Map<String, String> contentIds) {
+  private SiteContainerDescription toSidebar(LayoutModel outer, LayoutModel inner, ApplicationReadScope scope) {
     LayoutModel outerCell = sidebarCell(outer);
     LayoutModel innerCell = sidebarCell(inner);
     LayoutModel sidebar = outerCell != null ? outer : inner;
@@ -798,7 +856,7 @@ public class LayoutDescriptionService {
     return new SiteContainerDescription(cell.getStorageId(),
                                         options,
                                         toStyling(cell, StylingDestination.SIDEBAR),
-                                        toApplications(cell, contentIds, StylingDestination.SITE_CONTAINER_APPLICATION));
+                                        toApplications(cell, scope, StylingDestination.SITE_CONTAINER_APPLICATION));
   }
 
   private LayoutModel sidebarCell(LayoutModel sidebar) {
@@ -811,16 +869,16 @@ public class LayoutDescriptionService {
   }
 
   private List<ApplicationDescription> toApplications(LayoutModel cell,
-                                                      Map<String, String> contentIds,
+                                                      ApplicationReadScope scope,
                                                       StylingDestination destination) {
     return children(cell).stream()
                          .filter(c -> StringUtils.isBlank(c.getTemplate()))
-                         .map(application -> toApplication(application, contentIds, destination))
+                         .map(application -> toApplication(application, scope, destination))
                          .toList();
   }
 
   private ApplicationDescription toApplication(LayoutModel application,
-                                               Map<String, String> contentIds,
+                                               ApplicationReadScope scope,
                                                StylingDestination destination) {
     String storageId = application.getStorageId();
     Long instanceId = null;
@@ -828,15 +886,17 @@ public class LayoutDescriptionService {
       long portletInstanceId = portletInstanceService.getApplicationPortletInstanceId(Long.parseLong(storageId));
       instanceId = portletInstanceId > 0 ? portletInstanceId : null;
     }
-    String contentId = contentIds.getOrDefault(storageId, application.getContentId());
+    String contentId = scope.contentIds().getOrDefault(storageId, application.getContentId());
+    boolean siteContainer = destination == StylingDestination.SITE_CONTAINER_APPLICATION;
+    boolean configurable = applicationSettingsService.isConfigurable(contentId, siteContainer);
     return new ApplicationDescription(storageId,
                                       contentId,
                                       instanceId,
                                       application.getTitle(),
                                       toStyling(application, destination),
                                       toDisplay(application.getCssClass()),
-                                      null,
-                                      false,
+                                      configurable ? readSettings(scope, storageId, siteContainer) : null,
+                                      configurable,
                                       null);
   }
 
@@ -967,6 +1027,35 @@ public class LayoutDescriptionService {
     Map<String, String> contentIds = new HashMap<>();
     collectContentIds(modelObject, contentIds);
     return contentIds;
+  }
+
+  private Map<String, Application> collectWindows(ModelObject modelObject) {
+    Map<String, Application> windows = new HashMap<>();
+    collectWindows(modelObject, windows);
+    return windows;
+  }
+
+  private void collectWindows(ModelObject modelObject, Map<String, Application> windows) {
+    if (modelObject instanceof Container container && CollectionUtils.isNotEmpty(container.getChildren())) {
+      container.getChildren().forEach(child -> collectWindows(child, windows));
+    } else if (modelObject instanceof Application application && NumberUtils.isDigits(application.getStorageId())) {
+      windows.put(application.getStorageId(), application);
+    }
+  }
+
+  private Map<String, Object> readSettings(ApplicationReadScope scope, String storageId, boolean siteContainer) {
+    Application window = scope.username() == null ? null : scope.windows().get(storageId);
+    if (window == null) {
+      return null; // NOSONAR
+    }
+    return applicationSettingsService.readSettings(applicationSettingsService.newContext(window,
+                                                                                         siteContainer ? null : scope.pageKey(),
+                                                                                         scope.siteKey(),
+                                                                                         scope.liveSiteKey(),
+                                                                                         siteContainer ? null
+                                                                                                       : scope.pageReference(),
+                                                                                         scope.draft(),
+                                                                                         scope.username()));
   }
 
   private void collectContentIds(ModelObject modelObject, Map<String, String> contentIds) {
