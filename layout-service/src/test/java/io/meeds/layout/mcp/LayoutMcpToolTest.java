@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -39,6 +40,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.doCallRealMethod;
+import static org.mockito.Mockito.inOrder;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -47,6 +50,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.Arrays;
+import java.util.stream.IntStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -54,6 +59,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -64,7 +70,9 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.Page;
+import org.exoplatform.portal.config.model.PersistentApplicationState;
 import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.localization.LocaleContextInfoUtils;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.Visibility;
@@ -100,6 +108,8 @@ import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.SiteSummary;
+import io.meeds.layout.mcp.model.ApplicationDescription;
+import io.meeds.layout.mcp.model.ApplicationSettingsEntry;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NavigationCreateModel;
 import io.meeds.layout.model.NavigationItemUpdate;
@@ -110,6 +120,8 @@ import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SitePropertiesUpdate;
 import io.meeds.layout.model.SiteTemplate;
+import io.meeds.layout.model.ApplicationSettingsContext;
+import io.meeds.layout.service.ApplicationSettingsService;
 import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
 import io.meeds.layout.service.LayoutDraftService;
@@ -186,6 +198,9 @@ public class LayoutMcpToolTest {
   @MockitoBean
   private LocaleConfigService      localeConfigService;
 
+  @MockitoBean
+  private ApplicationSettingsService applicationSettingsService;
+
   @Autowired
   private LayoutMcpTool            tool;
 
@@ -227,7 +242,7 @@ public class LayoutMcpToolTest {
 
     assertEquals(LayoutMcpTool.SITE_NOT_FOUND, assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.getSite(9L))).getMessage());
     assertEquals(LayoutMcpTool.SITE_NOT_FOUND, assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.listSitePages(9L, null))).getMessage());
-    verify(descriptionService, never()).toSiteDescription(any(), any(), any(), any(), any(Boolean.class));
+    verify(descriptionService, never()).toSiteDescription(any(), any(), any(), any(), any(), any(Boolean.class), any());
   }
 
   @Test
@@ -243,7 +258,7 @@ public class LayoutMcpToolTest {
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
     when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
     when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> i.getArgument(0));
-    when(descriptionService.toSiteDescription(site, draftSite.getPortalLayout(), "Site label", "Site description", true)).thenReturn(expected);
+    when(descriptionService.toSiteDescription(eq(site), eq(draftSite.getPortalLayout()), eq("Site label"), eq("Site description"), eq(draftSite.getSiteKey()), eq(true), eq(USER))).thenReturn(expected);
 
     assertEquals(expected, asUser(() -> tool.getSite(SITE_ID)));
     verify(descriptionService).filterAccessible(draftSite.getPortalLayout(), USER);
@@ -262,7 +277,7 @@ public class LayoutMcpToolTest {
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(foreignDraft);
     when(siteLayoutService.getSite(foreignDraft, USER)).thenThrow(new IllegalAccessException("owner only"));
     when(descriptionService.filterAccessible(site.getPortalLayout(), USER)).thenReturn(site.getPortalLayout());
-    when(descriptionService.toSiteDescription(site, site.getPortalLayout(), "test", null, false)).thenReturn(expected);
+    when(descriptionService.toSiteDescription(eq(site), eq(site.getPortalLayout()), eq("test"), isNull(), eq(site.getSiteKey()), eq(false), eq(USER))).thenReturn(expected);
 
     assertEquals(expected, asUser(() -> tool.getSite(SITE_ID)));
   }
@@ -276,7 +291,7 @@ public class LayoutMcpToolTest {
     when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site);
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
     when(descriptionService.filterAccessible(site.getPortalLayout(), USER)).thenReturn(site.getPortalLayout());
-    when(descriptionService.toSiteDescription(site, site.getPortalLayout(), "Marketing", "The marketing space", false)).thenReturn(expected);
+    when(descriptionService.toSiteDescription(eq(site), eq(site.getPortalLayout()), eq("Marketing"), eq("The marketing space"), eq(site.getSiteKey()), eq(false), eq(USER))).thenReturn(expected);
 
     assertEquals(expected, asUser(() -> tool.getSite(SITE_ID)));
     verify(siteLayoutService, never()).getSiteLabels(anyLong(), any());
@@ -334,7 +349,7 @@ public class LayoutMcpToolTest {
     ModelObject tree = new Container("draft");
     PageDescription expected = mock(PageDescription.class);
     when(pageLayoutService.getPageLayout(DRAFT_KEY, USER)).thenReturn(tree);
-    when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.DRAFT)).thenReturn(expected);
+    when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.DRAFT, USER)).thenReturn(expected);
 
     assertEquals(expected, asUser(() -> tool.getPageLayout(PAGE_KEY.format(), null)));
     assertEquals(expected, asUser(() -> tool.getPageLayout(PAGE_KEY.format(), "draft")));
@@ -346,7 +361,7 @@ public class LayoutMcpToolTest {
     ModelObject tree = new Container("live");
     PageDescription expected = mock(PageDescription.class);
     when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(tree);
-    when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(expected);
+    when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.PUBLISHED, USER)).thenReturn(expected);
 
     when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
@@ -525,7 +540,7 @@ public class LayoutMcpToolTest {
     when(siteLayoutService.getSiteDescriptions(SITE_ID, USER)).thenReturn(label("The test site"));
     when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> i.getArgument(0));
     SiteDescription expected = mock(SiteDescription.class);
-    when(descriptionService.toSiteDescription(eq(site), any(), eq("Test site"), eq("The test site"), eq(false))).thenReturn(expected);
+    when(descriptionService.toSiteDescription(eq(site), any(), eq("Test site"), eq("The test site"), any(), eq(false), eq(USER))).thenReturn(expected);
 
     assertEquals(expected, asUser(() -> tool.updateSite(SITE_ID, null, null, null, null, true, null, null, null)));
   }
@@ -1189,7 +1204,7 @@ public class LayoutMcpToolTest {
     ModelObject tree = new Container("published");
     PageDescription expected = mock(PageDescription.class);
     when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(tree);
-    when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(expected);
+    when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.PUBLISHED, USER)).thenReturn(expected);
 
     assertEquals(expected, asUser(() -> tool.publishLayout(null, PAGE_KEY.format())));
 
@@ -1231,6 +1246,422 @@ public class LayoutMcpToolTest {
     verify(draftService, times(4)).discardDraftPage(PAGE_KEY, LIVE_NODE, USER);
   }
 
+  @Test
+  public void configureLayoutApplicationsOnAPageValidatesOnTheLiveWindowThenAppliesOnItsDraftCopy() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null, DRAFT_KEY);
+    Page live = pageHolding("20");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(live);
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "20"));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(pageHolding("120"));
+    PageDescription expected = describedDraft();
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("20", Map.of("type", "CARD")));
+
+    assertEquals(expected, asUser(() -> tool.configureLayoutApplications(null, PAGE_KEY.format(), applications)));
+
+    InOrder order = inOrder(applicationSettingsService, draftService);
+    ArgumentCaptor<List<ApplicationSettingsContext>> validated = contextsCaptor();
+    order.verify(applicationSettingsService).validate(validated.capture(), eq(List.of(Map.of("type", "CARD"))), eq(List.of("20")));
+    order.verify(draftService).createDraftPage(LIVE_NODE, USER);
+    ArgumentCaptor<List<ApplicationSettingsContext>> applied = contextsCaptor();
+    order.verify(applicationSettingsService).apply(applied.capture(), eq(List.of(Map.of("type", "CARD"))), eq(List.of("20")));
+    assertEquals(20L, validated.getValue().get(0).getApplicationId());
+    assertFalse(validated.getValue().get(0).isDraft());
+    ApplicationSettingsContext draftWindow = applied.getValue().get(0);
+    assertEquals(120L, draftWindow.getApplicationId());
+    assertTrue(draftWindow.isDraft());
+    assertEquals(DRAFT_KEY, draftWindow.getPageKey());
+    assertEquals(PAGE_KEY.format(), draftWindow.getPageReference());
+  }
+
+  @Test
+  public void configureLayoutApplicationsOnAPageRefusedByAPluginCreatesNoDraft() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(pageHolding("20"));
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "20"));
+    doThrow(new IllegalArgumentException("not configurable through tools: 20")).when(applicationSettingsService)
+                                                                               .validate(any(), any(), any());
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("20", Map.of("limit", 4)));
+
+    assertEquals("not configurable through tools: 20",
+                 refusal(() -> tool.configureLayoutApplications(null, PAGE_KEY.format(), applications)));
+
+    verify(draftService, never()).createDraftPage(anyLong(), any());
+    verify(applicationSettingsService, never()).apply(any(), any(), any());
+  }
+
+  @Test
+  public void configureLayoutApplicationsFailingAfterCreatingTheDraftSaysTheDraftStays() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(pageHolding("20"));
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "20"));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(pageHolding("120"));
+    doThrow(new IllegalAccessException(ApplicationSettingsService.APPLICATION_NOT_ALLOWED)).when(applicationSettingsService)
+                                                                                           .apply(any(), any(), any());
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("20", Map.of("type", "CARD")));
+
+    assertEquals("draft created, read the layout again for its ids; not allowed: application",
+                 refusal(IllegalStateException.class,
+                         () -> tool.configureLayoutApplications(null, PAGE_KEY.format(), applications)));
+  }
+
+  @Test
+  public void configureLayoutApplicationsNotFindingTheDraftCopyOfAWindowSaysTheDraftStays() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(pageHolding("20"));
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "20"));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(new Page("draft"));
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("20", Map.of("type", "CARD")));
+
+    assertEquals("draft created, read the layout again for its ids; layout outdated, re-read it",
+                 refusal(IllegalStateException.class,
+                         () -> tool.configureLayoutApplications(null, PAGE_KEY.format(), applications)));
+    verify(applicationSettingsService, never()).apply(any(), any(), any());
+  }
+
+  @Test
+  public void configureLayoutApplicationsFindingAnotherApplicationAtTheDraftPlaceSaysTheLayoutIsOutdated() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    Page live = pageHolding("20");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(live);
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "20"));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    Page draft = pageHolding("120");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(draft);
+    Application liveWindow = (Application) ((Container) live.getChildren().get(0)).getChildren().get(0);
+    Application draftWindow = (Application) ((Container) draft.getChildren().get(0)).getChildren().get(0);
+    liveWindow.setState(new PersistentApplicationState("20"));
+    draftWindow.setState(new PersistentApplicationState("120"));
+    when(layoutService.getId(liveWindow.getState())).thenReturn("content/Links");
+    when(layoutService.getId(draftWindow.getState())).thenReturn("content/Image");
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("20", Map.of("type", "CARD")));
+
+    assertEquals("draft created, read the layout again for its ids; layout outdated, re-read it",
+                 refusal(IllegalStateException.class,
+                         () -> tool.configureLayoutApplications(null, PAGE_KEY.format(), applications)));
+    verify(applicationSettingsService, never()).apply(any(), any(), any());
+  }
+
+  @Test
+  public void configureLayoutApplicationsAfterAPublicationBetweenTheReadAndTheCloneSaysTheLayoutIsOutdated() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(pageHolding("20", "21"), pageHolding("31", "30"));
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "20"));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(pageHolding("131", "130"));
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("20", Map.of("type", "CARD")));
+
+    assertEquals("draft created, read the layout again for its ids; layout outdated, re-read it",
+                 refusal(IllegalStateException.class,
+                         () -> tool.configureLayoutApplications(null, PAGE_KEY.format(), applications)));
+    verify(applicationSettingsService, never()).apply(any(), any(), any());
+  }
+
+  @Test
+  public void configureLayoutApplicationsOnASitePublishedBetweenTheReadAndTheCloneSaysTheLayoutIsOutdated() throws Exception {
+    PortalConfig site = editableSite();
+    realSettingsHelpers();
+    site.setPortalLayout(containerHolding("30"));
+    PortalConfig republished = site("portal", "test", "Test");
+    republished.setPortalLayout(containerHolding("40"));
+    SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(site, republished);
+    when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> i.getArgument(0));
+    when(descriptionService.toSiteDescription(eq(site), any(), isNull(), isNull(), eq(false))).thenReturn(siteReading("31", "30"));
+    when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(containerHolding("140"));
+    when(layoutService.getPortalConfig(draftKey)).thenReturn(draftSite);
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("30", Map.of("max_apps_to_list", 6)));
+
+    assertEquals("draft created, read the layout again for its ids; layout outdated, re-read it",
+                 refusal(IllegalStateException.class, () -> tool.configureLayoutApplications(SITE_ID, null, applications)));
+    verify(applicationSettingsService, never()).apply(any(), any(), any());
+  }
+
+  @Test
+  public void configureLayoutApplicationsOnASiteRefusesAHiddenApplicationAndAContainerId() throws Exception {
+    PortalConfig site = editableSite();
+    realSettingsHelpers();
+    Container layout = containerHolding("30", "40");
+    site.setPortalLayout(layout);
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(site);
+    when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> containerHolding("30"));
+    when(descriptionService.toSiteDescription(eq(site), any(), isNull(), isNull(), eq(false))).thenAnswer(i -> {
+      Container read = i.getArgument(1);
+      return siteReading("31", read.getChildren().stream().map(ModelObject::getStorageId).toArray(String[]::new));
+    });
+
+    assertEquals(LayoutMcpTool.APPLICATION_NOT_FOUND,
+                 refusal(ObjectNotFoundException.class,
+                         () -> tool.configureLayoutApplications(SITE_ID, null, List.of(new ApplicationSettingsEntry("40", null)))));
+    assertEquals(LayoutMcpTool.APPLICATION_ID_NOT_ACCEPTED,
+                 refusal(() -> tool.configureLayoutApplications(SITE_ID, null, List.of(new ApplicationSettingsEntry("31", null)))));
+    verify(applicationSettingsService, never()).validate(any(), any(), any());
+    verify(draftService, never()).createDraftSite(any(), any());
+  }
+
+  @Test
+  public void configureLayoutApplicationsFailingUnexpectedlyAfterCreatingTheDraftAnswersAFixedTextWithItsCause() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(pageHolding("20"));
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "20"));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    RuntimeException storageFailure = new RuntimeException("SQL error on JDBC connection");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenThrow(storageFailure);
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("20", Map.of("type", "CARD")));
+
+    IllegalStateException failure = assertThrows(IllegalStateException.class,
+                                                 () -> asUser(() -> tool.configureLayoutApplications(null,
+                                                                                                     PAGE_KEY.format(),
+                                                                                                     applications)));
+
+    assertEquals("draft created, read the layout again for its ids; could not be saved: application", failure.getMessage());
+    assertSame(storageFailure, failure.getCause());
+  }
+
+  @Test
+  public void configureLayoutApplicationsOnASiteWritesTheExistingDraftTheRevisionNames() throws Exception {
+    PortalConfig site = editableSite();
+    realSettingsHelpers();
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(containerHolding("130"));
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
+    when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
+    when(layoutService.getPortalConfig(draftSite.getSiteKey())).thenReturn(draftSite);
+    when(descriptionService.toSiteDescription(eq(site), any(), isNull(), isNull(), eq(false))).thenReturn(siteReading("31", "130"));
+    SiteDescription expected = describedSite(site, draftSite);
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("130", Map.of("max_apps_to_list", 6)));
+
+    assertEquals(expected, asUser(() -> tool.configureLayoutApplications(SITE_ID, null, applications)));
+
+    ArgumentCaptor<List<ApplicationSettingsContext>> applied = contextsCaptor();
+    verify(applicationSettingsService).apply(applied.capture(), any(), eq(List.of("130")));
+    ApplicationSettingsContext window = applied.getValue().get(0);
+    assertEquals(130L, window.getApplicationId());
+    assertTrue(window.isDraft());
+    assertTrue(window.isSiteContainer());
+    assertEquals(draftSite.getSiteKey(), window.getSiteKey());
+    verify(draftService, never()).createDraftSite(any(), any());
+
+    doThrow(new IllegalAccessException(ApplicationSettingsService.APPLICATION_NOT_ALLOWED)).when(applicationSettingsService)
+                                                                                           .apply(any(), any(), any());
+    assertEquals(ApplicationSettingsService.APPLICATION_NOT_ALLOWED,
+                 refusal(IllegalAccessException.class, () -> tool.configureLayoutApplications(SITE_ID, null, applications)));
+  }
+
+  @Test
+  public void configureLayoutApplicationsFailingOnAnExistingDraftAnswersTheRefusalAsIs() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(pageHolding("120"));
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "120"));
+    doThrow(new IllegalAccessException(ApplicationSettingsService.APPLICATION_NOT_ALLOWED)).when(applicationSettingsService)
+                                                                                           .apply(any(), any(), any());
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("120", Map.of("type", "CARD")));
+
+    assertEquals(ApplicationSettingsService.APPLICATION_NOT_ALLOWED,
+                 refusal(IllegalAccessException.class,
+                         () -> tool.configureLayoutApplications(null, PAGE_KEY.format(), applications)));
+  }
+
+  @Test
+  public void configureLayoutApplicationsOnAPageWritesTheExistingDraftTheRevisionNames() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(pageHolding("120"));
+    PageDescription expected = describedDraft();
+    when(descriptionService.toPageDescription(any(), eq(PAGE_KEY.format()), eq(LayoutVersion.PUBLISHED))).thenReturn(pageReading("12", "120"));
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("120", null));
+
+    assertEquals(expected, asUser(() -> tool.configureLayoutApplications(null, PAGE_KEY.format(), applications)));
+
+    ArgumentCaptor<List<ApplicationSettingsContext>> applied = contextsCaptor();
+    verify(applicationSettingsService).apply(applied.capture(), eq(List.of(Map.of())), eq(List.of("120")));
+    assertEquals(120L, applied.getValue().get(0).getApplicationId());
+    assertTrue(applied.getValue().get(0).isDraft());
+    assertEquals(DRAFT_KEY, applied.getValue().get(0).getPageKey());
+    verify(draftService, never()).createDraftPage(anyLong(), any());
+  }
+
+  @Test
+  public void configureLayoutApplicationsOnASiteValidatesOnTheLiveWindowThenAppliesOnItsDraftCopy() throws Exception {
+    PortalConfig site = editableSite();
+    realSettingsHelpers();
+    site.setPortalLayout(containerHolding("30"));
+    SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null, draftKey);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(site);
+    when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> i.getArgument(0));
+    when(descriptionService.toSiteDescription(eq(site), any(), isNull(), isNull(), eq(false))).thenReturn(siteReading("31", "30"));
+    when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(containerHolding("130"));
+    when(layoutService.getPortalConfig(draftKey)).thenReturn(draftSite);
+    when(siteLayoutService.getSite(draftKey, USER)).thenReturn(draftSite);
+    SiteDescription expected = describedSite(site, draftSite);
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("30", Map.of("max_apps_to_list", 6)));
+
+    assertEquals(expected, asUser(() -> tool.configureLayoutApplications(SITE_ID, null, applications)));
+
+    ArgumentCaptor<List<ApplicationSettingsContext>> validated = contextsCaptor();
+    verify(applicationSettingsService).validate(validated.capture(), any(), eq(List.of("30")));
+    assertTrue(validated.getValue().get(0).isSiteContainer());
+    assertEquals(SITE_KEY, validated.getValue().get(0).getSiteKey());
+    ArgumentCaptor<List<ApplicationSettingsContext>> applied = contextsCaptor();
+    verify(applicationSettingsService).apply(applied.capture(), any(), eq(List.of("30")));
+    assertEquals(130L, applied.getValue().get(0).getApplicationId());
+    assertEquals(draftKey, applied.getValue().get(0).getSiteKey());
+    assertTrue(applied.getValue().get(0).isDraft());
+    assertNull(applied.getValue().get(0).getPageReference());
+  }
+
+  @Test
+  public void configureLayoutApplicationsRefusalsCarryTheFixedTexts() throws Exception {
+    List<ApplicationSettingsEntry> one = List.of(new ApplicationSettingsEntry("20", Map.of()));
+    assertEquals(LayoutMcpTool.APPLICATIONS_NOT_ACCEPTED, refusal(() -> tool.configureLayoutApplications(null, PAGE_KEY.format(), null)));
+    assertEquals(LayoutMcpTool.APPLICATIONS_NOT_ACCEPTED,
+                 refusal(() -> tool.configureLayoutApplications(null, PAGE_KEY.format(), List.of())));
+    List<ApplicationSettingsEntry> tooMany = IntStream.rangeClosed(0, 200)
+                                                                       .mapToObj(i -> new ApplicationSettingsEntry(String.valueOf(i), null))
+                                                                       .toList();
+    assertEquals(LayoutMcpTool.APPLICATIONS_NOT_ACCEPTED,
+                 refusal(() -> tool.configureLayoutApplications(null, PAGE_KEY.format(), tooMany)));
+    assertEquals(LayoutMcpTool.APPLICATION_ID_NOT_ACCEPTED,
+                 refusal(() -> tool.configureLayoutApplications(null,
+                                                                PAGE_KEY.format(),
+                                                                List.of(new ApplicationSettingsEntry("20", null),
+                                                                        new ApplicationSettingsEntry("20", null)))));
+    assertEquals(LayoutMcpTool.APPLICATION_ID_NOT_ACCEPTED,
+                 refusal(() -> tool.configureLayoutApplications(null, PAGE_KEY.format(), List.of(new ApplicationSettingsEntry(" ", null)))));
+    assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED, refusal(() -> tool.configureLayoutApplications(SITE_ID, PAGE_KEY.format(), one)));
+    assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, refusal(() -> tool.configureLayoutApplications(null, null, one)));
+
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(pageHolding("20", "40"));
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "20"));
+    assertEquals(LayoutMcpTool.APPLICATION_ID_NOT_ACCEPTED,
+                 refusal(() -> tool.configureLayoutApplications(null, PAGE_KEY.format(), List.of(new ApplicationSettingsEntry("12", null)))));
+    assertEquals(LayoutMcpTool.APPLICATION_NOT_FOUND,
+                 refusal(ObjectNotFoundException.class,
+                         () -> tool.configureLayoutApplications(null, PAGE_KEY.format(), List.of(new ApplicationSettingsEntry("99", null)))));
+    assertEquals(LayoutMcpTool.APPLICATION_NOT_FOUND,
+                 refusal(ObjectNotFoundException.class,
+                         () -> tool.configureLayoutApplications(null, PAGE_KEY.format(), List.of(new ApplicationSettingsEntry("40", null)))));
+    verify(applicationSettingsService, never()).validate(any(), any(), any());
+    verify(draftService, never()).createDraftPage(anyLong(), any());
+  }
+
+  private void realSettingsHelpers() throws Exception {
+    doCallRealMethod().when(applicationSettingsService).dropNullEntries(any());
+    doCallRealMethod().when(applicationSettingsService).pathOf(any(), any());
+    doCallRealMethod().when(applicationSettingsService).atPath(any(), any());
+    when(applicationSettingsService.newContext(any(), any(), any(), any(), any(), anyBoolean(), eq(USER))).thenAnswer(i -> {
+      Application window = i.getArgument(0);
+      return new ApplicationSettingsContext(Long.parseLong(window.getStorageId()),
+                                            "content/Links",
+                                            Map.of(),
+                                            i.getArgument(1) == null,
+                                            i.getArgument(5),
+                                            i.getArgument(1),
+                                            i.getArgument(2),
+                                            i.getArgument(4),
+                                            0,
+                                            USER);
+    });
+  }
+
+  @SuppressWarnings({ "unchecked", "rawtypes" })
+  private ArgumentCaptor<List<ApplicationSettingsContext>> contextsCaptor() {
+    return ArgumentCaptor.forClass((Class) List.class);
+  }
+
+  private Page pageHolding(String... storageIds) {
+    Page page = new Page("stored");
+    page.setChildren(new ArrayList<>(List.of(containerHolding(storageIds))));
+    return page;
+  }
+
+  private Container containerHolding(String... storageIds) {
+    Container container = new Container("cell");
+    container.setChildren(new ArrayList<>(Arrays.stream(storageIds).map(Application::new).toList()));
+    return container;
+  }
+
+  private PageDescription pageReading(String sectionId, String applicationId) {
+    ApplicationDescription application = new ApplicationDescription(applicationId, "content/Links", null, null, null, null, null, true, null);
+    return new PageDescription(PAGE_KEY.format(),
+                               LayoutVersion.PUBLISHED,
+                               List.of(new SectionDescription(sectionId, SectionType.DYNAMIC, 1, null, List.of(List.of(application)), null, null, null)),
+                               null);
+  }
+
+  private SiteDescription siteReading(String containerId, String... applicationIds) {
+    List<ApplicationDescription> applications = Arrays.stream(applicationIds)
+                                                      .map(id -> new ApplicationDescription(id,
+                                                                                            "app-center/AppCenterMyApplicationsPortlet",
+                                                                                            null,
+                                                                                            null,
+                                                                                            null,
+                                                                                            null,
+                                                                                            null,
+                                                                                            true,
+                                                                                            null))
+                                                      .toList();
+    return new SiteDescription(SITE_ID, "portal", "test", "Test", null, false, true, null, null, false, null, null,
+                               List.of(new SiteContainerDescription(containerId, null, null, applications)),
+                               List.of());
+  }
+
   private void editablePage() {
     when(layoutService.getPage(PAGE_KEY)).thenReturn(new Page());
     when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
@@ -1244,7 +1675,7 @@ public class LayoutMcpToolTest {
     PageDescription expected = mock(PageDescription.class);
     ModelObject tree = new Container("draft");
     lenient().when(pageLayoutService.getPageLayout(DRAFT_KEY, USER)).thenReturn(tree);
-    lenient().when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.DRAFT)).thenReturn(expected);
+    lenient().when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.DRAFT, USER)).thenReturn(expected);
     return expected;
   }
 
@@ -1274,7 +1705,7 @@ public class LayoutMcpToolTest {
     lenient().doReturn(label(site.getLabel())).when(siteLayoutService).getSiteLabels(site.getId(), USER);
     lenient().doReturn(null).when(siteLayoutService).getSiteDescriptions(site.getId(), USER);
     lenient().when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> i.getArgument(0));
-    lenient().when(descriptionService.toSiteDescription(eq(site), eq(draftSite.getPortalLayout()), eq(site.getLabel()), isNull(), eq(true)))
+    lenient().when(descriptionService.toSiteDescription(eq(site), eq(draftSite.getPortalLayout()), eq(site.getLabel()), isNull(), any(), eq(true), eq(USER)))
              .thenReturn(expected);
     return expected;
   }
@@ -1866,7 +2297,7 @@ public class LayoutMcpToolTest {
     lenient().doReturn(null).when(siteLayoutService).getSiteDescriptions(site.getId(), USER);
     lenient().when(draftService.getDraftSiteKey(site.getId(), USER)).thenReturn(null);
     lenient().when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> i.getArgument(0));
-    lenient().when(descriptionService.toSiteDescription(eq(site), any(), eq(site.getLabel()), isNull(), eq(false))).thenReturn(expected);
+    lenient().when(descriptionService.toSiteDescription(eq(site), any(), eq(site.getLabel()), isNull(), any(), eq(false), eq(USER))).thenReturn(expected);
     return expected;
   }
 

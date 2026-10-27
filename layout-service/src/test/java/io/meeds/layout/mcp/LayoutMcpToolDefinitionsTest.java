@@ -41,6 +41,7 @@ import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
 import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.constant.SectionType;
+import io.meeds.layout.mcp.model.ApplicationSettingsEntry;
 import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.PageDescription;
@@ -81,7 +82,8 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                "delete_page",
                                                                                "set_page_layout",
                                                                                "set_layout_styles",
-                                                                               "set_layout_visibility");
+                                                                               "set_layout_visibility",
+                                                                               "configure_layout_applications");
 
   private static final Set<String>         APPROVAL_TOOLS            = Set.of("update_theme",
                                                                                "update_navigation_display",
@@ -142,6 +144,13 @@ public class LayoutMcpToolDefinitionsTest {
                     {"element_id": "5", "display": "both", "styling": {"margins": {"enabled": true, "top": -10}}}]}
       """;
 
+  private static final String              CONFIGURE_APPLICATIONS_SAMPLE = """
+      {"page_ref": "portal::mysite::home", "site_id": 3,
+       "applications": [{"application_id": "20", "settings": {"type": "CARD", "header": {"en": "Links", "fr": null},
+                                                               "links": [{"name": {"en": "Meeds"}, "url": "https://meeds.io"}]}},
+                        {"application_id": "21", "settings": {"limit": 4, "show_header": null}}]}
+      """;
+
   private static final String              CREATE_SITE_SAMPLE        = """
       {"name": "marketing", "label": "Marketing", "description": "About us", "template": "basic",
        "banner_upload_id": "u1", "access_permissions": ["Everyone"], "edit_permission": "*:/platform/administrators",
@@ -181,7 +190,9 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                      Map.entry("delete_page", "{\"node_id\": 12}"),
                                                                                      Map.entry("set_page_layout", PAGE_LAYOUT_SAMPLE),
                                                                                      Map.entry("set_layout_styles", LAYOUT_STYLES_SAMPLE),
-                                                                                     Map.entry("set_layout_visibility", LAYOUT_VISIBILITY_SAMPLE));
+                                                                                     Map.entry("set_layout_visibility", LAYOUT_VISIBILITY_SAMPLE),
+                                                                                     Map.entry("configure_layout_applications",
+                                                                                               CONFIGURE_APPLICATIONS_SAMPLE));
 
   @Test
   public void everyPublicMethodHasADefinitionAndEveryDefinitionAMethod() {
@@ -345,6 +356,35 @@ public class LayoutMcpToolDefinitionsTest {
     assertEquals("5", typed.get(1).elementId());
     assertEquals(DisplayMode.BOTH, typed.get(1).display());
     assertEquals(-10, typed.get(1).styling().margins().top());
+  }
+
+  /**
+   * The settings of each application bind as a map whose nested values keep
+   * their JSON shape, a null entry included, which the tool drops before any
+   * plugin reads the settings
+   */
+  @Test
+  public void configureApplicationsEntriesBindTheirSettingsMapsThroughTheParameterizedType() throws Exception {
+    Method method = toolMethods().get("configure_layout_applications");
+    Map<String, Object> arguments = JSON_HELPER.fromJsonToMap(CONFIGURE_APPLICATIONS_SAMPLE);
+    Parameter applications = Arrays.stream(method.getParameters())
+                                   .filter(p -> p.getName().equals("applications"))
+                                   .findFirst()
+                                   .orElseThrow();
+    @SuppressWarnings("unchecked")
+    List<ApplicationSettingsEntry> typed =
+                                         (List<ApplicationSettingsEntry>) JSON_HELPER.fromJson(JSON_HELPER.toJson(arguments.get("applications")),
+                                                                                               applications.getParameterizedType());
+    assertEquals("20", typed.get(0).applicationId());
+    assertEquals("CARD", typed.get(0).settings().get("type"));
+    @SuppressWarnings("unchecked")
+    Map<String, Object> header = (Map<String, Object>) typed.get(0).settings().get("header");
+    assertEquals("Links", header.get("en"));
+    assertTrue(header.containsKey("fr"));
+    assertNull(header.get("fr"));
+    assertTrue(typed.get(0).settings().get("links") instanceof List<?>);
+    assertEquals(4, ((Number) typed.get(1).settings().get("limit")).intValue());
+    assertTrue(typed.get(1).settings().containsKey("show_header"));
   }
 
   @Test
