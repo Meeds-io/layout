@@ -792,6 +792,7 @@ public class LayoutMcpTool implements McpToolPlugin {
       }
       applyOnCreatedDraft(() -> toDraftContexts(windows,
                                                 stored.getPortalLayout(),
+                                                layoutService.getPortalConfig(site.getSiteKey()).getPortalLayout(),
                                                 layoutService.getPortalConfig(draftSiteKey).getPortalLayout(),
                                                 w -> applicationSettingsService.newContext(w,
                                                                                            null,
@@ -857,6 +858,7 @@ public class LayoutMcpTool implements McpToolPlugin {
       }
       applyOnCreatedDraft(() -> toDraftContexts(windows,
                                                 stored,
+                                                pageLayoutService.getPageLayout(pageKey),
                                                 pageLayoutService.getPageLayout(newDraftPageKey),
                                                 w -> applicationSettingsService.newContext(w,
                                                                                            newDraftPageKey,
@@ -932,19 +934,23 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   /**
    * The windows of the draft just cloned from the live layout, each at the
-   * place its live window held and of the same application, the layout
-   * being outdated otherwise
+   * place its live window held and of the same application. The live layout
+   * read again after the clone still holding each validated window at its
+   * place, no publication came in between, a publication giving every window
+   * a new id; the layout is outdated otherwise.
    */
   private List<ApplicationSettingsContext> toDraftContexts(List<Application> liveWindows,
                                                            ModelObject liveLayout,
+                                                           ModelObject liveLayoutAfterClone,
                                                            ModelObject draftLayout,
                                                            Function<Application, ApplicationSettingsContext> context) {
     return liveWindows.stream().map(window -> {
-      Application draftWindow = draftLayout == null ? null
-                                                    : applicationSettingsService.atPath(draftLayout,
-                                                                                        applicationSettingsService.pathOf(liveLayout,
-                                                                                                                          window.getStorageId()));
-      if (draftWindow == null || !StringUtils.isNumeric(draftWindow.getStorageId())
+      List<Integer> path = applicationSettingsService.pathOf(liveLayout, window.getStorageId());
+      Application liveWindowAfterClone = liveLayoutAfterClone == null ? null
+                                                                      : applicationSettingsService.atPath(liveLayoutAfterClone, path);
+      Application draftWindow = draftLayout == null ? null : applicationSettingsService.atPath(draftLayout, path);
+      if (liveWindowAfterClone == null || !StringUtils.equals(liveWindowAfterClone.getStorageId(), window.getStorageId())
+          || draftWindow == null || !StringUtils.isNumeric(draftWindow.getStorageId())
           || !StringUtils.equals(layoutService.getId(draftWindow.getState()), layoutService.getId(window.getState()))) {
         throw new IllegalStateException(LAYOUT_OUTDATED);
       }

@@ -27,9 +27,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -46,6 +48,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -59,6 +62,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
+import org.exoplatform.portal.config.model.PersistentApplicationState;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.service.LayoutService;
@@ -96,6 +100,11 @@ public class ApplicationSettingsServiceTest {
 
   @Autowired
   private ApplicationSettingsService service;
+
+  @BeforeEach
+  public void setUp() {
+    lenient().when(layoutService.load(any(PersistentApplicationState.class))).thenReturn(new Portlet());
+  }
 
   @AfterEach
   public void tearDown() {
@@ -187,12 +196,11 @@ public class ApplicationSettingsServiceTest {
   public void aWriterTakingTheLockReadsTheWindowAsTheWriterBeforeItLeftIt() {
     ApplicationSettingsPlugin links = plugin("Links", false);
     service.addPlugin(links);
-    Application stored = new Application("120");
     Portlet portlet = new Portlet();
     portlet.setValue("name", "copy-links");
     portlet.setValue(ApplicationSettingsService.OWNER_PREFERENCE, "120");
-    when(layoutService.getApplicationModel("120")).thenReturn(stored);
-    when(layoutService.load(stored.getState())).thenReturn(portlet);
+    when(layoutService.load(argThat((PersistentApplicationState state) -> state != null
+        && "120".equals(state.getStorageId())))).thenReturn(portlet);
     List<Map<String, String>> seen = new ArrayList<>();
     doAnswer(i -> seen.add(new HashMap<>(((ApplicationSettingsContext) i.getArgument(0)).getPreferences()))).when(links)
                                                                                                          .apply(any(), any());
@@ -275,6 +283,21 @@ public class ApplicationSettingsServiceTest {
       release.countDown();
       first.get(10, TimeUnit.SECONDS);
     }
+  }
+
+  @Test
+  @SneakyThrows
+  public void aWindowRemovedBeforeItsTurnIsAnsweredAsNotExisting() {
+    ApplicationSettingsPlugin links = plugin("Links", false);
+    service.addPlugin(links);
+    when(layoutService.load(any(PersistentApplicationState.class))).thenReturn(null);
+
+    assertEquals(ApplicationSettingsService.APPLICATION_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class,
+                              () -> service.apply(List.of(context(120, "content/Links", false)),
+                                                  List.of(Map.of("type", "ROW")),
+                                                  List.of("20"))).getMessage());
+    verify(links, never()).apply(any(), any());
   }
 
   @Test

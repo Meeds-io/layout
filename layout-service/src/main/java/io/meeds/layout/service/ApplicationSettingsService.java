@@ -38,6 +38,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
+import org.exoplatform.portal.config.model.PersistentApplicationState;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
 import org.exoplatform.portal.mop.page.PageKey;
@@ -167,7 +168,7 @@ public class ApplicationSettingsService {
                                                String username) {
     return new ApplicationSettingsContext(Long.parseLong(window.getStorageId()),
                                           layoutService.getId(window.getState()),
-                                          preferencesOf(window),
+                                          preferencesOf(layoutService.load(window.getState())),
                                           pageKey == null,
                                           draft,
                                           pageKey,
@@ -389,8 +390,7 @@ public class ApplicationSettingsService {
     return current instanceof Application application ? application : null;
   }
 
-  private Map<String, String> preferencesOf(Application window) {
-    Portlet portlet = layoutService.load(window.getState());
+  private Map<String, String> preferencesOf(Portlet portlet) {
     Map<String, String> preferences = new LinkedHashMap<>();
     if (portlet != null) {
       StreamSupport.stream(portlet.spliterator(), false)
@@ -448,10 +448,11 @@ public class ApplicationSettingsService {
       throw new IllegalStateException(LAYOUT_BUSY);
     }
     try {
-      Application window = layoutService.getApplicationModel(String.valueOf(context.getApplicationId()));
-      if (window != null) {
-        context.setPreferences(preferencesOf(window));
+      Portlet stored = layoutService.load(new PersistentApplicationState(String.valueOf(context.getApplicationId())));
+      if (stored == null) {
+        throw new ObjectNotFoundException(APPLICATION_NOT_FOUND);
       }
+      context.setPreferences(preferencesOf(stored));
       plugin.apply(context, settings);
     } finally {
       lock.unlock();
