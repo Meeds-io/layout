@@ -1320,6 +1320,26 @@ public class LayoutMcpToolTest {
   }
 
   @Test
+  public void configureLayoutApplicationsNotFindingTheDraftCopyOfAWindowSaysTheDraftStays() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(pageHolding("20"));
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(pageReading("12", "20"));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(new Page("draft"));
+    List<ApplicationSettingsEntry> applications = List.of(new ApplicationSettingsEntry("20", Map.of("type", "CARD")));
+
+    assertEquals("draft created, read the layout again for its ids; layout outdated, re-read it",
+                 refusal(IllegalStateException.class,
+                         () -> tool.configureLayoutApplications(null, PAGE_KEY.format(), applications)));
+    verify(applicationSettingsService, never()).apply(any(), any(), any());
+  }
+
+  @Test
   public void configureLayoutApplicationsFailingOnAnExistingDraftAnswersTheRefusalAsIs() throws Exception {
     editablePage();
     realSettingsHelpers();

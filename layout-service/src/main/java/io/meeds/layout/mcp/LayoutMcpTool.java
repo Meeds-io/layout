@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -789,19 +790,21 @@ public class LayoutMcpTool implements McpToolPlugin {
       } catch (RuntimeException e) {
         throw translateWriteFailure(e, site.getSiteKey(), username, SITE_LAYOUT_NOT_SAVED);
       }
-      ModelObject draftLayout = layoutService.getPortalConfig(draftSiteKey).getPortalLayout();
-      contexts = toDraftContexts(windows,
-                                 stored.getPortalLayout(),
-                                 draftLayout,
-                                 w -> applicationSettingsService.newContext(w,
-                                                                            null,
-                                                                            draftSiteKey,
-                                                                            site.getSiteKey(),
-                                                                            null,
-                                                                            true,
-                                                                            username));
+      applyOnCreatedDraft(() -> toDraftContexts(windows,
+                                                stored.getPortalLayout(),
+                                                layoutService.getPortalConfig(draftSiteKey).getPortalLayout(),
+                                                w -> applicationSettingsService.newContext(w,
+                                                                                           null,
+                                                                                           draftSiteKey,
+                                                                                           site.getSiteKey(),
+                                                                                           null,
+                                                                                           true,
+                                                                                           username)),
+                          settings,
+                          applicationIds);
+    } else {
+      applicationSettingsService.apply(contexts, settings, applicationIds);
     }
-    applyOnDraft(contexts, settings, applicationIds, createDraft);
     return describeStoredSite(site.getSiteKey(), username);
   }
 
@@ -852,38 +855,37 @@ public class LayoutMcpTool implements McpToolPlugin {
       } catch (RuntimeException e) {
         throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
       }
-      Page draft = pageLayoutService.getPageLayout(newDraftPageKey);
-      contexts = toDraftContexts(windows,
-                                 stored,
-                                 draft,
-                                 w -> applicationSettingsService.newContext(w,
-                                                                            newDraftPageKey,
-                                                                            pageKey.getSite(),
-                                                                            pageKey.getSite(),
-                                                                            livePageReference,
-                                                                            true,
-                                                                            username));
+      applyOnCreatedDraft(() -> toDraftContexts(windows,
+                                                stored,
+                                                pageLayoutService.getPageLayout(newDraftPageKey),
+                                                w -> applicationSettingsService.newContext(w,
+                                                                                           newDraftPageKey,
+                                                                                           pageKey.getSite(),
+                                                                                           pageKey.getSite(),
+                                                                                           livePageReference,
+                                                                                           true,
+                                                                                           username)),
+                          settings,
+                          applicationIds);
+    } else {
+      applicationSettingsService.apply(contexts, settings, applicationIds);
     }
-    applyOnDraft(contexts, settings, applicationIds, createDraft);
     return describeStoredPage(pageKey, liveNodeId, username);
   }
 
   /**
-   * Applies the validated settings; when this call created the draft, a
-   * failure says so, since the draft stays and its ids replace the ones the
+   * Finds the draft's copy of each validated window and applies the
+   * settings there, in the draft this call just created: any failure from
+   * then on says so, since the draft stays and its ids replace the ones the
    * caller read
    */
-  private void applyOnDraft(List<ApplicationSettingsContext> contexts,
-                            List<Map<String, Object>> settings,
-                            List<String> applicationIds,
-                            boolean draftCreated) throws ObjectNotFoundException, IllegalAccessException {
+  private void applyOnCreatedDraft(Supplier<List<ApplicationSettingsContext>> draftContexts,
+                                   List<Map<String, Object>> settings,
+                                   List<String> applicationIds) {
     try {
-      applicationSettingsService.apply(contexts, settings, applicationIds);
+      applicationSettingsService.apply(draftContexts.get(), settings, applicationIds);
     } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
-      if (draftCreated) {
-        throw new IllegalStateException(String.format(DRAFT_CREATED_BEFORE_FAILURE, e.getMessage()));
-      }
-      throw e;
+      throw new IllegalStateException(String.format(DRAFT_CREATED_BEFORE_FAILURE, e.getMessage()));
     }
   }
 
