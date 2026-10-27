@@ -41,6 +41,7 @@ import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
 import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.constant.SectionType;
+import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.PageDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
@@ -79,7 +80,8 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                "update_page",
                                                                                "delete_page",
                                                                                "set_page_layout",
-                                                                               "set_layout_styles");
+                                                                               "set_layout_styles",
+                                                                               "set_layout_visibility");
 
   private static final Set<String>         APPROVAL_TOOLS            = Set.of("update_theme",
                                                                                "update_navigation_display",
@@ -134,6 +136,12 @@ public class LayoutMcpToolDefinitionsTest {
                      "display": "hide_mobile"}]}
       """;
 
+  private static final String              LAYOUT_VISIBILITY_SAMPLE  = """
+      {"page_ref": "portal::mysite::home", "site_id": 3,
+       "elements": [{"element_id": "20", "display": "hide_desktop"},
+                    {"element_id": "5", "display": "both", "styling": {"margins": {"enabled": true, "top": -10}}}]}
+      """;
+
   private static final String              CREATE_SITE_SAMPLE        = """
       {"name": "marketing", "label": "Marketing", "description": "About us", "template": "basic",
        "banner_upload_id": "u1", "access_permissions": ["Everyone"], "edit_permission": "*:/platform/administrators",
@@ -172,7 +180,8 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                      Map.entry("update_page", UPDATE_PAGE_SAMPLE),
                                                                                      Map.entry("delete_page", "{\"node_id\": 12}"),
                                                                                      Map.entry("set_page_layout", PAGE_LAYOUT_SAMPLE),
-                                                                                     Map.entry("set_layout_styles", LAYOUT_STYLES_SAMPLE));
+                                                                                     Map.entry("set_layout_styles", LAYOUT_STYLES_SAMPLE),
+                                                                                     Map.entry("set_layout_visibility", LAYOUT_VISIBILITY_SAMPLE));
 
   @Test
   public void everyPublicMethodHasADefinitionAndEveryDefinitionAMethod() {
@@ -316,6 +325,26 @@ public class LayoutMcpToolDefinitionsTest {
     assertEquals(false, typed.get(1).styling().corners().enabled());
     assertNull(typed.get(0).display());
     assertEquals(DisplayMode.HIDE_MOBILE, typed.get(1).display());
+  }
+
+  /**
+   * The visibility elements bind as records, the styling sent beside a
+   * display included, so the tool can refuse it
+   */
+  @Test
+  public void layoutVisibilityElementsBindTheirRecordsThroughTheParameterizedType() throws Exception {
+    Method method = toolMethods().get("set_layout_visibility");
+    Map<String, Object> arguments = JSON_HELPER.fromJsonToMap(LAYOUT_VISIBILITY_SAMPLE);
+    Parameter elements = Arrays.stream(method.getParameters()).filter(p -> p.getName().equals("elements")).findFirst().orElseThrow();
+    @SuppressWarnings("unchecked")
+    List<ElementDisplay> typed = (List<ElementDisplay>) JSON_HELPER.fromJson(JSON_HELPER.toJson(arguments.get("elements")),
+                                                                            elements.getParameterizedType());
+    assertEquals("20", typed.get(0).elementId());
+    assertEquals(DisplayMode.HIDE_DESKTOP, typed.get(0).display());
+    assertNull(typed.get(0).styling());
+    assertEquals("5", typed.get(1).elementId());
+    assertEquals(DisplayMode.BOTH, typed.get(1).display());
+    assertEquals(-10, typed.get(1).styling().margins().top());
   }
 
   @Test
