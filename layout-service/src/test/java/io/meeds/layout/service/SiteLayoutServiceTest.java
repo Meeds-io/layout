@@ -46,6 +46,7 @@ import java.util.Locale;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.InOrder;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -57,6 +58,7 @@ import org.exoplatform.commons.ObjectAlreadyExistsException;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserPortalConfig;
 import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelStyle;
 import org.exoplatform.portal.config.model.PortalConfig;
@@ -67,12 +69,14 @@ import org.exoplatform.portal.mop.importer.ImportMode;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.portal.mop.user.UserPortal;
+import org.exoplatform.portal.pom.spi.portlet.Portlet;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.resources.impl.LocaleConfigImpl;
 
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PermissionUpdateModel;
+import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SitePropertiesUpdate;
 import io.meeds.layout.model.SiteUpdateModel;
@@ -757,6 +761,39 @@ public class SiteLayoutServiceTest {
     assertEquals("Description pour le test", siteLabels.getLabels().get(frLocaleConfig.getLocale().getLanguage()));
   }
 
+
+  @Test
+  @SneakyThrows
+  public void updateSiteApplicationPreferencesSetsTheValuesOverTheStoredOnesOnlyWhenAsked() {
+    List<PortletInstancePreference> preferences = List.of(new PortletInstancePreference("limit", "6"));
+    assertThrows(ObjectNotFoundException.class,
+                 () -> siteLayoutService.updateSiteApplicationPreferences(SITE_KEY, 31, preferences, TEST_USER, true));
+    PortalConfig site = new PortalConfig(PortalConfig.PORTAL_TYPE, "test");
+    Container layout = new Container();
+    Application window = new Application("31");
+    layout.setChildren(new ArrayList<>(List.of(new Container(), window)));
+    site.setPortalLayout(layout);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(site);
+    assertThrows(IllegalAccessException.class,
+                 () -> siteLayoutService.updateSiteApplicationPreferences(SITE_KEY, 31, preferences, TEST_USER, true));
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    assertThrows(ObjectNotFoundException.class,
+                 () -> siteLayoutService.updateSiteApplicationPreferences(SITE_KEY, 32, preferences, TEST_USER, true));
+    Portlet stored = new Portlet();
+    stored.setValue("viewTemplate", "NewsSlider");
+    when(layoutService.load(window.getState())).thenReturn(stored);
+
+    siteLayoutService.updateSiteApplicationPreferences(SITE_KEY, 31, preferences, TEST_USER, true);
+    siteLayoutService.updateSiteApplicationPreferences(SITE_KEY, 31, preferences, TEST_USER, false);
+
+    ArgumentCaptor<Portlet> saved = ArgumentCaptor.forClass(Portlet.class);
+    verify(layoutService, times(2)).save(eq(window.getState()), saved.capture());
+    assertEquals("NewsSlider", saved.getAllValues().get(0).getPreference("viewTemplate").getValue());
+    assertEquals("6", saved.getAllValues().get(0).getPreference("limit").getValue());
+    assertNull(saved.getAllValues().get(1).getPreference("viewTemplate"));
+    assertEquals("6", saved.getAllValues().get(1).getPreference("limit").getValue());
+    verifyNoInteractions(listenerService);
+  }
 
   private PortalConfig storedSite() {
     PortalConfig stored = new PortalConfig(SITE_KEY.getTypeName(), SITE_KEY.getName(), "portal_3");

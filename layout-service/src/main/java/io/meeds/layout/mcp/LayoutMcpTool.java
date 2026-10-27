@@ -21,12 +21,16 @@ package io.meeds.layout.mcp;
 import java.text.Normalizer;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -38,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.exoplatform.commons.ObjectAlreadyExistsException;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserACL;
+import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.config.model.Page;
@@ -62,6 +67,9 @@ import org.exoplatform.upload.UploadService;
 import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.constant.LinkTarget;
 import io.meeds.layout.mcp.constant.NavigationItemType;
+import io.meeds.layout.mcp.model.ApplicationDescription;
+import io.meeds.layout.mcp.model.ApplicationSettingsEntry;
+import io.meeds.layout.mcp.model.CellDescription;
 import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
@@ -73,6 +81,7 @@ import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.SiteSummary;
+import io.meeds.layout.model.ApplicationSettingsContext;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NavigationCreateModel;
 import io.meeds.layout.model.NavigationItemUpdate;
@@ -84,6 +93,7 @@ import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SitePropertiesUpdate;
 import io.meeds.layout.model.SiteTemplate;
+import io.meeds.layout.service.ApplicationSettingsService;
 import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
 import io.meeds.layout.service.LayoutDraftService;
@@ -160,6 +170,12 @@ public class LayoutMcpTool implements McpToolPlugin {
   public static final String       SITE_LAYOUT_NOT_PUBLISHED = "could not be published: site layout";
 
   public static final String       LAYOUT_OUTDATED       = "layout outdated, re-read it";
+
+  public static final String       APPLICATIONS_NOT_ACCEPTED = "value is not accepted for applications";
+
+  public static final String       APPLICATION_ID_NOT_ACCEPTED = "value is not accepted for application_id";
+
+  public static final String       APPLICATION_NOT_FOUND = ApplicationSettingsService.APPLICATION_NOT_FOUND;
 
   public static final String       PAGE_LAYOUT_NOT_SAVED = "could not be saved: page layout";
 
@@ -255,6 +271,9 @@ public class LayoutMcpTool implements McpToolPlugin {
   @Autowired
   private LocaleConfigService      localeConfigService;
 
+  @Autowired
+  private ApplicationSettingsService applicationSettingsService;
+
   /**
    * Lists the sites the current user can view: without a keyword the portal
    * sites, in display order; with one, the portal sites whose name or label
@@ -331,7 +350,8 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     return layoutDescriptionService.toPageDescription(tree,
                                                       pageKey.format(),
-                                                      draft ? LayoutVersion.DRAFT : LayoutVersion.PUBLISHED);
+                                                      draft ? LayoutVersion.DRAFT : LayoutVersion.PUBLISHED,
+                                                      username);
   }
 
   /**
@@ -701,6 +721,261 @@ public class LayoutMcpTool implements McpToolPlugin {
     LayoutModel layout = layoutDescriptionService.toDisplayedSite(elements, createDraft ? site : draftSite, createDraft, username);
     writeSiteDraft(site, draftSite, layout, username);
     return describeStoredSite(site.getSiteKey(), username);
+  }
+
+  /**
+   * Sets the settings of applications placed on the current user's draft of
+   * a page or a site, as each application's settings drawer does: Links,
+   * News list, Content list, My Applications and Block of content, any
+   * other application being refused as not configurable through tools. Each
+   * application addressed by the id the read answered takes the settings
+   * given, a setting omitted keeping its stored value. Exactly one of
+   * site_id and page_ref names the layout; ids address the layout
+   * get_page_layout or get_site returned: the user's draft when they have
+   * one, the published layout otherwise, in which case the draft is created
+   * by this call. Every application is validated, its own permission rule
+   * included, before the first one is written; then they are written one
+   * after the other, and a failure names the applications already written,
+   * which stay written. Returns the draft as get_page_layout or get_site
+   * does, with the settings of each configurable application.
+   */
+  public Object configureLayoutApplications(Long siteId,
+                                            String pageRef,
+                                            List<ApplicationSettingsEntry> applications) throws ObjectNotFoundException,
+                                                                                         IllegalAccessException {
+    List<String> applicationIds = requireApplicationIds(applications);
+    List<Map<String, Object>> settings = applications.stream()
+                                                     .map(a -> applicationSettingsService.dropNullEntries(a.settings()))
+                                                     .toList();
+    if (pageRef != null) {
+      refuseGiven(siteId, PAGE_REF_NOT_ACCEPTED);
+      return configurePageApplications(pageRef, applicationIds, settings);
+    }
+    requireSiteId(siteId);
+    String username = getCurrentUserName();
+    PortalConfig site = readEditableSite(siteId, username);
+    PortalConfig draftSite = readDraftSite(siteId, username);
+    boolean createDraft = draftSite == null;
+    PortalConfig stored = createDraft ? site : draftSite;
+    ModelObject visible = layoutDescriptionService.filterAccessible(layoutService.getPortalConfig(stored.getSiteKey())
+                                                                                 .getPortalLayout(),
+                                                                    username);
+    SiteDescription read = layoutDescriptionService.toSiteDescription(site, visible, null, null, false);
+    List<Application> windows = resolveWindows(applicationIds,
+                                               siteApplicationIds(read),
+                                               siteContainerIds(read),
+                                               stored.getPortalLayout());
+    List<ApplicationSettingsContext> contexts = windows.stream()
+                                                       .map(w -> applicationSettingsService.newContext(w,
+                                                                                                        null,
+                                                                                                        stored.getSiteKey(),
+                                                                                                        site.getSiteKey(),
+                                                                                                        null,
+                                                                                                        !createDraft,
+                                                                                                        username))
+                                                       .toList();
+    applicationSettingsService.validate(contexts, settings, applicationIds);
+    if (createDraft) {
+      SiteKey draftSiteKey;
+      try {
+        draftSiteKey = layoutDraftService.createDraftSite(site, username);
+      } catch (ObjectNotFoundException e) {
+        throw new ObjectNotFoundException(SITE_NOT_FOUND);
+      } catch (IllegalAccessException e) {
+        throw new IllegalAccessException(SITE_NOT_ALLOWED);
+      } catch (RuntimeException e) {
+        throw translateWriteFailure(e, site.getSiteKey(), username, SITE_LAYOUT_NOT_SAVED);
+      }
+      ModelObject draftLayout = layoutService.getPortalConfig(draftSiteKey).getPortalLayout();
+      contexts = toDraftContexts(windows,
+                                 stored.getPortalLayout(),
+                                 draftLayout,
+                                 w -> applicationSettingsService.newContext(w,
+                                                                            null,
+                                                                            draftSiteKey,
+                                                                            site.getSiteKey(),
+                                                                            null,
+                                                                            true,
+                                                                            username));
+    }
+    applicationSettingsService.apply(contexts, settings, applicationIds);
+    return describeStoredSite(site.getSiteKey(), username);
+  }
+
+  private PageDescription configurePageApplications(String pageRef,
+                                                    List<String> applicationIds,
+                                                    List<Map<String, Object>> settings) throws ObjectNotFoundException,
+                                                                                        IllegalAccessException {
+    PageKey pageKey = parsePageKey(pageRef);
+    String username = getCurrentUserName();
+    readEditablePage(pageKey, username);
+    long liveNodeId = requireLiveNodeId(pageKey, username);
+    PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
+    boolean createDraft = draftPageKey == null;
+    PageKey readPageKey = createDraft ? pageKey : draftPageKey;
+    ModelObject visible;
+    try {
+      visible = pageLayoutService.getPageLayout(readPageKey, username);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(PAGE_NOT_ALLOWED);
+    }
+    Page stored = pageLayoutService.getPageLayout(readPageKey);
+    if (stored == null) {
+      throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
+    }
+    PageDescription read = layoutDescriptionService.toPageDescription(visible, pageRef, LayoutVersion.PUBLISHED);
+    List<Application> windows = resolveWindows(applicationIds, pageApplicationIds(read), pageContainerIds(read), stored);
+    String livePageReference = pageKey.format();
+    List<ApplicationSettingsContext> contexts = windows.stream()
+                                                       .map(w -> applicationSettingsService.newContext(w,
+                                                                                                        readPageKey,
+                                                                                                        pageKey.getSite(),
+                                                                                                        pageKey.getSite(),
+                                                                                                        livePageReference,
+                                                                                                        !createDraft,
+                                                                                                        username))
+                                                       .toList();
+    applicationSettingsService.validate(contexts, settings, applicationIds);
+    if (createDraft) {
+      PageKey newDraftPageKey;
+      try {
+        newDraftPageKey = layoutDraftService.createDraftPage(liveNodeId, username);
+      } catch (ObjectNotFoundException e) {
+        throw new ObjectNotFoundException(PAGE_NOT_FOUND);
+      } catch (IllegalAccessException e) {
+        throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
+      } catch (RuntimeException e) {
+        throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
+      }
+      Page draft = pageLayoutService.getPageLayout(newDraftPageKey);
+      contexts = toDraftContexts(windows,
+                                 stored,
+                                 draft,
+                                 w -> applicationSettingsService.newContext(w,
+                                                                            newDraftPageKey,
+                                                                            pageKey.getSite(),
+                                                                            pageKey.getSite(),
+                                                                            livePageReference,
+                                                                            true,
+                                                                            username));
+    }
+    applicationSettingsService.apply(contexts, settings, applicationIds);
+    return describeStoredPage(pageKey, liveNodeId, username);
+  }
+
+  /**
+   * The ids of a configure call: 1 to 200 applications, each named once
+   */
+  private List<String> requireApplicationIds(List<ApplicationSettingsEntry> applications) {
+    if (applications == null || applications.isEmpty() || applications.size() > SiteLayoutAssembler.MAX_ELEMENTS
+        || applications.stream().anyMatch(Objects::isNull)) {
+      throw new IllegalArgumentException(APPLICATIONS_NOT_ACCEPTED);
+    }
+    Set<String> seen = new HashSet<>();
+    for (ApplicationSettingsEntry application : applications) {
+      if (StringUtils.isBlank(application.applicationId()) || !seen.add(application.applicationId())) {
+        throw new IllegalArgumentException(APPLICATION_ID_NOT_ACCEPTED);
+      }
+    }
+    return applications.stream().map(ApplicationSettingsEntry::applicationId).toList();
+  }
+
+  /**
+   * The stored windows the ids name: an application the read shows, a
+   * section, cell or container id being refused as not an application, any
+   * other id, an application the user cannot see included, as not existing
+   */
+  private List<Application> resolveWindows(List<String> applicationIds,
+                                           Set<String> readApplicationIds,
+                                           Set<String> readContainerIds,
+                                           ModelObject stored) throws ObjectNotFoundException {
+    List<Application> windows = new ArrayList<>();
+    for (String applicationId : applicationIds) {
+      if (readContainerIds.contains(applicationId)) {
+        throw new IllegalArgumentException(APPLICATION_ID_NOT_ACCEPTED);
+      }
+      List<Integer> path = readApplicationIds.contains(applicationId) ? applicationSettingsService.pathOf(stored, applicationId)
+                                                                      : null;
+      if (path == null) {
+        throw new ObjectNotFoundException(APPLICATION_NOT_FOUND);
+      }
+      windows.add(applicationSettingsService.atPath(stored, path));
+    }
+    return windows;
+  }
+
+  /**
+   * The windows of the draft just cloned from the live layout, each at the
+   * place its live window held
+   */
+  private List<ApplicationSettingsContext> toDraftContexts(List<Application> liveWindows,
+                                                           ModelObject liveLayout,
+                                                           ModelObject draftLayout,
+                                                           Function<Application, ApplicationSettingsContext> context) {
+    return liveWindows.stream().map(window -> {
+      Application draftWindow = draftLayout == null ? null
+                                                    : applicationSettingsService.atPath(draftLayout,
+                                                                                        applicationSettingsService.pathOf(liveLayout,
+                                                                                                                          window.getStorageId()));
+      if (draftWindow == null || !StringUtils.isNumeric(draftWindow.getStorageId())) {
+        throw new IllegalStateException(LAYOUT_OUTDATED);
+      }
+      return context.apply(draftWindow);
+    }).toList();
+  }
+
+  private Set<String> pageApplicationIds(PageDescription page) {
+    Set<String> ids = new HashSet<>();
+    page.sections().forEach(section -> {
+      if (section.columnsContent() != null) {
+        section.columnsContent().forEach(column -> column.forEach(a -> ids.add(a.applicationId())));
+      }
+      if (section.cells() != null) {
+        section.cells().stream().map(CellDescription::application).filter(Objects::nonNull).forEach(a -> ids.add(a.applicationId()));
+      }
+    });
+    return ids;
+  }
+
+  private Set<String> pageContainerIds(PageDescription page) {
+    Set<String> ids = new HashSet<>();
+    page.sections().forEach(section -> {
+      ids.add(section.sectionId());
+      if (section.cells() != null) {
+        section.cells().forEach(cell -> ids.add(cell.cellId()));
+      }
+    });
+    return ids;
+  }
+
+  private Set<String> siteApplicationIds(SiteDescription site) {
+    Set<String> ids = new HashSet<>();
+    siteContainers(site).forEach(container -> container.applications()
+                                                       .stream()
+                                                       .map(ApplicationDescription::applicationId)
+                                                       .forEach(ids::add));
+    return ids;
+  }
+
+  private Set<String> siteContainerIds(SiteDescription site) {
+    Set<String> ids = new HashSet<>();
+    siteContainers(site).forEach(container -> ids.add(container.containerId()));
+    return ids;
+  }
+
+  private List<SiteContainerDescription> siteContainers(SiteDescription site) {
+    List<SiteContainerDescription> containers = new ArrayList<>();
+    if (site.leftSidebar() != null) {
+      containers.add(site.leftSidebar());
+    }
+    if (site.rightSidebar() != null) {
+      containers.add(site.rightSidebar());
+    }
+    containers.addAll(site.topbars());
+    containers.addAll(site.bottomBars());
+    return containers;
   }
 
   private PageDescription setPageStyles(String pageRef, List<ElementStyling> elements) throws ObjectNotFoundException,
@@ -1124,7 +1399,8 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     return layoutDescriptionService.toPageDescription(tree,
                                                       pageKey.format(),
-                                                      draft ? LayoutVersion.DRAFT : LayoutVersion.PUBLISHED);
+                                                      draft ? LayoutVersion.DRAFT : LayoutVersion.PUBLISHED,
+                                                      username);
   }
 
   /**
@@ -1160,7 +1436,13 @@ public class LayoutMcpTool implements McpToolPlugin {
         LOG.debug("Site {} labels are not readable by {} after their write, the stored values stand", site.getId(), username, e);
       }
     }
-    return layoutDescriptionService.toSiteDescription(site, layout, label, description, draftSite != null);
+    return layoutDescriptionService.toSiteDescription(site,
+                                                      layout,
+                                                      label,
+                                                      description,
+                                                      source.getSiteKey(),
+                                                      draftSite != null,
+                                                      username);
   }
 
   /**

@@ -20,8 +20,10 @@ package io.meeds.layout.service;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import io.meeds.layout.model.*;
@@ -34,6 +36,8 @@ import org.exoplatform.commons.ObjectAlreadyExistsException;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserPortalConfig;
 import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.portal.config.model.Application;
+import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.SiteKey;
@@ -42,6 +46,7 @@ import org.exoplatform.portal.mop.importer.ImportMode;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.portal.mop.user.UserPortal;
+import org.exoplatform.portal.pom.spi.portlet.Portlet;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -381,6 +386,37 @@ public class SiteLayoutService {
     }
   }
 
+  /**
+   * Sets preferences of a window of a site's layout, as the page method does
+   * for a page window: the given values replace the window's preferences, or
+   * are set over them when keepExisting is true. Like a site layout save that
+   * is not a publication, it broadcasts nothing.
+   */
+  public void updateSiteApplicationPreferences(SiteKey siteKey,
+                                               long applicationId,
+                                               List<PortletInstancePreference> preferences,
+                                               String username,
+                                               boolean keepExisting) throws IllegalAccessException, ObjectNotFoundException {
+    PortalConfig portalConfig = layoutService.getPortalConfig(siteKey);
+    if (portalConfig == null) {
+      throw new ObjectNotFoundException(String.format(SITE_DOESNT_EXIST_MSG, siteKey));
+    } else if (!aclService.canEditSite(siteKey, username)) {
+      throw new IllegalAccessException(String.format(EDIT_DENIED_MESSAGE, siteKey, username));
+    }
+    Application application = findApplication(portalConfig.getPortalLayout(), String.valueOf(applicationId));
+    if (application == null) {
+      throw new ObjectNotFoundException(String.format("Application with id %s wasn't found in site %s", applicationId, siteKey));
+    }
+    Portlet portletPreferences = keepExisting ? layoutService.load(application.getState()) : null;
+    if (portletPreferences == null) {
+      portletPreferences = new Portlet();
+    }
+    for (PortletInstancePreference preference : preferences) {
+      portletPreferences.setValue(preference.getName(), preference.getValue());
+    }
+    layoutService.save(application.getState(), portletPreferences);
+  }
+
   public NodeLabel getSiteLabels(Long siteId, String username) throws ObjectNotFoundException, IllegalAccessException {
     return getSiteLabel(siteId, username, true);
   }
@@ -513,6 +549,20 @@ public class SiteLayoutService {
     Map<String, String> labels = getLabels(portalConfig, defaultLocale, username, isLabel);
     nodeLabel.setLabels(labels);
     return nodeLabel;
+  }
+
+  private Application findApplication(ModelObject modelObject, String storageId) {
+    if (modelObject instanceof Application application) {
+      return StringUtils.equals(application.getStorageId(), storageId) ? application : null;
+    } else if (modelObject instanceof Container container && container.getChildren() != null) {
+      return container.getChildren()
+                      .stream()
+                      .map(child -> findApplication(child, storageId))
+                      .filter(Objects::nonNull)
+                      .findFirst()
+                      .orElse(null);
+    }
+    return null;
   }
 
   private Map<String, String> getLabels(PortalConfig portalConfig, Locale defaultLocale, String username, boolean isLabel) {

@@ -31,6 +31,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -49,6 +50,7 @@ import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.function.Executable;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -105,6 +107,7 @@ import io.meeds.layout.mcp.model.SiteSummary;
 import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.mcp.model.TextBlock;
 import io.meeds.layout.mcp.model.TextRoleBlock;
+import io.meeds.layout.model.ApplicationSettingsContext;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PortletInstance;
@@ -145,6 +148,9 @@ public class LayoutDescriptionServiceTest {
 
   @MockitoBean
   private LayoutDraftService       layoutDraftService;
+
+  @MockitoBean
+  private ApplicationSettingsService applicationSettingsService;
 
   @Autowired
   private LayoutDescriptionService descriptionService;
@@ -886,6 +892,83 @@ public class LayoutDescriptionServiceTest {
   }
 
   @Test
+  public void configurableApplicationsAreListedWithTheSchemaOfTheirSettings() {
+    PortletInstance links = instance(12L, 2L, "Links", "Useful links", false);
+    links.setContentId("content/Links");
+    when(portletInstanceService.getPortletInstances(0, USER, Locale.FRENCH, true)).thenReturn(List.of(links));
+    when(applicationSettingsService.isConfigurable("content/Links", false)).thenReturn(true);
+    when(applicationSettingsService.getSettingsSchema("content/Links")).thenReturn(Map.of("type", "object"));
+
+    LayoutApplicationEntry entry = descriptionService.describeApplications(null, null, USER, Locale.FRENCH).get(0);
+
+    assertTrue(entry.configurable());
+    assertEquals(Map.of("type", "object"), entry.settingsSchema());
+  }
+
+  @Test
+  public void configurableApplicationsOfADraftPageAnswerTheSettingsTheirReaderMayRead() {
+    Container section = shippedSection("flexSection");
+    Application links = application("20", null, null);
+    Application image = application("21", null, null);
+    children((Container) section.getChildren().get(0), links, image);
+    Container parent = container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null);
+    children(parent, section);
+    Page draft = new Page("portal", "test", "home_draft_john");
+    children(draft, parent);
+    when(layoutService.getId(links.getState())).thenReturn("content/Links");
+    when(layoutService.getId(image.getState())).thenReturn("content/Image");
+    when(applicationSettingsService.isConfigurable("content/Links", false)).thenReturn(true);
+    ApplicationSettingsContext context = new ApplicationSettingsContext();
+    when(applicationSettingsService.newContext(links,
+                                               draft.getPageKey(),
+                                               SITE_KEY,
+                                               SITE_KEY,
+                                               PAGE_REF,
+                                               true,
+                                               USER)).thenReturn(context);
+    when(applicationSettingsService.readSettings(context)).thenReturn(Map.of("type", "CARD"));
+
+    List<ApplicationDescription> read = descriptionService.toPageDescription(draft, PAGE_REF, LayoutVersion.DRAFT, USER)
+                                                          .sections()
+                                                          .get(0)
+                                                          .columnsContent()
+                                                          .get(0);
+    List<ApplicationDescription> withoutReader = descriptionService.toPageDescription(draft, PAGE_REF, LayoutVersion.DRAFT)
+                                                                   .sections()
+                                                                   .get(0)
+                                                                   .columnsContent()
+                                                                   .get(0);
+
+    assertTrue(read.get(0).configurable());
+    assertEquals(Map.of("type", "CARD"), read.get(0).settings());
+    assertFalse(read.get(1).configurable());
+    assertNull(read.get(1).settings());
+    assertTrue(withoutReader.get(0).configurable());
+    assertNull(withoutReader.get(0).settings());
+    verify(applicationSettingsService, times(1)).readSettings(any());
+  }
+
+  @Test
+  public void configurableApplicationsOfASiteContainerAreReadFromTheSiteHoldingTheLayout() {
+    Container layout = storedSiteLayout();
+    SiteKey draftSiteKey = SiteKey.draft("portal_test_draft_john");
+    when(applicationSettingsService.isConfigurable("layout/Test", true)).thenReturn(true);
+    ApplicationSettingsContext context = new ApplicationSettingsContext();
+    when(applicationSettingsService.newContext(any(), isNull(), eq(draftSiteKey), eq(SITE_KEY), isNull(), eq(true), eq(USER)))
+                                                                                                                                 .thenReturn(context);
+    when(applicationSettingsService.readSettings(context)).thenReturn(Map.of("max_apps_to_list", 6));
+
+    SiteDescription description = descriptionService.toSiteDescription(describedPortalSite(), layout, "Test site", null, draftSiteKey, true, USER);
+
+    ApplicationDescription topbarApplication = description.topbars().get(0).applications().get(0);
+    assertTrue(topbarApplication.configurable());
+    assertEquals(Map.of("max_apps_to_list", 6), topbarApplication.settings());
+    ArgumentCaptor<Application> window = ArgumentCaptor.forClass(Application.class);
+    verify(applicationSettingsService, times(2)).newContext(window.capture(), isNull(), eq(draftSiteKey), eq(SITE_KEY), isNull(), eq(true), eq(USER));
+    assertEquals(List.of("1", "2"), window.getAllValues().stream().map(Application::getStorageId).sorted().toList());
+  }
+
+  @Test
   public void gridCellsTakeTheFirstFreePositionTheirSpansLeave() {
     Container section = container(LayoutDescriptionService.GRID_TEMPLATE,
                                   "d-flex flex-column d-md-grid grid-cols grid-cols-md-2 grid-cols-lg-2 grid-cols-xl-2 grid-rows grid-rows-md-2 grid-rows-lg-2 grid-rows-xl-2");
@@ -1154,6 +1237,19 @@ public class LayoutDescriptionServiceTest {
   }
 
   private SiteDescription describedSite() {
+    return descriptionService.toSiteDescription(describedPortalSite(), storedSiteLayout(), "Test site", "A site", true);
+  }
+
+  private PortalConfig describedPortalSite() {
+    PortalConfig site = new PortalConfig("portal", "test", "portal_5");
+    site.setAccessPermissions(new String[] { "Everyone" });
+    site.setEditPermission("*:/platform/administrators");
+    site.setBannerFileId(3L);
+    site.setDisplayed(true);
+    return site;
+  }
+
+  private Container storedSiteLayout() {
     Container outerLeftCell = container(LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, "hidden-sm-and-down");
     outerLeftCell.setWidth("310");
     children(outerLeftCell, application("1", null, null));
@@ -1181,14 +1277,7 @@ public class LayoutDescriptionServiceTest {
     children(middle, top, center, bottom);
     Container root = container("system:/groovy/portal/webui/container/UISiteLayout.gtmpl", null);
     children(root, outerLeft, middle, outerRight);
-
-    PortalConfig site = new PortalConfig("portal", "test", "portal_5");
-    site.setAccessPermissions(new String[] { "Everyone" });
-    site.setEditPermission("*:/platform/administrators");
-    site.setBannerFileId(3L);
-    site.setDisplayed(true);
-
-    return descriptionService.toSiteDescription(site, root, "Test site", "A site", true);
+    return root;
   }
 
   @Test
