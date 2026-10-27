@@ -74,6 +74,7 @@ import io.meeds.layout.mcp.model.BackgroundImageBlock;
 import io.meeds.layout.mcp.model.BorderBlock;
 import io.meeds.layout.mcp.model.CellDescription;
 import io.meeds.layout.mcp.model.CornersBlock;
+import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.HeightBlock;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
@@ -393,20 +394,24 @@ public class LayoutDescriptionService {
                                   Page stored,
                                   boolean copyWindows,
                                   String username) throws ObjectNotFoundException {
-    Set<String> hiddenIds = new HashSet<>();
-    collectHiddenIds(stored, username, false, hiddenIds);
-    LayoutModel root = copyWindows ? new LayoutModel(stored, portletInstanceService, new PortletInstanceContext(false, null)) :
-                                   new LayoutModel(stored);
-    LayoutModel result = new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling).stylePage(elements);
-    if (copyWindows) {
-      result.resetStorage();
-    }
-    try {
-      LayoutStyleValidator.validate(result.toPage());
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
-    }
-    return result;
+    return checkedPage(pageAssembler(stored, copyWindows, username).stylePage(elements), copyWindows);
+  }
+
+  /**
+   * @param  elements    the elements of a set_layout_visibility call
+   * @param  stored      the stored page the ids address: the live page when
+   *                       the user has no draft, their draft otherwise
+   * @param  copyWindows whether the result is written over a draft built from
+   *                       the live page by this call, in which case every
+   *                       window becomes a copy carrying its preferences
+   * @param  username    the editing user
+   * @return             the page to write, its structure as stored
+   */
+  public LayoutModel toDisplayedPage(List<ElementDisplay> elements,
+                                     Page stored,
+                                     boolean copyWindows,
+                                     String username) throws ObjectNotFoundException {
+    return checkedPage(pageAssembler(stored, copyWindows, username).displayPage(elements), copyWindows);
   }
 
   /**
@@ -423,24 +428,24 @@ public class LayoutDescriptionService {
                                   PortalConfig stored,
                                   boolean copyWindows,
                                   String username) throws ObjectNotFoundException {
-    Container layout = stored.getPortalLayout();
-    if (layout == null) {
-      throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
-    }
-    Set<String> hiddenIds = new HashSet<>();
-    collectHiddenIds(layout, username, false, hiddenIds);
-    LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
-                                   new LayoutModel(layout);
-    LayoutModel result = new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling).styleSite(elements);
-    if (copyWindows) {
-      result.resetStorage();
-    }
-    try {
-      LayoutStyleValidator.validate(EntityMapper.toModelObject(result));
-    } catch (IllegalArgumentException e) {
-      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
-    }
-    return result;
+    return checkedSite(siteAssembler(stored, copyWindows, username).styleSite(elements), copyWindows);
+  }
+
+  /**
+   * @param  elements    the elements of a set_layout_visibility call
+   * @param  stored      the site whose stored layout the ids address, the
+   *                       user's draft or the live site
+   * @param  copyWindows whether the result becomes a new draft built from the
+   *                       live layout, in which case every window becomes a
+   *                       copy carrying its preferences
+   * @param  username    the editing user
+   * @return             the site layout to write, its structure as stored
+   */
+  public LayoutModel toDisplayedSite(List<ElementDisplay> elements,
+                                     PortalConfig stored,
+                                     boolean copyWindows,
+                                     String username) throws ObjectNotFoundException {
+    return checkedSite(siteAssembler(stored, copyWindows, username).displaySite(elements), copyWindows);
   }
 
   /**
@@ -637,6 +642,50 @@ public class LayoutDescriptionService {
                                   toBackground(model),
                                   destination.hasText() ? toText(model) : null,
                                   destination.hasHeight() ? toHeight(model) : null);
+  }
+
+  private LayoutStylesAssembler pageAssembler(Page stored, boolean copyWindows, String username) {
+    Set<String> hiddenIds = new HashSet<>();
+    collectHiddenIds(stored, username, false, hiddenIds);
+    LayoutModel root = copyWindows ? new LayoutModel(stored, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(stored);
+    return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling);
+  }
+
+  private LayoutStylesAssembler siteAssembler(PortalConfig stored, boolean copyWindows, String username) {
+    Container layout = stored.getPortalLayout();
+    if (layout == null) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
+    }
+    Set<String> hiddenIds = new HashSet<>();
+    collectHiddenIds(layout, username, false, hiddenIds);
+    LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(layout);
+    return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling);
+  }
+
+  private LayoutModel checkedPage(LayoutModel result, boolean copyWindows) {
+    if (copyWindows) {
+      result.resetStorage();
+    }
+    try {
+      LayoutStyleValidator.validate(result.toPage());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
+    }
+    return result;
+  }
+
+  private LayoutModel checkedSite(LayoutModel result, boolean copyWindows) {
+    if (copyWindows) {
+      result.resetStorage();
+    }
+    try {
+      LayoutStyleValidator.validate(EntityMapper.toModelObject(result));
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
+    }
+    return result;
   }
 
   private SectionDescription toSection(LayoutModel section, Map<String, String> contentIds) {
