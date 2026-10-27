@@ -1701,6 +1701,60 @@
         "idempotentHint": true,
         "openWorldHint": false
       }
+    },
+    {
+      "name": "set_layout_visibility",
+      "title": "Set where layout elements are displayed",
+      "description": "Set where sections, applications, topbars, bottom bars and sidebars of a page or a site are displayed in the current user's draft, any number of them in one call, as the editors' visibility choice does: display both (on desktop and mobile), hide_mobile or hide_desktop. Exactly one of page_ref and site_id names the layout. Each element is addressed by the id get_page_layout or get_site returned (the user's draft when they have one, the published layout otherwise): on a page the section_id of a section or the application_id of an application; on a site the container_id of a topbar, a bottom bar or a sidebar, or the application_id of an application they hold. A cell_id is refused: a grid cell is displayed as its section and its application are. An id the read does not answer does not exist for this tool, an element the user cannot see included. A dynamic section and an application take the three values; a topbar, a bottom bar or a sidebar both or hide_mobile, as the site editor offers; a grid section has no device visibility of its own, as in the editor: hide_mobile and hide_desktop are refused there, both leaves it as it is, and the applications it holds each take their own. The section decides first, as on the published page: a section hidden on a device hides everything it holds on that device, whatever its applications are set to, while in a section displayed on a device each application follows its own setting; each element keeps and reads back its own setting, and this tool never changes the setting of an element it is not given. Every element the call does not address stays as it is. At most 200 elements, each given once. Styling is not accepted by this tool: set_layout_styles sets it. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. The first draft of a page needs the right to edit the site's navigation, as opening the editor does, and the page must be referenced by a navigation item of its site. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_page_layout or get_site does, with its ids, which change when this call creates the draft: use the returned ones in later calls.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "page_ref": {
+            "type": "string",
+            "description": "The page reference, from list_site_pages (for example portal::mysite::home); omit when site_id is given"
+          },
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites; omit when page_ref is given"
+          },
+          "elements": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "an element and where it is displayed",
+              "properties": {
+                "element_id": {
+                  "type": "string",
+                  "description": "the id of a section, an application, a topbar, a bottom bar or a sidebar in the layout get_page_layout or get_site returned"
+                },
+                "display": {
+                  "type": "string",
+                  "enum": [
+                    "both",
+                    "hide_mobile",
+                    "hide_desktop"
+                  ],
+                  "description": "both: displayed on desktop and mobile; hide_mobile: hidden on mobile; hide_desktop: hidden on desktop, not offered on a topbar, a bottom bar or a sidebar; a grid section takes both only"
+                }
+              },
+              "required": [
+                "element_id",
+                "display"
+              ]
+            },
+            "description": "the elements to display or hide, 1 to 200, each given once"
+          }
+        },
+        "required": [
+          "elements"
+        ]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
     }
   ]
 }
