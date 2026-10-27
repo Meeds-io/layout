@@ -62,6 +62,7 @@ import org.exoplatform.upload.UploadService;
 import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.constant.LinkTarget;
 import io.meeds.layout.mcp.constant.NavigationItemType;
+import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
@@ -673,6 +674,35 @@ public class LayoutMcpTool implements McpToolPlugin {
     return describeStoredSite(site.getSiteKey(), username);
   }
 
+  /**
+   * Sets where sections, applications, topbars, bottom bars and sidebars of
+   * the current user's draft of a page or a site are displayed, as the
+   * editors' visibility choice does, in one draft save: each element
+   * addressed by the id the read answered is displayed on desktop and
+   * mobile, hidden on mobile or hidden on desktop, every other element
+   * staying as it is. Exactly one of site_id and page_ref names the layout.
+   * Ids address the layout get_page_layout or get_site returned: the user's
+   * draft when they have one, the published layout otherwise, in which case
+   * the draft is created by this call. Every value is checked before
+   * anything is written. Returns the draft as get_page_layout or get_site
+   * does, with its ids.
+   */
+  public Object setLayoutVisibility(Long siteId, String pageRef, List<ElementDisplay> elements) throws ObjectNotFoundException,
+                                                                                                  IllegalAccessException {
+    if (pageRef != null) {
+      refuseGiven(siteId, PAGE_REF_NOT_ACCEPTED);
+      return setPageVisibility(pageRef, elements);
+    }
+    requireSiteId(siteId);
+    String username = getCurrentUserName();
+    PortalConfig site = readEditableSite(siteId, username);
+    PortalConfig draftSite = readDraftSite(siteId, username);
+    boolean createDraft = draftSite == null;
+    LayoutModel layout = layoutDescriptionService.toDisplayedSite(elements, createDraft ? site : draftSite, createDraft, username);
+    writeSiteDraft(site, draftSite, layout, username);
+    return describeStoredSite(site.getSiteKey(), username);
+  }
+
   private PageDescription setPageStyles(String pageRef, List<ElementStyling> elements) throws ObjectNotFoundException,
                                                                                        IllegalAccessException {
     PageKey pageKey = parsePageKey(pageRef);
@@ -686,6 +716,23 @@ public class LayoutMcpTool implements McpToolPlugin {
       throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
     }
     LayoutModel layout = layoutDescriptionService.toStyledPage(elements, stored, createDraft, username);
+    writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+    return describeStoredPage(pageKey, liveNodeId, username);
+  }
+
+  private PageDescription setPageVisibility(String pageRef, List<ElementDisplay> elements) throws ObjectNotFoundException,
+                                                                                            IllegalAccessException {
+    PageKey pageKey = parsePageKey(pageRef);
+    String username = getCurrentUserName();
+    readEditablePage(pageKey, username);
+    long liveNodeId = requireLiveNodeId(pageKey, username);
+    PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
+    boolean createDraft = draftPageKey == null;
+    Page stored = pageLayoutService.getPageLayout(createDraft ? pageKey : draftPageKey);
+    if (stored == null) {
+      throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
+    }
+    LayoutModel layout = layoutDescriptionService.toDisplayedPage(elements, stored, createDraft, username);
     writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
     return describeStoredPage(pageKey, liveNodeId, username);
   }
