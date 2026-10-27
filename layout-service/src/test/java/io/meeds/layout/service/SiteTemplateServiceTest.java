@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -120,6 +121,45 @@ public class SiteTemplateServiceTest {
     lenient().when(portalConfig.getIcon()).thenReturn(siteTemplate.getIcon());
     lenient().when(portalConfig.isRemovable()).thenReturn(!siteTemplate.isSystem());
     lenient().when(portalConfig.getProperty(SITE_ENABLED_PROP)).thenReturn(String.valueOf(!siteTemplate.isDisabled()));
+  }
+
+  @Test
+  @SneakyThrows
+  void saveAsSiteTemplate() {
+    PortalConfig site = mock(PortalConfig.class);
+    when(layoutService.getPortalConfig(2l)).thenReturn(site);
+    when(aclService.isAdministrator("admin")).thenReturn(true);
+    when(site.getType()).thenReturn(PortalConfig.PORTAL_TYPE);
+    when(site.getName()).thenReturn("site");
+    SiteTemplate siteTemplate = new SiteTemplate();
+    siteTemplate.setLayout("newTemplate");
+    SiteKey siteKey = new SiteKey(PortalConfig.PORTAL_TYPE, "site");
+    SiteKey templateKey = SiteKey.portalTemplate("newTemplate");
+    doAnswer(invocation -> {
+      when(layoutService.getPortalConfig(templateKey)).thenReturn(portalConfig);
+      return null;
+    }).when(portalConfigService).createSiteFromTemplate(siteKey, templateKey);
+
+    assertNotNull(siteTemplateService.saveAsSiteTemplate(siteTemplate, 2l, "admin"));
+
+    verify(portalConfigService).createSiteFromTemplate(siteKey, templateKey);
+  }
+
+  @Test
+  @SneakyThrows
+  void saveAsSiteTemplateWhenTheSiteLayoutIsUnresolved() {
+    PortalConfig site = mock(PortalConfig.class);
+    when(layoutService.getPortalConfig(2l)).thenReturn(site);
+    when(aclService.isAdministrator("admin")).thenReturn(true);
+    when(site.isLayoutUnresolved()).thenReturn(true);
+    lenient().when(site.getType()).thenReturn(PortalConfig.PORTAL_TYPE);
+    lenient().when(site.getName()).thenReturn("site");
+    SiteTemplate siteTemplate = new SiteTemplate();
+    siteTemplate.setLayout("newTemplate");
+
+    assertThrows(SiteLayoutUnresolvedException.class, () -> siteTemplateService.saveAsSiteTemplate(siteTemplate, 2l, "admin"));
+
+    verify(portalConfigService, never()).createSiteFromTemplate(any(), any());
   }
 
   @Test

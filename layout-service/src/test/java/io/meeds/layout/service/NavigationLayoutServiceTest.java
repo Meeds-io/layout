@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.exoplatform.portal.mop.Visibility;
 import org.junit.jupiter.api.Test;
@@ -333,6 +334,28 @@ public class NavigationLayoutServiceTest {
     navigationLayoutService.deleteNode(2, 0, TEST_USER);
 
     verify(listenerService, never()).broadcast(any(), any(), any());
+  }
+
+  @SuppressWarnings("unchecked")
+  @Test
+  public void getReachablePagesWalksTheWholeNavigationOfTheSite() {
+    NodeContext<NodeContext<Object>> root = mock(NodeContext.class);
+    NodeContext<NodeContext<Object>> child = mock(NodeContext.class);
+    NodeContext<NodeContext<Object>> grandChild = mock(NodeContext.class);
+    NodeState childState = mock(NodeState.class);
+    NodeState grandChildState = mock(NodeState.class);
+    PageKey grandChildPageKey = SITE_KEY.page("grandChild");
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    when(root.getNodeCount()).thenReturn(1);
+    when(root.get(0)).thenReturn(child);
+    when(child.getState()).thenReturn(childState);
+    when(childState.getPageRef()).thenReturn(PAGE_KEY);
+    when(child.getNodeCount()).thenReturn(1);
+    when(child.get(0)).thenReturn(grandChild);
+    when(grandChild.getState()).thenReturn(grandChildState);
+    when(grandChildState.getPageRef()).thenReturn(grandChildPageKey);
+
+    assertEquals(Set.of(PAGE_KEY, grandChildPageKey), navigationLayoutService.getReachablePages(SITE_KEY));
   }
 
   @Test

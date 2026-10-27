@@ -24,7 +24,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -35,6 +39,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,13 +55,17 @@ import org.exoplatform.portal.config.UserPortalConfig;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelStyle;
+import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.config.serialize.model.SiteLayout;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.importer.ImportMode;
+import org.exoplatform.portal.mop.page.PageContext;
+import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.portal.mop.user.UserPortal;
+import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.resources.impl.LocaleConfigImpl;
@@ -95,6 +104,12 @@ public class SiteLayoutServiceTest {
 
   @MockitoBean
   private PortletInstanceService  portletInstanceService;
+
+  @MockitoBean
+  private ListenerService         listenerService;
+
+  @MockitoBean
+  private NavigationLayoutService navigationLayoutService;
 
   @Autowired
   private SiteLayoutService       siteLayoutService;
@@ -200,6 +215,63 @@ public class SiteLayoutServiceTest {
 
   @Test
   @SneakyThrows
+  public void createSiteWhenTheTemplateLayoutIsUnresolved() {
+    SiteCreateModel createModel = mock(SiteCreateModel.class);
+    when(createModel.getPortalConfig()).thenReturn(portalConfig);
+    when(portalConfig.getName()).thenReturn(SITE_KEY.getName());
+    when(aclService.canAddSite(TEST_USER)).thenReturn(true);
+    when(createModel.getSiteId()).thenReturn(7l);
+    PortalConfig templatePortalConfig = mock(PortalConfig.class);
+    when(layoutService.getPortalConfig(7l)).thenReturn(templatePortalConfig);
+    when(templatePortalConfig.isLayoutUnresolved()).thenReturn(true);
+    lenient().when(templatePortalConfig.getType()).thenReturn(PortalConfig.PORTAL_TEMPLATE);
+    lenient().when(templatePortalConfig.getName()).thenReturn("siteTemplate");
+
+    assertThrows(SiteLayoutUnresolvedException.class, () -> siteLayoutService.createSite(createModel, TEST_USER));
+
+    verify(portalConfigService, never()).createSiteFromTemplate(any(), any());
+  }
+
+  @Test
+  @SneakyThrows
+  public void getSiteLayout() {
+    when(aclService.canViewSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    SiteLayout siteLayout = new SiteLayout();
+    when(portalConfig.getPortalLayout()).thenReturn(siteLayout);
+
+    assertEquals(siteLayout, siteLayoutService.getSiteLayout(SITE_KEY, TEST_USER));
+  }
+
+  @Test
+  @SneakyThrows
+  public void getSiteLayoutWhenTheSiteLayoutIsUnresolved() {
+    when(aclService.canViewSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    when(portalConfig.isLayoutUnresolved()).thenReturn(true);
+    lenient().when(portalConfig.getPortalLayout()).thenReturn(new SiteLayout());
+
+    assertThrows(SiteLayoutUnresolvedException.class, () -> siteLayoutService.getSiteLayout(SITE_KEY, TEST_USER));
+  }
+
+  @Test
+  @SneakyThrows
+  public void createDraftSiteWhenTheSiteLayoutIsUnresolved() {
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(aclService.canViewSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    when(portalConfig.isLayoutUnresolved()).thenReturn(true);
+    lenient().when(portalConfig.clone()).thenReturn(mock(PortalConfig.class));
+    lenient().when(portalConfig.getPortalLayout()).thenReturn(new SiteLayout());
+
+    assertThrows(SiteLayoutUnresolvedException.class, () -> siteLayoutService.createDraftSite(SITE_KEY, TEST_USER));
+
+    verify(layoutService, never()).create(any(PortalConfig.class));
+    verify(layoutService, never()).remove(any(PortalConfig.class));
+  }
+
+  @Test
+  @SneakyThrows
   public void updateSite() {
     SiteUpdateModel updateModel = mock(SiteUpdateModel.class);
     when(updateModel.getSiteType()).thenReturn(SITE_KEY.getTypeName());
@@ -252,6 +324,73 @@ public class SiteLayoutServiceTest {
                                             true,
                                             false,
                                             true);
+  }
+
+  @Test
+  @SneakyThrows
+  public void restoreSiteRefreshesTheSearchIndexOfItsPages() {
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(portalConfigService.canRestore(SITE_KEY.getTypeName(), SITE_KEY.getName())).thenReturn(true);
+    PageKey reachablePageKey = SITE_KEY.page("reachable");
+    PageKey unreachablePageKey = SITE_KEY.page("unreachable");
+    // A page that only a node of another site leads to
+    PageKey otherSitePageKey = SITE_KEY.page("otherSite");
+    Page unreachablePage = mock(Page.class);
+    when(layoutService.findPages(SITE_KEY)).thenReturn(List.of(new PageContext(reachablePageKey, null),
+                                                               new PageContext(unreachablePageKey, null),
+                                                               new PageContext(otherSitePageKey, null)));
+    when(layoutService.getPage(unreachablePageKey)).thenReturn(unreachablePage);
+
+    siteLayoutService.restoreSite(SITE_KEY, ImportMode.OVERWRITE, true, false, false, TEST_USER);
+    verify(navigationLayoutService, never()).getReachablePages(SITE_KEY);
+    verify(listenerService, never()).broadcast(any(String.class), any(), any());
+
+    // The restore removes the last node of a page of the site
+    when(navigationLayoutService.getReachablePages(SITE_KEY)).thenReturn(Set.of(reachablePageKey, unreachablePageKey),
+                                                                       Set.of(reachablePageKey));
+    siteLayoutService.restoreSite(SITE_KEY, ImportMode.RESTORE_DEFAULTS, false, true, true, TEST_USER);
+    verify(listenerService).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, reachablePageKey.format());
+    verify(listenerService).broadcast(NavigationLayoutService.PAGE_UNREACHABLE_EVENT, siteLayoutService, unreachablePage);
+    verify(listenerService, never()).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, unreachablePageKey.format());
+    verify(listenerService).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, otherSitePageKey.format());
+
+    // A navigation restore leaves the content of the pages as it is
+    clearInvocations(listenerService);
+    when(navigationLayoutService.getReachablePages(SITE_KEY)).thenReturn(Set.of(reachablePageKey));
+    siteLayoutService.restoreSite(SITE_KEY, ImportMode.RESTORE_DEFAULTS, false, false, true, TEST_USER);
+    verify(listenerService).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, reachablePageKey.format());
+    verify(listenerService, never()).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, otherSitePageKey.format());
+    verify(listenerService, never()).broadcast(any(String.class), any(), any(Page.class));
+  }
+
+  @Test
+  @SneakyThrows
+  public void restoreSiteIsDoneWhenTheSearchIndexCantBeRefreshed() {
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(portalConfigService.canRestore(SITE_KEY.getTypeName(), SITE_KEY.getName())).thenReturn(true);
+
+    // The navigation can't be read after the restore
+    doReturn(Set.of()).doThrow(new IllegalStateException("navigation")).when(navigationLayoutService).getReachablePages(SITE_KEY);
+    siteLayoutService.restoreSite(SITE_KEY, ImportMode.RESTORE_DEFAULTS, false, true, false, TEST_USER);
+    verify(portalConfigService).restoreSite(SITE_KEY.getTypeName(),
+                                            SITE_KEY.getName(),
+                                            ImportMode.RESTORE_DEFAULTS,
+                                            false,
+                                            true,
+                                            false);
+
+    // The navigation can't be read before the restore
+    doThrow(new IllegalStateException("navigation")).when(navigationLayoutService).getReachablePages(SITE_KEY);
+    siteLayoutService.restoreSite(SITE_KEY, ImportMode.RESTORE_DEFAULTS, false, false, true, TEST_USER);
+    verify(portalConfigService).restoreSite(SITE_KEY.getTypeName(),
+                                            SITE_KEY.getName(),
+                                            ImportMode.RESTORE_DEFAULTS,
+                                            false,
+                                            false,
+                                            true);
+    verify(listenerService, never()).broadcast(any(String.class), any(), any());
   }
 
   @Test
