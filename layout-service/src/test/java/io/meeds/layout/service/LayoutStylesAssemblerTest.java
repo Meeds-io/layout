@@ -62,6 +62,7 @@ import io.meeds.layout.mcp.constant.HeightPreset;
 import io.meeds.layout.mcp.model.BackgroundBlock;
 import io.meeds.layout.mcp.model.BorderBlock;
 import io.meeds.layout.mcp.model.CornersBlock;
+import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.HeightBlock;
 import io.meeds.layout.mcp.model.MarginsBlock;
@@ -524,6 +525,190 @@ public class LayoutStylesAssemblerTest {
     assertNull(copiedTopbar.getChildren().get(0).getChildren().get(0).getStorageId());
   }
 
+  @Test
+  public void eachPageElementTakesTheDeviceVisibilityGivenOnItsOwnClass() throws Exception {
+    Page stored = storedPage();
+    ((Application) flexCell.getChildren().get(1)).setCssClass("hidden-sm-and-down my-class");
+
+    LayoutModel result = displayPage(stored,
+                                     visible(flexSection.getStorageId(), DisplayMode.HIDE_DESKTOP),
+                                     visible("1", DisplayMode.HIDE_MOBILE),
+                                     visible("2", DisplayMode.BOTH),
+                                     visible("3", DisplayMode.HIDE_DESKTOP));
+
+    LayoutModel section = sections(result).get(0);
+    assertEquals(FLEX_CLASS + " hidden-md-and-up", section.getCssClass());
+    assertEquals("hidden-sm-and-down", section.getChildren().get(0).getChildren().get(0).getCssClass());
+    assertEquals("my-class", section.getChildren().get(0).getChildren().get(1).getCssClass());
+    assertEquals("hidden-md-and-up", sections(result).get(1).getChildren().get(0).getChildren().get(0).getCssClass());
+  }
+
+  @Test
+  public void aNewVisibilityReplacesTheStoredOneAndAnApplicationOfAHiddenSectionKeepsItsOwn() throws Exception {
+    Page stored = storedPage();
+    flexSection.setCssClass(FLEX_CLASS + " hidden-sm-and-down");
+    ((Application) flexCell.getChildren().get(0)).setCssClass("hidden-md-and-up");
+
+    LayoutModel result = displayPage(stored, visible(flexSection.getStorageId(), DisplayMode.HIDE_DESKTOP));
+
+    LayoutModel section = sections(result).get(0);
+    assertEquals(FLEX_CLASS + " hidden-md-and-up", section.getCssClass());
+    assertEquals("hidden-md-and-up", section.getChildren().get(0).getChildren().get(0).getCssClass());
+  }
+
+  @Test
+  public void aGridSectionRefusesAHidingAndTakesBothAsItIs() throws Exception {
+    Page stored = storedPage();
+    String gridClass = "d-flex  flex-column d-md-grid grid-cols grid-cols-xl-2 grid-rows grid-rows-xl-1";
+    gridSection.setCssClass(gridClass);
+    String gridSectionId = gridSection.getStorageId();
+
+    assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displayPage(stored, visible(gridSectionId, DisplayMode.HIDE_MOBILE))));
+    assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displayPage(stored, visible(gridSectionId, DisplayMode.HIDE_DESKTOP))));
+
+    LayoutModel result = displayPage(stored, visible(gridSectionId, DisplayMode.BOTH), visible("3", DisplayMode.HIDE_MOBILE));
+
+    assertEquals(gridClass, sections(result).get(1).getCssClass());
+    assertEquals("hidden-sm-and-down", sections(result).get(1).getChildren().get(0).getChildren().get(0).getCssClass());
+  }
+
+  @Test
+  public void eachSiteContainerTakesTheVisibilityTheSiteEditorOffers() throws Exception {
+    PortalConfig site = storedSite();
+    Container root = site.getPortalLayout();
+    String topbarId = findContainer(root, LayoutDescriptionService.BANNER_TEMPLATE, 0).getStorageId();
+    String bottomBarId = findContainer(root, LayoutDescriptionService.BANNER_TEMPLATE, 1).getStorageId();
+    String sidebarCellId = findContainer(root, LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0).getStorageId();
+    String bannerCellId = findContainer(root, LayoutDescriptionService.BANNER_CELL_TEMPLATE, 0).getStorageId();
+
+    assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> displaySite(site, visible(bannerCellId, DisplayMode.HIDE_MOBILE))).getMessage());
+    assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displaySite(site, visible(topbarId, DisplayMode.HIDE_DESKTOP))));
+    assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displaySite(site, visible(bottomBarId, DisplayMode.HIDE_DESKTOP))));
+    assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displaySite(site, visible(sidebarCellId, DisplayMode.HIDE_DESKTOP))));
+
+    LayoutModel result = displaySite(site,
+                                     visible(topbarId, DisplayMode.HIDE_MOBILE),
+                                     visible(sidebarCellId, DisplayMode.HIDE_MOBILE),
+                                     visible("1", DisplayMode.HIDE_DESKTOP),
+                                     visible("2", DisplayMode.HIDE_MOBILE));
+
+    LayoutModel middle = result.getChildren().get(1);
+    assertEquals("layout-banner-top-section layout-sticky-section hidden-sm-and-down", middle.getChildren().get(0).getCssClass());
+    assertEquals("hidden-sm-and-down", middle.getChildren().get(0).getChildren().get(0).getChildren().get(0).getCssClass());
+    LayoutModel cell = result.getChildren().get(0).getChildren().get(0);
+    assertEquals("hidden-sm-and-down", cell.getCssClass());
+    assertEquals("hidden-md-and-up", cell.getChildren().get(0).getCssClass());
+    assertEquals("layout-sticky-section", result.getChildren().get(0).getCssClass());
+  }
+
+  @Test
+  public void aVisibilityIsGivenOnceToAnElementTheReadAnswersAndNothingElse() {
+    Page stored = storedPage();
+    String flexCellId = flexCell.getStorageId();
+    String gridCellId = gridCell.getStorageId();
+    List<ElementDisplay> tooMany = IntStream.range(0, LayoutStylesAssembler.MAX_ELEMENTS + 1)
+                                            .mapToObj(i -> visible("1", DisplayMode.BOTH))
+                                            .toList();
+
+    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toDisplayedPage(null, stored, false, USER)));
+    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toDisplayedPage(Collections.emptyList(), stored, false, USER)));
+    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toDisplayedPage(tooMany, stored, false, USER)));
+    assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> displayPage(stored, visible(" ", DisplayMode.BOTH))));
+    assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED,
+                 refused(() -> displayPage(stored, visible("1", DisplayMode.BOTH), visible("1", DisplayMode.HIDE_MOBILE))));
+    assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> displayPage(stored, visible(gridCellId, DisplayMode.BOTH))));
+    assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> displayPage(stored, visible(flexCellId, DisplayMode.BOTH))).getMessage());
+    assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> displayPage(stored, visible("unknown", DisplayMode.BOTH))).getMessage());
+    assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displayPage(stored, visible("1", null))));
+  }
+
+  @Test
+  public void aStylingIsRefusedRatherThanDroppedBySetLayoutVisibility() {
+    Page stored = storedPage();
+    StylingDescription styling = styling(new MarginsBlock(true, 10, null, null, null, null), null, null, null, null);
+
+    assertEquals(LayoutStylesAssembler.STYLING_NOT_ACCEPTED,
+                 refused(() -> displayPage(stored, new ElementDisplay("1", DisplayMode.HIDE_MOBILE, styling))));
+    assertEquals(LayoutStylesAssembler.STYLING_NOT_ACCEPTED, refused(() -> displayPage(stored, new ElementDisplay("1", null, styling))));
+  }
+
+  @Test
+  public void anElementTheCallerCannotSeeDoesNotExistForVisibilityAndStaysAsStored() throws Exception {
+    Page stored = storedPage();
+    Application hidden = (Application) flexCell.getChildren().get(1);
+    hidden.setCssClass("hidden-sm-and-down");
+    when(aclService.hasAccessPermission(hidden, USER)).thenReturn(false);
+
+    assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> displayPage(stored, visible("2", DisplayMode.BOTH))).getMessage());
+
+    LayoutModel result = displayPage(stored, visible("1", DisplayMode.HIDE_MOBILE));
+
+    List<LayoutModel> column = sections(result).get(0).getChildren().get(0).getChildren();
+    assertEquals("2", column.get(1).getStorageId());
+    assertEquals("hidden-sm-and-down", column.get(1).getCssClass());
+  }
+
+  @Test
+  public void everyVisibleApplicationIsSavedWithoutItsGeneratedTokensBySetLayoutVisibility() throws Exception {
+    Page stored = storedPage();
+    ((Application) flexCell.getChildren().get(0)).setCssClass("brtr-4 mt-n2 first-class");
+    ((Application) flexCell.getChildren().get(1)).setCssClass("brtl-2 mb-3 my-class");
+
+    LayoutModel result = displayPage(stored, visible("1", DisplayMode.HIDE_MOBILE));
+
+    List<LayoutModel> column = sections(result).get(0).getChildren().get(0).getChildren();
+    assertEquals("first-class hidden-sm-and-down", column.get(0).getCssClass());
+    assertEquals("my-class", column.get(1).getCssClass());
+  }
+
+  /**
+   * An application stored with ModelStyle.mobileHidden reads hidden on mobile
+   * through Application#getCssClass; displayed on both devices, the saved
+   * application regenerates no hidden-sm-and-down
+   */
+  @Test
+  public void anApplicationStoredHiddenOnMobileThroughItsStyleIsSavedDisplayedOnBoth() throws Exception {
+    Page stored = storedPage();
+    Application application = (Application) flexCell.getChildren().get(0);
+    application.setCssClass("my-class");
+    ModelStyle style = new ModelStyle();
+    style.setMobileHidden(true);
+    application.setCssStyle(style);
+
+    LayoutModel result = displayPage(stored, visible("1", DisplayMode.BOTH));
+
+    Page saved = result.toPage();
+    Container savedCell = (Container) ((Container) ((Container) saved.getChildren().get(0)).getChildren().get(0)).getChildren().get(0);
+    assertEquals("my-class", ((Application) savedCell.getChildren().get(0)).getCssClass());
+  }
+
+  @Test
+  public void aVisibilityDraftBuiltFromTheLivePageCopiesItsWindowsAndASiteOneResetsItsIds() throws Exception {
+    Page stored = storedPage();
+    copyWindowsWithPreferences();
+
+    LayoutModel copied = descriptionService.toDisplayedPage(List.of(visible("1", DisplayMode.HIDE_MOBILE)), stored, true, USER);
+
+    LayoutModel window = sections(copied).get(0).getChildren().get(0).getChildren().get(0);
+    assertNull(sections(copied).get(0).getStorageId());
+    assertNull(window.getStorageId());
+    assertEquals("hidden-sm-and-down", window.getCssClass());
+    assertEquals("value", window.getPreferences().get(0).getValue());
+    assertEquals("1", sections(displayPage(stored, visible("1", DisplayMode.BOTH))).get(0).getChildren().get(0).getChildren().get(0).getStorageId());
+
+    PortalConfig site = storedSite();
+    String topbarId = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0).getStorageId();
+    LayoutModel siteCopy = descriptionService.toDisplayedSite(List.of(visible(topbarId, DisplayMode.HIDE_MOBILE)), site, true, USER);
+    assertNull(siteCopy.getChildren().get(1).getChildren().get(0).getStorageId());
+    assertEquals("layout-banner-top-section layout-sticky-section hidden-sm-and-down",
+                 siteCopy.getChildren().get(1).getChildren().get(0).getCssClass());
+  }
+
   private void copyWindowsWithPreferences() {
     doAnswer(invocation -> {
       Application application = invocation.getArgument(0);
@@ -542,6 +727,18 @@ public class LayoutStylesAssemblerTest {
 
   private LayoutModel styleSite(PortalConfig site, ElementStyling... elements) throws Exception {
     return descriptionService.toStyledSite(List.of(elements), site, false, USER);
+  }
+
+  private LayoutModel displayPage(Page stored, ElementDisplay... elements) throws Exception {
+    return descriptionService.toDisplayedPage(List.of(elements), stored, false, USER);
+  }
+
+  private LayoutModel displaySite(PortalConfig site, ElementDisplay... elements) throws Exception {
+    return descriptionService.toDisplayedSite(List.of(elements), site, false, USER);
+  }
+
+  private ElementDisplay visible(String elementId, DisplayMode display) {
+    return new ElementDisplay(elementId, display, null);
   }
 
   private String refused(Executable call) {

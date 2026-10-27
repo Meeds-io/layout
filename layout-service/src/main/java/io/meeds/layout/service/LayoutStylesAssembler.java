@@ -32,16 +32,19 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
+import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.StylingDestination;
+import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.util.EntityMapper;
 
 /**
- * Writes the styling of a set_layout_styles call onto a stored page or site
- * tree, for one call, leaving its structure and every element the call does
- * not address as stored. The elements addressed are the ones the read gives
+ * Writes the styling of a set_layout_styles call, or the device visibility of
+ * a set_layout_visibility call, onto a stored page or site tree, for one
+ * call, leaving its structure and every element the call does not address as
+ * stored. The elements addressed are the ones the read gives
  * an id to and offers styling for: on a page built with the editor's
  * sections, a section and an application of a dynamic column or of a grid
  * cell; on a site, a topbar, a bottom bar, a sidebar by the id of the cell
@@ -51,8 +54,13 @@ import io.meeds.layout.util.EntityMapper;
  * application the caller can see is saved with its generated margin and
  * radius tokens stripped, as the two assemblers save theirs. A grid cell,
  * which the editor styles through its section and its application, is
- * refused, and so is a device visibility; an id the read does not answer, an
- * element the caller cannot see included, does not exist.
+ * refused, and so is a device visibility given to set_layout_styles or a
+ * styling given to set_layout_visibility; an id the read does not answer, an
+ * element the caller cannot see included, does not exist. A device visibility
+ * is written as the editor writes it, on the element's own class: a section
+ * hidden on a device hides what it holds there through the page's styles,
+ * whatever its applications are set to. A grid section, which the editor
+ * offers no visibility, refuses a hiding and takes both as it already is.
  */
 public class LayoutStylesAssembler {
 
@@ -63,6 +71,8 @@ public class LayoutStylesAssembler {
   public static final String                                          ELEMENT_NOT_FOUND       = "does not exist: element";
 
   public static final String                                          DISPLAY_NOT_ACCEPTED    = "value is not accepted for display";
+
+  public static final String                                          STYLING_NOT_ACCEPTED    = SiteLayoutAssembler.STYLING_NOT_ACCEPTED;
 
   public static final int                                             MAX_ELEMENTS            = SiteLayoutAssembler.MAX_ELEMENTS;
 
@@ -121,7 +131,19 @@ public class LayoutStylesAssembler {
     return style(elements);
   }
 
-  private void checkBounds(List<ElementStyling> elements) {
+  public LayoutModel displayPage(List<ElementDisplay> elements) throws ObjectNotFoundException {
+    checkBounds(elements);
+    indexPage();
+    return display(elements);
+  }
+
+  public LayoutModel displaySite(List<ElementDisplay> elements) throws ObjectNotFoundException {
+    checkBounds(elements);
+    indexSite();
+    return display(elements);
+  }
+
+  private void checkBounds(List<?> elements) {
     if (elements == null || elements.isEmpty() || elements.size() > MAX_ELEMENTS || elements.stream().anyMatch(Objects::isNull)) {
       throw new IllegalArgumentException(ELEMENTS_NOT_ACCEPTED);
     }
@@ -130,14 +152,8 @@ public class LayoutStylesAssembler {
   private LayoutModel style(List<ElementStyling> elements) throws ObjectNotFoundException {
     Set<String> used = new HashSet<>();
     for (ElementStyling element : elements) {
-      String elementId = StringUtils.trimToNull(element.elementId());
-      if (elementId == null) {
-        throw new IllegalArgumentException(ELEMENT_ID_NOT_ACCEPTED);
-      } else if (!targets.containsKey(elementId) && !nonTargets.contains(elementId)) {
-        throw new ObjectNotFoundException(ELEMENT_NOT_FOUND);
-      } else if (nonTargets.contains(elementId) || !used.add(elementId)) {
-        throw new IllegalArgumentException(ELEMENT_ID_NOT_ACCEPTED);
-      } else if (element.display() != null) {
+      String elementId = checkElementId(element.elementId(), used);
+      if (element.display() != null) {
         throw new IllegalArgumentException(DISPLAY_NOT_ACCEPTED);
       }
       LayoutModel target = targets.get(elementId);
@@ -146,13 +162,47 @@ public class LayoutStylesAssembler {
       StylingDescription merged = LayoutStylingService.merge(storedStyling.apply(target, destination), element.styling(), sticky);
       stylingService.applyStyling(target, merged, destination, sticky, plainColorTargets.contains(elementId));
     }
+    stripGeneratedTokens(used);
+    return root;
+  }
+
+  private LayoutModel display(List<ElementDisplay> elements) throws ObjectNotFoundException {
+    Set<String> used = new HashSet<>();
+    for (ElementDisplay element : elements) {
+      String elementId = checkElementId(element.elementId(), used);
+      if (element.styling() != null) {
+        throw new IllegalArgumentException(STYLING_NOT_ACCEPTED);
+      } else if (element.display() == null) {
+        throw new IllegalArgumentException(DISPLAY_NOT_ACCEPTED);
+      }
+      StylingDestination destination = destinations.get(elementId);
+      if (destination.hasDisplay() || element.display() != DisplayMode.BOTH) {
+        stylingService.applyDisplay(targets.get(elementId), element.display(), destination, DISPLAY_NOT_ACCEPTED);
+      }
+    }
+    stripGeneratedTokens(Collections.emptySet());
+    return root;
+  }
+
+  private String checkElementId(String givenId, Set<String> used) throws ObjectNotFoundException {
+    String elementId = StringUtils.trimToNull(givenId);
+    if (elementId == null) {
+      throw new IllegalArgumentException(ELEMENT_ID_NOT_ACCEPTED);
+    } else if (!targets.containsKey(elementId) && !nonTargets.contains(elementId)) {
+      throw new ObjectNotFoundException(ELEMENT_NOT_FOUND);
+    } else if (nonTargets.contains(elementId) || !used.add(elementId)) {
+      throw new IllegalArgumentException(ELEMENT_ID_NOT_ACCEPTED);
+    }
+    return elementId;
+  }
+
+  private void stripGeneratedTokens(Set<String> styled) {
     targets.forEach((storageId, target) -> {
       StylingDestination destination = destinations.get(storageId);
-      if (destination.isApplication() && !used.contains(storageId)) {
+      if (destination.isApplication() && !styled.contains(storageId)) {
         stylingService.applyStyling(target, null, destination, false, false);
       }
     });
-    return root;
   }
 
   /**
