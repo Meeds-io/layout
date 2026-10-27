@@ -346,6 +346,7 @@ public class SiteLayoutRest {
   @Operation(summary = "create a site", method = "POST", description = "This create a new site")
   @ApiResponses(value = {
     @ApiResponse(responseCode = "200", description = "Request fulfilled"),
+    @ApiResponse(responseCode = "400", description = "The draft's name is also another user's draft"),
     @ApiResponse(responseCode = "403", description = "Forbidden"),
     @ApiResponse(responseCode = "404", description = "Not found"),
     @ApiResponse(responseCode = "409", description = "Site layout not readable"),
@@ -368,6 +369,8 @@ public class SiteLayoutRest {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
     } catch (SiteLayoutUnresolvedException e) {
       throw new ResponseStatusException(HttpStatus.CONFLICT, e.getMessage());
+    } catch (IllegalArgumentException e) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
     }
   }
 

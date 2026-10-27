@@ -65,6 +65,11 @@ export function createDraftSite(siteType, siteName) {
   }).then((resp) => {
     if (resp?.ok) {
       return resp.json();
+    } else if (resp.status === 400) {
+      return resp.json()
+        .then(e => {
+          throw new Error(e?.message);
+        });
     } else {
       throw new Error('Error when creating site');
     }

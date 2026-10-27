@@ -409,6 +409,15 @@ public class SiteLayoutRestTest {
 
   @Test
   @SneakyThrows
+  void createDraftSiteWhenItsNameIsAnotherUsersDraft() {
+    doThrow(new IllegalArgumentException("layout.siteDraftNameConflict")).when(siteLayoutService)
+                                                                       .createDraftSite(SITE_KEY, SIMPLE_USER);
+    ResultActions response = mockMvc.perform(post(CREATE_DRAFT_LAYOUT_REST_PATH).with(testSimpleUser()));
+    response.andExpect(status().isBadRequest());
+  }
+
+  @Test
+  @SneakyThrows
   void createDraftSite() {
     SiteKey draftSiteKey = new SiteKey(SiteType.DRAFT, "draftTest");
     PortalConfig draftSite = mock(PortalConfig.class);

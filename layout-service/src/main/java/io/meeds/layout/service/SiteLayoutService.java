@@ -20,6 +20,7 @@ package io.meeds.layout.service;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -38,6 +39,7 @@ import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.mop.SiteFilter;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
 import org.exoplatform.portal.mop.importer.ImportMode;
@@ -53,6 +55,7 @@ import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.resources.LocaleContextInfo;
 
+import io.meeds.common.ContainerTransactional;
 import io.meeds.layout.util.LayoutStyleValidator;
 
 import lombok.SneakyThrows;
@@ -65,6 +68,10 @@ public class SiteLayoutService {
   private static final String     EDIT_DENIED_MESSAGE    = "Site with key %s can't be edited by user %s";
 
   private static final String     SITE_DOESNT_EXIST_MSG  = "Site %s doesn't exist";
+
+  private static final String     DRAFT_NAME_CONFLICT    = "layout.siteDraftNameConflict";
+
+  private static final String     DRAFT_OWNER_SEPARATOR  = "_draft_";
 
   private static final Log        LOG                    = ExoLogger.getLogger(SiteLayoutService.class);
 
@@ -174,11 +181,16 @@ public class SiteLayoutService {
     PortalConfig site = getSite(siteKey, username);
     SiteLayoutUnresolvedException.checkResolved(site);
 
-    String clonedSiteName = site.getType() + "_" + site.getName() + "_draft_" + username;
+    String clonedSiteName = site.getType() + "_" + site.getName() + DRAFT_OWNER_SEPARATOR + username;
 
     PortalConfig draftSite = site.clone();
     draftSite.setType(PortalConfig.DRAFT);
     draftSite.setName(clonedSiteName);
+    if (!aclService.canEditSite(draftSite, username)) {
+      // The name could also be another existing user's draft of another site:
+      // the user couldn't open it, and replacing it could drop that user's draft
+      throw new IllegalArgumentException(DRAFT_NAME_CONFLICT);
+    }
     LayoutModel siteLayoutModel = new LayoutModel(site.getPortalLayout(), portletInstanceService, new PortletInstanceContext(false, null));
     siteLayoutModel.resetStorage();
     draftSite.setPortalLayout(siteLayoutModel.toSite().getPortalLayout());
@@ -189,6 +201,20 @@ public class SiteLayoutService {
     }
     layoutService.create(draftSite);
     return draftSiteKey;
+  }
+
+  /**
+   * Removes the draft sites of a deleted user: every draft site whose name ends
+   * with {@code _draft_<username>}, a name another user could also have
+   * produced included. A non-administrator couldn't open such a draft while the
+   * deleted user existed and might afterwards; an administrator's draft of that
+   * name is removed too.
+   *
+   * @param username deleted user
+   */
+  @ContainerTransactional
+  public void deleteUserDraftSites(String username) {
+    removeUserDraftSites(username);
   }
 
   public void updateSite(SiteUpdateModel updateModel, String username) throws IllegalAccessException,
@@ -412,6 +438,31 @@ public class SiteLayoutService {
           listenerService.broadcast(NavigationLayoutService.PAGE_UNREACHABLE_EVENT, this, page);
         }
       }
+    }
+  }
+
+  void removeUserDraftSites(String username) {
+    if (StringUtils.isBlank(username)) {
+      return;
+    }
+    String draftSiteNameSuffix = DRAFT_OWNER_SEPARATOR + username;
+    // Sites are sorted by label, which a draft shares with the site it drafts:
+    // pages of that order could skip a draft, so all draft sites are read at once
+    SiteFilter siteFilter = new SiteFilter();
+    siteFilter.setSiteType(SiteType.DRAFT);
+    List<PortalConfig> userDraftSites = layoutService.getSites(siteFilter)
+                                                     .stream()
+                                                     .filter(draftSite -> StringUtils.endsWith(draftSite.getName(),
+                                                                                               draftSiteNameSuffix))
+                                                     .toList();
+    userDraftSites.forEach(this::removeDraftSite);
+  }
+
+  private void removeDraftSite(PortalConfig draftSite) {
+    try {
+      layoutService.remove(draftSite);
+    } catch (Exception e) {
+      LOG.warn("Error while removing the draft site {} of a deleted user", draftSite.getName(), e);
     }
   }
 
