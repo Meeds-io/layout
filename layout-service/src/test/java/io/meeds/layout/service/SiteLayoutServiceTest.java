@@ -54,10 +54,12 @@ import org.exoplatform.commons.ObjectAlreadyExistsException;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserPortalConfig;
 import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelStyle;
 import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.config.model.TransientApplicationState;
 import org.exoplatform.portal.config.serialize.model.SiteLayout;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
@@ -75,6 +77,7 @@ import org.exoplatform.services.resources.impl.LocaleConfigImpl;
 import io.meeds.common.ContainerTransactional;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PermissionUpdateModel;
+import io.meeds.layout.model.PortletInstanceContext;
 import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SiteUpdateModel;
 
@@ -144,6 +147,39 @@ public class SiteLayoutServiceTest {
     assertThrows(IllegalAccessException.class, () -> siteLayoutService.getSite(SITE_KEY, TEST_USER));
     when(aclService.canViewSite(SITE_KEY, TEST_USER)).thenReturn(true);
     assertEquals(portalConfig, siteLayoutService.getSite(SITE_KEY, TEST_USER));
+  }
+
+  /**
+   * The site layout editor publishes its draft back over the same site: the
+   * draft's windows are built with the draft property, which a preference
+   * plugin that must keep a window's own setting there reads.
+   */
+  @Test
+  @SneakyThrows
+  public void createDraftSiteGeneratesPreferencesForADraft() {
+    Application application = new Application("12");
+    application.setState(new TransientApplicationState("app-center/AppCenterMyApplicationsPortlet"));
+    Container portalLayout = new Container();
+    portalLayout.setTemplate("system:/groovy/portal/webui/container/UIContainer.gtmpl");
+    portalLayout.setChildren(new ArrayList<>(List.of(application)));
+    PortalConfig site = new PortalConfig(PortalConfig.PORTAL_TYPE, SITE_KEY.getName());
+    site.setPortalLayout(portalLayout);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(aclService.canViewSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(site);
+    when(aclService.canEditSite(argThat((PortalConfig draftSite) -> DRAFT_SITE_NAME.equals(draftSite.getName())),
+                                eq(TEST_USER))).thenReturn(true);
+
+    SiteKey draftSiteKey = siteLayoutService.createDraftSite(SITE_KEY, TEST_USER);
+
+    assertEquals(new SiteKey(PortalConfig.DRAFT, "portal_test_draft_" + TEST_USER), draftSiteKey);
+    verify(portletInstanceService).expandPortletPreferences(any(Application.class),
+                                                            argThat(context -> context != null
+                                                                               && !context.isExport()
+                                                                               && context.getProperties() != null
+                                                                               && "true".equals(context.getProperties()
+                                                                                                       .get(PortletInstanceContext.DRAFT_PROPERTY))));
+    verify(layoutService).create(argThat((PortalConfig draftSite) -> draftSite.getName().equals(draftSiteKey.getName())));
   }
 
   @Test

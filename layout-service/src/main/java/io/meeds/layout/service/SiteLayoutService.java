@@ -191,7 +191,13 @@ public class SiteLayoutService {
       // the user couldn't open it, and replacing it could drop that user's draft
       throw new IllegalArgumentException(DRAFT_NAME_CONFLICT);
     }
-    LayoutModel siteLayoutModel = new LayoutModel(site.getPortalLayout(), portletInstanceService, new PortletInstanceContext(false, null));
+    // The draft is published back over the same site: a preference plugin
+    // that reads the draft property keeps a window's own setting there
+    LayoutModel siteLayoutModel = new LayoutModel(site.getPortalLayout(),
+                                                  portletInstanceService,
+                                                  new PortletInstanceContext(false,
+                                                                             Map.of(PortletInstanceContext.DRAFT_PROPERTY,
+                                                                                    "true")));
     siteLayoutModel.resetStorage();
     draftSite.setPortalLayout(siteLayoutModel.toSite().getPortalLayout());
     SiteKey draftSiteKey = new SiteKey(draftSite.getType(), draftSite.getName());
