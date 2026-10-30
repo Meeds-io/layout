@@ -100,6 +100,22 @@ public class LayoutImageServiceTest {
   }
 
   @Test
+  public void aBannersIdIsConsumableOnTheSameRule() {
+    lenient().when(uploadService.getUploadResource("u1")).thenReturn(staged("u1", null, "image/png"));
+    lenient().when(uploadService.getUploadResource("mine")).thenReturn(staged("mine", "john", "image/gif"));
+    lenient().when(uploadService.getUploadResource("marys")).thenReturn(staged("marys", "mary", "image/png"));
+    lenient().when(uploadService.getUploadResource("pdf")).thenReturn(staged("pdf", null, "application/pdf"));
+    lenient().when(uploadService.getUploadResource("untyped")).thenReturn(staged("untyped", null, null));
+    lenient().when(uploadService.getUploadResource("missing")).thenReturn(null);
+
+    assertTrue(service.isConsumable("u1", "john"));
+    assertTrue(service.isConsumable("mine", "john"));
+    for (String refused : List.of("marys", "pdf", "untyped", "missing")) {
+      assertTrue(!service.isConsumable(refused, "john"), refused);
+    }
+  }
+
+  @Test
   public void attachAnswersTheFixedTextWhenTheAttachmentServiceRefusesWithItsOwnText() throws Exception {
     when(userAcl.getUserIdentity("john")).thenReturn(identity);
     userIdentity("john", "41");

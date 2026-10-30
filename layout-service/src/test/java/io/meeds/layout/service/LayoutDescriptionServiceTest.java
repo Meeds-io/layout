@@ -2099,11 +2099,10 @@ public class LayoutDescriptionServiceTest {
     return container(LayoutDescriptionService.CELL_TEMPLATE, cssClass);
   }
 
-
   /**
    * The image path through the real chain: the placeholder a claimed id
-   * stands as passes LayoutStyleValidator and resetStorage, and the
-   * consumption keys the image on the live page and the styled element
+   * stands as passes LayoutStyleValidator, and the consumption keys the image
+   * on the live page and the styled element; the next case covers the copy
    */
   @Test
   public void aNewImageOfAStyledPageSurvivesValidationAsAPlaceholderKeyedOnTheLivePage() throws Exception {
