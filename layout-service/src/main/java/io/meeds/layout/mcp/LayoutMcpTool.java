@@ -164,10 +164,6 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   public static final String       SITE_KEY_PREFIX       = "site_";
 
-  private static final String      IMAGE_LIMIT_PROBE     = "layout-image";
-
-  private static final long        MEGABYTE              = 1024L * 1024;
-
   public static final String       NAME_NOT_ACCEPTED     = "value is not accepted for name";
 
   public static final String       LABEL_NOT_ACCEPTED    = "value is not accepted for label";
@@ -247,6 +243,10 @@ public class LayoutMcpTool implements McpToolPlugin {
   public static final int          DESCRIPTION_MAX_LENGTH = 2000;
 
   private static final Log         LOG                   = ExoLogger.getLogger(LayoutMcpTool.class);
+
+  private static final String      IMAGE_LIMIT_PROBE     = "layout-image";
+
+  private static final long        MEGABYTE              = 1024L * 1024;
 
   private static final Pattern     NAME_PATTERN          = Pattern.compile("^[a-zA-Z0-9_-]{1,200}$");
 
@@ -623,7 +623,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     SiteKey siteKey = site.getSiteKey();
     PortalConfig draftSite = readDraftSite(siteId, username);
     boolean createDraft = draftSite == null;
-    ImageConsumption images = layoutImageService.consumption(SITE_KEY_PREFIX + site.getId());
+    ImageConsumption images = layoutImageService.consumption(SITE_KEY_PREFIX + site.getId(), username);
     try {
       LayoutModel layout = layoutDescriptionService.toSiteLayout(new SiteLayoutUpdate(leftSidebar, rightSidebar, topbars, bottomBars),
                                                                  createDraft ? site : draftSite,
@@ -748,7 +748,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     if (stored == null) {
       throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
     }
-    ImageConsumption images = layoutImageService.consumption(livePage.getStorageId());
+    ImageConsumption images = layoutImageService.consumption(livePage.getStorageId(), username);
     try {
       LayoutModel layout = layoutDescriptionService.toPageLayout(sections, stored, createDraft, username, getCurrentUserLocale(), images);
       try {
@@ -788,7 +788,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     PortalConfig site = readEditableSite(siteId, username);
     PortalConfig draftSite = readDraftSite(siteId, username);
     boolean createDraft = draftSite == null;
-    ImageConsumption images = layoutImageService.consumption(SITE_KEY_PREFIX + site.getId());
+    ImageConsumption images = layoutImageService.consumption(SITE_KEY_PREFIX + site.getId(), username);
     try {
       LayoutModel layout = layoutDescriptionService.toStyledSite(elements, createDraft ? site : draftSite, createDraft, username, images);
       try {
@@ -1134,7 +1134,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     if (stored == null) {
       throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
     }
-    ImageConsumption images = layoutImageService.consumption(livePage.getStorageId());
+    ImageConsumption images = layoutImageService.consumption(livePage.getStorageId(), username);
     try {
       LayoutModel layout = layoutDescriptionService.toStyledPage(elements, stored, createDraft, username, images);
       try {

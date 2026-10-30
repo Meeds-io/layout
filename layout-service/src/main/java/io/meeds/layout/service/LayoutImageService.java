@@ -20,17 +20,22 @@ package io.meeds.layout.service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserACL;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.attachment.AttachmentService;
 import org.exoplatform.social.attachment.model.FileAttachmentObject;
 import org.exoplatform.social.attachment.model.FileAttachmentResourceList;
 import org.exoplatform.social.attachment.model.ObjectAttachmentOperationReport;
+import org.exoplatform.social.core.manager.IdentityManager;
+import org.exoplatform.upload.UploadResource;
 import org.exoplatform.upload.UploadService;
 
 import io.meeds.layout.model.AttachedImage;
@@ -55,8 +60,19 @@ public class LayoutImageService {
 
   public static final String ATTACHMENT_URL  = "/portal/rest/v1/social/attachments/%s/%s/%s";
 
+  /**
+   * The image types upload_layout_image stages, the only ones a consuming
+   * call takes: a resource another door staged with another type is refused
+   */
+  public static final Set<String> IMAGE_TYPES = Set.of("image/png", "image/jpeg", "image/gif", "image/webp");
+
+  private static final Log   LOG             = ExoLogger.getLogger(LayoutImageService.class);
+
   @Autowired
   private UploadService      uploadService;
+
+  @Autowired
+  private IdentityManager    identityManager;
 
   @Autowired
   private AttachmentService  attachmentService;
@@ -68,10 +84,20 @@ public class LayoutImageService {
    * @param keyPrefix the live page's or site's storage id, page_&lt;id&gt; or
    *          site_&lt;id&gt;, the first segment of every attachment key the
    *          call creates
-   * @return the consumption the call's writers claim their upload ids on
+   * @param username the user consuming the ids
+   * @return the consumption the call's writers claim their upload ids on: a
+   *         staged resource the user may consume, owner-less or their own,
+   *         and of an image type the upload tool stages
    */
-  public ImageConsumption consumption(String keyPrefix) {
-    return new ImageConsumption(keyPrefix, id -> uploadService.getUploadResource(id) != null);
+  public ImageConsumption consumption(String keyPrefix, String username) {
+    return new ImageConsumption(keyPrefix, id -> isConsumable(uploadService.getUploadResource(id), username));
+  }
+
+  private static boolean isConsumable(UploadResource resource, String username) {
+    return resource != null
+           && (resource.getOwner() == null || resource.getOwner().equals(username))
+           && resource.getMimeType() != null
+           && IMAGE_TYPES.contains(resource.getMimeType());
   }
 
   /**
@@ -95,9 +121,18 @@ public class LayoutImageService {
       FileAttachmentResourceList list = new FileAttachmentResourceList();
       list.setObjectType(target.objectType());
       list.setObjectId(target.objectId());
+      list.setUserIdentityId(Long.parseLong(identityManager.getOrCreateUserIdentity(username).getId()));
       list.setUploadedFiles(new ArrayList<>(List.of(new FileAttachmentObject(null, uploadId, null, null, null, null))));
       list.setAttachedFiles(before.stream().map(fileId -> new FileAttachmentObject(fileId, null, null, null, null, null)).toList());
-      ObjectAttachmentOperationReport report = attachmentService.saveAttachments(list, identity);
+      ObjectAttachmentOperationReport report;
+      try {
+        report = attachmentService.saveAttachments(list, identity);
+      } catch (ObjectNotFoundException | IllegalAccessException e) {
+        throw e;
+      } catch (RuntimeException e) {
+        LOG.debug("Image {} could not be attached to {} {}", uploadId, target.objectType(), target.objectId(), e);
+        throw new IllegalStateException(IMAGE_NOT_SAVED);
+      }
       if (report != null && report.getErrorByUploadId() != null && report.getErrorByUploadId().containsKey(uploadId)) {
         throw new IllegalStateException(IMAGE_NOT_SAVED);
       }

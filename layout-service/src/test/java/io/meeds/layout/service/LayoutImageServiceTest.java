@@ -22,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -41,6 +42,7 @@ import org.exoplatform.services.security.Identity;
 import org.exoplatform.social.attachment.AttachmentService;
 import org.exoplatform.social.attachment.model.FileAttachmentResourceList;
 import org.exoplatform.social.attachment.model.ObjectAttachmentOperationReport;
+import org.exoplatform.social.core.manager.IdentityManager;
 import org.exoplatform.upload.UploadResource;
 import org.exoplatform.upload.UploadService;
 
@@ -68,15 +70,57 @@ public class LayoutImageServiceTest {
   @Mock
   private Identity           identity;
 
+  @Mock
+  private IdentityManager    identityManager;
+
   @InjectMocks
   private LayoutImageService service;
 
+  /**
+   * A staged resource is consumable when it is owner-less or the caller's, and
+   * of an image type the upload tool stages: another user's browser upload or
+   * a non-image staged through another door is "does not exist: upload"
+   */
   @Test
-  public void aConsumptionResolvesItsIdsAgainstTheStagedUploads() throws Exception {
-    when(uploadService.getUploadResource("u1")).thenReturn(new UploadResource("u1"));
-    ImageConsumption images = service.consumption("page_3");
+  public void aConsumptionResolvesItsIdsAgainstTheStagedUploadsTheUserMayConsume() throws Exception {
+    lenient().when(uploadService.getUploadResource("u1")).thenReturn(staged("u1", null, "image/png"));
+    lenient().when(uploadService.getUploadResource("mine")).thenReturn(staged("mine", "john", "image/webp"));
+    lenient().when(uploadService.getUploadResource("marys")).thenReturn(staged("marys", "mary", "image/png"));
+    lenient().when(uploadService.getUploadResource("pdf")).thenReturn(staged("pdf", null, "application/pdf"));
+    lenient().when(uploadService.getUploadResource("untyped")).thenReturn(staged("untyped", null, null));
+    lenient().when(uploadService.getUploadResource("u2")).thenReturn(null);
+    ImageConsumption images = service.consumption("page_3", "john");
     assertEquals("upload_u1", images.claim("u1", "containerBackground", "12", "background.image"));
-    assertThrows(org.exoplatform.commons.exception.ObjectNotFoundException.class, () -> images.claim("u2", "containerBackground", "12", "background.image"));
+    assertEquals("upload_mine", images.claim("mine", "containerBackground", "13", "background.image"));
+    for (String refused : List.of("u2", "marys", "pdf", "untyped")) {
+      assertThrows(org.exoplatform.commons.exception.ObjectNotFoundException.class,
+                   () -> images.claim(refused, "containerBackground", "12", "background.image"),
+                   refused);
+    }
+  }
+
+  @Test
+  public void attachAnswersTheFixedTextWhenTheAttachmentServiceRefusesWithItsOwnText() throws Exception {
+    when(userAcl.getUserIdentity("john")).thenReturn(identity);
+    userIdentity("john", "41");
+    when(attachmentService.getAttachmentFileIds("containerBackground", "page_3_12")).thenReturn(List.of());
+    when(attachmentService.saveAttachments(any(), eq(identity))).thenThrow(new IllegalArgumentException("User identity id is mandatory"));
+    ImageConsumption images = new ImageConsumption("page_3", id -> true);
+    images.claim("u1", "containerBackground", "12", "background.image");
+
+    assertEquals(LayoutImageService.IMAGE_NOT_SAVED, assertThrows(IllegalStateException.class, () -> service.attach(images, "john")).getMessage());
+  }
+
+  private static UploadResource staged(String id, String owner, String mimeType) {
+    UploadResource resource = new UploadResource(id);
+    resource.setOwner(owner);
+    resource.setMimeType(mimeType);
+    return resource;
+  }
+
+  private void userIdentity(String username, String identityId) {
+    org.exoplatform.social.core.identity.model.Identity userIdentity = new org.exoplatform.social.core.identity.model.Identity(identityId);
+    when(identityManager.getOrCreateUserIdentity(username)).thenReturn(userIdentity);
   }
 
   /**
@@ -88,6 +132,7 @@ public class LayoutImageServiceTest {
   @Test
   public void attachSavesEachImageAsTheUserOnItsTargetAndRecordsItsUrl() throws Exception {
     when(userAcl.getUserIdentity("john")).thenReturn(identity);
+    userIdentity("john", "41");
     when(attachmentService.getAttachmentFileIds("containerBackground", "page_3_12")).thenReturn(List.of("7"), List.of("7", "9"));
     ObjectAttachmentOperationReport keptFileReport = new ObjectAttachmentOperationReport();
     keptFileReport.addError(null, "attachment.uploadIdNotFound");
@@ -101,6 +146,7 @@ public class LayoutImageServiceTest {
     verify(attachmentService).saveAttachments(saved.capture(), eq(identity));
     assertEquals("containerBackground", saved.getValue().getObjectType());
     assertEquals("page_3_12", saved.getValue().getObjectId());
+    assertEquals(41L, saved.getValue().getUserIdentityId());
     assertEquals("u1", saved.getValue().getUploadedFiles().get(0).getUploadId());
     assertEquals("7", saved.getValue().getAttachedFiles().get(0).getId());
     saved.getValue().getUploadedFiles().addAll(saved.getValue().getAttachedFiles());
@@ -111,6 +157,7 @@ public class LayoutImageServiceTest {
   @Test
   public void attachRefusesAnImageTheServiceDidNotSave() throws Exception {
     when(userAcl.getUserIdentity("john")).thenReturn(identity);
+    userIdentity("john", "41");
     when(attachmentService.getAttachmentFileIds("containerBackground", "page_3_12")).thenReturn(List.of());
     ObjectAttachmentOperationReport report = new ObjectAttachmentOperationReport();
     report.addError("u1", "attachment.uploadIdNotFound");

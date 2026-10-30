@@ -223,7 +223,7 @@ public class LayoutMcpToolTest {
     conversationState = mock(ConversationState.class);
     lenient().when(conversationState.getIdentity()).thenReturn(identity);
     lenient().when(draftService.isDraftNode(any())).thenAnswer(i -> i.getArgument(0) != null && ((String) i.getArgument(0)).contains("_draft_"));
-    lenient().when(layoutImageService.consumption(any()))
+    lenient().when(layoutImageService.consumption(any(), any()))
              .thenAnswer(i -> new ImageConsumption(i.getArgument(0), id -> uploadService.getUploadResource(id) != null));
   }
 
@@ -1752,7 +1752,7 @@ public class LayoutMcpToolTest {
     });
     asUser(() -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements));
 
-    verify(layoutImageService).consumption("page_44");
+    verify(layoutImageService).consumption("page_44", USER);
     InOrder order = inOrder(layoutImageService, pageLayoutService);
     order.verify(layoutImageService).attach(images.getValue(), USER);
     order.verify(layoutImageService).substitute(layout, images.getValue());
@@ -1778,7 +1778,7 @@ public class LayoutMcpToolTest {
 
     assertEquals(LayoutMcpTool.PAGE_LAYOUT_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
 
-    verify(layoutImageService).consumption("page_44");
+    verify(layoutImageService).consumption("page_44", USER);
     verify(layoutImageService).compensate(images.getValue());
     verify(layoutImageService).release(images.getValue());
   }
@@ -1798,7 +1798,7 @@ public class LayoutMcpToolTest {
 
     assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.setLayoutStyles(SITE_ID, null, elements)));
 
-    verify(layoutImageService).consumption("site_" + site.getId());
+    verify(layoutImageService).consumption("site_" + site.getId(), USER);
     verify(siteLayoutService, never()).updateSiteLayout(any(), any(), anyBoolean(), any());
     verify(layoutImageService).compensate(images.getValue());
     verify(layoutImageService).release(images.getValue());
@@ -1821,7 +1821,7 @@ public class LayoutMcpToolTest {
     pageOrder.verify(layoutImageService).attach(pageImages.getValue(), USER);
     pageOrder.verify(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(Page.class), eq(false), eq(USER));
     pageOrder.verify(layoutImageService).release(pageImages.getValue());
-    verify(layoutImageService).consumption("page_44");
+    verify(layoutImageService).consumption("page_44", USER);
 
     PortalConfig site = editableSite();
     PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
@@ -1836,7 +1836,7 @@ public class LayoutMcpToolTest {
     siteOrder.verify(layoutImageService).attach(siteImages.getValue(), USER);
     siteOrder.verify(siteLayoutService).updateSiteLayout(eq(draftSite.getSiteKey()), any(PortalConfig.class), eq(false), eq(USER));
     siteOrder.verify(layoutImageService).release(siteImages.getValue());
-    verify(layoutImageService).consumption("site_" + site.getId());
+    verify(layoutImageService).consumption("site_" + site.getId(), USER);
   }
 
   /**
