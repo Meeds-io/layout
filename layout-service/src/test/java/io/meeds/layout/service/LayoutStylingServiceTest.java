@@ -22,7 +22,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.function.Executable;
+
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 import io.meeds.layout.mcp.constant.BackgroundMode;
 import io.meeds.layout.mcp.constant.DisplayMode;
@@ -39,6 +44,8 @@ import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.mcp.model.TextBackgroundBlock;
 import io.meeds.layout.mcp.model.TextBlock;
 import io.meeds.layout.mcp.model.TextRoleBlock;
+import io.meeds.layout.model.ImageConsumption;
+import io.meeds.layout.model.ImageTarget;
 import io.meeds.layout.model.LayoutModel;
 
 /**
@@ -712,6 +719,10 @@ public class LayoutStylingServiceTest {
     return assertThrows(IllegalArgumentException.class, call::run).getMessage();
   }
 
+  private String refusedImage(Executable call) {
+    return assertThrows(IllegalArgumentException.class, call).getMessage();
+  }
+
   private StylingDescription styling(MarginsBlock margins,
                                      BorderBlock border,
                                      CornersBlock corners,
@@ -727,6 +738,97 @@ public class LayoutStylingServiceTest {
 
   private TextBlock text(TextRoleBlock title, TextRoleBlock header, TextRoleBlock content) {
     return new TextBlock(true, title, header, content, null, null);
+  }
+
+
+  @Test
+  public void aNewBackgroundImageWritesThePlaceholderAndTheOptionsTheEditorStores() throws Exception {
+    ImageConsumption images = new ImageConsumption("page_3", "u1"::equals);
+    LayoutModel section = new LayoutModel();
+    section.setStorageId("12");
+    section.setCssClass("custom layout-bg-margin-top-4");
+    BackgroundImageBlock image = new BackgroundImageBlock("u1", null, "contain", "top left", "fixed", "repeat",
+                                                          new SidesBlock(10, null, 0, 400), new CornersBlock(true, 8, null, 120, null, null));
+    service.applyStyling(section, styling(null, null, null, new BackgroundBlock(true, null, "#222222", null, null, null, null, null, null, image), null, null),
+                         StylingDestination.DYNAMIC_SECTION, false, false, images);
+
+    assertEquals("upload_u1", section.getBackgroundImage());
+    assertEquals("contain", section.getBackgroundSize());
+    assertEquals("top left", section.getBackgroundPosition());
+    assertEquals("fixed", section.getBackgroundAttachment());
+    assertEquals("repeat", section.getBackgroundRepeat());
+    assertEquals("custom layout-bg-margin-top-10 layout-bg-margin-bottom-0 layout-bg-margin-left-400 layout-bg-radius-tl-8 layout-bg-radius-tr-120 layout-bg-radius-br-8 layout-bg-radius-bl-8",
+                 section.getCssClass());
+    assertEquals("#222222", section.getBackgroundColor());
+    assertEquals(new ImageTarget("containerBackground", "page_3_12"), images.getTargets().get("u1"));
+  }
+
+  @Test
+  public void aNewBackgroundImageTakesTheEditorsDefaultsAndKeysANewElementOnItsUploadId() throws Exception {
+    ImageConsumption images = new ImageConsumption("site_5", "u1"::equals);
+    LayoutModel application = new LayoutModel();
+    service.applyStyling(application, styling(null, null, null, new BackgroundBlock(true, null, null, null, null, null, null, null, null, new BackgroundImageBlock("u1", null, null, null, null, null, null, null)), null, null),
+                         StylingDestination.SITE_CONTAINER_APPLICATION, false, false, images);
+
+    assertEquals("upload_u1", application.getBackgroundImage());
+    assertEquals("cover", application.getBackgroundSize());
+    assertEquals("center", application.getBackgroundPosition());
+    assertEquals("scroll", application.getBackgroundAttachment());
+    assertEquals("no-repeat", application.getBackgroundRepeat());
+    assertEquals(new ImageTarget("containerBackground", "site_5_u1"), images.getTargets().get("u1"));
+  }
+
+  @Test
+  public void aNewBackgroundImageIsRefusedOutsideTheVocabularyAndOnAnUnknownOrRepeatedId() throws Exception {
+    ImageConsumption images = new ImageConsumption("page_3", id -> List.of("u1", "u3", "u4").contains(id));
+    LayoutModel section = new LayoutModel();
+    assertEquals(REFUSED + "background.image.position",
+                 refusedImage(() -> service.applyStyling(section, withImage(new BackgroundImageBlock("u3", null, null, "middle", null, null, null, null)), StylingDestination.DYNAMIC_SECTION, false, false, images)));
+    assertEquals(REFUSED + "background.image.margins.top",
+                 refusedImage(() -> service.applyStyling(section, withImage(new BackgroundImageBlock("u4", null, null, null, null, null, new SidesBlock(401, null, null, null), null)), StylingDestination.DYNAMIC_SECTION, false, false, images)));
+    assertEquals(List.of("u3", "u4"), List.copyOf(images.getTargets().keySet()));
+    assertEquals(ImageConsumption.UPLOAD_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class,
+                              () -> service.applyStyling(section, withImage(new BackgroundImageBlock("u2", null, null, null, null, null, null, null)), StylingDestination.DYNAMIC_SECTION, false, false, images)).getMessage());
+    service.applyStyling(section, withImage(new BackgroundImageBlock("u1", null, null, null, null, null, null, null)), StylingDestination.DYNAMIC_SECTION, false, false, images);
+    assertEquals(ImageConsumption.UPLOAD_USED_TWICE,
+                 refusedImage(() -> service.applyStyling(new LayoutModel(), withImage(new BackgroundImageBlock("u1", null, null, null, null, null, null, null)), StylingDestination.DYNAMIC_SECTION, false, false, images)));
+    assertEquals(REFUSED + "background.image",
+                 refusedImage(() -> service.applyStyling(new LayoutModel(), withImage(new BackgroundImageBlock("u1", null, null, null, null, null, null, null)), StylingDestination.DYNAMIC_SECTION, false, false)));
+  }
+
+  @Test
+  public void aNewTextBackgroundImageWritesThePlaceholderWithItsSizeOrRepeatAndItsCorner() throws Exception {
+    ImageConsumption images = new ImageConsumption("page_3", id -> "u1".equals(id) || "u2".equals(id));
+    LayoutModel application = new LayoutModel();
+    application.setStorageId("12");
+    TextBackgroundBlock title = new TextBackgroundBlock(true, null, "#777777", null, null, null, null, null,
+                                                        new BackgroundImageBlock("u1", null, null, "bottom right", null, null, null, null), null, null);
+    TextBackgroundBlock header = new TextBackgroundBlock(true, null, null, null, null, null, null, null,
+                                                         new BackgroundImageBlock("u2", null, null, null, null, "repeat", null, null), null, null);
+    service.applyStyling(application,
+                         styling(null, null, null, null, new TextBlock(true, new TextRoleBlock(null, null, null, null, title), new TextRoleBlock(null, null, null, null, header), null, null, null), null),
+                         StylingDestination.APPLICATION, false, false, images);
+
+    assertEquals("upload_u1", application.getTextTitleBackgroundImage());
+    assertEquals("cover", application.getTextTitleBackgroundSize());
+    assertNull(application.getTextTitleBackgroundRepeat());
+    assertEquals("bottom right", application.getTextTitleBackgroundPosition());
+    assertEquals("#777777", application.getTextTitleBackgroundColor());
+    assertEquals("upload_u2", application.getTextHeaderBackgroundImage());
+    assertNull(application.getTextHeaderBackgroundSize());
+    assertEquals("repeat", application.getTextHeaderBackgroundRepeat());
+    assertNull(application.getTextHeaderBackgroundPosition());
+    assertEquals(new ImageTarget("containerTextTitleBackground", "page_3_12"), images.getTargets().get("u1"));
+    assertEquals(new ImageTarget("containerTextHeaderBackground", "page_3_12"), images.getTargets().get("u2"));
+    assertEquals(REFUSED + "text.title.background.image.size",
+                 refusedImage(() -> service.applyStyling(new LayoutModel(),
+                                                    styling(null, null, null, null, new TextBlock(true, new TextRoleBlock(null, null, null, null, new TextBackgroundBlock(true, null, null, null, null, null, null, null, new BackgroundImageBlock("u1", null, "cover", null, null, "repeat", null, null), null, null)), null, null, null, null), null),
+                                                    StylingDestination.APPLICATION, false, false, new ImageConsumption("page_3", "u1"::equals))));
+  }
+
+  private StylingDescription withImage(BackgroundImageBlock image) {
+    return styling(null, null, null, new BackgroundBlock(true, null, null, null, null, null, null, null, null, image), null, null);
   }
 
 }
