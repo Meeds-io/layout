@@ -20,6 +20,7 @@ package io.meeds.layout.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -31,6 +32,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -47,6 +49,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -102,6 +105,8 @@ import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
+import io.meeds.mcp.server.tool.util.UploadToolUtils;
+import io.meeds.layout.mcp.model.UploadedImage;
 import io.meeds.layout.mcp.model.ScheduleDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
@@ -124,7 +129,9 @@ import io.meeds.layout.model.ApplicationSettingsContext;
 import io.meeds.layout.service.ApplicationSettingsService;
 import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
+import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.service.LayoutDraftService;
+import io.meeds.layout.service.LayoutImageService;
 import io.meeds.layout.service.LayoutStylesAssembler;
 import io.meeds.layout.service.NavigationLayoutService;
 import io.meeds.layout.service.PageLayoutAssembler;
@@ -201,6 +208,9 @@ public class LayoutMcpToolTest {
   @MockitoBean
   private ApplicationSettingsService applicationSettingsService;
 
+  @MockitoBean
+  private LayoutImageService       layoutImageService;
+
   @Autowired
   private LayoutMcpTool            tool;
 
@@ -213,6 +223,8 @@ public class LayoutMcpToolTest {
     conversationState = mock(ConversationState.class);
     lenient().when(conversationState.getIdentity()).thenReturn(identity);
     lenient().when(draftService.isDraftNode(any())).thenAnswer(i -> i.getArgument(0) != null && ((String) i.getArgument(0)).contains("_draft_"));
+    lenient().when(layoutImageService.consumption(any()))
+             .thenAnswer(i -> new ImageConsumption(i.getArgument(0), id -> uploadService.getUploadResource(id) != null));
   }
 
   @Test
@@ -733,7 +745,7 @@ public class LayoutMcpToolTest {
     LayoutModel layout = siteLayout();
     SiteContainerDescription topbar = new SiteContainerDescription(null, null, null, null);
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null, draftKey);
-    when(descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, List.of(topbar), null), site, true, USER, Locale.FRENCH)).thenReturn(layout);
+    when(descriptionService.toSiteLayout(eq(new SiteLayoutUpdate(null, null, List.of(topbar), null)), eq(site), eq(true), eq(USER), eq(Locale.FRENCH), any())).thenReturn(layout);
     when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
     PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
     draftSite.setPortalLayout(new Container("draft"));
@@ -756,12 +768,12 @@ public class LayoutMcpToolTest {
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
     when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
     SiteContainerDescription left = new SiteContainerDescription("12", null, null, null);
-    when(descriptionService.toSiteLayout(any(), any(), anyBoolean(), any(), any())).thenReturn(siteLayout());
+    when(descriptionService.toSiteLayout(any(), any(), anyBoolean(), any(), any(), any())).thenReturn(siteLayout());
     SiteDescription expected = describedSite(site, draftSite);
 
     assertEquals(expected, asUserInFrench(() -> tool.setSiteLayout(SITE_ID, left, null, null, null)));
 
-    verify(descriptionService).toSiteLayout(new SiteLayoutUpdate(left, null, null, null), draftSite, false, USER, Locale.FRENCH);
+    verify(descriptionService).toSiteLayout(eq(new SiteLayoutUpdate(left, null, null, null)), eq(draftSite), eq(false), eq(USER), eq(Locale.FRENCH), any());
     verify(siteLayoutService).updateSiteLayout(eq(draftSite.getSiteKey()), any(PortalConfig.class), eq(false), eq(USER));
     verify(draftService, never()).createDraftSite(any(), any());
   }
@@ -775,18 +787,18 @@ public class LayoutMcpToolTest {
     when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site);
     when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(false);
     assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.setSiteLayout(SITE_ID, null, null, null, null)));
-    verify(descriptionService, never()).toSiteLayout(any(), any(), anyBoolean(), any(), any());
+    verify(descriptionService, never()).toSiteLayout(any(), any(), anyBoolean(), any(), any(), any());
 
     when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(true);
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
     SiteLayoutUpdate update = new SiteLayoutUpdate(null, null, null, null);
-    when(descriptionService.toSiteLayout(update, site, true, USER, Locale.FRENCH)).thenThrow(new IllegalArgumentException(SiteLayoutAssembler.WIDTH_NOT_ACCEPTED));
+    when(descriptionService.toSiteLayout(eq(update), eq(site), eq(true), eq(USER), eq(Locale.FRENCH), any())).thenThrow(new IllegalArgumentException(SiteLayoutAssembler.WIDTH_NOT_ACCEPTED));
     assertEquals(SiteLayoutAssembler.WIDTH_NOT_ACCEPTED, refusalInFrench(IllegalArgumentException.class, () -> tool.setSiteLayout(SITE_ID, null, null, null, null)));
-    doThrow(new IllegalAccessException(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN)).when(descriptionService).toSiteLayout(update, site, true, USER, Locale.FRENCH);
+    doThrow(new IllegalAccessException(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN)).when(descriptionService).toSiteLayout(eq(update), eq(site), eq(true), eq(USER), eq(Locale.FRENCH), any());
     assertEquals(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN, refusalInFrench(IllegalAccessException.class, () -> tool.setSiteLayout(SITE_ID, null, null, null, null)));
     verify(draftService, never()).createDraftSite(any(), any());
 
-    doReturn(siteLayout()).when(descriptionService).toSiteLayout(update, site, true, USER, Locale.FRENCH);
+    doReturn(siteLayout()).when(descriptionService).toSiteLayout(eq(update), eq(site), eq(true), eq(USER), eq(Locale.FRENCH), any());
     SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
     when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
     doThrow(new IllegalStateException("Can't find uploaded resource with id : 7d2")).when(siteLayoutService)
@@ -857,7 +869,7 @@ public class LayoutMcpToolTest {
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
     List<SectionDescription> sections = List.of(new SectionDescription(null, SectionType.DYNAMIC, 2, null, null, null, null, null));
     LayoutModel layout = pageLayout();
-    when(descriptionService.toPageLayout(sections, stored, true, USER, Locale.FRENCH)).thenReturn(layout);
+    when(descriptionService.toPageLayout(eq(sections), eq(stored), eq(true), eq(USER), eq(Locale.FRENCH), any())).thenReturn(layout);
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     PageDescription expected = describedDraft();
 
@@ -877,7 +889,7 @@ public class LayoutMcpToolTest {
     Page stored = new Page("draft");
     when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(stored);
     List<SectionDescription> sections = List.of();
-    when(descriptionService.toPageLayout(sections, stored, false, USER, Locale.FRENCH)).thenReturn(pageLayout());
+    when(descriptionService.toPageLayout(eq(sections), eq(stored), eq(false), eq(USER), eq(Locale.FRENCH), any())).thenReturn(pageLayout());
     PageDescription expected = describedDraft();
 
     assertEquals(expected, asUserInFrench(() -> tool.setPageLayout(PAGE_KEY.format(), sections)));
@@ -900,17 +912,17 @@ public class LayoutMcpToolTest {
     when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
     when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(null);
     assertEquals(LayoutMcpTool.NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
-    verify(descriptionService, never()).toPageLayout(any(), any(), anyBoolean(), any(), any());
+    verify(descriptionService, never()).toPageLayout(any(), any(), anyBoolean(), any(), any(), any());
 
     when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
-    when(descriptionService.toPageLayout(sections, stored, true, USER, Locale.FRENCH)).thenThrow(new IllegalArgumentException(PageLayoutAssembler.COLUMNS_NOT_ACCEPTED));
+    when(descriptionService.toPageLayout(eq(sections), eq(stored), eq(true), eq(USER), eq(Locale.FRENCH), any())).thenThrow(new IllegalArgumentException(PageLayoutAssembler.COLUMNS_NOT_ACCEPTED));
     assertEquals(PageLayoutAssembler.COLUMNS_NOT_ACCEPTED, refusalInFrench(IllegalArgumentException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
     verify(draftService, never()).createDraftPage(anyLong(), any());
     verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
 
-    doReturn(pageLayout()).when(descriptionService).toPageLayout(sections, stored, true, USER, Locale.FRENCH);
+    doReturn(pageLayout()).when(descriptionService).toPageLayout(eq(sections), eq(stored), eq(true), eq(USER), eq(Locale.FRENCH), any());
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenThrow(new IllegalAccessException("internal detail"));
     assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusalInFrench(IllegalAccessException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
     verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
@@ -934,7 +946,7 @@ public class LayoutMcpToolTest {
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
     List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
-    when(descriptionService.toStyledPage(elements, stored, true, USER)).thenReturn(pageLayout());
+    when(descriptionService.toStyledPage(eq(elements), eq(stored), eq(true), eq(USER), any())).thenReturn(pageLayout());
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     PageDescription expected = describedDraft();
 
@@ -954,7 +966,7 @@ public class LayoutMcpToolTest {
     Page stored = new Page("draft");
     when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(stored);
     List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
-    when(descriptionService.toStyledPage(elements, stored, false, USER)).thenReturn(pageLayout());
+    when(descriptionService.toStyledPage(eq(elements), eq(stored), eq(false), eq(USER), any())).thenReturn(pageLayout());
     PageDescription expected = describedDraft();
 
     assertEquals(expected, asUser(() -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
@@ -969,7 +981,7 @@ public class LayoutMcpToolTest {
     SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
     List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null, draftKey);
-    when(descriptionService.toStyledSite(elements, site, true, USER)).thenReturn(siteLayout());
+    when(descriptionService.toStyledSite(eq(elements), eq(site), eq(true), eq(USER), any())).thenReturn(siteLayout());
     when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
     PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
     draftSite.setPortalLayout(new Container("draft"));
@@ -990,7 +1002,7 @@ public class LayoutMcpToolTest {
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
     when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
     List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
-    when(descriptionService.toStyledSite(elements, draftSite, false, USER)).thenReturn(siteLayout());
+    when(descriptionService.toStyledSite(eq(elements), eq(draftSite), eq(false), eq(USER), any())).thenReturn(siteLayout());
     SiteDescription expected = describedSite(site, draftSite);
 
     assertEquals(expected, asUser(() -> tool.setLayoutStyles(SITE_ID, null, elements)));
@@ -1011,21 +1023,21 @@ public class LayoutMcpToolTest {
     when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
     when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(null);
     assertEquals(LayoutMcpTool.NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
-    verify(descriptionService, never()).toStyledPage(any(), any(), anyBoolean(), any());
+    verify(descriptionService, never()).toStyledPage(any(), any(), anyBoolean(), any(), any());
 
     when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
-    when(descriptionService.toStyledPage(elements, stored, true, USER)).thenThrow(new ObjectNotFoundException(LayoutStylesAssembler.ELEMENT_NOT_FOUND));
+    when(descriptionService.toStyledPage(eq(elements), eq(stored), eq(true), eq(USER), any())).thenThrow(new ObjectNotFoundException(LayoutStylesAssembler.ELEMENT_NOT_FOUND));
     assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
                  refusal(ObjectNotFoundException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
-    doThrow(new IllegalArgumentException("value is not accepted for styling.border")).when(descriptionService).toStyledPage(elements, stored, true, USER);
+    doThrow(new IllegalArgumentException("value is not accepted for styling.border")).when(descriptionService).toStyledPage(eq(elements), eq(stored), eq(true), eq(USER), any());
     assertEquals("value is not accepted for styling.border",
                  refusal(IllegalArgumentException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
     verify(draftService, never()).createDraftPage(anyLong(), any());
     verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
 
-    doReturn(pageLayout()).when(descriptionService).toStyledPage(elements, stored, true, USER);
+    doReturn(pageLayout()).when(descriptionService).toStyledPage(eq(elements), eq(stored), eq(true), eq(USER), any());
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenThrow(new IllegalAccessException("internal detail"));
     assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED,
                  refusal(IllegalAccessException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
@@ -1040,17 +1052,17 @@ public class LayoutMcpToolTest {
     when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site);
     when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(false);
     assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.setLayoutStyles(SITE_ID, null, elements)));
-    verify(descriptionService, never()).toStyledSite(any(), any(), anyBoolean(), any());
+    verify(descriptionService, never()).toStyledSite(any(), any(), anyBoolean(), any(), any());
 
     when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(true);
     when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
-    when(descriptionService.toStyledSite(elements, site, true, USER)).thenThrow(new IllegalArgumentException("value is not accepted for styling.border"));
+    when(descriptionService.toStyledSite(eq(elements), eq(site), eq(true), eq(USER), any())).thenThrow(new IllegalArgumentException("value is not accepted for styling.border"));
     assertEquals("value is not accepted for styling.border", refusal(IllegalArgumentException.class, () -> tool.setLayoutStyles(SITE_ID, null, elements)));
     verify(draftService, never()).createDraftSite(any(), any());
     verify(siteLayoutService, never()).updateSiteLayout(any(), any(), anyBoolean(), any());
 
     SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
-    doReturn(siteLayout()).when(descriptionService).toStyledSite(elements, site, true, USER);
+    doReturn(siteLayout()).when(descriptionService).toStyledSite(eq(elements), eq(site), eq(true), eq(USER), any());
     when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
     doThrow(new IllegalArgumentException("Invalid css value input javascript:alert(1)")).when(siteLayoutService)
                                                                                          .updateSiteLayout(eq(draftKey), any(), eq(false), eq(USER));
@@ -1660,6 +1672,183 @@ public class LayoutMcpToolTest {
     return new SiteDescription(SITE_ID, "portal", "test", "Test", null, false, true, null, null, false, null, null,
                                List.of(new SiteContainerDescription(containerId, null, null, applications)),
                                List.of());
+  }
+
+
+  private static final String PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+
+  @Test
+  public void uploadLayoutImageStagesThePngUnderTheGivenNameWithTheDetectedExtension() throws Exception {
+    Map<String, UploadResource> staged = stagedUploads();
+    when(uploadService.getLimitForResource(any())).thenReturn(new UploadService.UploadLimit(10, UploadService.UploadUnit.MB));
+    when(uploadService.correctFileName("my logo")).thenReturn("my logo");
+
+    UploadedImage uploaded = asUser(() -> tool.uploadLayoutImage(PNG_BASE64, "my logo.jpg"));
+
+    assertNotNull(uploaded.uploadId());
+    UploadResource resource = staged.get(uploaded.uploadId());
+    assertNotNull(resource);
+    assertEquals("my logo.png", resource.getFileName());
+    assertEquals("image/png", resource.getMimeType());
+    assertEquals(UploadResource.UPLOADED_STATUS, resource.getStatus());
+  }
+
+  @Test
+  public void uploadLayoutImageAcceptsADataUriAndKeepsTheGeneratedNameWithoutAFileName() throws Exception {
+    Map<String, UploadResource> staged = stagedUploads();
+    when(uploadService.getLimitForResource(any())).thenReturn(new UploadService.UploadLimit(0, UploadService.UploadUnit.MB));
+
+    UploadedImage uploaded = asUser(() -> tool.uploadLayoutImage("data:image/png;base64," + PNG_BASE64, null));
+
+    assertEquals("image.png", staged.get(uploaded.uploadId()).getFileName());
+  }
+
+  @Test
+  public void uploadLayoutImageRefusesWhatIsNotAnImageWithTheFixedTextsAndStagesNothing() throws Exception {
+    when(uploadService.getLimitForResource(any())).thenReturn(new UploadService.UploadLimit(1, UploadService.UploadUnit.MB));
+    assertEquals(LayoutMcpTool.IMAGE_NOT_ACCEPTED, refusal(IllegalArgumentException.class, () -> tool.uploadLayoutImage("not base64 !!", null)));
+    assertEquals(LayoutMcpTool.IMAGE_NOT_ACCEPTED, refusal(IllegalArgumentException.class, () -> tool.uploadLayoutImage("", null)));
+    assertEquals(LayoutMcpTool.IMAGE_NOT_ACCEPTED,
+                 refusal(IllegalArgumentException.class, () -> tool.uploadLayoutImage(Base64.getEncoder().encodeToString("hello".getBytes()), null)));
+    byte[] large = new byte[2 * 1024 * 1024];
+    System.arraycopy(new byte[] { (byte) 0x89, 'P', 'N', 'G' }, 0, large, 0, 4);
+    assertEquals(String.format(LayoutMcpTool.IMAGE_TOO_LARGE, 1),
+                 refusal(IllegalArgumentException.class, () -> tool.uploadLayoutImage(Base64.getEncoder().encodeToString(large), null)));
+    verify(uploadService, never()).createUploadResource(any(UploadResource.class));
+  }
+
+  /**
+   * The tool never passes an address to the upload helper, whose entry point
+   * also fetches URLs
+   */
+  @Test
+  public void uploadLayoutImageHandsTheHelperNoUrl() throws Exception {
+    when(uploadService.getLimitForResource(any())).thenReturn(new UploadService.UploadLimit(10, UploadService.UploadUnit.MB));
+    try (MockedStatic<UploadToolUtils> helper = mockStatic(UploadToolUtils.class)) {
+      helper.when(() -> UploadToolUtils.decodeBase64(any())).thenCallRealMethod();
+      helper.when(() -> UploadToolUtils.materializeFromUrlOrBase64(any(), isNull(), eq(PNG_BASE64), eq(10L * 1024 * 1024))).thenReturn("u1");
+
+      assertEquals("u1", asUser(() -> tool.uploadLayoutImage(PNG_BASE64, null)).uploadId());
+
+      helper.verify(() -> UploadToolUtils.materializeFromUrlOrBase64(any(), isNull(), eq(PNG_BASE64), eq(10L * 1024 * 1024)));
+    }
+  }
+
+  @Test
+  public void setLayoutStylesOnAPageSavesTheImagesOnTheLivePageBeforeTheDraftWriteAndReleasesThem() throws Exception {
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(new Page("page_44"));
+    when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    Page stored = new Page("draft");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(stored);
+    when(uploadService.getUploadResource("u1")).thenReturn(new UploadResource("u1"));
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
+    LayoutModel layout = pageLayout();
+    ArgumentCaptor<ImageConsumption> images = ArgumentCaptor.forClass(ImageConsumption.class);
+    when(descriptionService.toStyledPage(eq(elements), eq(stored), eq(false), eq(USER), images.capture())).thenAnswer(i -> {
+      ((ImageConsumption) i.getArgument(4)).claim("u1", "containerBackground", "12", "background.image");
+      return layout;
+    });
+    asUser(() -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements));
+
+    verify(layoutImageService).consumption("page_44");
+    InOrder order = inOrder(layoutImageService, pageLayoutService);
+    order.verify(layoutImageService).attach(images.getValue(), USER);
+    order.verify(layoutImageService).substitute(layout, images.getValue());
+    order.verify(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(Page.class), eq(false), eq(USER));
+    order.verify(layoutImageService).release(images.getValue());
+    verify(layoutImageService, never()).compensate(any());
+    assertEquals("containerBackground", images.getValue().getTargets().get("u1").objectType());
+  }
+
+  @Test
+  public void setLayoutStylesKeysTheImagesOnTheLivePageAndDeletesThemWhenTheDraftWriteFails() throws Exception {
+    Page livePage = new Page("page_44");
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(livePage);
+    when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    Page stored = new Page("draft");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(stored);
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
+    ArgumentCaptor<ImageConsumption> images = ArgumentCaptor.forClass(ImageConsumption.class);
+    when(descriptionService.toStyledPage(eq(elements), eq(stored), eq(false), eq(USER), images.capture())).thenReturn(pageLayout());
+    doThrow(new IllegalStateException("storage")).when(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(), eq(false), eq(USER));
+
+    assertEquals(LayoutMcpTool.PAGE_LAYOUT_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
+
+    verify(layoutImageService).consumption("page_44");
+    verify(layoutImageService).compensate(images.getValue());
+    verify(layoutImageService).release(images.getValue());
+  }
+
+  @Test
+  public void setLayoutStylesOnASiteKeysTheImagesOnTheLiveSiteAndNamesTheSiteOnARefusedAttachment() throws Exception {
+    PortalConfig site = editableSite();
+    SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(new Container("draft"));
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftKey);
+    when(siteLayoutService.getSite(draftKey, USER)).thenReturn(draftSite);
+    List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
+    ArgumentCaptor<ImageConsumption> images = ArgumentCaptor.forClass(ImageConsumption.class);
+    when(descriptionService.toStyledSite(eq(elements), eq(draftSite), eq(false), eq(USER), images.capture())).thenReturn(siteLayout());
+    doThrow(new IllegalAccessException("internal detail")).when(layoutImageService).attach(any(), eq(USER));
+
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.setLayoutStyles(SITE_ID, null, elements)));
+
+    verify(layoutImageService).consumption("site_" + site.getId());
+    verify(siteLayoutService, never()).updateSiteLayout(any(), any(), anyBoolean(), any());
+    verify(layoutImageService, never()).compensate(any());
+    verify(layoutImageService).release(images.getValue());
+  }
+
+  @Test
+  public void setPageLayoutAndSetSiteLayoutConsumeTheirImagesTheSameWay() throws Exception {
+    Page livePage = new Page("page_44");
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(livePage);
+    when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    Page stored = new Page("draft");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(stored);
+    List<SectionDescription> sections = List.of(new SectionDescription(null, SectionType.DYNAMIC, 1, null, List.of(List.of()), null, null, null));
+    ArgumentCaptor<ImageConsumption> pageImages = ArgumentCaptor.forClass(ImageConsumption.class);
+    when(descriptionService.toPageLayout(eq(sections), eq(stored), eq(false), eq(USER), any(), pageImages.capture())).thenReturn(pageLayout());
+    asUser(() -> tool.setPageLayout(PAGE_KEY.format(), sections));
+    InOrder pageOrder = inOrder(layoutImageService, pageLayoutService);
+    pageOrder.verify(layoutImageService).attach(pageImages.getValue(), USER);
+    pageOrder.verify(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(Page.class), eq(false), eq(USER));
+    pageOrder.verify(layoutImageService).release(pageImages.getValue());
+    verify(layoutImageService).consumption("page_44");
+
+    PortalConfig site = editableSite();
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(new Container("draft"));
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
+    when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
+    ArgumentCaptor<ImageConsumption> siteImages = ArgumentCaptor.forClass(ImageConsumption.class);
+    when(descriptionService.toSiteLayout(any(), eq(draftSite), eq(false), eq(USER), any(), siteImages.capture())).thenReturn(siteLayout());
+    describedSite(site, draftSite);
+    asUserInFrench(() -> tool.setSiteLayout(SITE_ID, null, null, List.of(), null));
+    InOrder siteOrder = inOrder(layoutImageService, siteLayoutService);
+    siteOrder.verify(layoutImageService).attach(siteImages.getValue(), USER);
+    siteOrder.verify(siteLayoutService).updateSiteLayout(eq(draftSite.getSiteKey()), any(PortalConfig.class), eq(false), eq(USER));
+    siteOrder.verify(layoutImageService).release(siteImages.getValue());
+    verify(layoutImageService).consumption("site_" + site.getId());
+  }
+
+  /**
+   * The upload service's registry, as the helper stages into it: the resource
+   * it is given, found again by its id
+   */
+  private Map<String, UploadResource> stagedUploads() {
+    Map<String, UploadResource> staged = new HashMap<>();
+    doAnswer(i -> staged.put(((UploadResource) i.getArgument(0)).getUploadId(), i.getArgument(0))).when(uploadService)
+                                                                                                   .createUploadResource(any(UploadResource.class));
+    when(uploadService.getUploadResource(any())).thenAnswer(i -> staged.get((String) i.getArgument(0)));
+    return staged;
   }
 
   private void editablePage() {

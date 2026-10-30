@@ -18,11 +18,14 @@
  */
 package io.meeds.layout.service;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
+
+import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
 
 import io.meeds.layout.mcp.constant.BackgroundMode;
@@ -40,7 +43,12 @@ import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.mcp.model.TextBackgroundBlock;
 import io.meeds.layout.mcp.model.TextBlock;
 import io.meeds.layout.mcp.model.TextRoleBlock;
+import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.model.TextBackgroundValues;
+import io.meeds.layout.plugin.attachment.LayoutBackgroundAttachmentPlugin;
+import io.meeds.layout.plugin.attachment.LayoutTextHeaderBackgroundAttachmentPlugin;
+import io.meeds.layout.plugin.attachment.LayoutTextTitleBackgroundAttachmentPlugin;
 
 /**
  * Writes a styling description onto a layout element exactly as the editor's
@@ -114,6 +122,32 @@ public class LayoutStylingService {
 
   public static final int           CUSTOM_HEIGHT_MAX             = 1000;
 
+  public static final int           IMAGE_MARGIN_MAX              = 400;
+
+  public static final int           IMAGE_CORNER_MAX              = 120;
+
+  public static final String        IMAGE_SIZE_COVER              = "cover";
+
+  public static final String        IMAGE_SIZE_CONTAIN            = "contain";
+
+  public static final String        IMAGE_POSITION_CENTER         = "center";
+
+  public static final String        IMAGE_REPEAT                  = "repeat";
+
+  public static final String        IMAGE_NO_REPEAT               = "no-repeat";
+
+  public static final String        IMAGE_ATTACHMENT_SCROLL       = "scroll";
+
+  public static final String        IMAGE_ATTACHMENT_FIXED        = "fixed";
+
+  private static final List<String> IMAGE_SIZES                   = List.of(IMAGE_SIZE_COVER, IMAGE_SIZE_CONTAIN);
+
+  private static final List<String> IMAGE_CORNER_POSITIONS        = List.of("top left", "top right", "bottom left", "bottom right");
+
+  private static final List<String> IMAGE_REPEATS                 = List.of(IMAGE_NO_REPEAT, IMAGE_REPEAT);
+
+  private static final List<String> IMAGE_ATTACHMENTS             = List.of(IMAGE_ATTACHMENT_SCROLL, IMAGE_ATTACHMENT_FIXED);
+
   private static final Pattern      HEX_COLOR                     = Pattern.compile("#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?");
 
   private static final Pattern      GENERATED_TOKENS              =
@@ -177,13 +211,41 @@ public class LayoutStylingService {
                            StylingDestination destination,
                            boolean sticky,
                            boolean plainColorOnly) {
+    try {
+      applyStyling(target, styling, destination, sticky, plainColorOnly, ImageConsumption.none());
+    } catch (ObjectNotFoundException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  /**
+   * @param target         the element written
+   * @param styling        the blocks, null for every block untouched
+   * @param destination    the element's place in the matrix
+   * @param sticky         whether the element is a sticky site container,
+   *                         the only one with a scroll colour
+   * @param plainColorOnly whether the background takes a plain colour only,
+   *                         as the editor offers on a topbar
+   * @param images         the call's image consumption, on which a block
+   *                         carrying an image_upload_id claims its id; the
+   *                         placeholder it answers stands in the image fields
+   *                         until the attachment is saved
+   * @throws ObjectNotFoundException when an image_upload_id names no staged
+   *           upload
+   */
+  public void applyStyling(LayoutModel target,
+                           StylingDescription styling,
+                           StylingDestination destination,
+                           boolean sticky,
+                           boolean plainColorOnly,
+                           ImageConsumption images) throws ObjectNotFoundException {
     if (styling != null) {
       StylingDescription offered = offered(styling, destination);
       applyMargins(target, offered.margins(), destination);
       applyBorder(target, offered.border());
       applyCorners(target, offered.corners());
-      applyBackground(target, offered.background(), sticky, plainColorOnly);
-      applyText(target, offered.text());
+      applyBackground(target, offered.background(), sticky, plainColorOnly, images);
+      applyText(target, offered.text(), images);
       applyHeight(target, offered.height());
       if (destination == StylingDestination.GRID_CELL_APPLICATION) {
         target.setHeight(null);
@@ -534,7 +596,11 @@ public class LayoutStylingService {
     target.setRadiusBottomLeft(bottomLeft);
   }
 
-  private void applyBackground(LayoutModel target, BackgroundBlock background, boolean sticky, boolean plainColorOnly) {
+  private void applyBackground(LayoutModel target,
+                               BackgroundBlock background,
+                               boolean sticky,
+                               boolean plainColorOnly,
+                               ImageConsumption images) throws ObjectNotFoundException {
     if (background == null) {
       return;
     } else if (!on(background.enabled())) {
@@ -546,7 +612,9 @@ public class LayoutStylingService {
     BackgroundImageBlock image = background.image();
     if (image == null) {
       clearImage(target);
-    } else if (image.imageUploadId() != null || image.url() == null || !image.url().equals(target.getBackgroundImage())) {
+    } else if (image.imageUploadId() != null) {
+      applyNewImage(target, image, images);
+    } else if (image.url() == null || !image.url().equals(target.getBackgroundImage())) {
       throw refusal("background.image");
     }
     if (background.effect() != null) {
@@ -583,6 +651,57 @@ public class LayoutStylingService {
       target.setBackgroundColor(GRADIENT_BASE_COLOR);
       target.setBackgroundEffect(effect);
     }
+  }
+
+  /**
+   * Writes a new background image as the editor's background input does once
+   * an image is uploaded: the attachment placeholder, the size, position,
+   * attachment and repeat options (the input's defaults when omitted) and
+   * the margin and radius tokens of the image
+   */
+  private void applyNewImage(LayoutModel target, BackgroundImageBlock image, ImageConsumption images) throws ObjectNotFoundException {
+    String path = "background.image";
+    String size = oneOf(image.size(), IMAGE_SIZE_COVER, IMAGE_SIZES, path + ".size");
+    String position = image.position() == null || IMAGE_POSITION_CENTER.equals(image.position()) ? IMAGE_POSITION_CENTER
+                                                                                                : oneOf(image.position(), null, IMAGE_CORNER_POSITIONS, path + ".position");
+    String attachment = oneOf(image.attachment(), IMAGE_ATTACHMENT_SCROLL, IMAGE_ATTACHMENTS, path + ".attachment");
+    String repeat = oneOf(image.repeat(), IMAGE_NO_REPEAT, IMAGE_REPEATS, path + ".repeat");
+    String cssClass = strip(target.getCssClass(), BACKGROUND_LAYER_TOKENS);
+    if (image.margins() != null) {
+      cssClass = imageToken(cssClass, "layout-bg-margin-top-", image.margins().top(), IMAGE_MARGIN_MAX, path + ".margins.top");
+      cssClass = imageToken(cssClass, "layout-bg-margin-right-", image.margins().right(), IMAGE_MARGIN_MAX, path + ".margins.right");
+      cssClass = imageToken(cssClass, "layout-bg-margin-bottom-", image.margins().bottom(), IMAGE_MARGIN_MAX, path + ".margins.bottom");
+      cssClass = imageToken(cssClass, "layout-bg-margin-left-", image.margins().left(), IMAGE_MARGIN_MAX, path + ".margins.left");
+    }
+    if (image.corners() != null && !off(image.corners().enabled())) {
+      CornersBlock corners = image.corners();
+      cssClass = imageToken(cssClass, "layout-bg-radius-tl-", or(corners.topLeft(), corners.all()), IMAGE_CORNER_MAX, path + ".corners.top_left");
+      cssClass = imageToken(cssClass, "layout-bg-radius-tr-", or(corners.topRight(), corners.all()), IMAGE_CORNER_MAX, path + ".corners.top_right");
+      cssClass = imageToken(cssClass, "layout-bg-radius-br-", or(corners.bottomRight(), corners.all()), IMAGE_CORNER_MAX, path + ".corners.bottom_right");
+      cssClass = imageToken(cssClass, "layout-bg-radius-bl-", or(corners.bottomLeft(), corners.all()), IMAGE_CORNER_MAX, path + ".corners.bottom_left");
+    }
+    target.setBackgroundImage(images.claim(image.imageUploadId(), LayoutBackgroundAttachmentPlugin.OBJECT_TYPE, target.getStorageId(), path));
+    target.setBackgroundSize(size);
+    target.setBackgroundPosition(position);
+    target.setBackgroundAttachment(attachment);
+    target.setBackgroundRepeat(repeat);
+    target.setCssClass(cssClass);
+  }
+
+  private String imageToken(String cssClass, String prefix, Integer value, int max, String path) {
+    return value == null ? cssClass : append(cssClass, prefix + range(value, 0, max, path));
+  }
+
+  private String oneOf(String value, String fallback, List<String> accepted, String path) {
+    if (value == null) {
+      if (fallback == null) {
+        throw refusal(path);
+      }
+      return fallback;
+    } else if (!accepted.contains(value)) {
+      throw refusal(path);
+    }
+    return value;
   }
 
   /**
@@ -644,7 +763,7 @@ public class LayoutStylingService {
     }
   }
 
-  private void applyText(LayoutModel target, TextBlock text) { // NOSONAR
+  private void applyText(LayoutModel target, TextBlock text, ImageConsumption images) throws ObjectNotFoundException { // NOSONAR
     if (text == null) {
       return;
     } else if (!on(text.enabled())) {
@@ -679,14 +798,20 @@ public class LayoutStylingService {
       throw refusal("text.subtitle.background");
     }
     String iconColor = text.iconColor() == null ? null : hex(text.iconColor(), "text.icon_color");
-    String[] titleBackground = textBackground(title == null ? null : title.background(),
-                                              target.getTextTitleBackgroundImage(),
-                                              target.getTextTitleBackgroundEffect(),
-                                              "text.title.background");
-    String[] headerBackground = textBackground(header == null ? null : header.background(),
-                                               target.getTextHeaderBackgroundImage(),
-                                               target.getTextHeaderBackgroundEffect(),
-                                               "text.header.background");
+    TextBackgroundValues titleBackground = textBackground(title == null ? null : title.background(),
+                                                          target,
+                                                          LayoutTextTitleBackgroundAttachmentPlugin.OBJECT_TYPE,
+                                                          target.getTextTitleBackgroundImage(),
+                                                          target.getTextTitleBackgroundEffect(),
+                                                          "text.title.background",
+                                                          images);
+    TextBackgroundValues headerBackground = textBackground(header == null ? null : header.background(),
+                                                           target,
+                                                           LayoutTextHeaderBackgroundAttachmentPlugin.OBJECT_TYPE,
+                                                           target.getTextHeaderBackgroundImage(),
+                                                           target.getTextHeaderBackgroundEffect(),
+                                                           "text.header.background",
+                                                           images);
     String[] titleValues = roleValues(title, "text.title");
     String[] headerValues = roleValues(header, "text.header");
     String[] contentValues = roleValues(content, "text.content");
@@ -700,16 +825,16 @@ public class LayoutStylingService {
       if (title.background() != null && !on(title.background().enabled())) {
         clearTitleBackground(target);
       } else if (title.background() != null) {
-        target.setTextTitleBackgroundColor(titleBackground[0]);
-        target.setTextTitleBackgroundEffect(titleBackground[1]);
-        if (titleBackground[4] == null) {
-          target.setTextTitleBackgroundImage(null);
-          target.setTextTitleBackgroundSize(null);
-          target.setTextTitleBackgroundRepeat(null);
-          target.setTextTitleBackgroundPosition(null);
+        target.setTextTitleBackgroundColor(titleBackground.color());
+        target.setTextTitleBackgroundEffect(titleBackground.effect());
+        if (titleBackground.image() == null || titleBackground.newImage()) {
+          target.setTextTitleBackgroundImage(titleBackground.image());
+          target.setTextTitleBackgroundSize(titleBackground.size());
+          target.setTextTitleBackgroundRepeat(titleBackground.repeat());
+          target.setTextTitleBackgroundPosition(titleBackground.position());
         }
-        target.setTextTitleBackgroundPadding(titleBackground[2]);
-        target.setTextTitleBackgroundRadius(titleBackground[3]);
+        target.setTextTitleBackgroundPadding(titleBackground.padding());
+        target.setTextTitleBackgroundRadius(titleBackground.radius());
       }
     }
     if (header != null) {
@@ -720,16 +845,16 @@ public class LayoutStylingService {
       if (header.background() != null && !on(header.background().enabled())) {
         clearHeaderBackground(target);
       } else if (header.background() != null) {
-        target.setTextHeaderBackgroundColor(headerBackground[0]);
-        target.setTextHeaderBackgroundEffect(headerBackground[1]);
-        if (headerBackground[4] == null) {
-          target.setTextHeaderBackgroundImage(null);
-          target.setTextHeaderBackgroundSize(null);
-          target.setTextHeaderBackgroundRepeat(null);
-          target.setTextHeaderBackgroundPosition(null);
+        target.setTextHeaderBackgroundColor(headerBackground.color());
+        target.setTextHeaderBackgroundEffect(headerBackground.effect());
+        if (headerBackground.image() == null || headerBackground.newImage()) {
+          target.setTextHeaderBackgroundImage(headerBackground.image());
+          target.setTextHeaderBackgroundSize(headerBackground.size());
+          target.setTextHeaderBackgroundRepeat(headerBackground.repeat());
+          target.setTextHeaderBackgroundPosition(headerBackground.position());
         }
-        target.setTextHeaderBackgroundPadding(headerBackground[2]);
-        target.setTextHeaderBackgroundRadius(headerBackground[3]);
+        target.setTextHeaderBackgroundPadding(headerBackground.padding());
+        target.setTextHeaderBackgroundRadius(headerBackground.radius());
       }
     }
     if (content != null) {
@@ -788,15 +913,39 @@ public class LayoutStylingService {
    *         on stores, then a marker that the stored image stays; a null
    *         colour with the stored effect when the block repeats that effect
    */
-  private String[] textBackground(TextBackgroundBlock background, String storedImage, String storedEffect, String path) {
+  private TextBackgroundValues textBackground(TextBackgroundBlock background,
+                                              LayoutModel target,
+                                              String objectType,
+                                              String storedImage,
+                                              String storedEffect,
+                                              String path,
+                                              ImageConsumption images) throws ObjectNotFoundException {
     if (background == null || !on(background.enabled())) {
-      return new String[5];
+      return TextBackgroundValues.off();
     }
     BackgroundImageBlock image = background.image();
-    if (image != null && (image.imageUploadId() != null || image.url() == null || !image.url().equals(storedImage))) {
+    String keptImage = null;
+    boolean newImage = false;
+    String size = null;
+    String repeat = null;
+    String position = null;
+    if (image != null && image.imageUploadId() != null) {
+      newImage = true;
+      if (image.repeat() != null) {
+        if (image.size() != null) {
+          throw refusal(path + ".image.size");
+        }
+        repeat = oneOf(image.repeat(), null, IMAGE_REPEATS, path + ".image.repeat");
+      } else {
+        size = oneOf(image.size(), IMAGE_SIZE_COVER, IMAGE_SIZES, path + ".image.size");
+      }
+      position = image.position() == null ? null : oneOf(image.position(), null, IMAGE_CORNER_POSITIONS, path + ".image.position");
+      keptImage = images.claim(image.imageUploadId(), objectType, target.getStorageId(), path + ".image");
+    } else if (image != null && (image.url() == null || !image.url().equals(storedImage))) {
       throw refusal(path + ".image");
+    } else if (image != null) {
+      keptImage = storedImage;
     }
-    String keptImage = image == null ? null : storedImage;
     String padding = background.padding() == null ? null : sides(background.padding(), path + ".padding");
     String radius = background.corners() == null || !on(background.corners().enabled()) ? null
                                                                                           : corners(background.corners(), path + ".corners");
@@ -804,7 +953,7 @@ public class LayoutStylingService {
       if (!background.effect().equals(storedEffect)) {
         throw refusal(path + ".effect");
       }
-      return new String[] { GRADIENT_BASE_COLOR, storedEffect, padding, radius, keptImage };
+      return new TextBackgroundValues(GRADIENT_BASE_COLOR, storedEffect, padding, radius, keptImage, newImage, size, repeat, position);
     }
     BackgroundMode mode = background.mode() == null ? BackgroundMode.SOLID : background.mode();
     String color;
@@ -821,7 +970,7 @@ public class LayoutStylingService {
       color = GRADIENT_BASE_COLOR;
       effect = gradient(mode, background.from(), background.to(), background.ratio(), background.direction(), path);
     }
-    return new String[] { color, effect, padding, radius, keptImage };
+    return new TextBackgroundValues(color, effect, padding, radius, keptImage, newImage, size, repeat, position);
   }
 
   private String sides(SidesBlock sides, String path) {

@@ -119,6 +119,31 @@
       }
     },
     {
+      "name": "upload_layout_image",
+      "title": "Upload an image for a layout",
+      "description": "Provide an image, as base64 bytes (a data: URI accepted), to be used by one later call: the banner of create_site or update_site, or a new background image in the styling blocks of set_layout_styles, set_page_layout or set_site_layout (a section, an application, a site container, or the title or header text background). The bytes are checked by content and must be a png, jpeg, gif or webp image of at most the platform's upload size limit; an image is never fetched from an address. Returns upload_id, an id usable once: the call that takes it consumes and releases it whether that call succeeds or fails, so an image used twice is uploaded twice.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "image_base64": {
+            "type": "string",
+            "description": "The image bytes encoded in base64, a data: URI prefix accepted: png, jpeg, gif or webp"
+          },
+          "file_name": {
+            "type": "string",
+            "description": "The file name to store the image under; omit for a generated one. Its extension is replaced by the detected image type's"
+          }
+        },
+        "required": ["image_base64"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
       "name": "create_site",
       "title": "Create a site",
       "description": "Create a portal site from a site template, as the sites administration does, for every user at once (not a draft). name is the site's identifier and URL segment (letters, digits, - and _; at most 200 characters) and can never change; label is the name users see, in the platform's default language. Options omitted take the administration's defaults: the basic template, not displayed in the sites menu, the fa-globe icon, and administrators as the only ones who can access and edit the site. Every value is checked before anything is written, and a refused one is answered naming the option. The banner takes a banner_upload_id obtained from upload_layout_image. Returns the site as stored after the creation, its site_id included, whatever the permissions written let the caller read afterwards.",
@@ -434,7 +459,7 @@
                   },
                   "background": {
                     "type": "object",
-                    "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
+                    "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                     "properties": {
                       "enabled": {
                         "type": "boolean"
@@ -443,7 +468,7 @@
                   },
                   "text": {
                     "type": "object",
-                    "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                    "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails; a stored image is kept by sending back its url",
                     "properties": {
                       "enabled": {
                         "type": "boolean"
@@ -507,7 +532,7 @@
                         },
                         "background": {
                           "type": "object",
-                          "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                          "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                           "properties": {
                             "enabled": {
                               "type": "boolean"
@@ -516,7 +541,7 @@
                         },
                         "text": {
                           "type": "object",
-                          "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                          "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails; a stored image is kept by sending back its url",
                           "properties": {
                             "enabled": {
                               "type": "boolean"
@@ -589,7 +614,7 @@
                   },
                   "background": {
                     "type": "object",
-                    "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
+                    "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                     "properties": {
                       "enabled": {
                         "type": "boolean"
@@ -598,7 +623,7 @@
                   },
                   "text": {
                     "type": "object",
-                    "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                    "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails; a stored image is kept by sending back its url",
                     "properties": {
                       "enabled": {
                         "type": "boolean"
@@ -662,7 +687,7 @@
                         },
                         "background": {
                           "type": "object",
-                          "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                          "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                           "properties": {
                             "enabled": {
                               "type": "boolean"
@@ -671,7 +696,7 @@
                         },
                         "text": {
                           "type": "object",
-                          "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                          "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails; a stored image is kept by sending back its url",
                           "properties": {
                             "enabled": {
                               "type": "boolean"
@@ -742,7 +767,7 @@
                     },
                     "background": {
                       "type": "object",
-                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
+                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                       "properties": {
                         "enabled": {
                           "type": "boolean"
@@ -751,7 +776,7 @@
                     },
                     "text": {
                       "type": "object",
-                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails; a stored image is kept by sending back its url",
                       "properties": {
                         "enabled": {
                           "type": "boolean"
@@ -815,7 +840,7 @@
                           },
                           "background": {
                             "type": "object",
-                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                             "properties": {
                               "enabled": {
                                 "type": "boolean"
@@ -824,7 +849,7 @@
                           },
                           "text": {
                             "type": "object",
-                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails; a stored image is kept by sending back its url",
                             "properties": {
                               "enabled": {
                                 "type": "boolean"
@@ -893,7 +918,7 @@
                     },
                     "background": {
                       "type": "object",
-                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; a new image is not accepted here",
+                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; scroll_color: the solid colour once scrolled, sticky containers only; a topbar takes a solid colour only; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                       "properties": {
                         "enabled": {
                           "type": "boolean"
@@ -902,7 +927,7 @@
                     },
                     "text": {
                       "type": "object",
-                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails; a stored image is kept by sending back its url",
                       "properties": {
                         "enabled": {
                           "type": "boolean"
@@ -966,7 +991,7 @@
                           },
                           "background": {
                             "type": "object",
-                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                             "properties": {
                               "enabled": {
                                 "type": "boolean"
@@ -975,7 +1000,7 @@
                           },
                           "text": {
                             "type": "object",
-                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails; a stored image is kept by sending back its url",
                             "properties": {
                               "enabled": {
                                 "type": "boolean"
@@ -1386,7 +1411,7 @@
                             },
                             "background": {
                               "type": "object",
-                              "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                              "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                               "properties": {
                                 "enabled": {
                                   "type": "boolean"
@@ -1395,7 +1420,7 @@
                             },
                             "text": {
                               "type": "object",
-                              "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                              "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails; a stored image is kept by sending back its url",
                               "properties": {
                                 "enabled": {
                                   "type": "boolean"
@@ -1506,7 +1531,7 @@
                               },
                               "background": {
                                 "type": "object",
-                                "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                                "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                                 "properties": {
                                   "enabled": {
                                     "type": "boolean"
@@ -1515,7 +1540,7 @@
                               },
                               "text": {
                                 "type": "object",
-                                "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                                "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails; a stored image is kept by sending back its url",
                                 "properties": {
                                   "enabled": {
                                     "type": "boolean"
@@ -1563,7 +1588,7 @@
                     },
                     "background": {
                       "type": "object",
-                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                      "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                       "properties": {
                         "enabled": {
                           "type": "boolean"
@@ -1656,7 +1681,7 @@
                     },
                     "background": {
                       "type": "object",
-                      "description": "enabled, then mode solid (default, color, and scroll_color on a sticky topbar or sidebar) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left), a topbar taking a solid colour only; colours as #RRGGBB or #RRGGBBAA; a new image is not accepted here",
+                      "description": "enabled, then mode solid (default, color, and scroll_color on a sticky topbar or sidebar) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left), a topbar taking a solid colour only; colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails, one id per call; a stored image is kept by sending back its url and options",
                       "properties": {
                         "enabled": {
                           "type": "boolean"
@@ -1665,7 +1690,7 @@
                     },
                     "text": {
                       "type": "object",
-                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, a new image is not accepted here",
+                      "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails; a stored image is kept by sending back its url",
                       "properties": {
                         "enabled": {
                           "type": "boolean"
