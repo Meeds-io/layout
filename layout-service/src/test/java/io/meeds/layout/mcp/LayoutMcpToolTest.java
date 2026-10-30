@@ -1841,6 +1841,40 @@ public class LayoutMcpToolTest {
   }
 
   /**
+   * The banner's id goes through the same consumable check as a background's:
+   * a resource the user may not consume is "does not exist: upload", refused
+   * before any write, and the check is asked for the caller
+   */
+  @Test
+  public void createSiteRefusesABannerTheUserMayNotConsume() throws Exception {
+    when(aclService.canAddSite(USER)).thenReturn(true);
+    templates(template(7L, "basic", false));
+    lenient().when(uploadService.getUploadResource("marys")).thenReturn(new UploadResource("marys"));
+    when(layoutImageService.isConsumable("marys", USER)).thenReturn(false);
+
+    assertEquals(LayoutMcpTool.UPLOAD_NOT_FOUND,
+                 refusal(ObjectNotFoundException.class, () -> tool.createSite("marketing", "Marketing", null, null, "marys", null, null, null, null)));
+
+    verify(layoutImageService).isConsumable("marys", USER);
+    verifyNoInteractions(siteLayoutService);
+    verify(uploadService, never()).removeUploadResource(any());
+  }
+
+  @Test
+  public void updateSiteRefusesABannerTheUserMayNotConsume() throws Exception {
+    editableSite();
+    lenient().when(uploadService.getUploadResource("marys")).thenReturn(new UploadResource("marys"));
+    when(layoutImageService.isConsumable("marys", USER)).thenReturn(false);
+
+    assertEquals(LayoutMcpTool.UPLOAD_NOT_FOUND,
+                 refusal(ObjectNotFoundException.class, () -> tool.updateSite(SITE_ID, null, null, null, null, null, null, "marys", null)));
+
+    verify(layoutImageService).isConsumable("marys", USER);
+    verify(siteLayoutService, never()).updateSiteAndPermissions(any(), any(), any(), any());
+    verify(uploadService, never()).removeUploadResource(any());
+  }
+
+  /**
    * The upload service's registry, as the helper stages into it: the resource
    * it is given, found again by its id
    */
