@@ -657,10 +657,13 @@ public class LayoutStylingService {
    * Writes a new background image as the editor's background input does once
    * an image is uploaded: the attachment placeholder, the size, position,
    * attachment and repeat options (the input's defaults when omitted) and
-   * the margin and radius tokens of the image
+   * the margin and radius tokens of the image. The id is claimed before the
+   * options are checked, so that a refused block's id is released with the
+   * call that carried it
    */
   private void applyNewImage(LayoutModel target, BackgroundImageBlock image, ImageConsumption images) throws ObjectNotFoundException {
     String path = "background.image";
+    String placeholder = images.claim(image.imageUploadId(), LayoutBackgroundAttachmentPlugin.OBJECT_TYPE, target.getStorageId(), path);
     String size = oneOf(image.size(), IMAGE_SIZE_COVER, IMAGE_SIZES, path + ".size");
     String position = image.position() == null || IMAGE_POSITION_CENTER.equals(image.position()) ? IMAGE_POSITION_CENTER
                                                                                                 : oneOf(image.position(), null, IMAGE_CORNER_POSITIONS, path + ".position");
@@ -680,7 +683,7 @@ public class LayoutStylingService {
       cssClass = imageToken(cssClass, "layout-bg-radius-br-", or(corners.bottomRight(), corners.all()), IMAGE_CORNER_MAX, path + ".corners.bottom_right");
       cssClass = imageToken(cssClass, "layout-bg-radius-bl-", or(corners.bottomLeft(), corners.all()), IMAGE_CORNER_MAX, path + ".corners.bottom_left");
     }
-    target.setBackgroundImage(images.claim(image.imageUploadId(), LayoutBackgroundAttachmentPlugin.OBJECT_TYPE, target.getStorageId(), path));
+    target.setBackgroundImage(placeholder);
     target.setBackgroundSize(size);
     target.setBackgroundPosition(position);
     target.setBackgroundAttachment(attachment);
@@ -930,6 +933,7 @@ public class LayoutStylingService {
     String repeat = null;
     String position = null;
     if (image != null && image.imageUploadId() != null) {
+      keptImage = images.claim(image.imageUploadId(), objectType, target.getStorageId(), path + ".image");
       newImage = true;
       if (image.repeat() != null) {
         if (image.size() != null) {
@@ -940,7 +944,6 @@ public class LayoutStylingService {
         size = oneOf(image.size(), IMAGE_SIZE_COVER, IMAGE_SIZES, path + ".image.size");
       }
       position = image.position() == null ? null : oneOf(image.position(), null, IMAGE_CORNER_POSITIONS, path + ".image.position");
-      keptImage = images.claim(image.imageUploadId(), objectType, target.getStorageId(), path + ".image");
     } else if (image != null && (image.url() == null || !image.url().equals(storedImage))) {
       throw refusal(path + ".image");
     } else if (image != null) {

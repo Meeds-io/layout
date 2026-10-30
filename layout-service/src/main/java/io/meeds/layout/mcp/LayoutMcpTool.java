@@ -300,7 +300,8 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   /**
    * The most megabytes an image given to upload_layout_image may decode to;
-   * 0 for the platform's upload limit
+   * 0, a negative value or one too large to count in bytes mean the
+   * platform's upload limit
    */
   @Value("${meeds.mcp.layout.image.maxSize:0}")
   private long                     imageMaxSizeMb;
@@ -630,9 +631,9 @@ public class LayoutMcpTool implements McpToolPlugin {
                                                                  username,
                                                                  getCurrentUserLocale(),
                                                                  images);
-      attachImages(images, username, SITE_NOT_ALLOWED, SITE_NOT_FOUND);
-      layoutImageService.substitute(layout, images);
       try {
+        attachImages(images, username, SITE_NOT_ALLOWED, SITE_NOT_FOUND);
+        layoutImageService.substitute(layout, images);
         writeSiteDraft(site, draftSite, layout, username);
       } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
         layoutImageService.compensate(images);
@@ -750,9 +751,9 @@ public class LayoutMcpTool implements McpToolPlugin {
     ImageConsumption images = layoutImageService.consumption(livePage.getStorageId());
     try {
       LayoutModel layout = layoutDescriptionService.toPageLayout(sections, stored, createDraft, username, getCurrentUserLocale(), images);
-      attachImages(images, username, PAGE_NOT_ALLOWED, PAGE_NOT_FOUND);
-      layoutImageService.substitute(layout, images);
       try {
+        attachImages(images, username, PAGE_NOT_ALLOWED, PAGE_NOT_FOUND);
+        layoutImageService.substitute(layout, images);
         writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
       } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
         layoutImageService.compensate(images);
@@ -790,9 +791,9 @@ public class LayoutMcpTool implements McpToolPlugin {
     ImageConsumption images = layoutImageService.consumption(SITE_KEY_PREFIX + site.getId());
     try {
       LayoutModel layout = layoutDescriptionService.toStyledSite(elements, createDraft ? site : draftSite, createDraft, username, images);
-      attachImages(images, username, SITE_NOT_ALLOWED, SITE_NOT_FOUND);
-      layoutImageService.substitute(layout, images);
       try {
+        attachImages(images, username, SITE_NOT_ALLOWED, SITE_NOT_FOUND);
+        layoutImageService.substitute(layout, images);
         writeSiteDraft(site, draftSite, layout, username);
       } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
         layoutImageService.compensate(images);
@@ -1136,9 +1137,9 @@ public class LayoutMcpTool implements McpToolPlugin {
     ImageConsumption images = layoutImageService.consumption(livePage.getStorageId());
     try {
       LayoutModel layout = layoutDescriptionService.toStyledPage(elements, stored, createDraft, username, images);
-      attachImages(images, username, PAGE_NOT_ALLOWED, PAGE_NOT_FOUND);
-      layoutImageService.substitute(layout, images);
       try {
+        attachImages(images, username, PAGE_NOT_ALLOWED, PAGE_NOT_FOUND);
+        layoutImageService.substitute(layout, images);
         writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
       } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
         layoutImageService.compensate(images);
@@ -1545,7 +1546,7 @@ public class LayoutMcpTool implements McpToolPlugin {
    *         helper's own default when the platform sets none
    */
   private long imageMaxBytes() {
-    if (imageMaxSizeMb > 0) {
+    if (imageMaxSizeMb > 0 && imageMaxSizeMb <= Long.MAX_VALUE / MEGABYTE) {
       return imageMaxSizeMb * MEGABYTE;
     }
     UploadService.UploadLimit limit = uploadService.getLimitForResource(new UploadResource(IMAGE_LIMIT_PROBE));

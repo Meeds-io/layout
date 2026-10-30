@@ -94,6 +94,8 @@ public class LayoutImageServiceTest {
     assertEquals("containerBackground", saved.getValue().getObjectType());
     assertEquals("page_3_12", saved.getValue().getObjectId());
     assertEquals("u1", saved.getValue().getUploadedFiles().get(0).getUploadId());
+    assertEquals("7", saved.getValue().getAttachedFiles().get(0).getId());
+    saved.getValue().getUploadedFiles().addAll(saved.getValue().getAttachedFiles());
     assertEquals("/portal/rest/v1/social/attachments/containerBackground/page_3_12/9", images.resolve("upload_u1"));
     assertEquals(List.of(new AttachedImage("containerBackground", "page_3_12", "9")), images.getAttached());
   }

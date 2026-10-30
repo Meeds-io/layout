@@ -1784,7 +1784,7 @@ public class LayoutMcpToolTest {
   }
 
   @Test
-  public void setLayoutStylesOnASiteKeysTheImagesOnTheLiveSiteAndNamesTheSiteOnARefusedAttachment() throws Exception {
+  public void setLayoutStylesOnASiteKeysTheImagesOnTheLiveSiteAndCompensatesARefusedAttachment() throws Exception {
     PortalConfig site = editableSite();
     SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
     PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
@@ -1800,7 +1800,7 @@ public class LayoutMcpToolTest {
 
     verify(layoutImageService).consumption("site_" + site.getId());
     verify(siteLayoutService, never()).updateSiteLayout(any(), any(), anyBoolean(), any());
-    verify(layoutImageService, never()).compensate(any());
+    verify(layoutImageService).compensate(images.getValue());
     verify(layoutImageService).release(images.getValue());
   }
 

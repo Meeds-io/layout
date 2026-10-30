@@ -22,6 +22,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.function.Executable;
 
@@ -778,12 +780,13 @@ public class LayoutStylingServiceTest {
 
   @Test
   public void aNewBackgroundImageIsRefusedOutsideTheVocabularyAndOnAnUnknownOrRepeatedId() throws Exception {
-    ImageConsumption images = new ImageConsumption("page_3", "u1"::equals);
+    ImageConsumption images = new ImageConsumption("page_3", id -> List.of("u1", "u3", "u4").contains(id));
     LayoutModel section = new LayoutModel();
     assertEquals(REFUSED + "background.image.position",
-                 refusedImage(() -> service.applyStyling(section, withImage(new BackgroundImageBlock("u1", null, null, "middle", null, null, null, null)), StylingDestination.DYNAMIC_SECTION, false, false, images)));
+                 refusedImage(() -> service.applyStyling(section, withImage(new BackgroundImageBlock("u3", null, null, "middle", null, null, null, null)), StylingDestination.DYNAMIC_SECTION, false, false, images)));
     assertEquals(REFUSED + "background.image.margins.top",
-                 refusedImage(() -> service.applyStyling(section, withImage(new BackgroundImageBlock("u1", null, null, null, null, null, new SidesBlock(401, null, null, null), null)), StylingDestination.DYNAMIC_SECTION, false, false, images)));
+                 refusedImage(() -> service.applyStyling(section, withImage(new BackgroundImageBlock("u4", null, null, null, null, null, new SidesBlock(401, null, null, null), null)), StylingDestination.DYNAMIC_SECTION, false, false, images)));
+    assertEquals(List.of("u3", "u4"), List.copyOf(images.getTargets().keySet()));
     assertEquals(ImageConsumption.UPLOAD_NOT_FOUND,
                  assertThrows(ObjectNotFoundException.class,
                               () -> service.applyStyling(section, withImage(new BackgroundImageBlock("u2", null, null, null, null, null, null, null)), StylingDestination.DYNAMIC_SECTION, false, false, images)).getMessage());
