@@ -37,6 +37,7 @@ import io.meeds.layout.mcp.constant.StylingDestination;
 import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.StylingDescription;
+import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.util.EntityMapper;
 
@@ -88,6 +89,7 @@ public class LayoutStylesAssembler {
   private final LayoutStylingService                                  stylingService;
 
   private final BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling;
+  private final ImageConsumption                                      images;
 
   private final Map<String, LayoutModel>                              targets                 = new HashMap<>();
 
@@ -113,10 +115,23 @@ public class LayoutStylesAssembler {
                                Set<String> hiddenIds,
                                LayoutStylingService stylingService,
                                BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling) {
+    this(root, hiddenIds, stylingService, storedStyling, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a block carrying an
+   *          image_upload_id claims its id
+   */
+  public LayoutStylesAssembler(LayoutModel root,
+                               Set<String> hiddenIds,
+                               LayoutStylingService stylingService,
+                               BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling,
+                               ImageConsumption images) {
     this.root = root;
     this.hiddenIds = hiddenIds;
     this.stylingService = stylingService;
     this.storedStyling = storedStyling;
+    this.images = images;
   }
 
   public LayoutModel stylePage(List<ElementStyling> elements) throws ObjectNotFoundException {
@@ -160,7 +175,7 @@ public class LayoutStylesAssembler {
       StylingDestination destination = destinations.get(elementId);
       boolean sticky = stickyTargets.contains(elementId);
       StylingDescription merged = LayoutStylingService.merge(storedStyling.apply(target, destination), element.styling(), sticky);
-      stylingService.applyStyling(target, merged, destination, sticky, plainColorTargets.contains(elementId));
+      stylingService.applyStyling(target, merged, destination, sticky, plainColorTargets.contains(elementId), images);
     }
     stripGeneratedTokens(used);
     return root;

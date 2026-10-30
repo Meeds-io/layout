@@ -39,6 +39,7 @@ import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteContainerOptions;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.StylingDescription;
+import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.util.EntityMapper;
 
@@ -156,6 +157,7 @@ public class SiteLayoutAssembler {
   private final BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling;
 
   private final Function<ApplicationDescription, LayoutModel> newApplication;
+  private final ImageConsumption                            images;
 
   private final Map<String, LayoutModel>                    byId                            = new HashMap<>();
 
@@ -183,11 +185,25 @@ public class SiteLayoutAssembler {
                              LayoutStylingService stylingService,
                              BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling,
                              Function<ApplicationDescription, LayoutModel> newApplication) {
+    this(root, hiddenWindows, stylingService, storedStyling, newApplication, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a block carrying an
+   *          image_upload_id claims its id
+   */
+  public SiteLayoutAssembler(LayoutModel root,
+                             Map<String, Integer> hiddenWindows,
+                             LayoutStylingService stylingService,
+                             BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling,
+                             Function<ApplicationDescription, LayoutModel> newApplication,
+                             ImageConsumption images) {
     this.root = root;
     this.hiddenWindows = hiddenWindows;
     this.stylingService = stylingService;
     this.storedStyling = storedStyling;
     this.newApplication = newApplication;
+    this.images = images;
   }
 
   public LayoutModel assemble(SiteLayoutUpdate update) throws ObjectNotFoundException, IllegalAccessException {
@@ -468,9 +484,13 @@ public class SiteLayoutAssembler {
    * Writes the call's styling merged over the element's stored one, so a
    * block or a value the call leaves null keeps what the element holds
    */
-  private void applyStyling(LayoutModel element, StylingDescription styling, StylingDestination destination, boolean sticky, boolean plainColorOnly) {
+  private void applyStyling(LayoutModel element,
+                            StylingDescription styling,
+                            StylingDestination destination,
+                            boolean sticky,
+                            boolean plainColorOnly) throws ObjectNotFoundException {
     StylingDescription merged = LayoutStylingService.merge(storedStyling.apply(element, destination), styling, sticky);
-    stylingService.applyStyling(element, merged, destination, sticky, plainColorOnly);
+    stylingService.applyStyling(element, merged, destination, sticky, plainColorOnly, images);
   }
 
   private LayoutModel container(String storageId, String template) throws ObjectNotFoundException {
