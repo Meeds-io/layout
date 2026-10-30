@@ -30,6 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
@@ -63,6 +65,7 @@ import org.exoplatform.services.organization.OrganizationService;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.social.core.space.SpaceUtils;
+import org.exoplatform.upload.UploadResource;
 import org.exoplatform.upload.UploadService;
 
 import io.meeds.layout.mcp.constant.LayoutVersion;
@@ -97,7 +100,10 @@ import io.meeds.layout.model.SiteTemplate;
 import io.meeds.layout.service.ApplicationSettingsService;
 import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
+import io.meeds.layout.model.ImageConsumption;
+import io.meeds.layout.mcp.model.UploadedImage;
 import io.meeds.layout.service.LayoutDraftService;
+import io.meeds.layout.service.LayoutImageService;
 import io.meeds.layout.service.NavigationLayoutService;
 import io.meeds.layout.service.PageLayoutService;
 import io.meeds.layout.service.PageTemplateService;
@@ -105,6 +111,7 @@ import io.meeds.layout.service.SiteLayoutService;
 import io.meeds.layout.service.SiteTemplateService;
 import io.meeds.layout.service.SiteLayoutAssembler;
 import io.meeds.mcp.server.plugin.McpToolPlugin;
+import io.meeds.mcp.server.tool.util.UploadToolUtils;
 
 /**
  * The read tools of the layout, the site tools, the site layout tools and the
@@ -149,6 +156,14 @@ public class LayoutMcpTool implements McpToolPlugin {
   public static final String       SITE_NOT_DELETED      = "could not be deleted: site";
 
   public static final String       UPLOAD_NOT_FOUND      = "does not exist: upload";
+
+  public static final String       IMAGE_NOT_ACCEPTED    = "value is not accepted for image_base64";
+
+  public static final String       IMAGE_TOO_LARGE       = IMAGE_NOT_ACCEPTED + ": larger than %d MB";
+
+  public static final String       IMAGE_NOT_SAVED       = "could not be saved: image";
+
+  public static final String       SITE_KEY_PREFIX       = "site_";
 
   public static final String       NAME_NOT_ACCEPTED     = "value is not accepted for name";
 
@@ -230,6 +245,8 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   private static final Log         LOG                   = ExoLogger.getLogger(LayoutMcpTool.class);
 
+  private static final long        MEGABYTE              = 1024L * 1024;
+
   private static final Pattern     NAME_PATTERN          = Pattern.compile("^[a-zA-Z0-9_-]{1,200}$");
 
   private static final Pattern     ICON_PATTERN          = Pattern.compile("^[a-z0-9-]+( [a-z0-9-]+)*$");
@@ -276,6 +293,17 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   @Autowired
   private ApplicationSettingsService applicationSettingsService;
+
+  @Autowired
+  private LayoutImageService       layoutImageService;
+
+  /**
+   * The most megabytes an image given to upload_layout_image may decode to;
+   * 0, a negative value or one too large to count in bytes mean the
+   * platform's upload limit
+   */
+  @Value("${meeds.mcp.layout.image.maxSize:0}")
+  private long                     imageMaxSizeMb;
 
   /**
    * Lists the sites the current user can view: without a keyword the portal
@@ -368,6 +396,48 @@ public class LayoutMcpTool implements McpToolPlugin {
   }
 
   /**
+   * Stages an image given as base64 bytes, never fetched from an address, so
+   * that one later call consumes it: a site banner, or the background of a
+   * section, an application, a site container or a text role. The bytes are
+   * checked by content (png, jpeg, gif or webp) and capped; the id answered
+   * is unguessable, usable once, consumed and released by the call that takes
+   * it whether that call succeeds or fails.
+   */
+  public UploadedImage uploadLayoutImage(String imageBase64, String fileName) {
+    getCurrentUserName();
+    long maxBytes = imageMaxBytes();
+    byte[] bytes;
+    try {
+      bytes = UploadToolUtils.decodeBase64(StringUtils.defaultString(imageBase64));
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(IMAGE_NOT_ACCEPTED);
+    }
+    if (bytes.length == 0) {
+      throw new IllegalArgumentException(IMAGE_NOT_ACCEPTED);
+    } else if (bytes.length > maxBytes) {
+      throw new IllegalArgumentException(String.format(IMAGE_TOO_LARGE, maxBytes / MEGABYTE));
+    }
+    String uploadId;
+    try {
+      uploadId = UploadToolUtils.materializeFromUrlOrBase64(uploadService, null, imageBase64, maxBytes);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(IMAGE_NOT_ACCEPTED);
+    } catch (IllegalStateException e) {
+      LOG.debug("Image could not be staged", e);
+      throw new IllegalStateException(IMAGE_NOT_SAVED);
+    }
+    UploadResource resource = uploadService.getUploadResource(uploadId);
+    String givenName = StringUtils.trimToNull(fileName);
+    if (resource != null && givenName != null) {
+      String stagedName = StringUtils.defaultString(resource.getFileName());
+      String extension = stagedName.contains(".") ? stagedName.substring(stagedName.lastIndexOf('.')) : "";
+      String baseName = givenName.contains(".") ? givenName.substring(0, givenName.lastIndexOf('.')) : givenName;
+      resource.setFileName(uploadService.correctFileName(baseName) + extension);
+    }
+    return new UploadedImage(uploadId);
+  }
+
+  /**
    * Creates a portal site from a site template, as the sites administration
    * does: the name is the site's key and URL segment and never changes, the
    * label is what users see. Omitted options take the administration's
@@ -397,7 +467,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     List<String> siteAccessPermissions = requireAccessPermissions(accessPermissions);
     String siteEditPermission = requireEditPermission(editPermission);
     long templateId = resolveTemplateId(template);
-    String uploadId = requireUpload(bannerUploadId);
+    String uploadId = requireUpload(bannerUploadId, username);
 
     PortalConfig portalConfig = new PortalConfig(PortalConfig.PORTAL_TYPE, siteName);
     portalConfig.setLabel(siteLabel);
@@ -468,7 +538,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     if (Boolean.TRUE.equals(removeBanner) && StringUtils.isNotBlank(bannerUploadId)) {
       throw new IllegalArgumentException(REMOVE_BANNER_NOT_ACCEPTED);
     }
-    String uploadId = requireUpload(bannerUploadId);
+    String uploadId = requireUpload(bannerUploadId, username);
     PermissionUpdateModel permissions = siteAccessPermissions == null && siteEditPermission == null ? null :
                                                                                                      new PermissionUpdateModel(siteKey.getTypeName(),
                                                                                                                                siteKey.getName(),
@@ -552,12 +622,25 @@ public class LayoutMcpTool implements McpToolPlugin {
     SiteKey siteKey = site.getSiteKey();
     PortalConfig draftSite = readDraftSite(siteId, username);
     boolean createDraft = draftSite == null;
-    LayoutModel layout = layoutDescriptionService.toSiteLayout(new SiteLayoutUpdate(leftSidebar, rightSidebar, topbars, bottomBars),
-                                                               createDraft ? site : draftSite,
-                                                               createDraft,
-                                                               username,
-                                                               getCurrentUserLocale());
-    writeSiteDraft(site, draftSite, layout, username);
+    ImageConsumption images = layoutImageService.consumption(SITE_KEY_PREFIX + site.getId(), username);
+    try {
+      LayoutModel layout = layoutDescriptionService.toSiteLayout(new SiteLayoutUpdate(leftSidebar, rightSidebar, topbars, bottomBars),
+                                                                 createDraft ? site : draftSite,
+                                                                 createDraft,
+                                                                 username,
+                                                                 getCurrentUserLocale(),
+                                                                 images);
+      try {
+        attachImages(images, username, SITE_NOT_ALLOWED, SITE_NOT_FOUND);
+        layoutImageService.substitute(layout, images);
+        writeSiteDraft(site, draftSite, layout, username);
+      } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
+        layoutImageService.compensate(images);
+        throw e;
+      }
+    } finally {
+      layoutImageService.release(images);
+    }
     return describeStoredSite(siteKey, username);
   }
 
@@ -656,7 +739,7 @@ public class LayoutMcpTool implements McpToolPlugin {
                                                                                             IllegalAccessException {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
-    readEditablePage(pageKey, username);
+    Page livePage = readEditablePage(pageKey, username);
     long liveNodeId = requireLiveNodeId(pageKey, username);
     PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
     boolean createDraft = draftPageKey == null;
@@ -664,8 +747,20 @@ public class LayoutMcpTool implements McpToolPlugin {
     if (stored == null) {
       throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
     }
-    LayoutModel layout = layoutDescriptionService.toPageLayout(sections, stored, createDraft, username, getCurrentUserLocale());
-    writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+    ImageConsumption images = layoutImageService.consumption(livePage.getStorageId(), username);
+    try {
+      LayoutModel layout = layoutDescriptionService.toPageLayout(sections, stored, createDraft, username, getCurrentUserLocale(), images);
+      try {
+        attachImages(images, username, PAGE_NOT_ALLOWED, PAGE_NOT_FOUND);
+        layoutImageService.substitute(layout, images);
+        writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+      } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
+        layoutImageService.compensate(images);
+        throw e;
+      }
+    } finally {
+      layoutImageService.release(images);
+    }
     return describeStoredPage(pageKey, liveNodeId, username);
   }
 
@@ -692,8 +787,20 @@ public class LayoutMcpTool implements McpToolPlugin {
     PortalConfig site = readEditableSite(siteId, username);
     PortalConfig draftSite = readDraftSite(siteId, username);
     boolean createDraft = draftSite == null;
-    LayoutModel layout = layoutDescriptionService.toStyledSite(elements, createDraft ? site : draftSite, createDraft, username);
-    writeSiteDraft(site, draftSite, layout, username);
+    ImageConsumption images = layoutImageService.consumption(SITE_KEY_PREFIX + site.getId(), username);
+    try {
+      LayoutModel layout = layoutDescriptionService.toStyledSite(elements, createDraft ? site : draftSite, createDraft, username, images);
+      try {
+        attachImages(images, username, SITE_NOT_ALLOWED, SITE_NOT_FOUND);
+        layoutImageService.substitute(layout, images);
+        writeSiteDraft(site, draftSite, layout, username);
+      } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
+        layoutImageService.compensate(images);
+        throw e;
+      }
+    } finally {
+      layoutImageService.release(images);
+    }
     return describeStoredSite(site.getSiteKey(), username);
   }
 
@@ -1018,7 +1125,7 @@ public class LayoutMcpTool implements McpToolPlugin {
                                                                                        IllegalAccessException {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
-    readEditablePage(pageKey, username);
+    Page livePage = readEditablePage(pageKey, username);
     long liveNodeId = requireLiveNodeId(pageKey, username);
     PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
     boolean createDraft = draftPageKey == null;
@@ -1026,8 +1133,20 @@ public class LayoutMcpTool implements McpToolPlugin {
     if (stored == null) {
       throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
     }
-    LayoutModel layout = layoutDescriptionService.toStyledPage(elements, stored, createDraft, username);
-    writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+    ImageConsumption images = layoutImageService.consumption(livePage.getStorageId(), username);
+    try {
+      LayoutModel layout = layoutDescriptionService.toStyledPage(elements, stored, createDraft, username, images);
+      try {
+        attachImages(images, username, PAGE_NOT_ALLOWED, PAGE_NOT_FOUND);
+        layoutImageService.substitute(layout, images);
+        writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+      } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
+        layoutImageService.compensate(images);
+        throw e;
+      }
+    } finally {
+      layoutImageService.release(images);
+    }
     return describeStoredPage(pageKey, liveNodeId, username);
   }
 
@@ -1395,12 +1514,52 @@ public class LayoutMcpTool implements McpToolPlugin {
    * A live page the current user may edit: a draft page addressed by its own
    * reference does not exist for the tools
    */
-  private void readEditablePage(PageKey pageKey, String username) throws ObjectNotFoundException, IllegalAccessException {
-    if (layoutDraftService.isDraftNode(pageKey.getName()) || layoutService.getPage(pageKey) == null) {
+  private Page readEditablePage(PageKey pageKey, String username) throws ObjectNotFoundException, IllegalAccessException {
+    Page page = layoutDraftService.isDraftNode(pageKey.getName()) ? null : layoutService.getPage(pageKey);
+    if (page == null) {
       throw new ObjectNotFoundException(PAGE_NOT_FOUND);
     } else if (!aclService.canEditPage(pageKey, username)) {
       throw new IllegalAccessException(PAGE_NOT_ALLOWED);
     }
+    return page;
+  }
+
+  /**
+   * Saves the images the call claimed as attachments of their live page or
+   * site, as the user; a refusal names the layout the images belong to
+   */
+  private void attachImages(ImageConsumption images, String username, String notAllowed, String notFound) throws ObjectNotFoundException,
+                                                                                                        IllegalAccessException {
+    try {
+      layoutImageService.attach(images, username);
+    } catch (IllegalAccessException e) {
+      throw new IllegalAccessException(notAllowed);
+    } catch (ObjectNotFoundException e) {
+      throw new ObjectNotFoundException(notFound);
+    }
+  }
+
+  /**
+   * @return the most bytes an uploaded image may decode to: the configured
+   *         megabytes, else the platform's upload limit, else the upload
+   *         helper's own default when the platform sets none. The limit is
+   *         read for an id no client can have registered a limit under, since
+   *         the limits map takes any id a request names
+   */
+  private long imageMaxBytes() {
+    if (imageMaxSizeMb > 0 && imageMaxSizeMb <= Long.MAX_VALUE / MEGABYTE) {
+      return imageMaxSizeMb * MEGABYTE;
+    }
+    UploadService.UploadLimit limit = uploadService.getLimitForResource(new UploadResource(UUID.randomUUID().toString()));
+    if (limit == null || limit.getLimit() <= 0) {
+      return UploadToolUtils.DEFAULT_MAX_BYTES;
+    }
+    long unit = switch (StringUtils.upperCase(limit.getUnit())) {
+      case "KB" -> 1024L;
+      case "GB" -> 1024L * MEGABYTE;
+      default -> MEGABYTE;
+    };
+    return limit.getLimit() * unit;
   }
 
   /**
@@ -1642,12 +1801,13 @@ public class LayoutMcpTool implements McpToolPlugin {
   }
 
   /**
-   * An upload id is resolved before the first write; the save consumes it,
-   * and a failure before the save releases it
+   * An upload id is resolved before the first write, as one the user may
+   * consume (owner-less or their own, an image); the save consumes it, and a
+   * failure before the save releases it
    */
-  private String requireUpload(String bannerUploadId) throws ObjectNotFoundException {
+  private String requireUpload(String bannerUploadId, String username) throws ObjectNotFoundException {
     String uploadId = StringUtils.trimToNull(bannerUploadId);
-    if (uploadId != null && uploadService.getUploadResource(uploadId) == null) {
+    if (uploadId != null && !layoutImageService.isConsumable(uploadId, username)) {
       throw new ObjectNotFoundException(UPLOAD_NOT_FOUND);
     }
     return uploadId;
