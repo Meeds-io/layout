@@ -41,6 +41,7 @@ import io.meeds.layout.mcp.model.ApplicationDescription;
 import io.meeds.layout.mcp.model.CellDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.StylingDescription;
+import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.util.EntityMapper;
 
@@ -150,6 +151,7 @@ public class PageLayoutAssembler {
   private final BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling;
 
   private final Function<ApplicationDescription, LayoutModel> newApplication;
+  private final ImageConsumption                            images;
 
   private final Map<String, LayoutModel>                    byId                         = new HashMap<>();
 
@@ -179,11 +181,25 @@ public class PageLayoutAssembler {
                              LayoutStylingService stylingService,
                              BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling,
                              Function<ApplicationDescription, LayoutModel> newApplication) {
+    this(root, hiddenWindows, stylingService, storedStyling, newApplication, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a block carrying an
+   *          image_upload_id claims its id
+   */
+  public PageLayoutAssembler(LayoutModel root,
+                             Map<String, Integer> hiddenWindows,
+                             LayoutStylingService stylingService,
+                             BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling,
+                             Function<ApplicationDescription, LayoutModel> newApplication,
+                             ImageConsumption images) {
     this.root = root;
     this.hiddenWindows = hiddenWindows;
     this.stylingService = stylingService;
     this.storedStyling = storedStyling;
     this.newApplication = newApplication;
+    this.images = images;
   }
 
   public LayoutModel assemble(List<SectionDescription> sections) throws ObjectNotFoundException, IllegalAccessException {
@@ -515,9 +531,9 @@ public class PageLayoutAssembler {
    * Writes the call's styling merged over the element's stored one, so a
    * block or a value the call leaves null keeps what the element holds
    */
-  private void applyStyling(LayoutModel element, StylingDescription styling, StylingDestination destination) {
+  private void applyStyling(LayoutModel element, StylingDescription styling, StylingDestination destination) throws ObjectNotFoundException {
     StylingDescription merged = LayoutStylingService.merge(storedStyling.apply(element, destination), styling, false);
-    stylingService.applyStyling(element, merged, destination, false, false);
+    stylingService.applyStyling(element, merged, destination, false, false, images);
   }
 
   /**
