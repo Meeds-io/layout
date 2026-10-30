@@ -30,6 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.regex.Pattern;
@@ -243,8 +244,6 @@ public class LayoutMcpTool implements McpToolPlugin {
   public static final int          DESCRIPTION_MAX_LENGTH = 2000;
 
   private static final Log         LOG                   = ExoLogger.getLogger(LayoutMcpTool.class);
-
-  private static final String      IMAGE_LIMIT_PROBE     = "layout-image";
 
   private static final long        MEGABYTE              = 1024L * 1024;
 
@@ -1543,13 +1542,15 @@ public class LayoutMcpTool implements McpToolPlugin {
   /**
    * @return the most bytes an uploaded image may decode to: the configured
    *         megabytes, else the platform's upload limit, else the upload
-   *         helper's own default when the platform sets none
+   *         helper's own default when the platform sets none. The limit is
+   *         read for an id no client can have registered a limit under, since
+   *         the limits map takes any id a request names
    */
   private long imageMaxBytes() {
     if (imageMaxSizeMb > 0 && imageMaxSizeMb <= Long.MAX_VALUE / MEGABYTE) {
       return imageMaxSizeMb * MEGABYTE;
     }
-    UploadService.UploadLimit limit = uploadService.getLimitForResource(new UploadResource(IMAGE_LIMIT_PROBE));
+    UploadService.UploadLimit limit = uploadService.getLimitForResource(new UploadResource(UUID.randomUUID().toString()));
     if (limit == null || limit.getLimit() <= 0) {
       return UploadToolUtils.DEFAULT_MAX_BYTES;
     }

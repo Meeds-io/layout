@@ -20,6 +20,7 @@ package io.meeds.layout.mcp;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -52,6 +53,7 @@ import java.util.List;
 import java.util.Base64;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.Arrays;
 import java.util.stream.IntStream;
@@ -1762,6 +1764,28 @@ public class LayoutMcpToolTest {
     } finally {
       ReflectionTestUtils.setField(tool, "imageMaxSizeMb", 0L);
     }
+  }
+
+  /**
+   * The limits map takes any id a request names, so the platform limit is
+   * read for an id drawn on each call, never a fixed one a client could
+   * register a limit under
+   */
+  @Test
+  public void uploadLayoutImageReadsThePlatformLimitForAnIdNoClientCanHaveNamed() throws Exception {
+    stagedUploads();
+    ArgumentCaptor<UploadResource> probes = ArgumentCaptor.forClass(UploadResource.class);
+    when(uploadService.getLimitForResource(probes.capture())).thenReturn(new UploadService.UploadLimit(10, UploadService.UploadUnit.MB));
+
+    asUser(() -> tool.uploadLayoutImage(PNG_BASE64, null));
+    asUser(() -> tool.uploadLayoutImage(PNG_BASE64, null));
+
+    assertEquals(2, probes.getAllValues().size());
+    String first = probes.getAllValues().get(0).getUploadId();
+    String second = probes.getAllValues().get(1).getUploadId();
+    assertNotEquals(first, second);
+    assertEquals(first, UUID.fromString(first).toString());
+    assertEquals(second, UUID.fromString(second).toString());
   }
 
   @Test
