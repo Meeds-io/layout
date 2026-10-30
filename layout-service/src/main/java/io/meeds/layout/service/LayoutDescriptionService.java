@@ -94,6 +94,7 @@ import io.meeds.layout.mcp.model.TextBackgroundBlock;
 import io.meeds.layout.mcp.model.TextBlock;
 import io.meeds.layout.mcp.model.TextRoleBlock;
 import io.meeds.layout.model.ApplicationReadScope;
+import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PortletInstance;
@@ -375,6 +376,19 @@ public class LayoutDescriptionService {
                                   boolean copyWindows,
                                   String username,
                                   Locale locale) throws ObjectNotFoundException, IllegalAccessException {
+    return toSiteLayout(update, stored, copyWindows, username, locale, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a styling block
+   *          carrying an image_upload_id claims its id before any write
+   */
+  public LayoutModel toSiteLayout(SiteLayoutUpdate update,
+                                  PortalConfig stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  Locale locale,
+                                  ImageConsumption images) throws ObjectNotFoundException, IllegalAccessException {
     Container layout = stored.getPortalLayout();
     if (layout == null) {
       throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
@@ -387,7 +401,8 @@ public class LayoutDescriptionService {
                                                  hiddenWindows,
                                                  stylingService,
                                                  this::toStyling,
-                                                 description -> newApplication(description, username, locale)).assemble(update);
+                                                 description -> newApplication(description, username, locale),
+                                                 images).assemble(update);
     if (copyWindows) {
       result.resetStorage();
     }
@@ -417,6 +432,19 @@ public class LayoutDescriptionService {
                                   boolean copyWindows,
                                   String username,
                                   Locale locale) throws ObjectNotFoundException, IllegalAccessException {
+    return toPageLayout(sections, stored, copyWindows, username, locale, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a styling block
+   *          carrying an image_upload_id claims its id before any write
+   */
+  public LayoutModel toPageLayout(List<SectionDescription> sections,
+                                  Page stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  Locale locale,
+                                  ImageConsumption images) throws ObjectNotFoundException, IllegalAccessException {
     Map<String, Integer> hiddenWindows = new LinkedHashMap<>();
     collectHidden(stored, username, hiddenWindows, PageLayoutAssembler.PAGE_LAYOUT_HIDDEN);
     LayoutModel root = copyWindows ? new LayoutModel(stored, portletInstanceService, new PortletInstanceContext(false, null)) :
@@ -425,7 +453,8 @@ public class LayoutDescriptionService {
                                                  hiddenWindows,
                                                  stylingService,
                                                  this::toStyling,
-                                                 description -> newApplication(description, username, locale)).assemble(sections);
+                                                 description -> newApplication(description, username, locale),
+                                                 images).assemble(sections);
     if (copyWindows) {
       result.resetStorage();
     }
@@ -451,7 +480,19 @@ public class LayoutDescriptionService {
                                   Page stored,
                                   boolean copyWindows,
                                   String username) throws ObjectNotFoundException {
-    return checkedPage(pageAssembler(stored, copyWindows, username).stylePage(elements), copyWindows);
+    return toStyledPage(elements, stored, copyWindows, username, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a block carrying an
+   *          image_upload_id claims its id before any write
+   */
+  public LayoutModel toStyledPage(List<ElementStyling> elements,
+                                  Page stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  ImageConsumption images) throws ObjectNotFoundException {
+    return checkedPage(pageAssembler(stored, copyWindows, username, images).stylePage(elements), copyWindows);
   }
 
   /**
@@ -468,7 +509,7 @@ public class LayoutDescriptionService {
                                      Page stored,
                                      boolean copyWindows,
                                      String username) throws ObjectNotFoundException {
-    return checkedPage(pageAssembler(stored, copyWindows, username).displayPage(elements), copyWindows);
+    return checkedPage(pageAssembler(stored, copyWindows, username, ImageConsumption.none()).displayPage(elements), copyWindows);
   }
 
   /**
@@ -485,7 +526,19 @@ public class LayoutDescriptionService {
                                   PortalConfig stored,
                                   boolean copyWindows,
                                   String username) throws ObjectNotFoundException {
-    return checkedSite(siteAssembler(stored, copyWindows, username).styleSite(elements), copyWindows);
+    return toStyledSite(elements, stored, copyWindows, username, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a block carrying an
+   *          image_upload_id claims its id before any write
+   */
+  public LayoutModel toStyledSite(List<ElementStyling> elements,
+                                  PortalConfig stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  ImageConsumption images) throws ObjectNotFoundException {
+    return checkedSite(siteAssembler(stored, copyWindows, username, images).styleSite(elements), copyWindows);
   }
 
   /**
@@ -502,7 +555,7 @@ public class LayoutDescriptionService {
                                      PortalConfig stored,
                                      boolean copyWindows,
                                      String username) throws ObjectNotFoundException {
-    return checkedSite(siteAssembler(stored, copyWindows, username).displaySite(elements), copyWindows);
+    return checkedSite(siteAssembler(stored, copyWindows, username, ImageConsumption.none()).displaySite(elements), copyWindows);
   }
 
   /**
@@ -702,15 +755,15 @@ public class LayoutDescriptionService {
                                   destination.hasHeight() ? toHeight(model) : null);
   }
 
-  private LayoutStylesAssembler pageAssembler(Page stored, boolean copyWindows, String username) {
+  private LayoutStylesAssembler pageAssembler(Page stored, boolean copyWindows, String username, ImageConsumption images) {
     Set<String> hiddenIds = new HashSet<>();
     collectHiddenIds(stored, username, false, hiddenIds);
     LayoutModel root = copyWindows ? new LayoutModel(stored, portletInstanceService, new PortletInstanceContext(false, null)) :
                                    new LayoutModel(stored);
-    return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling);
+    return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling, images);
   }
 
-  private LayoutStylesAssembler siteAssembler(PortalConfig stored, boolean copyWindows, String username) {
+  private LayoutStylesAssembler siteAssembler(PortalConfig stored, boolean copyWindows, String username, ImageConsumption images) {
     Container layout = stored.getPortalLayout();
     if (layout == null) {
       throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
@@ -719,7 +772,7 @@ public class LayoutDescriptionService {
     collectHiddenIds(layout, username, false, hiddenIds);
     LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
                                    new LayoutModel(layout);
-    return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling);
+    return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling, images);
   }
 
   private LayoutModel checkedPage(LayoutModel result, boolean copyWindows) {
