@@ -61,6 +61,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -1732,6 +1733,34 @@ public class LayoutMcpToolTest {
       assertEquals("u1", asUser(() -> tool.uploadLayoutImage(PNG_BASE64, null)).uploadId());
 
       helper.verify(() -> UploadToolUtils.materializeFromUrlOrBase64(any(), isNull(), eq(PNG_BASE64), eq(10L * 1024 * 1024)));
+    }
+  }
+
+  /**
+   * The cap handed to the helper: the configured megabytes, the platform
+   * limit when the property is 0, negative or too large to count in bytes,
+   * the helper's own default when the platform sets no limit
+   */
+  @Test
+  public void uploadLayoutImageCapsAtTheConfiguredSizeThenThePlatformLimitThenTheHelpersDefault() throws Exception {
+    long megabyte = 1024L * 1024;
+    Object[][] cases = { { 2L, 5, 2 * megabyte },
+                         { -1L, 5, 5 * megabyte },
+                         { Long.MAX_VALUE, 5, 5 * megabyte },
+                         { 0L, 0, UploadToolUtils.DEFAULT_MAX_BYTES } };
+    try {
+      for (Object[] c : cases) {
+        ReflectionTestUtils.setField(tool, "imageMaxSizeMb", c[0]);
+        when(uploadService.getLimitForResource(any())).thenReturn(new UploadService.UploadLimit((Integer) c[1], UploadService.UploadUnit.MB));
+        try (MockedStatic<UploadToolUtils> helper = mockStatic(UploadToolUtils.class)) {
+          helper.when(() -> UploadToolUtils.decodeBase64(any())).thenCallRealMethod();
+          helper.when(() -> UploadToolUtils.materializeFromUrlOrBase64(any(), isNull(), any(), anyLong())).thenReturn("u1");
+          asUser(() -> tool.uploadLayoutImage(PNG_BASE64, null));
+          helper.verify(() -> UploadToolUtils.materializeFromUrlOrBase64(any(), isNull(), eq(PNG_BASE64), eq((Long) c[2])), times(1));
+        }
+      }
+    } finally {
+      ReflectionTestUtils.setField(tool, "imageMaxSizeMb", 0L);
     }
   }
 
