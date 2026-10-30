@@ -98,6 +98,8 @@ import io.meeds.layout.mcp.model.LayoutApplicationEntry;
 import io.meeds.layout.mcp.model.MarginsBlock;
 import io.meeds.layout.mcp.model.NavigationItemDescription;
 import io.meeds.layout.mcp.model.PageDescription;
+import io.meeds.layout.mcp.model.BackgroundImageBlock;
+import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteContainerOptions;
@@ -108,6 +110,8 @@ import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.mcp.model.TextBlock;
 import io.meeds.layout.mcp.model.TextRoleBlock;
 import io.meeds.layout.model.ApplicationSettingsContext;
+import io.meeds.layout.model.ImageConsumption;
+import io.meeds.layout.model.ImageTarget;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PortletInstance;
@@ -2093,6 +2097,50 @@ public class LayoutDescriptionServiceTest {
 
   private Container cell(String cssClass) {
     return container(LayoutDescriptionService.CELL_TEMPLATE, cssClass);
+  }
+
+  /**
+   * The image path through the real chain: the placeholder a claimed id
+   * stands as passes LayoutStyleValidator, and the consumption keys the image
+   * on the live page and the styled element; the next case covers the copy
+   */
+  @Test
+  public void aNewImageOfAStyledPageSurvivesValidationAsAPlaceholderKeyedOnTheLivePage() throws Exception {
+    Container section = container(LayoutDescriptionService.FLEX_TEMPLATE, "layout-section");
+    children(section, container(LayoutDescriptionService.CELL_TEMPLATE, null));
+    Page stored = storedPage(section);
+    ImageConsumption images = new ImageConsumption("page_44", "u1"::equals);
+    StylingDescription styling = new StylingDescription(null, null, null,
+                                                        new BackgroundBlock(true, null, "#222222", null, null, null, null, null, null,
+                                                                            new BackgroundImageBlock("u1", null, null, null, null, null, null, null)),
+                                                        null, null);
+
+    LayoutModel result = descriptionService.toStyledPage(List.of(new ElementStyling(section.getStorageId(), styling, null)), stored, false, USER, images);
+
+    LayoutModel written = result.getChildren().get(0).getChildren().get(0);
+    assertEquals("upload_u1", written.getBackgroundImage());
+    assertEquals("cover", written.getBackgroundSize());
+    assertEquals(new ImageTarget("containerBackground", "page_44_" + section.getStorageId()), images.getTargets().get("u1"));
+    images.setUrl("u1", "/portal/rest/v1/social/attachments/containerBackground/page_44_" + section.getStorageId() + "/9");
+    assertEquals("/portal/rest/v1/social/attachments/containerBackground/page_44_" + section.getStorageId() + "/9", images.resolve(written.getBackgroundImage()));
+  }
+
+  @Test
+  public void aNewImageOfANewSectionInARebuiltPageIsKeyedOnItsUploadIdAndSurvivesTheCopy() throws Exception {
+    ImageConsumption images = new ImageConsumption("page_44", "u1"::equals);
+    StylingDescription styling = new StylingDescription(null, null, null,
+                                                        new BackgroundBlock(true, null, null, null, null, null, null, null, null,
+                                                                            new BackgroundImageBlock("u1", null, "contain", "top left", null, null, null, null)),
+                                                        null, null);
+    SectionDescription section = new SectionDescription(null, SectionType.DYNAMIC, 1, null, List.of(List.of()), null, styling, null);
+
+    LayoutModel result = descriptionService.toPageLayout(List.of(section), storedPage(), true, USER, Locale.ENGLISH, images);
+
+    LayoutModel written = result.getChildren().get(0).getChildren().get(0);
+    assertEquals("upload_u1", written.getBackgroundImage());
+    assertEquals("contain", written.getBackgroundSize());
+    assertEquals("top left", written.getBackgroundPosition());
+    assertEquals(new ImageTarget("containerBackground", "page_44_u1"), images.getTargets().get("u1"));
   }
 
   private Container container(String template, String cssClass) {

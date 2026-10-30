@@ -69,7 +69,8 @@ public class LayoutMcpToolDefinitionsTest {
        "sidebar": {"allow_user_custom_home": true, "allowed_modes": ["icon", "sticky"], "default_mode": "icon"}}
       """;
 
-  private static final Set<String>         WRITE_TOOLS               = Set.of("update_theme",
+  private static final Set<String>         WRITE_TOOLS               = Set.of("upload_layout_image",
+                                                                               "update_theme",
                                                                                "update_navigation_display",
                                                                                "create_site",
                                                                                "update_site",
@@ -177,6 +178,8 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                                "{\"part\": \"colors\", \"options\": {\"primaryColor\": \"#123456\"}, \"reset\": [\"secondaryColor\"]}"),
                                                                                      Map.entry("update_navigation_display",
                                                                                                NAVIGATION_DISPLAY_SAMPLE),
+                                                                                     Map.entry("upload_layout_image",
+                                                                                               "{\"image_base64\": \"aGVsbG8=\", \"file_name\": \"logo.png\"}"),
                                                                                      Map.entry("create_site", CREATE_SITE_SAMPLE),
                                                                                      Map.entry("update_site", UPDATE_SITE_SAMPLE),
                                                                                      Map.entry("delete_site", "{\"site_id\": 3}"),
