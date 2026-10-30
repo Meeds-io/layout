@@ -98,7 +98,7 @@ public class LayoutImageService {
       list.setUploadedFiles(new ArrayList<>(List.of(new FileAttachmentObject(null, uploadId, null, null, null, null))));
       list.setAttachedFiles(before.stream().map(fileId -> new FileAttachmentObject(fileId, null, null, null, null, null)).toList());
       ObjectAttachmentOperationReport report = attachmentService.saveAttachments(list, identity);
-      if (report != null && report.getErrorByUploadId() != null && !report.getErrorByUploadId().isEmpty()) {
+      if (report != null && report.getErrorByUploadId() != null && report.getErrorByUploadId().containsKey(uploadId)) {
         throw new IllegalStateException(IMAGE_NOT_SAVED);
       }
       List<String> created = new ArrayList<>(attachmentService.getAttachmentFileIds(target.objectType(), target.objectId()));

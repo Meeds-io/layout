@@ -79,11 +79,19 @@ public class LayoutImageServiceTest {
     assertThrows(org.exoplatform.commons.exception.ObjectNotFoundException.class, () -> images.claim("u2", "containerBackground", "12", "background.image"));
   }
 
+  /**
+   * The mocked save answers as social's AttachmentServiceImpl.saveAttachments
+   * does at origin/feature/meeds-qaui: a kept file, re-listed with no upload
+   * id, is reported under a null upload id ("attachment.uploadIdNotFound"),
+   * and the uploaded list is appended to
+   */
   @Test
   public void attachSavesEachImageAsTheUserOnItsTargetAndRecordsItsUrl() throws Exception {
     when(userAcl.getUserIdentity("john")).thenReturn(identity);
     when(attachmentService.getAttachmentFileIds("containerBackground", "page_3_12")).thenReturn(List.of("7"), List.of("7", "9"));
-    when(attachmentService.saveAttachments(any(), eq(identity))).thenReturn(new ObjectAttachmentOperationReport());
+    ObjectAttachmentOperationReport keptFileReport = new ObjectAttachmentOperationReport();
+    keptFileReport.addError(null, "attachment.uploadIdNotFound");
+    when(attachmentService.saveAttachments(any(), eq(identity))).thenReturn(keptFileReport);
     ImageConsumption images = new ImageConsumption("page_3", id -> true);
     images.claim("u1", "containerBackground", "12", "background.image");
 
