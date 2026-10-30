@@ -223,6 +223,7 @@ public class LayoutMcpToolTest {
     conversationState = mock(ConversationState.class);
     lenient().when(conversationState.getIdentity()).thenReturn(identity);
     lenient().when(draftService.isDraftNode(any())).thenAnswer(i -> i.getArgument(0) != null && ((String) i.getArgument(0)).contains("_draft_"));
+    lenient().when(layoutImageService.isConsumable(any(), any())).thenAnswer(i -> uploadService.getUploadResource(i.getArgument(0)) != null);
     lenient().when(layoutImageService.consumption(any(), any()))
              .thenAnswer(i -> new ImageConsumption(i.getArgument(0), id -> uploadService.getUploadResource(id) != null));
   }

@@ -93,6 +93,16 @@ public class LayoutImageService {
     return new ImageConsumption(keyPrefix, id -> isConsumable(uploadService.getUploadResource(id), username));
   }
 
+  /**
+   * @param uploadId an upload id a call carries
+   * @param username the user consuming it
+   * @return whether a consuming call takes it: a staged resource, owner-less
+   *         or the user's own, of an image type the upload tool stages
+   */
+  public boolean isConsumable(String uploadId, String username) {
+    return isConsumable(uploadService.getUploadResource(uploadId), username);
+  }
+
   private static boolean isConsumable(UploadResource resource, String username) {
     return resource != null
            && (resource.getOwner() == null || resource.getOwner().equals(username))

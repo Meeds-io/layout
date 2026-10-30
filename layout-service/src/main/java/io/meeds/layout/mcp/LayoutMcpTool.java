@@ -468,7 +468,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     List<String> siteAccessPermissions = requireAccessPermissions(accessPermissions);
     String siteEditPermission = requireEditPermission(editPermission);
     long templateId = resolveTemplateId(template);
-    String uploadId = requireUpload(bannerUploadId);
+    String uploadId = requireUpload(bannerUploadId, username);
 
     PortalConfig portalConfig = new PortalConfig(PortalConfig.PORTAL_TYPE, siteName);
     portalConfig.setLabel(siteLabel);
@@ -539,7 +539,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     if (Boolean.TRUE.equals(removeBanner) && StringUtils.isNotBlank(bannerUploadId)) {
       throw new IllegalArgumentException(REMOVE_BANNER_NOT_ACCEPTED);
     }
-    String uploadId = requireUpload(bannerUploadId);
+    String uploadId = requireUpload(bannerUploadId, username);
     PermissionUpdateModel permissions = siteAccessPermissions == null && siteEditPermission == null ? null :
                                                                                                      new PermissionUpdateModel(siteKey.getTypeName(),
                                                                                                                                siteKey.getName(),
@@ -1800,12 +1800,13 @@ public class LayoutMcpTool implements McpToolPlugin {
   }
 
   /**
-   * An upload id is resolved before the first write; the save consumes it,
-   * and a failure before the save releases it
+   * An upload id is resolved before the first write, as one the user may
+   * consume (owner-less or their own, an image); the save consumes it, and a
+   * failure before the save releases it
    */
-  private String requireUpload(String bannerUploadId) throws ObjectNotFoundException {
+  private String requireUpload(String bannerUploadId, String username) throws ObjectNotFoundException {
     String uploadId = StringUtils.trimToNull(bannerUploadId);
-    if (uploadId != null && uploadService.getUploadResource(uploadId) == null) {
+    if (uploadId != null && !layoutImageService.isConsumable(uploadId, username)) {
       throw new ObjectNotFoundException(UPLOAD_NOT_FOUND);
     }
     return uploadId;
