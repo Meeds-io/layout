@@ -69,6 +69,7 @@ import io.meeds.layout.mcp.constant.NavigationItemType;
 import io.meeds.layout.mcp.constant.SectionType;
 import io.meeds.layout.mcp.constant.StylingDestination;
 import io.meeds.layout.mcp.model.ApplicationDescription;
+import io.meeds.layout.mcp.model.WidgetCodeDescription;
 import io.meeds.layout.mcp.model.BackgroundBlock;
 import io.meeds.layout.mcp.model.BackgroundImageBlock;
 import io.meeds.layout.mcp.model.BorderBlock;
@@ -93,6 +94,7 @@ import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.mcp.model.TextBackgroundBlock;
 import io.meeds.layout.mcp.model.TextBlock;
 import io.meeds.layout.mcp.model.TextRoleBlock;
+import io.meeds.layout.model.ApplicationCode;
 import io.meeds.layout.model.ApplicationReadScope;
 import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.LayoutModel;
@@ -200,6 +202,9 @@ public class LayoutDescriptionService {
 
   @Autowired
   private LayoutStylingService   stylingService;
+
+  @Autowired
+  private ApplicationCodeService      applicationCodeService;
 
   @Autowired
   private ApplicationSettingsService applicationSettingsService;
@@ -950,7 +955,25 @@ public class LayoutDescriptionService {
                                       toDisplay(application.getCssClass()),
                                       configurable ? readSettings(scope, storageId, siteContainer) : null,
                                       configurable,
-                                      null);
+                                      readCode(scope, storageId, contentId, siteContainer));
+  }
+
+  private WidgetCodeDescription readCode(ApplicationReadScope scope, String storageId, String contentId, boolean siteContainer) {
+    Application window = scope.username() == null || !applicationCodeService.hasPlugin(contentId) ? null
+                                                                                                   : scope.windows().get(storageId);
+    if (window == null) {
+      return null; // NOSONAR
+    }
+    ApplicationCode code = applicationCodeService.read(contentId,
+                                                       applicationSettingsService.newContext(window,
+                                                                                             siteContainer ? null : scope.pageKey(),
+                                                                                             scope.siteKey(),
+                                                                                             scope.liveSiteKey(),
+                                                                                             siteContainer ? null
+                                                                                                           : scope.pageReference(),
+                                                                                             scope.draft(),
+                                                                                             scope.username()));
+    return code == null ? null : new WidgetCodeDescription(code.html(), code.css(), code.js());
   }
 
   private List<NavigationItemDescription> toNavigationItems(NodeContext<NodeContext<Object>> parent,

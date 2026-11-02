@@ -31,6 +31,8 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -43,6 +45,7 @@ import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.InOrder;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -442,9 +445,14 @@ public class PageLayoutServiceTest {
     verify(page, never()).resetStorage();
     verify(page).setChildren(any());
     verify(layoutService).save(page);
+    verify(listenerService).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, PAGE_KEY.format());
+    verify(listenerService, never()).broadcast(eq(PageLayoutService.PAGE_PUBLISHED_EVENT), any(), any());
 
     pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER);
     verify(page).resetStorage();
+    InOrder published = inOrder(layoutService, listenerService);
+    published.verify(layoutService, times(2)).save(page);
+    published.verify(listenerService).broadcast(PageLayoutService.PAGE_PUBLISHED_EVENT, TEST_USER, PAGE_KEY.format());
 
     String width = "36px";
     String height = "36%";
