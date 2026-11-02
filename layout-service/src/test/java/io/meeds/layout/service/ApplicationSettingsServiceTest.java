@@ -287,6 +287,18 @@ public class ApplicationSettingsServiceTest {
 
   @Test
   @SneakyThrows
+  public void aWriteRunUnderTheWindowLockAnswersItsResultAndReleasesTheLock() {
+    assertEquals("written", service.runLocked(DRAFT_PAGE.format(), 120, () -> "written"));
+    assertEquals("again", service.runLocked(DRAFT_PAGE.format(), 120, () -> "again"));
+    assertEquals(ApplicationSettingsService.APPLICATION_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> service.runLocked(DRAFT_PAGE.format(), 120, () -> {
+                   throw new ObjectNotFoundException(ApplicationSettingsService.APPLICATION_NOT_FOUND);
+                 })).getMessage());
+    assertEquals("after", service.runLocked(DRAFT_PAGE.format(), 120, () -> "after"));
+  }
+
+  @Test
+  @SneakyThrows
   public void aWindowRemovedBeforeItsTurnIsAnsweredAsNotExisting() {
     ApplicationSettingsPlugin links = plugin("Links", false);
     service.addPlugin(links);

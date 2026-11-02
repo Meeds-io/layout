@@ -109,6 +109,8 @@ import io.meeds.layout.mcp.model.SiteSummary;
 import io.meeds.layout.mcp.model.StylingDescription;
 import io.meeds.layout.mcp.model.TextBlock;
 import io.meeds.layout.mcp.model.TextRoleBlock;
+import io.meeds.layout.model.ApplicationCode;
+import io.meeds.layout.mcp.model.WidgetCodeDescription;
 import io.meeds.layout.model.ApplicationSettingsContext;
 import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.ImageTarget;
@@ -152,6 +154,9 @@ public class LayoutDescriptionServiceTest {
 
   @MockitoBean
   private LayoutDraftService       layoutDraftService;
+
+  @MockitoBean
+  private ApplicationCodeService      applicationCodeService;
 
   @MockitoBean
   private ApplicationSettingsService applicationSettingsService;
@@ -907,6 +912,47 @@ public class LayoutDescriptionServiceTest {
 
     assertTrue(entry.configurable());
     assertEquals(Map.of("type", "object"), entry.settingsSchema());
+  }
+
+  @Test
+  public void widgetCodeIsReadThroughTheCodePluginForTheReaderOnly() {
+    Container section = shippedSection("flexSection");
+    Application widget = application("20", null, null);
+    Application image = application("21", null, null);
+    children((Container) section.getChildren().get(0), widget, image);
+    Container parent = container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null);
+    children(parent, section);
+    Page draft = new Page("portal", "test", "home_draft_john");
+    children(draft, parent);
+    when(layoutService.getId(widget.getState())).thenReturn("ide/WidgetPortlet");
+    when(layoutService.getId(image.getState())).thenReturn("content/Image");
+    when(applicationCodeService.hasPlugin("ide/WidgetPortlet")).thenReturn(true);
+    ApplicationSettingsContext context = new ApplicationSettingsContext();
+    when(applicationSettingsService.newContext(widget,
+                                               draft.getPageKey(),
+                                               SITE_KEY,
+                                               SITE_KEY,
+                                               PAGE_REF,
+                                               true,
+                                               USER)).thenReturn(context);
+    when(applicationCodeService.read("ide/WidgetPortlet", context)).thenReturn(new ApplicationCode("<b>a</b>", "b{}", "c()"));
+
+    List<ApplicationDescription> read = descriptionService.toPageDescription(draft, PAGE_REF, LayoutVersion.DRAFT, USER)
+                                                          .sections()
+                                                          .get(0)
+                                                          .columnsContent()
+                                                          .get(0);
+    List<ApplicationDescription> withoutReader = descriptionService.toPageDescription(draft, PAGE_REF, LayoutVersion.DRAFT)
+                                                                   .sections()
+                                                                   .get(0)
+                                                                   .columnsContent()
+                                                                   .get(0);
+
+    assertEquals(new WidgetCodeDescription("<b>a</b>", "b{}", "c()"), read.get(0).widgetCode());
+    assertNull(read.get(1).widgetCode());
+    assertNull(withoutReader.get(0).widgetCode());
+    verify(applicationCodeService, times(1)).read(any(), any());
+    verify(applicationSettingsService, times(1)).newContext(any(), any(), any(), any(), any(), anyBoolean(), any());
   }
 
   @Test
