@@ -129,6 +129,7 @@ import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SitePropertiesUpdate;
 import io.meeds.layout.model.SiteTemplate;
 import io.meeds.layout.model.ApplicationSettingsContext;
+import io.meeds.layout.service.ApplicationDraftService;
 import io.meeds.layout.service.ApplicationSettingsService;
 import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
@@ -147,7 +148,7 @@ import io.meeds.layout.util.EntityMapper;
 
 import lombok.SneakyThrows;
 
-@SpringBootTest(classes = { LayoutMcpTool.class })
+@SpringBootTest(classes = { LayoutMcpTool.class, ApplicationDraftService.class })
 @ActiveProfiles("mcp-server")
 @ExtendWith(MockitoExtension.class)
 public class LayoutMcpToolTest {

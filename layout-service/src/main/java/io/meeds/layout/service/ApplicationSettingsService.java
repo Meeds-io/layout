@@ -50,6 +50,7 @@ import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
 
 import io.meeds.layout.model.ApplicationSettingsContext;
+import io.meeds.layout.model.LayoutWrite;
 import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.plugin.ApplicationSettingsPlugin;
 
@@ -436,7 +437,35 @@ public class ApplicationSettingsService {
                            ApplicationSettingsContext context,
                            Map<String, Object> settings) throws IllegalAccessException, ObjectNotFoundException {
     String layoutKey = context.isSiteContainer() ? String.valueOf(context.getSiteKey()) : context.getPageKey().format();
-    ReentrantLock lock = locks[Math.floorMod(Objects.hash(layoutKey, context.getApplicationId()), LOCK_STRIPES)];
+    runLocked(layoutKey, context.getApplicationId(), () -> {
+      Portlet stored = layoutService.load(new PersistentApplicationState(String.valueOf(context.getApplicationId())));
+      if (stored == null) {
+        throw new ObjectNotFoundException(APPLICATION_NOT_FOUND);
+      }
+      context.setPreferences(preferencesOf(stored));
+      plugin.apply(context, settings);
+      return null;
+    });
+  }
+
+  /**
+   * Runs a write on one window under the node-local lock every tool write
+   * on that window takes (a settings write, a widget code write): a lock not
+   * obtained within the timeout refuses the write with LAYOUT_BUSY and
+   * writes nothing
+   *
+   * @param <T> what the write returns
+   * @param layoutKey the page reference or the site key the window belongs
+   *          to
+   * @param applicationId the window's storage id
+   * @param write the write
+   * @return what the write returns
+   * @throws ObjectNotFoundException from the write
+   * @throws IllegalAccessException from the write
+   */
+  public <T> T runLocked(String layoutKey, long applicationId, LayoutWrite<T> write) throws ObjectNotFoundException,
+                                                                                        IllegalAccessException {
+    ReentrantLock lock = locks[Math.floorMod(Objects.hash(layoutKey, applicationId), LOCK_STRIPES)];
     boolean locked;
     try {
       locked = lock.tryLock(LOCK_TIMEOUT_SECONDS, TimeUnit.SECONDS);
@@ -448,12 +477,7 @@ public class ApplicationSettingsService {
       throw new IllegalStateException(LAYOUT_BUSY);
     }
     try {
-      Portlet stored = layoutService.load(new PersistentApplicationState(String.valueOf(context.getApplicationId())));
-      if (stored == null) {
-        throw new ObjectNotFoundException(APPLICATION_NOT_FOUND);
-      }
-      context.setPreferences(preferencesOf(stored));
-      plugin.apply(context, settings);
+      return write.run();
     } finally {
       lock.unlock();
     }
