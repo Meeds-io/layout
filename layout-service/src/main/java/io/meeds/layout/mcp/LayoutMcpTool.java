@@ -835,7 +835,7 @@ public class LayoutMcpTool implements McpToolPlugin {
   /**
    * Sets the settings of applications placed on the current user's draft of
    * a page or a site, as each application's settings drawer does: Links,
-   * News list, Content list, My Applications and Block of content, any
+   * News list, Content list, My Applications, Block of content and Image, any
    * other application being refused as not configurable through tools. Each
    * application addressed by the id the read answered takes the settings
    * given, a setting omitted keeping its stored value. Exactly one of
