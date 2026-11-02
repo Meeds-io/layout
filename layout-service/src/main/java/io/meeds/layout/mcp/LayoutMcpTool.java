@@ -32,7 +32,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
-import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -73,7 +72,6 @@ import io.meeds.layout.mcp.constant.LinkTarget;
 import io.meeds.layout.mcp.constant.NavigationItemType;
 import io.meeds.layout.mcp.model.ApplicationDescription;
 import io.meeds.layout.mcp.model.ApplicationSettingsEntry;
-import io.meeds.layout.mcp.model.CellDescription;
 import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
@@ -86,6 +84,7 @@ import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.SiteSummary;
 import io.meeds.layout.model.ApplicationSettingsContext;
+import io.meeds.layout.model.DraftWindows;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NavigationCreateModel;
 import io.meeds.layout.model.NavigationItemUpdate;
@@ -97,6 +96,7 @@ import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SitePropertiesUpdate;
 import io.meeds.layout.model.SiteTemplate;
+import io.meeds.layout.service.ApplicationDraftService;
 import io.meeds.layout.service.ApplicationSettingsService;
 import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
@@ -129,15 +129,15 @@ import io.meeds.mcp.server.tool.util.UploadToolUtils;
 @Profile("mcp-server")
 public class LayoutMcpTool implements McpToolPlugin {
 
-  public static final String       SITE_NOT_FOUND        = "does not exist: site";
+  public static final String       SITE_NOT_FOUND        = ApplicationDraftService.SITE_NOT_FOUND;
 
-  public static final String       SITE_NOT_ALLOWED      = "not allowed: site";
+  public static final String       SITE_NOT_ALLOWED      = ApplicationDraftService.SITE_NOT_ALLOWED;
 
-  public static final String       PAGE_NOT_FOUND        = "does not exist: page";
+  public static final String       PAGE_NOT_FOUND        = ApplicationDraftService.PAGE_NOT_FOUND;
 
-  public static final String       PAGE_NOT_ALLOWED      = "not allowed: page";
+  public static final String       PAGE_NOT_ALLOWED      = ApplicationDraftService.PAGE_NOT_ALLOWED;
 
-  public static final String       DRAFT_NOT_FOUND       = "does not exist: draft";
+  public static final String       DRAFT_NOT_FOUND       = ApplicationDraftService.DRAFT_NOT_FOUND;
 
   public static final String       SITE_ID_NOT_ACCEPTED  = "value is not accepted for site_id";
 
@@ -181,33 +181,33 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   public static final String       REMOVE_BANNER_NOT_ACCEPTED = "value is not accepted for remove_banner";
 
-  public static final String       SITE_LAYOUT_NOT_SAVED = "could not be saved: site layout";
+  public static final String       SITE_LAYOUT_NOT_SAVED = ApplicationDraftService.SITE_LAYOUT_NOT_SAVED;
 
   public static final String       SITE_LAYOUT_NOT_PUBLISHED = "could not be published: site layout";
 
-  public static final String       LAYOUT_OUTDATED       = "layout outdated, re-read it";
+  public static final String       LAYOUT_OUTDATED       = ApplicationDraftService.LAYOUT_OUTDATED;
 
   public static final String       APPLICATIONS_NOT_ACCEPTED = "value is not accepted for applications";
 
-  public static final String       APPLICATION_ID_NOT_ACCEPTED = "value is not accepted for application_id";
+  public static final String       APPLICATION_ID_NOT_ACCEPTED = ApplicationDraftService.APPLICATION_ID_NOT_ACCEPTED;
 
   public static final String       APPLICATION_NOT_FOUND = ApplicationSettingsService.APPLICATION_NOT_FOUND;
 
-  public static final String       DRAFT_CREATED_BEFORE_FAILURE = "draft created, read the layout again for its ids; %s";
+  public static final String       DRAFT_CREATED_BEFORE_FAILURE = ApplicationDraftService.DRAFT_CREATED_BEFORE_FAILURE;
 
-  public static final String       PAGE_LAYOUT_NOT_SAVED = "could not be saved: page layout";
+  public static final String       PAGE_LAYOUT_NOT_SAVED = ApplicationDraftService.PAGE_LAYOUT_NOT_SAVED;
 
   public static final String       PAGE_LAYOUT_NOT_PUBLISHED = "could not be published: page layout";
 
-  public static final String       PAGE_OUTDATED_MESSAGE = "layout.pageOutdatedError";
+  public static final String       PAGE_OUTDATED_MESSAGE = ApplicationDraftService.PAGE_OUTDATED_MESSAGE;
 
   public static final String       STYLING_NOT_ACCEPTED  = SiteLayoutAssembler.STYLING_NOT_ACCEPTED;
 
-  public static final String       NODE_NOT_FOUND        = "does not exist: navigation item";
+  public static final String       NODE_NOT_FOUND        = ApplicationDraftService.NODE_NOT_FOUND;
 
   public static final String       PARENT_NODE_NOT_FOUND = "does not exist: parent navigation item";
 
-  public static final String       NAVIGATION_NOT_ALLOWED = "not allowed: navigation";
+  public static final String       NAVIGATION_NOT_ALLOWED = ApplicationDraftService.NAVIGATION_NOT_ALLOWED;
 
   public static final String       NODE_ID_NOT_ACCEPTED  = "value is not accepted for node_id";
 
@@ -293,6 +293,9 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   @Autowired
   private ApplicationSettingsService applicationSettingsService;
+
+  @Autowired
+  private ApplicationDraftService  applicationDraftService;
 
   @Autowired
   private LayoutImageService       layoutImageService;
@@ -662,7 +665,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException(STYLING_NOT_ACCEPTED);
     } catch (RuntimeException e) {
-      throw translateWriteFailure(e, site.getSiteKey(), username, SITE_LAYOUT_NOT_SAVED);
+      throw applicationDraftService.translateWriteFailure(e, site.getSiteKey(), username, SITE_LAYOUT_NOT_SAVED);
     }
   }
 
@@ -690,7 +693,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (IllegalAccessException e) {
       throw new IllegalAccessException(SITE_NOT_ALLOWED);
     } catch (RuntimeException e) {
-      throw translateWriteFailure(e, siteKey, username, SITE_LAYOUT_NOT_PUBLISHED);
+      throw applicationDraftService.translateWriteFailure(e, siteKey, username, SITE_LAYOUT_NOT_PUBLISHED);
     }
     return describeStoredSite(siteKey, username);
   }
@@ -716,7 +719,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (IllegalAccessException e) {
       throw new IllegalAccessException(SITE_NOT_ALLOWED);
     } catch (RuntimeException e) {
-      throw translateWriteFailure(e, siteKey, username, SITE_LAYOUT_NOT_SAVED);
+      throw applicationDraftService.translateWriteFailure(e, siteKey, username, SITE_LAYOUT_NOT_SAVED);
     }
     return describeStoredSite(siteKey, username);
   }
@@ -864,56 +867,10 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     requireSiteId(siteId);
     String username = getCurrentUserName();
-    PortalConfig site = readEditableSite(siteId, username);
-    PortalConfig draftSite = readDraftSite(siteId, username);
-    boolean createDraft = draftSite == null;
-    PortalConfig stored = createDraft ? site : draftSite;
-    ModelObject visible = layoutDescriptionService.filterAccessible(layoutService.getPortalConfig(stored.getSiteKey())
-                                                                                 .getPortalLayout(),
-                                                                    username);
-    SiteDescription read = layoutDescriptionService.toSiteDescription(site, visible, null, null, false);
-    List<Application> windows = resolveWindows(applicationIds,
-                                               siteApplicationIds(read),
-                                               siteContainerIds(read),
-                                               stored.getPortalLayout());
-    List<ApplicationSettingsContext> contexts = windows.stream()
-                                                       .map(w -> applicationSettingsService.newContext(w,
-                                                                                                        null,
-                                                                                                        stored.getSiteKey(),
-                                                                                                        site.getSiteKey(),
-                                                                                                        null,
-                                                                                                        !createDraft,
-                                                                                                        username))
-                                                       .toList();
-    applicationSettingsService.validate(contexts, settings, applicationIds);
-    if (createDraft) {
-      SiteKey draftSiteKey;
-      try {
-        draftSiteKey = layoutDraftService.createDraftSite(site, username);
-      } catch (ObjectNotFoundException e) {
-        throw new ObjectNotFoundException(SITE_NOT_FOUND);
-      } catch (IllegalAccessException e) {
-        throw new IllegalAccessException(SITE_NOT_ALLOWED);
-      } catch (RuntimeException e) {
-        throw translateWriteFailure(e, site.getSiteKey(), username, SITE_LAYOUT_NOT_SAVED);
-      }
-      applyOnCreatedDraft(() -> toDraftContexts(windows,
-                                                stored.getPortalLayout(),
-                                                layoutService.getPortalConfig(site.getSiteKey()).getPortalLayout(),
-                                                layoutService.getPortalConfig(draftSiteKey).getPortalLayout(),
-                                                w -> applicationSettingsService.newContext(w,
-                                                                                           null,
-                                                                                           draftSiteKey,
-                                                                                           site.getSiteKey(),
-                                                                                           null,
-                                                                                           true,
-                                                                                           username)),
-                          settings,
-                          applicationIds);
-    } else {
-      applicationSettingsService.apply(contexts, settings, applicationIds);
-    }
-    return describeStoredSite(site.getSiteKey(), username);
+    DraftWindows windows = applicationDraftService.resolveSite(siteId, applicationIds, username);
+    applicationSettingsService.validate(windows.contexts(), settings, applicationIds);
+    applyOnDraft(windows, settings, applicationIds, username);
+    return describeStoredSite(windows.liveSite().getSiteKey(), username);
   }
 
   private PageDescription configurePageApplications(String pageRef,
@@ -922,87 +879,32 @@ public class LayoutMcpTool implements McpToolPlugin {
                                                                                         IllegalAccessException {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
-    readEditablePage(pageKey, username);
-    long liveNodeId = requireLiveNodeId(pageKey, username);
-    PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
-    boolean createDraft = draftPageKey == null;
-    PageKey readPageKey = createDraft ? pageKey : draftPageKey;
-    ModelObject visible;
-    try {
-      visible = pageLayoutService.getPageLayout(readPageKey, username);
-    } catch (ObjectNotFoundException e) {
-      throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
-    } catch (IllegalAccessException e) {
-      throw new IllegalAccessException(PAGE_NOT_ALLOWED);
-    }
-    Page stored = pageLayoutService.getPageLayout(readPageKey);
-    if (stored == null) {
-      throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
-    }
-    PageDescription read = layoutDescriptionService.toPageDescription(visible, pageRef, LayoutVersion.PUBLISHED);
-    List<Application> windows = resolveWindows(applicationIds, pageApplicationIds(read), pageContainerIds(read), stored);
-    String livePageReference = pageKey.format();
-    List<ApplicationSettingsContext> contexts = windows.stream()
-                                                       .map(w -> applicationSettingsService.newContext(w,
-                                                                                                        readPageKey,
-                                                                                                        pageKey.getSite(),
-                                                                                                        pageKey.getSite(),
-                                                                                                        livePageReference,
-                                                                                                        !createDraft,
-                                                                                                        username))
-                                                       .toList();
-    applicationSettingsService.validate(contexts, settings, applicationIds);
-    if (createDraft) {
-      PageKey newDraftPageKey;
-      try {
-        newDraftPageKey = layoutDraftService.createDraftPage(liveNodeId, username);
-      } catch (ObjectNotFoundException e) {
-        throw new ObjectNotFoundException(PAGE_NOT_FOUND);
-      } catch (IllegalAccessException e) {
-        throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
-      } catch (RuntimeException e) {
-        throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
-      }
-      applyOnCreatedDraft(() -> toDraftContexts(windows,
-                                                stored,
-                                                pageLayoutService.getPageLayout(pageKey),
-                                                pageLayoutService.getPageLayout(newDraftPageKey),
-                                                w -> applicationSettingsService.newContext(w,
-                                                                                           newDraftPageKey,
-                                                                                           pageKey.getSite(),
-                                                                                           pageKey.getSite(),
-                                                                                           livePageReference,
-                                                                                           true,
-                                                                                           username)),
-                          settings,
-                          applicationIds);
-    } else {
-      applicationSettingsService.apply(contexts, settings, applicationIds);
-    }
-    return describeStoredPage(pageKey, liveNodeId, username);
+    DraftWindows windows = applicationDraftService.resolvePage(pageKey, pageRef, applicationIds, username);
+    applicationSettingsService.validate(windows.contexts(), settings, applicationIds);
+    applyOnDraft(windows, settings, applicationIds, username);
+    return describeStoredPage(pageKey, windows.liveNodeId(), username);
   }
 
   /**
-   * Finds the draft's copy of each validated window and applies the
-   * settings there, in the draft this call just created: any failure from
-   * then on says so, since the draft stays and its ids replace the ones the
-   * caller read
+   * Applies the validated settings on the user's draft, created first when
+   * none exists: a failure after that creation names the draft, which stays
    */
-  private void applyOnCreatedDraft(Supplier<List<ApplicationSettingsContext>> draftContexts,
-                                   List<Map<String, Object>> settings,
-                                   List<String> applicationIds) {
-    try {
-      applicationSettingsService.apply(draftContexts.get(), settings, applicationIds);
-    } catch (ObjectNotFoundException | IllegalAccessException | IllegalArgumentException | IllegalStateException e) {
-      throw new IllegalStateException(String.format(DRAFT_CREATED_BEFORE_FAILURE, e.getMessage()), e);
-    } catch (RuntimeException e) {
-      LOG.warn("Applications {} could not be configured on the draft just created", applicationIds, e);
-      throw new IllegalStateException(String.format(DRAFT_CREATED_BEFORE_FAILURE, ApplicationSettingsService.APPLICATION_NOT_SAVED),
-                                      e);
+  private void applyOnDraft(DraftWindows windows,
+                            List<Map<String, Object>> settings,
+                            List<String> applicationIds,
+                            String username) throws ObjectNotFoundException, IllegalAccessException {
+    if (windows.createDraft()) {
+      List<ApplicationSettingsContext> contexts = applicationDraftService.createDraft(windows, username);
+      applicationDraftService.onCreatedDraft(() -> {
+        applicationSettingsService.apply(contexts, settings, applicationIds);
+        return null;
+      });
+    } else {
+      applicationSettingsService.apply(windows.contexts(), settings, applicationIds);
     }
   }
 
-  /**
+    /**
    * The ids of a configure call: 1 to 200 applications, each named once
    */
   private List<String> requireApplicationIds(List<ApplicationSettingsEntry> applications) {
@@ -1019,109 +921,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     return applications.stream().map(ApplicationSettingsEntry::applicationId).toList();
   }
 
-  /**
-   * The stored windows the ids name: an application the read shows, a
-   * section, cell or container id being refused as not an application, any
-   * other id, an application the user cannot see included, as not existing
-   */
-  private List<Application> resolveWindows(List<String> applicationIds,
-                                           Set<String> readApplicationIds,
-                                           Set<String> readContainerIds,
-                                           ModelObject stored) throws ObjectNotFoundException {
-    List<Application> windows = new ArrayList<>();
-    for (String applicationId : applicationIds) {
-      if (readContainerIds.contains(applicationId)) {
-        throw new IllegalArgumentException(APPLICATION_ID_NOT_ACCEPTED);
-      }
-      List<Integer> path = readApplicationIds.contains(applicationId) ? applicationSettingsService.pathOf(stored, applicationId)
-                                                                      : null;
-      if (path == null) {
-        throw new ObjectNotFoundException(APPLICATION_NOT_FOUND);
-      }
-      windows.add(applicationSettingsService.atPath(stored, path));
-    }
-    return windows;
-  }
-
-  /**
-   * The windows of the draft just cloned from the live layout, each at the
-   * place its live window held and of the same application. The live layout
-   * read again after the clone still holding each validated window at its
-   * place, no publication came in between, a publication giving every window
-   * a new id; the layout is outdated otherwise.
-   */
-  private List<ApplicationSettingsContext> toDraftContexts(List<Application> liveWindows,
-                                                           ModelObject liveLayout,
-                                                           ModelObject liveLayoutAfterClone,
-                                                           ModelObject draftLayout,
-                                                           Function<Application, ApplicationSettingsContext> context) {
-    return liveWindows.stream().map(window -> {
-      List<Integer> path = applicationSettingsService.pathOf(liveLayout, window.getStorageId());
-      Application liveWindowAfterClone = liveLayoutAfterClone == null ? null
-                                                                      : applicationSettingsService.atPath(liveLayoutAfterClone, path);
-      Application draftWindow = draftLayout == null ? null : applicationSettingsService.atPath(draftLayout, path);
-      if (liveWindowAfterClone == null || !StringUtils.equals(liveWindowAfterClone.getStorageId(), window.getStorageId())
-          || draftWindow == null || !StringUtils.isNumeric(draftWindow.getStorageId())
-          || !StringUtils.equals(layoutService.getId(draftWindow.getState()), layoutService.getId(window.getState()))) {
-        throw new IllegalStateException(LAYOUT_OUTDATED);
-      }
-      return context.apply(draftWindow);
-    }).toList();
-  }
-
-  private Set<String> pageApplicationIds(PageDescription page) {
-    Set<String> ids = new HashSet<>();
-    page.sections().forEach(section -> {
-      if (section.columnsContent() != null) {
-        section.columnsContent().forEach(column -> column.forEach(a -> ids.add(a.applicationId())));
-      }
-      if (section.cells() != null) {
-        section.cells().stream().map(CellDescription::application).filter(Objects::nonNull).forEach(a -> ids.add(a.applicationId()));
-      }
-    });
-    return ids;
-  }
-
-  private Set<String> pageContainerIds(PageDescription page) {
-    Set<String> ids = new HashSet<>();
-    page.sections().forEach(section -> {
-      ids.add(section.sectionId());
-      if (section.cells() != null) {
-        section.cells().forEach(cell -> ids.add(cell.cellId()));
-      }
-    });
-    return ids;
-  }
-
-  private Set<String> siteApplicationIds(SiteDescription site) {
-    Set<String> ids = new HashSet<>();
-    siteContainers(site).forEach(container -> container.applications()
-                                                       .stream()
-                                                       .map(ApplicationDescription::applicationId)
-                                                       .forEach(ids::add));
-    return ids;
-  }
-
-  private Set<String> siteContainerIds(SiteDescription site) {
-    Set<String> ids = new HashSet<>();
-    siteContainers(site).forEach(container -> ids.add(container.containerId()));
-    return ids;
-  }
-
-  private List<SiteContainerDescription> siteContainers(SiteDescription site) {
-    List<SiteContainerDescription> containers = new ArrayList<>();
-    if (site.leftSidebar() != null) {
-      containers.add(site.leftSidebar());
-    }
-    if (site.rightSidebar() != null) {
-      containers.add(site.rightSidebar());
-    }
-    containers.addAll(site.topbars());
-    containers.addAll(site.bottomBars());
-    return containers;
-  }
-
-  private PageDescription setPageStyles(String pageRef, List<ElementStyling> elements) throws ObjectNotFoundException,
+      private PageDescription setPageStyles(String pageRef, List<ElementStyling> elements) throws ObjectNotFoundException,
                                                                                        IllegalAccessException {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
@@ -1185,7 +985,7 @@ public class LayoutMcpTool implements McpToolPlugin {
       } catch (IllegalAccessException e) {
         throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
       } catch (RuntimeException e) {
-        throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
+        throw applicationDraftService.translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
       }
     }
     try {
@@ -1197,7 +997,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException(STYLING_NOT_ACCEPTED);
     } catch (RuntimeException e) {
-      throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
+      throw applicationDraftService.translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
     }
   }
 
@@ -1461,20 +1261,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     return site;
   }
 
-  /**
-   * A layout write refused by the storage answers a fixed text: the outdated
-   * draft its own, every other failure the given one, its cause logged
-   */
-  private RuntimeException translateWriteFailure(RuntimeException e, Object layoutKey, String username, String refusal) {
-    if (StringUtils.equals(e.getMessage(), SiteLayoutService.SITE_OUTDATED_MESSAGE)
-        || StringUtils.equals(e.getMessage(), PAGE_OUTDATED_MESSAGE)) {
-      return new IllegalStateException(LAYOUT_OUTDATED);
-    }
-    LOG.debug("Layout {} could not be written by {}", layoutKey, username, e);
-    return new IllegalStateException(refusal);
-  }
-
-  private PageDescription publishPageLayout(String pageRef) throws ObjectNotFoundException, IllegalAccessException {
+    private PageDescription publishPageLayout(String pageRef) throws ObjectNotFoundException, IllegalAccessException {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
     readEditablePage(pageKey, username);
@@ -1488,7 +1275,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException(STYLING_NOT_ACCEPTED);
     } catch (RuntimeException e) {
-      throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_PUBLISHED);
+      throw applicationDraftService.translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_PUBLISHED);
     }
     return describeStoredPage(pageKey, liveNodeId, username);
   }
@@ -1505,7 +1292,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (IllegalAccessException e) {
       throw new IllegalAccessException(PAGE_NOT_ALLOWED);
     } catch (RuntimeException e) {
-      throw translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
+      throw applicationDraftService.translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
     }
     return describeStoredPage(pageKey, liveNodeId, username);
   }
@@ -1658,11 +1445,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
   }
 
-  /**
-   * The user's draft site, read under the owner rule UserACL applies to a
-   * draft site; null when the user has none or may not read the one named.
-   */
-  private PortalConfig readDraftSite(long siteId, String username) {
+    private PortalConfig readDraftSite(long siteId, String username) {
     SiteKey draftSiteKey = layoutDraftService.getDraftSiteKey(siteId, username);
     if (draftSiteKey == null) {
       return null;
