@@ -300,7 +300,14 @@ public class ApplicationDraftService {
     return new IllegalStateException(refusal);
   }
 
-  private Page readEditablePage(PageKey pageKey, String username) throws ObjectNotFoundException, IllegalAccessException {
+  /**
+   * @param pageKey a live page
+   * @param username the user
+   * @return the stored live page the user may edit, never a draft page
+   * @throws ObjectNotFoundException when no live page has that key
+   * @throws IllegalAccessException when the user may not edit it
+   */
+  public Page readEditablePage(PageKey pageKey, String username) throws ObjectNotFoundException, IllegalAccessException {
     Page page = layoutDraftService.isDraftNode(pageKey.getName()) ? null : layoutService.getPage(pageKey);
     if (page == null) {
       throw new ObjectNotFoundException(PAGE_NOT_FOUND);
@@ -310,7 +317,13 @@ public class ApplicationDraftService {
     return page;
   }
 
-  private long requireLiveNodeId(PageKey pageKey, String username) throws ObjectNotFoundException {
+  /**
+   * @param pageKey a live page
+   * @param username the user
+   * @return the navigation node of the page, the key its draft is resolved by
+   * @throws ObjectNotFoundException when no navigation item references it
+   */
+  public long requireLiveNodeId(PageKey pageKey, String username) throws ObjectNotFoundException {
     Long liveNodeId = layoutDraftService.findLiveNodeId(pageKey, username);
     if (liveNodeId == null) {
       throw new ObjectNotFoundException(NODE_NOT_FOUND);
@@ -318,7 +331,14 @@ public class ApplicationDraftService {
     return liveNodeId;
   }
 
-  private PortalConfig readEditableSite(long siteId, String username) throws ObjectNotFoundException, IllegalAccessException {
+  /**
+   * @param siteId a live site
+   * @param username the user
+   * @return the live site the user may edit, never a draft site
+   * @throws ObjectNotFoundException when no live site has that id
+   * @throws IllegalAccessException when the user may not edit it
+   */
+  public PortalConfig readEditableSite(long siteId, String username) throws ObjectNotFoundException, IllegalAccessException {
     PortalConfig site;
     try {
       site = siteLayoutService.getSite(siteId, username);
@@ -336,7 +356,16 @@ public class ApplicationDraftService {
     return site;
   }
 
-  private PortalConfig readDraftSite(long siteId, String username) {
+  /**
+   * The user's draft of a site, as the site layout editor resumes it: the one
+   * the user's co-editing revision names, read through the permission-checked
+   * service read
+   *
+   * @param siteId a live site
+   * @param username the user
+   * @return the draft site, null when the user has none
+   */
+  public PortalConfig readDraftSite(long siteId, String username) {
     SiteKey draftSiteKey = layoutDraftService.getDraftSiteKey(siteId, username);
     if (draftSiteKey == null) {
       return null;

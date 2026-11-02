@@ -21,7 +21,6 @@ package io.meeds.layout.mcp;
 import java.text.Normalizer;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -31,7 +30,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -44,7 +42,6 @@ import org.springframework.stereotype.Service;
 import org.exoplatform.commons.ObjectAlreadyExistsException;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserACL;
-import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.config.model.Page;
@@ -70,7 +67,6 @@ import org.exoplatform.upload.UploadService;
 import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.constant.LinkTarget;
 import io.meeds.layout.mcp.constant.NavigationItemType;
-import io.meeds.layout.mcp.model.ApplicationDescription;
 import io.meeds.layout.mcp.model.ApplicationSettingsEntry;
 import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
@@ -329,7 +325,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     requireSiteId(siteId);
     String username = getCurrentUserName();
     PortalConfig site = readSite(siteId, username);
-    PortalConfig draftSite = readDraftSite(siteId, username);
+    PortalConfig draftSite = applicationDraftService.readDraftSite(siteId, username);
     return describeSite(site, draftSite, username);
   }
 
@@ -621,9 +617,9 @@ public class LayoutMcpTool implements McpToolPlugin {
                                                                                   IllegalAccessException {
     requireSiteId(siteId);
     String username = getCurrentUserName();
-    PortalConfig site = readEditableSite(siteId, username);
+    PortalConfig site = applicationDraftService.readEditableSite(siteId, username);
     SiteKey siteKey = site.getSiteKey();
-    PortalConfig draftSite = readDraftSite(siteId, username);
+    PortalConfig draftSite = applicationDraftService.readDraftSite(siteId, username);
     boolean createDraft = draftSite == null;
     ImageConsumption images = layoutImageService.consumption(SITE_KEY_PREFIX + site.getId(), username);
     try {
@@ -684,7 +680,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     requireSiteId(siteId);
     String username = getCurrentUserName();
-    PortalConfig site = readEditableSite(siteId, username);
+    PortalConfig site = applicationDraftService.readEditableSite(siteId, username);
     SiteKey siteKey = site.getSiteKey();
     try {
       layoutDraftService.publishSite(site, username);
@@ -710,7 +706,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     requireSiteId(siteId);
     String username = getCurrentUserName();
-    PortalConfig site = readEditableSite(siteId, username);
+    PortalConfig site = applicationDraftService.readEditableSite(siteId, username);
     SiteKey siteKey = site.getSiteKey();
     try {
       layoutDraftService.discardDraftSite(site, username);
@@ -742,8 +738,8 @@ public class LayoutMcpTool implements McpToolPlugin {
                                                                                             IllegalAccessException {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
-    Page livePage = readEditablePage(pageKey, username);
-    long liveNodeId = requireLiveNodeId(pageKey, username);
+    Page livePage = applicationDraftService.readEditablePage(pageKey, username);
+    long liveNodeId = applicationDraftService.requireLiveNodeId(pageKey, username);
     PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
     boolean createDraft = draftPageKey == null;
     Page stored = pageLayoutService.getPageLayout(createDraft ? pageKey : draftPageKey);
@@ -787,8 +783,8 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     requireSiteId(siteId);
     String username = getCurrentUserName();
-    PortalConfig site = readEditableSite(siteId, username);
-    PortalConfig draftSite = readDraftSite(siteId, username);
+    PortalConfig site = applicationDraftService.readEditableSite(siteId, username);
+    PortalConfig draftSite = applicationDraftService.readDraftSite(siteId, username);
     boolean createDraft = draftSite == null;
     ImageConsumption images = layoutImageService.consumption(SITE_KEY_PREFIX + site.getId(), username);
     try {
@@ -828,8 +824,8 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     requireSiteId(siteId);
     String username = getCurrentUserName();
-    PortalConfig site = readEditableSite(siteId, username);
-    PortalConfig draftSite = readDraftSite(siteId, username);
+    PortalConfig site = applicationDraftService.readEditableSite(siteId, username);
+    PortalConfig draftSite = applicationDraftService.readDraftSite(siteId, username);
     boolean createDraft = draftSite == null;
     LayoutModel layout = layoutDescriptionService.toDisplayedSite(elements, createDraft ? site : draftSite, createDraft, username);
     writeSiteDraft(site, draftSite, layout, username);
@@ -904,7 +900,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
   }
 
-    /**
+  /**
    * The ids of a configure call: 1 to 200 applications, each named once
    */
   private List<String> requireApplicationIds(List<ApplicationSettingsEntry> applications) {
@@ -921,12 +917,12 @@ public class LayoutMcpTool implements McpToolPlugin {
     return applications.stream().map(ApplicationSettingsEntry::applicationId).toList();
   }
 
-      private PageDescription setPageStyles(String pageRef, List<ElementStyling> elements) throws ObjectNotFoundException,
+  private PageDescription setPageStyles(String pageRef, List<ElementStyling> elements) throws ObjectNotFoundException,
                                                                                        IllegalAccessException {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
-    Page livePage = readEditablePage(pageKey, username);
-    long liveNodeId = requireLiveNodeId(pageKey, username);
+    Page livePage = applicationDraftService.readEditablePage(pageKey, username);
+    long liveNodeId = applicationDraftService.requireLiveNodeId(pageKey, username);
     PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
     boolean createDraft = draftPageKey == null;
     Page stored = pageLayoutService.getPageLayout(createDraft ? pageKey : draftPageKey);
@@ -954,8 +950,8 @@ public class LayoutMcpTool implements McpToolPlugin {
                                                                                             IllegalAccessException {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
-    readEditablePage(pageKey, username);
-    long liveNodeId = requireLiveNodeId(pageKey, username);
+    applicationDraftService.readEditablePage(pageKey, username);
+    long liveNodeId = applicationDraftService.requireLiveNodeId(pageKey, username);
     PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
     boolean createDraft = draftPageKey == null;
     Page stored = pageLayoutService.getPageLayout(createDraft ? pageKey : draftPageKey);
@@ -1250,22 +1246,11 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
   }
 
-  /**
-   * The live site the user may edit, read as get_site reads it
-   */
-  private PortalConfig readEditableSite(long siteId, String username) throws ObjectNotFoundException, IllegalAccessException {
-    PortalConfig site = readSite(siteId, username);
-    if (!aclService.canEditSite(site.getSiteKey(), username)) {
-      throw new IllegalAccessException(SITE_NOT_ALLOWED);
-    }
-    return site;
-  }
-
-    private PageDescription publishPageLayout(String pageRef) throws ObjectNotFoundException, IllegalAccessException {
+  private PageDescription publishPageLayout(String pageRef) throws ObjectNotFoundException, IllegalAccessException {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
-    readEditablePage(pageKey, username);
-    long liveNodeId = requireLiveNodeId(pageKey, username);
+    applicationDraftService.readEditablePage(pageKey, username);
+    long liveNodeId = applicationDraftService.requireLiveNodeId(pageKey, username);
     try {
       layoutDraftService.publishPage(pageKey, liveNodeId, username);
     } catch (ObjectNotFoundException e) {
@@ -1283,8 +1268,8 @@ public class LayoutMcpTool implements McpToolPlugin {
   private PageDescription discardPageDraft(String pageRef) throws ObjectNotFoundException, IllegalAccessException {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
-    readEditablePage(pageKey, username);
-    long liveNodeId = requireLiveNodeId(pageKey, username);
+    applicationDraftService.readEditablePage(pageKey, username);
+    long liveNodeId = applicationDraftService.requireLiveNodeId(pageKey, username);
     try {
       layoutDraftService.discardDraftPage(pageKey, liveNodeId, username);
     } catch (ObjectNotFoundException e) {
@@ -1295,20 +1280,6 @@ public class LayoutMcpTool implements McpToolPlugin {
       throw applicationDraftService.translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
     }
     return describeStoredPage(pageKey, liveNodeId, username);
-  }
-
-  /**
-   * A live page the current user may edit: a draft page addressed by its own
-   * reference does not exist for the tools
-   */
-  private Page readEditablePage(PageKey pageKey, String username) throws ObjectNotFoundException, IllegalAccessException {
-    Page page = layoutDraftService.isDraftNode(pageKey.getName()) ? null : layoutService.getPage(pageKey);
-    if (page == null) {
-      throw new ObjectNotFoundException(PAGE_NOT_FOUND);
-    } else if (!aclService.canEditPage(pageKey, username)) {
-      throw new IllegalAccessException(PAGE_NOT_ALLOWED);
-    }
-    return page;
   }
 
   /**
@@ -1350,19 +1321,6 @@ public class LayoutMcpTool implements McpToolPlugin {
   }
 
   /**
-   * The navigation item of the page's own site a draft of the page hangs on:
-   * the item the user's draft was opened from when they have one, else the
-   * first item showing the page
-   */
-  private long requireLiveNodeId(PageKey pageKey, String username) throws ObjectNotFoundException {
-    Long liveNodeId = layoutDraftService.findLiveNodeId(pageKey, username);
-    if (liveNodeId == null) {
-      throw new ObjectNotFoundException(NODE_NOT_FOUND);
-    }
-    return liveNodeId;
-  }
-
-  /**
    * The page as a write of the current user leaves it, read as
    * get_page_layout reads it: their draft when their revision names one, the
    * published layout otherwise
@@ -1395,7 +1353,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     if (site == null) {
       throw new ObjectNotFoundException(SITE_NOT_FOUND);
     }
-    return describeSite(site, readDraftSite(site.getId(), username), username);
+    return describeSite(site, applicationDraftService.readDraftSite(site.getId(), username), username);
   }
 
   /**
@@ -1442,18 +1400,6 @@ public class LayoutMcpTool implements McpToolPlugin {
       throw new ObjectNotFoundException(SITE_NOT_FOUND);
     } catch (IllegalAccessException e) {
       throw new IllegalAccessException(SITE_NOT_ALLOWED);
-    }
-  }
-
-    private PortalConfig readDraftSite(long siteId, String username) {
-    SiteKey draftSiteKey = layoutDraftService.getDraftSiteKey(siteId, username);
-    if (draftSiteKey == null) {
-      return null;
-    }
-    try {
-      return siteLayoutService.getSite(draftSiteKey, username);
-    } catch (ObjectNotFoundException | IllegalAccessException e) {
-      return null;
     }
   }
 
