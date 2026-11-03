@@ -238,8 +238,8 @@ public class ApplicationSettingsServiceTest {
     assertEquals("applied before the failure: 20, 21; does not exist: news_target",
                  assertThrows(IllegalStateException.class, () -> service.apply(contexts, settings, ids)).getMessage());
 
-    doThrow(new IllegalStateException("database down")).when(links).apply(contexts.get(1), settings.get(1));
-    assertEquals("applied before the failure: 20; database down",
+    doThrow(new IllegalStateException(ApplicationSettingsService.LAYOUT_BUSY)).when(links).apply(contexts.get(1), settings.get(1));
+    assertEquals("applied before the failure: 20; layout busy, retry",
                  assertThrows(IllegalStateException.class, () -> service.apply(contexts, settings, ids)).getMessage());
 
     doThrow(new NullPointerException()).when(links).apply(contexts.get(0), settings.get(0));
@@ -248,6 +248,62 @@ public class ApplicationSettingsServiceTest {
     doThrow(new IllegalAccessException("not editable")).when(links).apply(contexts.get(0), settings.get(0));
     assertEquals(ApplicationSettingsService.APPLICATION_NOT_ALLOWED,
                  assertThrows(IllegalAccessException.class, () -> service.apply(contexts, settings, ids)).getMessage());
+  }
+
+  @Test
+  @SneakyThrows
+  public void aPluginFailureWithoutAFixedTextIsAnsweredAsNotSavedWhereverItFails() {
+    ApplicationSettingsPlugin links = plugin("Links", false);
+    service.addPlugin(links);
+    List<ApplicationSettingsContext> contexts = List.of(context(120, "content/Links", false), context(121, "content/Links", false));
+    List<Map<String, Object>> settings = List.of(Map.of("type", "ROW"), Map.of("type", "CARD"));
+    List<String> ids = List.of("20", "21");
+
+    doThrow(new IllegalStateException("Note page setting note-120 already exists")).when(links)
+                                                                                 .apply(contexts.get(0), settings.get(0));
+    assertEquals(ApplicationSettingsService.APPLICATION_NOT_SAVED,
+                 assertThrows(IllegalStateException.class, () -> service.apply(contexts, settings, ids)).getMessage());
+
+    doAnswer(i -> null).when(links).apply(contexts.get(0), settings.get(0));
+    doThrow(new IllegalArgumentException("Invalid column TYPE in /db/settings")).when(links)
+                                                                               .apply(contexts.get(1), settings.get(1));
+    assertEquals("applied before the failure: 20; could not be saved: application",
+                 assertThrows(IllegalStateException.class, () -> service.apply(contexts, settings, ids)).getMessage());
+
+    doThrow(new ObjectNotFoundException("Node /exo:applications/120 not found")).when(links)
+                                                                               .apply(contexts.get(1), settings.get(1));
+    assertEquals("applied before the failure: 20; could not be saved: application",
+                 assertThrows(IllegalStateException.class, () -> service.apply(contexts, settings, ids)).getMessage());
+
+    doThrow(new IllegalStateException("Shortcuts setting 120 already exists")).when(links).validate(any(), any());
+    assertEquals(ApplicationSettingsService.APPLICATION_NOT_SAVED,
+                 assertThrows(IllegalStateException.class, () -> service.validate(contexts, settings, ids)).getMessage());
+    doThrow(new ObjectNotFoundException("Category 12 not found in /var")).when(links).validate(any(), any());
+    assertEquals(ApplicationSettingsService.APPLICATION_NOT_SAVED,
+                 assertThrows(IllegalStateException.class, () -> service.validate(contexts, settings, ids)).getMessage());
+    doThrow(new NullPointerException()).when(links).validate(any(), any());
+    assertEquals(ApplicationSettingsService.APPLICATION_NOT_SAVED,
+                 assertThrows(IllegalStateException.class, () -> service.validate(contexts, settings, ids)).getMessage());
+  }
+
+  @Test
+  @SneakyThrows
+  public void aPluginRefusalWithAFixedTextIsAnsweredAsIsByTheValidation() {
+    ApplicationSettingsPlugin links = plugin("Links", false);
+    service.addPlugin(links);
+    List<ApplicationSettingsContext> contexts = List.of(context(120, "content/Links", false));
+    List<Map<String, Object>> settings = List.of(Map.of("type", "ROW"));
+    List<String> ids = List.of("20");
+
+    doThrow(new IllegalArgumentException("value is not accepted for type")).when(links).validate(any(), any());
+    assertEquals("value is not accepted for type",
+                 assertThrows(IllegalArgumentException.class, () -> service.validate(contexts, settings, ids)).getMessage());
+    doThrow(new ObjectNotFoundException("does not exist: category")).when(links).validate(any(), any());
+    assertEquals("does not exist: category",
+                 assertThrows(ObjectNotFoundException.class, () -> service.validate(contexts, settings, ids)).getMessage());
+    doThrow(new IllegalStateException(ApplicationDraftService.LAYOUT_OUTDATED)).when(links).validate(any(), any());
+    assertEquals(ApplicationDraftService.LAYOUT_OUTDATED,
+                 assertThrows(IllegalStateException.class, () -> service.validate(contexts, settings, ids)).getMessage());
   }
 
   @Test
