@@ -274,6 +274,7 @@ public class LayoutStylesAssembler {
         target(banner, StylingDestination.BANNER, top && hasToken(banner.getCssClass(), STICKY_TOKEN), top);
         for (LayoutModel cell : children(banner)) {
           if (isTemplate(cell, LayoutDescriptionService.BANNER_CELL_TEMPLATE)) {
+            nonTarget(cell);
             applications(cell, StylingDestination.SITE_CONTAINER_APPLICATION);
           }
         }
