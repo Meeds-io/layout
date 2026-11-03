@@ -44,7 +44,8 @@ import io.meeds.mcp.server.plugin.McpToolPlugin;
  * carries it. A tool maps its arguments and calls the Services, whose
  * refusals carry the fixed texts the agent reads: {@code does not exist:
  * <object>}, {@code not allowed: administrators only}, {@code value is not
- * accepted for <option>}.
+ * accepted for <option>}, {@code could not be saved: theme}, {@code could
+ * not be saved: navigation display}.
  */
 @Service
 @Profile("mcp-server")
