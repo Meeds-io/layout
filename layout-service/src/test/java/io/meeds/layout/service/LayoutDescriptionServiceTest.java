@@ -101,6 +101,7 @@ import io.meeds.layout.mcp.model.PageDescription;
 import io.meeds.layout.mcp.model.BackgroundImageBlock;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.SectionDescription;
+import io.meeds.layout.mcp.model.SidesBlock;
 import io.meeds.layout.mcp.model.SiteColumnDescription;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteContainerOptions;
@@ -1880,8 +1881,21 @@ public class LayoutDescriptionServiceTest {
                  refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null), column(secondColumn.getStorageId(), 31))), null)));
 
     firstColumn.setWidth("99999999999");
+    ModelStyle overflowingStyle = new ModelStyle();
+    overflowingStyle.setBackgroundImage("/portal/rest/v1/social/attachments/containerBackground/site_5_1/7");
+    topBanner.setCssStyle(overflowingStyle);
+    ModelStyle paddedTitle = new ModelStyle();
+    paddedTitle.setTextTitleBackgroundColor("#111111");
+    paddedTitle.setTextTitleBackgroundPadding("99999999999px 8px 8px 8px");
+    ((Application) firstColumn.getChildren().get(0)).setCssStyle(paddedTitle);
+    topBanner.setCssClass("layout-banner-top-section layout-bg-margin-top-99999999999 layout-bg-margin-left-4 layout-bg-radius-tl-99999999999");
     SiteDescription overflowing = descriptionService.toSiteDescription(describedPortalSite(), site.getPortalLayout(), "Test", null, true);
     assertNull(overflowing.topbars().get(0).columns().get(0).width());
+    assertNull(overflowing.topbars().get(0).styling().background().image().margins().top());
+    assertEquals(4, overflowing.topbars().get(0).styling().background().image().margins().left());
+    SidesBlock padding = overflowing.topbars().get(0).columns().get(0).applications().get(0).styling().text().title().background().padding();
+    assertNull(padding.top());
+    assertEquals(8, padding.right());
     LayoutModel cleared = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null), column(secondColumn.getStorageId(), null))), null)
                                                                                                                                                                                          .getChildren()
                                                                                                                                                                                          .get(1)

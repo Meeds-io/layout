@@ -1510,7 +1510,10 @@ public class LayoutDescriptionService {
     Map<String, Integer> values = new HashMap<>();
     Matcher matcher = BG_MARGIN_TOKEN.matcher(cssClass);
     while (matcher.find()) {
-      values.put(matcher.group(2), Integer.valueOf(matcher.group(3)));
+      Integer pixels = toInteger(matcher.group(3));
+      if (pixels != null) {
+        values.put(matcher.group(2), pixels);
+      }
     }
     return values.isEmpty() ? null : new SidesBlock(values.get("top"), values.get("right"), values.get("bottom"), values.get("left"));
   }
@@ -1522,7 +1525,10 @@ public class LayoutDescriptionService {
     Map<String, Integer> values = new HashMap<>();
     Matcher matcher = BG_RADIUS_TOKEN.matcher(cssClass);
     while (matcher.find()) {
-      values.put(matcher.group(2), Integer.valueOf(matcher.group(3)));
+      Integer pixels = toInteger(matcher.group(3));
+      if (pixels != null) {
+        values.put(matcher.group(2), pixels);
+      }
     }
     return values.isEmpty() ? null : toCorners(values.get("tl"), values.get("tr"), values.get("br"), values.get("bl"));
   }
@@ -1642,7 +1648,7 @@ public class LayoutDescriptionService {
     List<Integer> parts = new ArrayList<>();
     Matcher matcher = PIXELS.matcher(value);
     while (matcher.find()) {
-      parts.add(Integer.valueOf(matcher.group()));
+      parts.add(toInteger(matcher.group()));
     }
     return parts;
   }
@@ -1652,11 +1658,17 @@ public class LayoutDescriptionService {
       return null;
     }
     Matcher matcher = PIXELS.matcher(value);
-    if (!matcher.find()) {
-      return null;
-    }
+    return matcher.find() ? toInteger(matcher.group()) : null;
+  }
+
+  /**
+   * @return the stored digits as a number, or null when they go past an int,
+   *         so that a stored value no editor writes reads as absent rather
+   *         than failing the whole read
+   */
+  private Integer toInteger(String digits) {
     try {
-      return Integer.valueOf(matcher.group());
+      return Integer.valueOf(digits);
     } catch (NumberFormatException e) {
       return null;
     }
