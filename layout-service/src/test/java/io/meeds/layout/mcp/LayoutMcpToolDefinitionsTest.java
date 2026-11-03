@@ -50,6 +50,7 @@ import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.PageDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.SidebarDisplayOptions;
+import io.meeds.layout.mcp.model.SiteColumnDescription;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.TopbarApplicationOption;
 import io.meeds.layout.mcp.model.TopbarDisplayOptions;
@@ -119,7 +120,8 @@ public class LayoutMcpToolDefinitionsTest {
                                           "styling": {"border": {"enabled": true, "color": "#123456", "size": 2, "shadow": true},
                                                       "text": {"enabled": true, "title": {"color": "#333333", "size": 18, "bold": true}}}}]},
        "right_sidebar": {"options": {"width": 300}},
-       "topbars": [{"options": {"height": 60, "sticky": true}, "applications": [{"content_id": "social/Menu"}]}],
+       "topbars": [{"options": {"height": 60, "sticky": true},
+                    "columns": [{"column_id": "14", "width": 200, "applications": [{"content_id": "social/Menu"}]}, {"applications": []}]}],
        "bottom_bars": []}
       """;
 
@@ -278,7 +280,13 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                                 topbars.getParameterizedType());
     assertEquals(60, typed.get(0).options().height());
     assertTrue(typed.get(0).options().sticky());
-    assertEquals("social/Menu", typed.get(0).applications().get(0).contentId());
+    assertNull(typed.get(0).applications());
+    assertEquals(2, typed.get(0).columns().size());
+    assertEquals("14", typed.get(0).columns().get(0).columnId());
+    assertEquals(200, typed.get(0).columns().get(0).width());
+    assertEquals("social/Menu", typed.get(0).columns().get(0).applications().get(0).contentId());
+    assertNull(typed.get(0).columns().get(1).width());
+    assertTrue(typed.get(0).columns().get(1).applications().isEmpty());
 
     SiteContainerDescription left = (SiteContainerDescription) JSON_HELPER.convertToTypedObject(arguments.get("left_sidebar"),
                                                                                                 SiteContainerDescription.class);
@@ -454,6 +462,12 @@ public class LayoutMcpToolDefinitionsTest {
     assertTrue(json.contains("\"dynamic\""), json);
     assertTrue(json.contains("\"draft\""), json);
     assertTrue(!json.contains("editor_compatible"), json);
+
+    SiteContainerDescription topbar = new SiteContainerDescription("13", null, null, null, List.of(new SiteColumnDescription("14", 200, List.of())));
+    String siteJson = JSON_HELPER.toJson(topbar);
+    assertTrue(siteJson.contains("\"column_id\":\"14\""), siteJson);
+    assertTrue(siteJson.contains("\"width\":200"), siteJson);
+    assertTrue(!siteJson.contains("\"applications\":null"), siteJson);
   }
 
   private Map<String, Method> toolMethods() {

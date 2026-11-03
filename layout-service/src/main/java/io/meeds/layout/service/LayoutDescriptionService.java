@@ -88,6 +88,7 @@ import io.meeds.layout.mcp.model.ScheduleDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.SidesBlock;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
+import io.meeds.layout.mcp.model.SiteColumnDescription;
 import io.meeds.layout.mcp.model.SiteContainerOptions;
 import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
@@ -986,13 +987,19 @@ public class LayoutDescriptionService {
     return result;
   }
 
+  /**
+   * A topbar or a bottom bar is read as the editor shows it: its columns in
+   * order, each with its width and its applications
+   */
   private SiteContainerDescription toBanner(LayoutModel banner, ApplicationReadScope scope) {
-    List<ApplicationDescription> applications = children(banner).stream()
-                                                                .filter(c -> isTemplate(c, BANNER_CELL_TEMPLATE))
-                                                                .flatMap(cell -> toApplications(cell,
-                                                                                                scope,
-                                                                                                StylingDestination.SITE_CONTAINER_APPLICATION).stream())
-                                                                .toList();
+    List<SiteColumnDescription> columns = children(banner).stream()
+                                                          .filter(c -> isTemplate(c, BANNER_CELL_TEMPLATE))
+                                                          .map(cell -> new SiteColumnDescription(cell.getStorageId(),
+                                                                                                 parsePixels(cell.getWidth()),
+                                                                                                 toApplications(cell,
+                                                                                                                scope,
+                                                                                                                StylingDestination.SITE_CONTAINER_APPLICATION)))
+                                                          .toList();
     SiteContainerOptions options = new SiteContainerOptions(parsePixels(banner.getHeight()),
                                                             null,
                                                             hasToken(banner.getCssClass(), STICKY_SECTION_TOKEN),
@@ -1002,7 +1009,8 @@ public class LayoutDescriptionService {
     return new SiteContainerDescription(banner.getStorageId(),
                                         options,
                                         toStyling(banner, StylingDestination.BANNER),
-                                        applications);
+                                        null,
+                                        columns);
   }
 
   /**

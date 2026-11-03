@@ -101,6 +101,7 @@ import io.meeds.layout.mcp.model.PageDescription;
 import io.meeds.layout.mcp.model.BackgroundImageBlock;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.SectionDescription;
+import io.meeds.layout.mcp.model.SiteColumnDescription;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteContainerOptions;
 import io.meeds.layout.mcp.model.SiteDescription;
@@ -1010,7 +1011,7 @@ public class LayoutDescriptionServiceTest {
 
     SiteDescription description = descriptionService.toSiteDescription(describedPortalSite(), layout, "Test site", null, draftSiteKey, true, USER);
 
-    ApplicationDescription topbarApplication = description.topbars().get(0).applications().get(0);
+    ApplicationDescription topbarApplication = description.topbars().get(0).columns().get(0).applications().get(0);
     assertTrue(topbarApplication.configurable());
     assertEquals(Map.of("max_apps_to_list", 6), topbarApplication.settings());
     ArgumentCaptor<Application> window = ArgumentCaptor.forClass(Application.class);
@@ -1277,13 +1278,20 @@ public class LayoutDescriptionServiceTest {
     assertEquals(60, description.topbars().get(0).options().height());
     assertTrue(description.topbars().get(0).options().sticky());
     assertEquals(DisplayMode.BOTH, description.topbars().get(0).options().display());
-    assertEquals(1, description.topbars().get(0).applications().size());
+    assertNull(description.topbars().get(0).applications());
+    assertEquals(2, description.topbars().get(0).columns().size());
+    assertEquals(List.of("2"), description.topbars().get(0).columns().get(0).applications().stream().map(ApplicationDescription::applicationId).toList());
+    assertNotNull(description.topbars().get(0).columns().get(0).columnId());
+    assertEquals(180, description.topbars().get(0).columns().get(0).width());
+    assertTrue(description.topbars().get(0).columns().get(1).applications().isEmpty());
+    assertNull(description.topbars().get(0).columns().get(1).width());
     assertEquals("#111111", description.topbars().get(0).styling().background().color());
     assertEquals("#222222", description.topbars().get(0).styling().background().scrollColor());
     assertNull(description.topbars().get(0).styling().border());
     assertNotNull(description.topbars().get(0).styling().text());
     assertEquals(1, description.bottomBars().size());
     assertEquals(DisplayMode.HIDE_MOBILE, description.bottomBars().get(0).options().display());
+    assertTrue(description.bottomBars().get(0).columns().isEmpty());
   }
 
   private SiteDescription describedSite() {
@@ -1308,6 +1316,7 @@ public class LayoutDescriptionServiceTest {
     Container outerRight = container(LayoutDescriptionService.SIDEBAR_TEMPLATE, null);
 
     Container topCell = container(LayoutDescriptionService.BANNER_CELL_TEMPLATE, null);
+    topCell.setWidth("180");
     children(topCell, application("2", null, null));
     Container top = container(LayoutDescriptionService.BANNER_TEMPLATE, "layout-banner-top-section layout-sticky-section");
     top.setHeight("60");
@@ -1341,12 +1350,15 @@ public class LayoutDescriptionServiceTest {
                                                                  new SiteContainerOptions(null, 250, true, DisplayMode.HIDE_MOBILE, null),
                                                                  null,
                                                                  List.of(new ApplicationDescription("1", null, null, "Menu", null, null, null, false, null)));
-    SiteContainerDescription top = new SiteContainerDescription(topBanner.getStorageId(),
-                                                                new SiteContainerOptions(60, null, false, null, null),
-                                                                null,
-                                                                List.of(new ApplicationDescription("2", null, null, null, null, null, null, false, null),
-                                                                        new ApplicationDescription(null, null, 10L, null, null, DisplayMode.HIDE_DESKTOP, null, false, null)));
-    SiteContainerDescription bottom = new SiteContainerDescription(null, null, null, null);
+    String firstColumnId = ((Container) topBanner.getChildren().get(0)).getStorageId();
+    String secondColumnId = ((Container) topBanner.getChildren().get(1)).getStorageId();
+    SiteContainerDescription top = banner(topBanner.getStorageId(),
+                                          new SiteContainerOptions(60, null, false, null, null),
+                                          null,
+                                          column(firstColumnId, 200, new ApplicationDescription("2", null, null, null, null, null, null, false, null)),
+                                          column(secondColumnId, null, new ApplicationDescription(null, null, 10L, null, null, DisplayMode.HIDE_DESKTOP, null, false, null)),
+                                          column(null, null));
+    SiteContainerDescription bottom = banner(null, null, null, column(null, null));
 
     LayoutModel result = descriptionService.toSiteLayout(new SiteLayoutUpdate(left, null, List.of(top), List.of(bottom)), site, false, USER, Locale.ENGLISH);
 
@@ -1373,15 +1385,23 @@ public class LayoutDescriptionServiceTest {
     assertEquals(topBanner.getStorageId(), writtenTop.getStorageId());
     assertEquals("60", writtenTop.getHeight());
     assertEquals("layout-banner-top-section", writtenTop.getCssClass());
-    assertEquals(2, writtenTop.getChildren().size());
-    List<LayoutModel> firstCell = writtenTop.getChildren().get(0).getChildren();
-    assertEquals(2, firstCell.size());
-    assertEquals("2", firstCell.get(0).getStorageId());
-    assertNull(firstCell.get(1).getStorageId());
-    assertEquals("content/NewsListView", firstCell.get(1).getContentId());
-    assertEquals("News", firstCell.get(1).getTitle());
-    assertEquals("hidden-md-and-up", firstCell.get(1).getCssClass());
-    assertTrue(writtenTop.getChildren().get(1).getChildren().isEmpty());
+    assertEquals(3, writtenTop.getChildren().size());
+    LayoutModel firstColumn = writtenTop.getChildren().get(0);
+    assertEquals(firstColumnId, firstColumn.getStorageId());
+    assertEquals("200", firstColumn.getWidth());
+    assertEquals(List.of("2"), firstColumn.getChildren().stream().map(LayoutModel::getStorageId).toList());
+    LayoutModel secondColumn = writtenTop.getChildren().get(1);
+    assertEquals(secondColumnId, secondColumn.getStorageId());
+    assertNull(secondColumn.getWidth());
+    assertEquals(1, secondColumn.getChildren().size());
+    assertNull(secondColumn.getChildren().get(0).getStorageId());
+    assertEquals("content/NewsListView", secondColumn.getChildren().get(0).getContentId());
+    assertEquals("News", secondColumn.getChildren().get(0).getTitle());
+    assertEquals("hidden-md-and-up", secondColumn.getChildren().get(0).getCssClass());
+    LayoutModel thirdColumn = writtenTop.getChildren().get(2);
+    assertNull(thirdColumn.getStorageId());
+    assertEquals(LayoutDescriptionService.BANNER_CELL_TEMPLATE, thirdColumn.getTemplate());
+    assertTrue(thirdColumn.getChildren().isEmpty());
     LayoutModel center = middle.getChildren().get(1);
     assertEquals(LayoutDescriptionService.SITE_MIDDLE_CENTER_TEMPLATE, center.getTemplate());
     assertEquals(3, center.getChildren().size());
@@ -1471,29 +1491,37 @@ public class LayoutDescriptionServiceTest {
     Application hidden = (Application) ((Container) topBanner.getChildren().get(0)).getChildren().get(0);
     when(aclService.hasAccessPermission(hidden, USER)).thenReturn(false);
     instance(10L, "content/NewsListView", "News");
-    SiteContainerDescription keptTop = new SiteContainerDescription(topBanner.getStorageId(),
-                                                                    null,
-                                                                    null,
-                                                                    List.of(new ApplicationDescription(null, null, 10L, null, null, null, null, false, null)));
+    String firstColumnId = ((Container) topBanner.getChildren().get(0)).getStorageId();
+    String secondColumnId = ((Container) topBanner.getChildren().get(1)).getStorageId();
+    SiteContainerDescription keptTop = banner(topBanner.getStorageId(),
+                                              null,
+                                              null,
+                                              column(firstColumnId, null),
+                                              column(secondColumnId, null, new ApplicationDescription(null, null, 10L, null, null, null, null, false, null)));
 
     LayoutModel result = descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, List.of(keptTop), null), site, false, USER, Locale.ENGLISH);
-    List<LayoutModel> firstCell = result.getChildren().get(1).getChildren().get(0).getChildren().get(0).getChildren();
-    assertEquals(2, firstCell.size());
-    assertEquals("2", firstCell.get(0).getStorageId());
-    assertEquals("content/NewsListView", firstCell.get(1).getContentId());
+    List<LayoutModel> writtenColumns = result.getChildren().get(1).getChildren().get(0).getChildren();
+    assertEquals(List.of("2"), writtenColumns.get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    assertEquals("content/NewsListView", writtenColumns.get(1).getChildren().get(0).getContentId());
+
+    SiteContainerDescription hiddenColumnLeftOut = banner(topBanner.getStorageId(), null, null, column(secondColumnId, null));
+    assertEquals(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN,
+                 assertThrows(IllegalAccessException.class,
+                              () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, List.of(hiddenColumnLeftOut), null), site, false, USER, Locale.ENGLISH)).getMessage());
 
     assertEquals(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN,
                  assertThrows(IllegalAccessException.class,
                               () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, null, null), site, false, USER, Locale.ENGLISH)).getMessage());
-    SiteContainerDescription newTop = new SiteContainerDescription(null, null, null, null);
+    SiteContainerDescription newTop = banner(null, null, null, column(null, null));
     assertEquals(SiteLayoutAssembler.SITE_LAYOUT_HIDDEN,
                  assertThrows(IllegalAccessException.class,
                               () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, List.of(newTop), null), site, false, USER, Locale.ENGLISH)).getMessage());
 
-    SiteContainerDescription movedHidden = new SiteContainerDescription(topBanner.getStorageId(),
-                                                                        null,
-                                                                        null,
-                                                                        List.of(new ApplicationDescription("2", null, null, null, null, null, null, null, null)));
+    SiteContainerDescription movedHidden = banner(topBanner.getStorageId(),
+                                                  null,
+                                                  null,
+                                                  column(firstColumnId, null),
+                                                  column(secondColumnId, null, new ApplicationDescription("2", null, null, null, null, null, null, null, null)));
     assertEquals(SiteLayoutAssembler.APPLICATION_NOT_FOUND,
                  assertThrows(ObjectNotFoundException.class,
                               () -> descriptionService.toSiteLayout(new SiteLayoutUpdate(null, null, List.of(movedHidden), null), site, false, USER, Locale.ENGLISH)).getMessage());
@@ -1525,7 +1553,7 @@ public class LayoutDescriptionServiceTest {
     applicationStyle.setBorderColor("#444444");
     kept.setCssStyle(applicationStyle);
     kept.setCssClass("hidden-md-and-up");
-    SiteContainerDescription top = new SiteContainerDescription(topBanner.getStorageId(), null, null, null);
+    SiteContainerDescription top = banner(topBanner.getStorageId(), null, null, storedColumns(topBanner));
     SiteContainerDescription left = new SiteContainerDescription(outerLeftCell.getStorageId(),
                                                                  null,
                                                                  null,
@@ -1545,7 +1573,7 @@ public class LayoutDescriptionServiceTest {
     assertEquals("#444444", writtenApplication.getBorderColor());
     assertEquals("hidden-md-and-up", writtenApplication.getCssClass());
 
-    SiteContainerDescription unstuck = new SiteContainerDescription(topBanner.getStorageId(), new SiteContainerOptions(null, null, false, DisplayMode.BOTH, null), null, null);
+    SiteContainerDescription unstuck = banner(topBanner.getStorageId(), new SiteContainerOptions(null, null, false, DisplayMode.BOTH, null), null, storedColumns(topBanner));
     result = build(site, null, List.of(unstuck), null);
     writtenTop = result.getChildren().get(1).getChildren().get(0);
     assertEquals("layout-banner-top-section", writtenTop.getCssClass());
@@ -1554,10 +1582,10 @@ public class LayoutDescriptionServiceTest {
     style.setBackgroundImage("/portal/rest/v1/social/attachments/containerBackground/site_5_1/7");
     style.setBackgroundSize("cover");
     topBanner.setCssClass("layout-banner-top-section layout-bg-margin-top-4");
-    SiteContainerDescription recoloured = new SiteContainerDescription(topBanner.getStorageId(),
-                                                                       null,
-                                                                       new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#777777", null, null, null, null, null, null, null), null, null),
-                                                                       null);
+    SiteContainerDescription recoloured = banner(topBanner.getStorageId(),
+                                                 null,
+                                                 new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#777777", null, null, null, null, null, null, null), null, null),
+                                                 storedColumns(topBanner));
     result = build(site, null, List.of(recoloured), null);
     writtenTop = result.getChildren().get(1).getChildren().get(0);
     assertEquals("#777777", writtenTop.getBackgroundColor());
@@ -1630,10 +1658,10 @@ public class LayoutDescriptionServiceTest {
     style.setBackgroundColor("#111111");
     style.setBackgroundImage("/portal/rest/v1/social/attachments/containerBackground/site_5_1/7");
     topBanner.setCssStyle(style);
-    SiteContainerDescription recoloured = new SiteContainerDescription(topBanner.getStorageId(),
-                                                                       null,
-                                                                       new StylingDescription(null, null, null, new BackgroundBlock(null, null, "#777777", null, null, null, null, null, null, null), null, null),
-                                                                       null);
+    SiteContainerDescription recoloured = banner(topBanner.getStorageId(),
+                                                 null,
+                                                 new StylingDescription(null, null, null, new BackgroundBlock(null, null, "#777777", null, null, null, null, null, null, null), null, null),
+                                                 storedColumns(topBanner));
 
     LayoutModel writtenTop = build(site, null, List.of(recoloured), null).getChildren().get(1).getChildren().get(0);
 
@@ -1644,7 +1672,7 @@ public class LayoutDescriptionServiceTest {
   @Test
   public void onlyATopbarCanBeSticky() throws Exception {
     PortalConfig site = storedSite();
-    SiteContainerDescription stickyBar = new SiteContainerDescription(null, new SiteContainerOptions(null, null, true, null, null), null, null);
+    SiteContainerDescription stickyBar = banner(null, new SiteContainerOptions(null, null, true, null, null), null, column(null, null));
     assertEquals(SiteLayoutAssembler.STICKY_NOT_ACCEPTED, refused(() -> build(site, null, null, List.of(stickyBar))));
 
     LayoutModel topbar = build(site, null, List.of(stickyBar), null).getChildren().get(1).getChildren().get(0);
@@ -1655,22 +1683,107 @@ public class LayoutDescriptionServiceTest {
     ModelStyle style = new ModelStyle();
     style.setBackgroundColor("#111111@#222222");
     bottom.setCssStyle(style);
-    SiteContainerDescription echoed = new SiteContainerDescription(bottom.getStorageId(),
-                                                                   new SiteContainerOptions(null, null, true, null, null),
-                                                                   new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#111111", null, null, null, null, "#222222", null, null), null, null),
-                                                                   null);
+    SiteContainerDescription echoed = banner(bottom.getStorageId(),
+                                             new SiteContainerOptions(null, null, true, null, null),
+                                             new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#111111", null, null, null, null, "#222222", null, null), null, null),
+                                             column(null, null));
     LayoutModel written = build(site, null, null, List.of(echoed)).getChildren().get(1).getChildren().get(1);
     assertEquals("layout-banner-bottom-section", written.getCssClass());
     assertEquals("#111111", written.getBackgroundColor());
-    SiteContainerDescription untouched = new SiteContainerDescription(bottom.getStorageId(), null, null, null);
+    SiteContainerDescription untouched = banner(bottom.getStorageId(), null, null, column(null, null));
     written = build(site, null, null, List.of(untouched)).getChildren().get(1).getChildren().get(1);
     assertEquals("layout-banner-bottom-section", written.getCssClass());
     assertEquals("#111111", written.getBackgroundColor());
-    SiteContainerDescription scrolled = new SiteContainerDescription(bottom.getStorageId(),
-                                                                     null,
-                                                                     new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#111111", null, null, null, null, "#333333", null, null), null, null),
-                                                                     null);
+    SiteContainerDescription scrolled = banner(bottom.getStorageId(),
+                                               null,
+                                               new StylingDescription(null, null, null, new BackgroundBlock(true, null, "#111111", null, null, null, null, "#333333", null, null), null, null),
+                                               column(null, null));
     assertEquals(LayoutStylingService.REFUSAL_PREFIX + "background.scroll_color", refused(() -> build(site, null, null, List.of(scrolled))));
+  }
+
+  @Test
+  public void columnsOfATopbarOrABottomBarAreCheckedBeforeAnyWrite() throws Exception {
+    PortalConfig site = storedSite();
+    instance(10L, "content/NewsListView", "News");
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container bottomBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1);
+    children(bottomBanner, container(LayoutDescriptionService.BANNER_CELL_TEMPLATE, null));
+    String topColumnId = ((Container) topBanner.getChildren().get(0)).getStorageId();
+    String bottomColumnId = ((Container) bottomBanner.getChildren().get(0)).getStorageId();
+    String sidebarCellId = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0).getStorageId();
+    ApplicationDescription news = new ApplicationDescription(null, null, 10L, null, null, null, null, false, null);
+
+    SiteContainerDescription flat = new SiteContainerDescription(null, null, null, List.of(news));
+    assertEquals(SiteLayoutAssembler.APPLICATIONS_NOT_ACCEPTED, refused(() -> build(site, null, List.of(flat), null)));
+    SiteContainerDescription noColumns = new SiteContainerDescription(null, null, null, null, null);
+    assertEquals(SiteLayoutAssembler.COLUMNS_NOT_ACCEPTED, refused(() -> build(site, null, List.of(noColumns), null)));
+    assertEquals(SiteLayoutAssembler.COLUMNS_NOT_ACCEPTED, refused(() -> build(site, null, null, List.of(banner(null, null, null)))));
+    SiteColumnDescription[] sixtyFive = java.util.Collections.nCopies(65, column(null, null)).toArray(SiteColumnDescription[]::new);
+    assertEquals(SiteLayoutAssembler.COLUMNS_NOT_ACCEPTED, refused(() -> build(site, null, List.of(banner(null, null, null, sixtyFive)), null)));
+    SiteContainerDescription nullColumn = new SiteContainerDescription(null, null, null, null, java.util.Arrays.asList(column(null, null), null));
+    assertEquals(SiteLayoutAssembler.COLUMNS_NOT_ACCEPTED, refused(() -> build(site, null, List.of(nullColumn), null)));
+
+    assertEquals(SiteLayoutAssembler.COLUMN_WIDTH_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(null, null, null, column(null, 200), column(null, 200))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_WIDTH_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(null, null, null, column(null, 200))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_WIDTH_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(null, null, null, column(null, 49), column(null, null))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_WIDTH_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(null, null, null, column(null, 1001), column(null, null))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_APPLICATIONS_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(null, null, null, column(null, null, news, news))), null)));
+
+    assertEquals(SiteLayoutAssembler.COLUMN_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class,
+                              () -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column("nope", null))), null)).getMessage());
+    assertEquals(SiteLayoutAssembler.COLUMN_ID_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(bottomColumnId, null))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_ID_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(null, null, null, column(topColumnId, null))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_ID_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(sidebarCellId, null))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_ID_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(topColumnId, null), column(topColumnId, null))), null)));
+    verify(portletInstanceService, never()).getPortletInstance(anyLong(), any(), any(), anyBoolean());
+
+    SiteColumnDescription[] sixtyFour = java.util.Collections.nCopies(64, column(null, null)).toArray(SiteColumnDescription[]::new);
+    LayoutModel widest = build(site, null, List.of(banner(null, null, null, sixtyFour)), null).getChildren().get(1).getChildren().get(0);
+    assertEquals(64, widest.getChildren().size());
+    LayoutModel bounds = build(site, null, List.of(banner(null, null, null, column(null, 50), column(null, 1000), column(null, null))), null)
+                                                                                                                                     .getChildren()
+                                                                                                                                     .get(1)
+                                                                                                                                     .getChildren()
+                                                                                                                                     .get(0);
+    assertEquals(List.of("50", "1000"), bounds.getChildren().subList(0, 2).stream().map(LayoutModel::getWidth).toList());
+  }
+
+  @Test
+  public void keptColumnsAreWrittenInTheOrderGivenAndALeftOutColumnIsRemoved() throws Exception {
+    PortalConfig site = storedSite();
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container firstColumn = (Container) topBanner.getChildren().get(0);
+    Container secondColumn = (Container) topBanner.getChildren().get(1);
+    firstColumn.setWidth("300");
+    secondColumn.setWidth("200");
+    Container thirdColumn = container(LayoutDescriptionService.BANNER_CELL_TEMPLATE, null);
+    children(thirdColumn, application("6", null, null));
+    children(topBanner, firstColumn, secondColumn, thirdColumn);
+
+    SiteContainerDescription top = banner(topBanner.getStorageId(),
+                                          null,
+                                          null,
+                                          column(thirdColumn.getStorageId(), 120, new ApplicationDescription("2", null, null, null, null, null, null, null, null)),
+                                          column(firstColumn.getStorageId(), null));
+
+    LayoutModel writtenTop = build(site, null, List.of(top), null).getChildren().get(1).getChildren().get(0);
+
+    assertEquals(List.of(thirdColumn.getStorageId(), firstColumn.getStorageId()),
+                 writtenTop.getChildren().stream().map(LayoutModel::getStorageId).toList());
+    assertEquals("120", writtenTop.getChildren().get(0).getWidth());
+    assertEquals(List.of("2"), writtenTop.getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    assertNull(writtenTop.getChildren().get(1).getWidth());
+    assertTrue(writtenTop.getChildren().get(1).getChildren().isEmpty());
   }
 
   @Test
@@ -1711,10 +1824,11 @@ public class LayoutDescriptionServiceTest {
     children(firstCell, first, second, visible);
     when(aclService.hasAccessPermission(first, USER)).thenReturn(false);
     when(aclService.hasAccessPermission(second, USER)).thenReturn(false);
-    SiteContainerDescription top = new SiteContainerDescription(topBanner.getStorageId(),
-                                                                null,
-                                                                null,
-                                                                List.of(new ApplicationDescription("5", null, null, null, null, null, null, null, null)));
+    SiteContainerDescription top = banner(topBanner.getStorageId(),
+                                          null,
+                                          null,
+                                          column(firstCell.getStorageId(), null, new ApplicationDescription("5", null, null, null, null, null, null, null, null)),
+                                          column(((Container) topBanner.getChildren().get(1)).getStorageId(), null));
 
     LayoutModel result = build(site, null, List.of(top), null);
 
@@ -1725,8 +1839,9 @@ public class LayoutDescriptionServiceTest {
   @Test
   public void aCallOfMoreThanTwoHundredElementsIsRefused() throws Exception {
     PortalConfig site = storedSite();
-    List<ApplicationDescription> fortyOne = java.util.Collections.nCopies(41, new ApplicationDescription(null, null, 10L, null, null, null, null, null, null));
-    List<SiteContainerDescription> five = java.util.Collections.nCopies(5, new SiteContainerDescription(null, null, null, fortyOne));
+    SiteColumnDescription[] twenty = java.util.Collections.nCopies(20, column(null, null, new ApplicationDescription(null, null, 10L, null, null, null, null, null, null)))
+                                                          .toArray(SiteColumnDescription[]::new);
+    List<SiteContainerDescription> five = java.util.Collections.nCopies(5, banner(null, null, null, twenty));
 
     assertEquals(SiteLayoutAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> build(site, null, five, null)));
     verify(portletInstanceService, never()).getPortletInstance(anyLong(), any(), any(), anyBoolean());
@@ -1775,10 +1890,10 @@ public class LayoutDescriptionServiceTest {
     assertEquals(SiteLayoutAssembler.WIDTH_NOT_ACCEPTED, refused(() -> build(site, sidebar(new SiteContainerOptions(null, 1001, false, null, null)), null, null)));
     assertEquals(SiteLayoutAssembler.HEIGHT_NOT_ACCEPTED, refused(() -> build(site, sidebar(new SiteContainerOptions(60, null, false, null, null)), null, null)));
     assertEquals(SiteLayoutAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> build(site, sidebar(new SiteContainerOptions(null, null, false, DisplayMode.HIDE_DESKTOP, null)), null, null)));
-    assertEquals(SiteLayoutAssembler.HEIGHT_NOT_ACCEPTED, refused(() -> build(site, null, List.of(sidebar(new SiteContainerOptions(1001, null, false, null, null))), null)));
-    assertEquals(SiteLayoutAssembler.WIDTH_NOT_ACCEPTED, refused(() -> build(site, null, List.of(sidebar(new SiteContainerOptions(null, 300, false, null, null))), null)));
-    assertEquals(SiteLayoutAssembler.FULL_HEIGHT_NOT_ACCEPTED, refused(() -> build(site, null, null, List.of(sidebar(new SiteContainerOptions(null, null, false, null, true))))));
-    assertEquals(SiteLayoutAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> build(site, null, List.of(sidebar(new SiteContainerOptions(null, null, false, DisplayMode.HIDE_DESKTOP, null))), null)));
+    assertEquals(SiteLayoutAssembler.HEIGHT_NOT_ACCEPTED, refused(() -> build(site, null, List.of(banner(null, new SiteContainerOptions(1001, null, false, null, null), null, column(null, null))), null)));
+    assertEquals(SiteLayoutAssembler.WIDTH_NOT_ACCEPTED, refused(() -> build(site, null, List.of(banner(null, new SiteContainerOptions(null, 300, false, null, null), null, column(null, null))), null)));
+    assertEquals(SiteLayoutAssembler.FULL_HEIGHT_NOT_ACCEPTED, refused(() -> build(site, null, null, List.of(banner(null, new SiteContainerOptions(null, null, false, null, true), null, column(null, null))))));
+    assertEquals(SiteLayoutAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> build(site, null, List.of(banner(null, new SiteContainerOptions(null, null, false, DisplayMode.HIDE_DESKTOP, null), null, column(null, null))), null)));
     List<SiteContainerDescription> eleven = java.util.Collections.nCopies(11, sidebar(null));
     assertEquals(SiteLayoutAssembler.TOPBARS_NOT_ACCEPTED, refused(() -> build(site, null, eleven, null)));
     assertEquals(SiteLayoutAssembler.BOTTOM_BARS_NOT_ACCEPTED, refused(() -> build(site, null, null, eleven)));
@@ -1845,10 +1960,11 @@ public class LayoutDescriptionServiceTest {
                                                                    new BackgroundBlock(true, BackgroundMode.LINEAR, null, "#555555", "#666666", 30, "to_right", null, null, null),
                                                                    null,
                                                                    null);
-    SiteContainerDescription top = new SiteContainerDescription(null,
-                                                                new SiteContainerOptions(60, null, true, DisplayMode.HIDE_MOBILE, null),
-                                                                bannerStyling,
-                                                                List.of(new ApplicationDescription(null, null, 10L, null, applicationStyling, DisplayMode.HIDE_DESKTOP, null, false, null)));
+    SiteContainerDescription top = banner(null,
+                                          new SiteContainerOptions(60, null, true, DisplayMode.HIDE_MOBILE, null),
+                                          bannerStyling,
+                                          column(null, 240, new ApplicationDescription(null, null, 10L, null, applicationStyling, DisplayMode.HIDE_DESKTOP, null, false, null)),
+                                          column(null, null));
     SiteContainerDescription left = new SiteContainerDescription(null, new SiteContainerOptions(null, 200, false, null, false), null, null);
 
     LayoutModel written = build(site, left, List.of(top), null);
@@ -1869,7 +1985,11 @@ public class LayoutDescriptionServiceTest {
     assertEquals("#333333", readTop.styling().text().title().color());
     assertEquals(18, readTop.styling().text().title().size());
     assertEquals(true, readTop.styling().text().title().bold());
-    ApplicationDescription readApplication = readTop.applications().get(0);
+    assertEquals(2, readTop.columns().size());
+    assertEquals(240, readTop.columns().get(0).width());
+    assertNull(readTop.columns().get(1).width());
+    assertTrue(readTop.columns().get(1).applications().isEmpty());
+    ApplicationDescription readApplication = readTop.columns().get(0).applications().get(0);
     assertEquals("content/NewsListView", readApplication.contentId());
     assertEquals(DisplayMode.HIDE_DESKTOP, readApplication.display());
     assertEquals(24, readApplication.styling().margins().all());
@@ -1905,6 +2025,21 @@ public class LayoutDescriptionServiceTest {
 
   private SiteContainerDescription sidebar(SiteContainerOptions options) {
     return new SiteContainerDescription(null, options, null, null);
+  }
+
+  private SiteContainerDescription banner(String containerId,
+                                          SiteContainerOptions options,
+                                          StylingDescription styling,
+                                          SiteColumnDescription... columns) {
+    return new SiteContainerDescription(containerId, options, styling, null, List.of(columns));
+  }
+
+  private SiteColumnDescription column(String columnId, Integer width, ApplicationDescription... applications) {
+    return new SiteColumnDescription(columnId, width, List.of(applications));
+  }
+
+  private SiteColumnDescription[] storedColumns(Container banner) {
+    return banner.getChildren().stream().map(cell -> column(((Container) cell).getStorageId(), null)).toArray(SiteColumnDescription[]::new);
   }
 
   private PortletInstance instance(long id, String contentId, String name) throws Exception {

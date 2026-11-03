@@ -48,14 +48,15 @@ import io.meeds.layout.util.EntityMapper;
  * other element staying where it is stored. The places addressed are the
  * ones the read describes: on a page built with the editor's sections, a
  * column of a dynamic section and a cell of a grid section; on a site, a
- * topbar or a bottom bar by the banner's id and a sidebar by the id of its
- * cell, the outer one when a side holds two. An index counts the
+ * column of a topbar or a bottom bar by the banner's id and the column's
+ * number, and a sidebar by the id of its cell, the outer one when a side
+ * holds two. An index counts the
  * applications the caller can see, every number from 1, and an application
  * the caller cannot see keeps its stored place among them. A moved
  * application keeps its window, its preferences and its styling, written
  * for its new place in the editor's matrix: a block the new place does not
- * offer is dropped. A grid cell holds one application: a taken cell is
- * refused, never swapped. Every value is checked before the tree changes.
+ * offer is dropped. A grid cell and a column of a topbar or a bottom bar
+ * hold one application: a taken one is refused, never swapped. Every value is checked before the tree changes.
  */
 public class LayoutPlacementAssembler {
 
@@ -86,6 +87,8 @@ public class LayoutPlacementAssembler {
   private final Map<String, GridGeometry>       gridSections    = new HashMap<>();
 
   private final Map<String, List<LayoutModel>>  siteContainers  = new HashMap<>();
+
+  private final Set<String>                     banners         = new HashSet<>();
 
   private final Map<String, LayoutModel>        applications    = new HashMap<>();
 
@@ -182,14 +185,38 @@ public class LayoutPlacementAssembler {
   }
 
   private PlacementSlot containerSlot(String containerId, ApplicationPosition position, String movedId) throws ObjectNotFoundException {
-    if (position.column() != null || position.row() != null) {
-      throw new IllegalArgumentException(POSITION_NOT_ACCEPTED);
-    }
     List<LayoutModel> cells = siteContainers.get(containerId);
     if (cells == null) {
       throw new ObjectNotFoundException(CONTAINER_NOT_FOUND);
+    } else if (banners.contains(containerId)) {
+      return bannerSlot(cells, position, movedId);
+    } else if (position.column() != null || position.row() != null) {
+      throw new IllegalArgumentException(POSITION_NOT_ACCEPTED);
     }
     return orderedSlot(cells, position, movedId, StylingDestination.SITE_CONTAINER_APPLICATION);
+  }
+
+  /**
+   * A column of a topbar or a bottom bar, numbered from 1 as the read lists
+   * them, holds one application, as the site layout editor offers it: a
+   * column holding one, seen or not, is taken
+   */
+  private PlacementSlot bannerSlot(List<LayoutModel> cells, ApplicationPosition position, String movedId) {
+    Integer column = position.column();
+    if (cells.isEmpty()) {
+      throw new IllegalArgumentException(CANNOT_BE_PLACED);
+    } else if (position.row() != null || position.index() != null || position.before() != null || position.after() != null
+        || column == null || column < 1 || column > cells.size()) {
+      throw new IllegalArgumentException(POSITION_NOT_ACCEPTED);
+    }
+    LayoutModel cell = cells.get(column - 1);
+    boolean taken = storedChildren(cell).stream()
+                                        .anyMatch(c -> StringUtils.isBlank(c.getTemplate())
+                                                       && !StringUtils.equals(c.getStorageId(), movedId));
+    if (taken) {
+      throw new IllegalArgumentException(CELL_TAKEN);
+    }
+    return new PlacementSlot(cell, null, StylingDestination.SITE_CONTAINER_APPLICATION);
   }
 
   private PlacementSlot sectionSlot(String sectionId, ApplicationPosition position, String movedId) throws ObjectNotFoundException {
@@ -395,6 +422,9 @@ public class LayoutPlacementAssembler {
                                                  .filter(c -> isTemplate(c, LayoutDescriptionService.BANNER_CELL_TEMPLATE))
                                                  .toList();
         siteContainer(child.getStorageId(), cells);
+        if (StringUtils.isNotBlank(child.getStorageId())) {
+          banners.add(child.getStorageId());
+        }
       } else if (isTemplate(child, LayoutDescriptionService.SITE_MIDDLE_CENTER_TEMPLATE)) {
         center = child;
       }

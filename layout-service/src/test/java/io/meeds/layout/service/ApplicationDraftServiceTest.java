@@ -60,6 +60,7 @@ import io.meeds.layout.mcp.model.ApplicationDescription;
 import io.meeds.layout.mcp.model.CellDescription;
 import io.meeds.layout.mcp.model.PageDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
+import io.meeds.layout.mcp.model.SiteColumnDescription;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.model.ApplicationSettingsContext;
@@ -311,6 +312,8 @@ public class ApplicationDraftServiceTest {
     assertEquals(List.of(context), resolved.contexts());
     assertEquals(ApplicationDraftService.APPLICATION_ID_NOT_ACCEPTED,
                  assertThrows(IllegalArgumentException.class, () -> service.resolveSite(SITE_ID, List.of("top"), USER)).getMessage());
+    assertEquals(ApplicationDraftService.APPLICATION_ID_NOT_ACCEPTED,
+                 assertThrows(IllegalArgumentException.class, () -> service.resolveSite(SITE_ID, List.of("top-column"), USER)).getMessage());
   }
 
   @Test
@@ -392,9 +395,11 @@ public class ApplicationDraftServiceTest {
   private SiteDescription siteRead(String applicationId, String containerId) {
     ApplicationDescription application = mock(ApplicationDescription.class);
     when(application.applicationId()).thenReturn(applicationId);
-    SiteContainerDescription container = mock(SiteContainerDescription.class);
-    when(container.containerId()).thenReturn(containerId);
-    when(container.applications()).thenReturn(List.of(application));
+    SiteContainerDescription container = new SiteContainerDescription(containerId,
+                                                                      null,
+                                                                      null,
+                                                                      null,
+                                                                      List.of(new SiteColumnDescription(containerId + "-column", null, List.of(application))));
     SiteDescription site = mock(SiteDescription.class);
     when(site.topbars()).thenReturn(List.of(container));
     when(site.bottomBars()).thenReturn(List.of());

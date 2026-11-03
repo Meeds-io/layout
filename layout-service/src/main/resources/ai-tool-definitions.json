@@ -24,7 +24,7 @@
     {
       "name": "get_site",
       "title": "Get a site and its layout",
-      "description": "Read a site's properties (label, description, banner, access and edit permissions) and its layout: left_sidebar, right_sidebar, topbars and bottom_bars, each with its container_id, options (height or width, sticky, display), styling and the applications it holds with their application_id. Returns the user's site draft by default when they have one (draft: true), the published layout otherwise; version selects one explicitly.",
+      "description": "Read a site's properties (label, description, banner, access and edit permissions) and its layout: left_sidebar, right_sidebar, topbars and bottom_bars, each with its container_id, options (height or width, sticky, display) and styling; a sidebar lists the applications it holds, a topbar or a bottom bar its columns, left to right, each with its column_id, its width in pixels when it has one and the applications it holds, each application with its application_id. Returns the user's site draft by default when they have one (draft: true), the published layout otherwise; version selects one explicitly.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -410,7 +410,7 @@
     {
       "name": "set_site_layout",
       "title": "Set the layout of a site",
-      "description": "Replace the structure of the site layout shared by every page of the site, in the current user's draft, as the site layout editor does: the left and right sidebars, the topbars and the bottom bars, each with its options, styling and applications. What is sent is the whole structure, as get_site returns it: a sidebar omitted is removed, topbars or bottom_bars omitted means none. Ids address the layout get_site returned (the user's draft when they have one, the published layout otherwise): a container_id keeps the stored container (a topbar its cells), an application_id keeps the application with its settings, an application given by instance_id or content_id is added, and an application of the layout absent from the call is removed. A site layout holding a container the user cannot see is refused; an application the user cannot see stays where it is when its container is kept by container_id, the call being refused otherwise. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. On a kept container or application, an option, a styling block or a display omitted keeps what it holds; enabled false clears a block. A site whose stored layout holds two sidebars on one side, which get_site reports as one, is refused. At most 200 containers and applications in one call. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_site does, with the ids to use in later calls; after publish_layout the ids change, read the site again. New images are not accepted by this tool: a stored image stays unless its background block is turned off.",
+      "description": "Replace the structure of the site layout shared by every page of the site, in the current user's draft, as the site layout editor does: the left and right sidebars with their applications, the topbars and the bottom bars with their columns, one application per column, each container with its options and styling. What is sent is the whole structure, as get_site returns it: a sidebar omitted is removed, topbars or bottom_bars omitted means none. Ids address the layout get_site returned (the user's draft when they have one, the published layout otherwise): a container_id keeps the stored container, a column_id keeps a stored column of that topbar or bottom bar and a column absent from the call is removed, an application_id keeps the application with its settings, an application given by instance_id or content_id is added, and an application of the layout absent from the call is removed. A site layout holding a container the user cannot see is refused; an application the user cannot see stays where it is when its container, or its column, is kept by id, the call being refused otherwise. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. On a kept container or application, an option, a styling block or a display omitted keeps what it holds; enabled false clears a block. A site whose stored layout holds two sidebars on one side, which get_site reports as one, is refused. At most 200 containers, columns and applications in one call. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_site does, with the ids to use in later calls; after publish_layout the ids change, read the site again. New images are not accepted by this tool: a stored image stays unless its background block is turned off.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -793,93 +793,114 @@
                     }
                   }
                 },
-                "applications": {
+                "columns": {
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "description": "an application in the container",
+                    "description": "a column of the topbar",
                     "properties": {
-                      "application_id": {
+                      "column_id": {
                         "type": "string",
-                        "description": "the id of an application already in the layout get_site returned, to keep it with its settings; omit to add a new one"
+                        "description": "the id of a column of this topbar in the layout get_site returned, to keep it; omit to create a column"
                       },
-                      "instance_id": {
+                      "width": {
                         "type": "integer",
-                        "description": "the catalog instance to add, from list_layout_applications; omit when application_id or content_id is given"
+                        "minimum": 50,
+                        "maximum": 1000,
+                        "description": "the width in pixels, 50 to 1000; omit to share the remaining width; never on the last column, which takes the remaining width"
                       },
-                      "content_id": {
-                        "type": "string",
-                        "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
-                      },
-                      "title": {
-                        "type": "string",
-                        "description": "the title shown, at most 200 characters; omit for the catalog name or the stored title"
-                      },
-                      "styling": {
-                        "type": "object",
-                        "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
-                        "properties": {
-                          "margins": {
-                            "type": "object",
-                            "description": "enabled, then all or top/right/bottom/left on the editor scale, -40 to 80 (20 none)",
-                            "properties": {
-                              "enabled": {
-                                "type": "boolean"
+                      "applications": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "description": "an application in the column",
+                          "properties": {
+                            "application_id": {
+                              "type": "string",
+                              "description": "the id of an application already in the layout get_site returned, to keep it with its settings; omit to add a new one"
+                            },
+                            "instance_id": {
+                              "type": "integer",
+                              "description": "the catalog instance to add, from list_layout_applications; omit when application_id or content_id is given"
+                            },
+                            "content_id": {
+                              "type": "string",
+                              "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "the title shown, at most 200 characters; omit for the catalog name or the stored title"
+                            },
+                            "styling": {
+                              "type": "object",
+                              "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                              "properties": {
+                                "margins": {
+                                  "type": "object",
+                                  "description": "enabled, then all or top/right/bottom/left on the editor scale, -40 to 80 (20 none)",
+                                  "properties": {
+                                    "enabled": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                },
+                                "border": {
+                                  "type": "object",
+                                  "description": "enabled, color (#RRGGBB or #RRGGBBAA), size 0 to 8 (default 1), shadow",
+                                  "properties": {
+                                    "enabled": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                },
+                                "corners": {
+                                  "type": "object",
+                                  "description": "enabled, then all or top_left/top_right/bottom_right/bottom_left, 0 to 20",
+                                  "properties": {
+                                    "enabled": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                },
+                                "background": {
+                                  "type": "object",
+                                  "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails once it has resolved it (an id a refused call never reached stays usable), each id once per call; a stored image is kept by sending back its url and options",
+                                  "properties": {
+                                    "enabled": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                },
+                                "text": {
+                                  "type": "object",
+                                  "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails once it has resolved it; a stored image is kept by sending back its url",
+                                  "properties": {
+                                    "enabled": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                }
                               }
-                            }
-                          },
-                          "border": {
-                            "type": "object",
-                            "description": "enabled, color (#RRGGBB or #RRGGBBAA), size 0 to 8 (default 1), shadow",
-                            "properties": {
-                              "enabled": {
-                                "type": "boolean"
-                              }
-                            }
-                          },
-                          "corners": {
-                            "type": "object",
-                            "description": "enabled, then all or top_left/top_right/bottom_right/bottom_left, 0 to 20",
-                            "properties": {
-                              "enabled": {
-                                "type": "boolean"
-                              }
-                            }
-                          },
-                          "background": {
-                            "type": "object",
-                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails once it has resolved it (an id a refused call never reached stays usable), each id once per call; a stored image is kept by sending back its url and options",
-                            "properties": {
-                              "enabled": {
-                                "type": "boolean"
-                              }
-                            }
-                          },
-                          "text": {
-                            "type": "object",
-                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails once it has resolved it; a stored image is kept by sending back its url",
-                            "properties": {
-                              "enabled": {
-                                "type": "boolean"
-                              }
+                            },
+                            "display": {
+                              "type": "string",
+                              "enum": [
+                                "both",
+                                "hide_mobile",
+                                "hide_desktop"
+                              ],
+                              "description": "where the application shows; omit to keep it (both on a new application)"
                             }
                           }
-                        }
-                      },
-                      "display": {
-                        "type": "string",
-                        "enum": [
-                          "both",
-                          "hide_mobile",
-                          "hide_desktop"
-                        ],
-                        "description": "where the application shows; omit to keep it (both on a new application)"
+                        },
+                        "description": "the application the column holds, at most one; an application of the layout absent from the call is removed"
                       }
                     }
                   },
-                  "description": "the applications the container holds, in order, at most 50; a kept application goes back to its stored place, a new one follows the one before it; an application of the layout absent from the call is removed"
+                  "description": "the columns, left to right, 1 to 64, as the site layout editor offers them; a stored column absent from the call is removed with its applications"
                 }
-              }
+              },
+              "required": ["columns"]
             },
             "description": "the topbars, top to bottom, at most 10; omit for none"
           },
@@ -944,93 +965,114 @@
                     }
                   }
                 },
-                "applications": {
+                "columns": {
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "description": "an application in the container",
+                    "description": "a column of the bottom bar",
                     "properties": {
-                      "application_id": {
+                      "column_id": {
                         "type": "string",
-                        "description": "the id of an application already in the layout get_site returned, to keep it with its settings; omit to add a new one"
+                        "description": "the id of a column of this bottom bar in the layout get_site returned, to keep it; omit to create a column"
                       },
-                      "instance_id": {
+                      "width": {
                         "type": "integer",
-                        "description": "the catalog instance to add, from list_layout_applications; omit when application_id or content_id is given"
+                        "minimum": 50,
+                        "maximum": 1000,
+                        "description": "the width in pixels, 50 to 1000; omit to share the remaining width; never on the last column, which takes the remaining width"
                       },
-                      "content_id": {
-                        "type": "string",
-                        "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
-                      },
-                      "title": {
-                        "type": "string",
-                        "description": "the title shown, at most 200 characters; omit for the catalog name or the stored title"
-                      },
-                      "styling": {
-                        "type": "object",
-                        "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
-                        "properties": {
-                          "margins": {
-                            "type": "object",
-                            "description": "enabled, then all or top/right/bottom/left on the editor scale, -40 to 80 (20 none)",
-                            "properties": {
-                              "enabled": {
-                                "type": "boolean"
+                      "applications": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "description": "an application in the column",
+                          "properties": {
+                            "application_id": {
+                              "type": "string",
+                              "description": "the id of an application already in the layout get_site returned, to keep it with its settings; omit to add a new one"
+                            },
+                            "instance_id": {
+                              "type": "integer",
+                              "description": "the catalog instance to add, from list_layout_applications; omit when application_id or content_id is given"
+                            },
+                            "content_id": {
+                              "type": "string",
+                              "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                            },
+                            "title": {
+                              "type": "string",
+                              "description": "the title shown, at most 200 characters; omit for the catalog name or the stored title"
+                            },
+                            "styling": {
+                              "type": "object",
+                              "description": "the styling blocks as get_site returns them: a block omitted keeps what the element holds (nothing on a new one), a block with enabled false clears it, and inside a block a value omitted keeps the stored one; a stored image stays unless its block is turned off",
+                              "properties": {
+                                "margins": {
+                                  "type": "object",
+                                  "description": "enabled, then all or top/right/bottom/left on the editor scale, -40 to 80 (20 none)",
+                                  "properties": {
+                                    "enabled": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                },
+                                "border": {
+                                  "type": "object",
+                                  "description": "enabled, color (#RRGGBB or #RRGGBBAA), size 0 to 8 (default 1), shadow",
+                                  "properties": {
+                                    "enabled": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                },
+                                "corners": {
+                                  "type": "object",
+                                  "description": "enabled, then all or top_left/top_right/bottom_right/bottom_left, 0 to 20",
+                                  "properties": {
+                                    "enabled": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                },
+                                "background": {
+                                  "type": "object",
+                                  "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails once it has resolved it (an id a refused call never reached stays usable), each id once per call; a stored image is kept by sending back its url and options",
+                                  "properties": {
+                                    "enabled": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                },
+                                "text": {
+                                  "type": "object",
+                                  "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails once it has resolved it; a stored image is kept by sending back its url",
+                                  "properties": {
+                                    "enabled": {
+                                      "type": "boolean"
+                                    }
+                                  }
+                                }
                               }
-                            }
-                          },
-                          "border": {
-                            "type": "object",
-                            "description": "enabled, color (#RRGGBB or #RRGGBBAA), size 0 to 8 (default 1), shadow",
-                            "properties": {
-                              "enabled": {
-                                "type": "boolean"
-                              }
-                            }
-                          },
-                          "corners": {
-                            "type": "object",
-                            "description": "enabled, then all or top_left/top_right/bottom_right/bottom_left, 0 to 20",
-                            "properties": {
-                              "enabled": {
-                                "type": "boolean"
-                              }
-                            }
-                          },
-                          "background": {
-                            "type": "object",
-                            "description": "enabled, then mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA; image {image_upload_id from upload_layout_image, size cover (default) or contain, position center (default), top left, top right, bottom left or bottom right, attachment scroll (default) or fixed, repeat no-repeat (default) or repeat, margins {top, right, bottom, left, 0 to 400} and corners {all or each corner, 0 to 120} of the image} sets a new image, the id consumed and released by this call whether it succeeds or fails once it has resolved it (an id a refused call never reached stays usable), each id once per call; a stored image is kept by sending back its url and options",
-                            "properties": {
-                              "enabled": {
-                                "type": "boolean"
-                              }
-                            }
-                          },
-                          "text": {
-                            "type": "object",
-                            "description": "enabled, icon_color, then title, header, content and subtitle, each {color, size 1 to 60, bold, italic}; title and header also take background {enabled, mode solid (default, color) or linear, radial, angular (from, to, ratio 0 to 100 default 50, direction: linear to_bottom default or to_right, angular top_left default, top_right, bottom_right or bottom_left); colours as #RRGGBB or #RRGGBBAA, padding {top, right, bottom, left} -400 to 400, corners {enabled, all or each corner 0 to 120}}; a value omitted is kept, title and header background also take image {image_upload_id from upload_layout_image, size cover (default) or contain, or repeat repeat or no-repeat, position top left, top right, bottom left or bottom right} for a new image, the id consumed and released by this call whether it succeeds or fails once it has resolved it; a stored image is kept by sending back its url",
-                            "properties": {
-                              "enabled": {
-                                "type": "boolean"
-                              }
+                            },
+                            "display": {
+                              "type": "string",
+                              "enum": [
+                                "both",
+                                "hide_mobile",
+                                "hide_desktop"
+                              ],
+                              "description": "where the application shows; omit to keep it (both on a new application)"
                             }
                           }
-                        }
-                      },
-                      "display": {
-                        "type": "string",
-                        "enum": [
-                          "both",
-                          "hide_mobile",
-                          "hide_desktop"
-                        ],
-                        "description": "where the application shows; omit to keep it (both on a new application)"
+                        },
+                        "description": "the application the column holds, at most one; an application of the layout absent from the call is removed"
                       }
                     }
                   },
-                  "description": "the applications the container holds, in order, at most 50; a kept application goes back to its stored place, a new one follows the one before it; an application of the layout absent from the call is removed"
+                  "description": "the columns, left to right, 1 to 64, as the site layout editor offers them; a stored column absent from the call is removed with its applications"
                 }
-              }
+              },
+              "required": ["columns"]
             },
             "description": "the bottom bars, top to bottom, at most 10; omit for none"
           }
@@ -1841,7 +1883,7 @@
     {
       "name": "move_layout_application",
       "title": "Place or move an application on a layout",
-      "description": "Place an application from the catalog, or move one already on the layout, on a page or in a site container of the current user's draft, in one draft save, without resending the layout, as dragging an application in the layout editors does. Give application_id to move an application, or application to place a new one, never both. In a dynamic section an application goes in a column, at an index or before or after another application of that column; in a grid section it goes in an empty cell, named by its row and column; in a topbar, a bottom bar or a sidebar it goes at an index or before or after another application of that container. A cell already holding an application is refused with cell already taken, never swapped; a column, row or index outside the section or the container is refused as a value for position, and a cell covered by another cell's span, a neighbour outside the column or the container, or a container with no cell cannot be placed there. Applications the user cannot see keep their place, and an index counts the applications the read returns only. A moved application keeps its window, with its settings, its widget code and its styling, written for its new place: a styling block the new place does not offer is dropped, as the editors offer them. The column, cell or container it leaves stays. A new application takes the catalog instance's settings and name; settings, styling and display are then changed with configure_layout_applications, set_layout_styles and set_layout_visibility. Exactly one of page_ref and site_id names the layout. Ids address the layout get_page_layout or get_site returned (the user's draft when they have one, the published layout otherwise); an id the read does not answer does not exist for this tool, an element the user cannot see included, and a section, cell or container id is refused as an application_id. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. The first draft of a page needs the right to edit the site's navigation, as opening the editor does, and the page must be referenced by a navigation item of its site. Every value is checked before anything is written; a refused value is answered naming the option. When this call creates the draft, every window of the layout is copied into it as the editors copy it, keeping the settings its application keeps on a copy: an application that regenerates its settings when copied, such as a News or Content list, may lose some of them, which configure_layout_applications sets again. Returns the application_id the application has in the draft and the layout as get_page_layout or get_site does, with its ids, which change when this call creates the draft: use the returned ones in later calls.",
+      "description": "Place an application from the catalog, or move one already on the layout, on a page or in a site container of the current user's draft, in one draft save, without resending the layout, as dragging an application in the layout editors does. Give application_id to move an application, or application to place a new one, never both. In a dynamic section an application goes in a column, at an index or before or after another application of that column; in a grid section it goes in an empty cell, named by its row and column; in a topbar or a bottom bar it goes in an empty column, named by its number; in a sidebar it goes at an index or before or after another application of that container. A cell or a column already holding an application is refused with cell already taken, never swapped; a column, row or index outside the section or the container is refused as a value for position, and a cell covered by another cell's span, a neighbour outside the column or the container, or a container with no cell cannot be placed there. Applications the user cannot see keep their place, and an index counts the applications the read returns only. A moved application keeps its window, with its settings, its widget code and its styling, written for its new place: a styling block the new place does not offer is dropped, as the editors offer them. The column, cell or container it leaves stays. A new application takes the catalog instance's settings and name; settings, styling and display are then changed with configure_layout_applications, set_layout_styles and set_layout_visibility. Exactly one of page_ref and site_id names the layout. Ids address the layout get_page_layout or get_site returned (the user's draft when they have one, the published layout otherwise); an id the read does not answer does not exist for this tool, an element the user cannot see included, and a section, cell or container id is refused as an application_id. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. The first draft of a page needs the right to edit the site's navigation, as opening the editor does, and the page must be referenced by a navigation item of its site. Every value is checked before anything is written; a refused value is answered naming the option. When this call creates the draft, every window of the layout is copied into it as the editors copy it, keeping the settings its application keeps on a copy: an application that regenerates its settings when copied, such as a News or Content list, may lose some of them, which configure_layout_applications sets again. Returns the application_id the application has in the draft and the layout as get_page_layout or get_site does, with its ids, which change when this call creates the draft: use the returned ones in later calls.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -1873,7 +1915,7 @@
           },
           "position": {
             "type": "object",
-            "description": "Where the application goes, every number counting from 1 as get_page_layout numbers grid cells. In a dynamic section: section_id and column, plus at most one of index, before and after; with none of them the application goes at the end of the column. In a grid section: section_id, row and column of the target cell, which must hold no application. In a site container (a topbar, a bottom bar or a sidebar): container_id, plus at most one of index, before and after; with none of them the application goes at the end of the container.",
+            "description": "Where the application goes, every number counting from 1 as get_page_layout numbers grid cells. In a dynamic section: section_id and column, plus at most one of index, before and after; with none of them the application goes at the end of the column. In a grid section: section_id, row and column of the target cell, which must hold no application. In a topbar or a bottom bar: container_id and the column, which must hold no application. In a sidebar: container_id, plus at most one of index, before and after; with none of them the application goes at the end of the sidebar.",
             "properties": {
               "section_id": {
                 "type": "string",
@@ -1886,8 +1928,8 @@
               "column": {
                 "type": "integer",
                 "minimum": 1,
-                "maximum": 12,
-                "description": "In a dynamic section, the column the application goes in, 1 being the first; in a grid section, the column of the target cell"
+                "maximum": 64,
+                "description": "In a dynamic section, the column the application goes in, 1 being the first; in a grid section, the column of the target cell; in a topbar or a bottom bar, the column it goes in, as get_site lists them"
               },
               "row": {
                 "type": "integer",
@@ -1898,7 +1940,7 @@
               "index": {
                 "type": "integer",
                 "minimum": 1,
-                "description": "The position among the applications of the column or the container, 1 being the first; one more than their count puts it last; omit to use before, after or the end"
+                "description": "The position among the applications of the column of a dynamic section or of the sidebar, 1 being the first; one more than their count puts it last; omit to use before, after or the end"
               },
               "before": {
                 "type": "string",

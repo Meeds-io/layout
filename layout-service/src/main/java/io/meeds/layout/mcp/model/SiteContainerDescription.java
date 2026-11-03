@@ -24,9 +24,25 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+/**
+ * A site container: a sidebar lists its applications, a topbar or a bottom
+ * bar lists its columns, each holding its application.
+ */
 @JsonInclude(Include.NON_NULL)
 public record SiteContainerDescription(@JsonProperty("container_id") String containerId,
                                        @JsonProperty("options") SiteContainerOptions options,
                                        @JsonProperty("styling") StylingDescription styling,
-                                       @JsonProperty("applications") List<ApplicationDescription> applications) {
+                                       @JsonProperty("applications") List<ApplicationDescription> applications,
+                                       @JsonProperty("columns") List<SiteColumnDescription> columns) {
+
+  /**
+   * A sidebar, whose applications are listed in its one cell
+   */
+  public SiteContainerDescription(String containerId,
+                                  SiteContainerOptions options,
+                                  StylingDescription styling,
+                                  List<ApplicationDescription> applications) {
+    this(containerId, options, styling, applications, null);
+  }
+
 }
