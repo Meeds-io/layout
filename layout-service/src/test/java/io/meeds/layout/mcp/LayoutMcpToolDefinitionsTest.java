@@ -452,6 +452,26 @@ public class LayoutMcpToolDefinitionsTest {
     });
   }
 
+  /**
+   * The SDK checks every call against the input schema before the tool
+   * runs: a column width get_site returns from the editor, whatever its
+   * value, must pass it, the tool bounding a changed width itself
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  public void aColumnWidthTheReadReturnsIsNotBoundedByTheSchema() {
+    Map<String, Object> schema = JSON_HELPER.fromJsonToMap(definitions().get("set_site_layout").getInputSchema());
+    Map<String, Object> properties = (Map<String, Object>) schema.get("properties");
+    for (String banners : List.of("topbars", "bottom_bars")) {
+      Map<String, Object> banner = (Map<String, Object>) ((Map<String, Object>) properties.get(banners)).get("items");
+      Map<String, Object> columns = (Map<String, Object>) ((Map<String, Object>) banner.get("properties")).get("columns");
+      Map<String, Object> width = (Map<String, Object>) ((Map<String, Object>) ((Map<String, Object>) columns.get("items")).get("properties")).get("width");
+      assertEquals("integer", width.get("type"), banners);
+      assertNull(width.get("minimum"), banners);
+      assertNull(width.get("maximum"), banners);
+    }
+  }
+
   @Test
   public void outputIsSerializedInSnakeCase() {
     SectionDescription section = new SectionDescription("12", SectionType.DYNAMIC, 3, null, List.of(), null, null, null);

@@ -391,6 +391,24 @@ public class LayoutPlacementAssemblerTest {
   }
 
   @Test
+  public void columnsAreNumberedOverTheOnesTheUserCanSee() throws Exception {
+    PortalConfig site = storedSite();
+    Container bottom = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1);
+    Container hiddenColumn = container(LayoutDescriptionService.BANNER_CELL_TEMPLATE, null);
+    Container visibleColumn = (Container) bottom.getChildren().get(0);
+    children(bottom, hiddenColumn, visibleColumn);
+    hide(hiddenColumn);
+
+    PlacedLayout placed = descriptionService.toMovedSite("c", bannerColumn(bottom.getStorageId(), 1), site, false, USER);
+
+    List<LayoutModel> columns = placed.layout().getChildren().get(1).getChildren().get(2).getChildren();
+    assertEquals(List.of(), ids(columns.get(0)));
+    assertEquals(List.of("c"), ids(columns.get(1)));
+    assertEquals(LayoutPlacementAssembler.POSITION_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toMovedSite("c", bannerColumn(bottom.getStorageId(), 2), site, false, USER)));
+  }
+
+  @Test
   public void aCatalogApplicationIsPlacedInASiteContainer() throws Exception {
     PortletInstance instance = new PortletInstance();
     instance.setId(10L);

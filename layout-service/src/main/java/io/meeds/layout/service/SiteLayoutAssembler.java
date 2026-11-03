@@ -409,8 +409,8 @@ public class SiteLayoutAssembler {
    * addressed by its id keeps its stored cell, which must be one of the kept
    * banner's, a new one is created, and a stored column left out is removed.
    * A column holds one application, has a width in pixels or shares the
-   * remaining width, and the last one always takes the remaining width, as
-   * the site layout editor draws them. A column's width is part of the
+   * remaining width, and a width is never set on the last one, which takes
+   * the remaining width, as the site layout editor draws them. A column's width is part of the
    * structure: omitted, the column shares the remaining width; sent back as
    * the read answered it, it is kept whatever its value, the bounds applying
    * to a changed width. A column the editor or an earlier write left holding

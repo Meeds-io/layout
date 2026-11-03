@@ -805,9 +805,7 @@
                       },
                       "width": {
                         "type": "integer",
-                        "minimum": 50,
-                        "maximum": 1000,
-                        "description": "the width in pixels, 50 to 1000, never on the last column, which takes the remaining width; a width get_site returned is kept when sent back unchanged; omit to share the remaining width"
+                        "description": "the width in pixels, 50 to 1000, never set on the last column, which takes the remaining width; a width get_site returned is kept when sent back unchanged, whatever its value or its column; omit to share the remaining width"
                       },
                       "applications": {
                         "type": "array",
@@ -977,9 +975,7 @@
                       },
                       "width": {
                         "type": "integer",
-                        "minimum": 50,
-                        "maximum": 1000,
-                        "description": "the width in pixels, 50 to 1000, never on the last column, which takes the remaining width; a width get_site returned is kept when sent back unchanged; omit to share the remaining width"
+                        "description": "the width in pixels, 50 to 1000, never set on the last column, which takes the remaining width; a width get_site returned is kept when sent back unchanged, whatever its value or its column; omit to share the remaining width"
                       },
                       "applications": {
                         "type": "array",
