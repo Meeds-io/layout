@@ -332,23 +332,129 @@ public class LayoutPlacementAssemblerTest {
   }
 
   @Test
-  public void aSiteContainerTakesAnIndexOrANeighbourAcrossItsCells() throws Exception {
+  public void aSidebarTakesAnIndexOrANeighbour() throws Exception {
     PortalConfig site = storedSite();
-    String topId = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0).getStorageId();
-
-    PlacedLayout placed = descriptionService.toMovedSite("c", container(topId, 2, null, null), site, false, USER);
-    assertEquals(List.of("a"), ids(topCellOf(placed.layout(), 0)));
-    assertEquals(List.of("c", "b"), ids(topCellOf(placed.layout(), 1)));
-    assertEquals(List.of(), ids(placed.layout().getChildren().get(0).getChildren().get(0)));
-    assertEquals(List.of(1, 0, 1, 0), placed.path());
-
-    LayoutModel end = descriptionService.toMovedSite("a", container(topId, null, null, null), site, false, USER).layout();
-    assertEquals(List.of(), ids(topCellOf(end, 0)));
-    assertEquals(List.of("b", "a"), ids(topCellOf(end, 1)));
 
     LayoutModel after = descriptionService.toMovedSite("a", container(outerLeftCell.getStorageId(), null, null, "c"), site, false, USER)
                                           .layout();
     assertEquals(List.of("c", "a"), ids(after.getChildren().get(0).getChildren().get(0)));
+    assertEquals(List.of(), ids(topCellOf(after, 0)));
+
+    LayoutModel first = descriptionService.toMovedSite("b", container(outerLeftCell.getStorageId(), 1, null, null), site, false, USER)
+                                          .layout();
+    assertEquals(List.of("b", "c"), ids(first.getChildren().get(0).getChildren().get(0)));
+  }
+
+  @Test
+  public void aColumnOfATopbarOrABottomBarHoldsOneApplication() throws Exception {
+    PortalConfig site = storedSite();
+    String topId = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0).getStorageId();
+    String bottomId = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1).getStorageId();
+
+    PlacedLayout placed = descriptionService.toMovedSite("c", bannerColumn(bottomId, 1), site, false, USER);
+    assertEquals(List.of("c"), ids(placed.layout().getChildren().get(1).getChildren().get(2).getChildren().get(0)));
+    assertEquals(List.of(), ids(placed.layout().getChildren().get(0).getChildren().get(0)));
+    assertEquals(List.of(1, 2, 0, 0), placed.path());
+
+    LayoutModel unchanged = descriptionService.toMovedSite("a", bannerColumn(topId, 1), site, false, USER).layout();
+    assertEquals(List.of("a"), ids(topCellOf(unchanged, 0)));
+    assertEquals(List.of("b"), ids(topCellOf(unchanged, 1)));
+
+    assertEquals(LayoutPlacementAssembler.CELL_TAKEN, refused(() -> descriptionService.toMovedSite("a", bannerColumn(topId, 2), site, false, USER)));
+    assertEquals(LayoutPlacementAssembler.CELL_TAKEN, refused(() -> descriptionService.toMovedSite("c", bannerColumn(topId, 1), site, false, USER)));
+    assertEquals(LayoutPlacementAssembler.POSITION_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toMovedSite("c", bannerColumn(topId, 3), site, false, USER)));
+    assertEquals(LayoutPlacementAssembler.POSITION_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toMovedSite("c", bannerColumn(topId, 0), site, false, USER)));
+    assertEquals(LayoutPlacementAssembler.POSITION_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toMovedSite("c", container(topId, null, null, null), site, false, USER)));
+    assertEquals(LayoutPlacementAssembler.POSITION_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toMovedSite("c", new ApplicationPosition(null, bottomId, 1, null, 1, null, null), site, false, USER)));
+    assertEquals(LayoutPlacementAssembler.POSITION_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toMovedSite("c", new ApplicationPosition(null, bottomId, 1, null, null, "a", null), site, false, USER)));
+    assertEquals(LayoutPlacementAssembler.POSITION_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toMovedSite("c", new ApplicationPosition(null, bottomId, 1, null, null, null, "a"), site, false, USER)));
+    assertEquals(LayoutPlacementAssembler.POSITION_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toMovedSite("c", new ApplicationPosition(null, bottomId, 1, 1, null, null, null), site, false, USER)));
+  }
+
+  @Test
+  public void anApplicationAloneInAColumnMovesWithItsColumn() throws Exception {
+    PortalConfig site = storedSite();
+    Container top = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container bottom = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1);
+    Container firstTop = (Container) top.getChildren().get(0);
+    Container secondTop = (Container) top.getChildren().get(1);
+    Container thirdTop = container(LayoutDescriptionService.BANNER_CELL_TEMPLATE, null);
+    top.getChildren().add(thirdTop);
+    firstTop.setCssClass("hidden-sm-and-down");
+    firstTop.setWidth("fit-content");
+    Container bottomColumn = (Container) bottom.getChildren().get(0);
+
+    PlacedLayout inSection = descriptionService.toMovedSite("a", bannerColumn(top.getStorageId(), 3), site, false, USER);
+    List<LayoutModel> columns = inSection.layout().getChildren().get(1).getChildren().get(0).getChildren();
+    assertEquals(List.of(thirdTop.getStorageId(), secondTop.getStorageId(), firstTop.getStorageId()),
+                 columns.stream().map(LayoutModel::getStorageId).toList());
+    assertEquals("hidden-sm-and-down", columns.get(2).getCssClass());
+    assertEquals("fit-content", columns.get(2).getWidth());
+    assertEquals(List.of("a"), ids(columns.get(2)));
+    assertEquals(List.of(1, 0, 2, 0), inSection.path());
+
+    PlacedLayout across = descriptionService.toMovedSite("a", bannerColumn(bottom.getStorageId(), 1), site, false, USER);
+    LayoutModel middle = across.layout().getChildren().get(1);
+    assertEquals(List.of(bottomColumn.getStorageId(), secondTop.getStorageId(), thirdTop.getStorageId()),
+                 middle.getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    assertEquals(List.of(firstTop.getStorageId()), middle.getChildren().get(2).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    assertEquals("hidden-sm-and-down", middle.getChildren().get(2).getChildren().get(0).getCssClass());
+    assertEquals(List.of("a"), ids(middle.getChildren().get(2).getChildren().get(0)));
+    assertEquals(List.of(1, 2, 0, 0), across.path());
+  }
+
+  @Test
+  public void anApplicationSharingItsColumnMovesAlone() throws Exception {
+    PortalConfig site = storedSite();
+    Container top = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container bottom = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1);
+    Container firstTop = (Container) top.getChildren().get(0);
+    firstTop.getChildren().add(application("s"));
+
+    PlacedLayout moved = descriptionService.toMovedSite("a", bannerColumn(bottom.getStorageId(), 1), site, false, USER);
+
+    LayoutModel middle = moved.layout().getChildren().get(1);
+    assertEquals(firstTop.getStorageId(), middle.getChildren().get(0).getChildren().get(0).getStorageId());
+    assertEquals(List.of("s"), ids(middle.getChildren().get(0).getChildren().get(0)));
+    assertEquals(List.of("a"), ids(middle.getChildren().get(2).getChildren().get(0)));
+    assertEquals(((Container) bottom.getChildren().get(0)).getStorageId(), middle.getChildren().get(2).getChildren().get(0).getStorageId());
+  }
+
+  @Test
+  public void aColumnHoldingAnApplicationTheUserCannotSeeIsTaken() throws Exception {
+    PortalConfig site = storedSite();
+    Container bottom = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1);
+    Application hidden = application("h");
+    ((Container) bottom.getChildren().get(0)).getChildren().add(hidden);
+    hide(hidden);
+
+    assertEquals(LayoutPlacementAssembler.CELL_TAKEN,
+                 refused(() -> descriptionService.toMovedSite("c", bannerColumn(bottom.getStorageId(), 1), site, false, USER)));
+  }
+
+  @Test
+  public void columnsAreNumberedOverTheOnesTheUserCanSee() throws Exception {
+    PortalConfig site = storedSite();
+    Container bottom = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1);
+    Container hiddenColumn = container(LayoutDescriptionService.BANNER_CELL_TEMPLATE, null);
+    Container visibleColumn = (Container) bottom.getChildren().get(0);
+    children(bottom, hiddenColumn, visibleColumn);
+    hide(hiddenColumn);
+
+    PlacedLayout placed = descriptionService.toMovedSite("c", bannerColumn(bottom.getStorageId(), 1), site, false, USER);
+
+    List<LayoutModel> columns = placed.layout().getChildren().get(1).getChildren().get(2).getChildren();
+    assertEquals(List.of(), ids(columns.get(0)));
+    assertEquals(List.of("c"), ids(columns.get(1)));
+    assertEquals(LayoutPlacementAssembler.POSITION_NOT_ACCEPTED,
+                 refused(() -> descriptionService.toMovedSite("c", bannerColumn(bottom.getStorageId(), 2), site, false, USER)));
   }
 
   @Test
@@ -359,20 +465,22 @@ public class LayoutPlacementAssemblerTest {
     instance.setName("Links");
     when(portletInstanceService.getPortletInstance(10L, USER, Locale.ENGLISH, true)).thenReturn(instance);
     PortalConfig site = storedSite();
-    String topId = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0).getStorageId();
+    String bottomId = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1).getStorageId();
 
     PlacedLayout placed = descriptionService.toPlacedSite(new ApplicationToPlace(10L, null),
-                                                          container(topId, 1, null, null),
+                                                          bannerColumn(bottomId, 1),
                                                           site,
                                                           false,
                                                           USER,
                                                           Locale.ENGLISH);
 
-    LayoutModel window = topCellOf(placed.layout(), 0).getChildren().get(0);
+    LayoutModel window = placed.layout().getChildren().get(1).getChildren().get(2).getChildren().get(0).getChildren().get(0);
     assertEquals("layout/Links", window.getContentId());
     assertEquals("Links", window.getTitle());
-    assertEquals("a", topCellOf(placed.layout(), 0).getChildren().get(1).getStorageId());
-    assertEquals(List.of(1, 0, 0, 0), placed.path());
+    assertEquals(List.of(1, 2, 0, 0), placed.path());
+    String topId = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0).getStorageId();
+    assertEquals(LayoutPlacementAssembler.CELL_TAKEN,
+                 refused(() -> descriptionService.toPlacedSite(new ApplicationToPlace(10L, null), bannerColumn(topId, 1), site, false, USER, Locale.ENGLISH)));
   }
 
   @Test
@@ -390,7 +498,7 @@ public class LayoutPlacementAssemblerTest {
                                                                USER)));
     assertEquals(LayoutPlacementAssembler.POSITION_NOT_ACCEPTED,
                  refused(() -> descriptionService.toMovedSite("a",
-                                                              new ApplicationPosition(null, topId, 1, null, null, null, null),
+                                                              new ApplicationPosition(null, outerLeftCell.getStorageId(), 1, null, null, null, null),
                                                               site,
                                                               false,
                                                               USER)));
@@ -432,6 +540,10 @@ public class LayoutPlacementAssemblerTest {
 
   private ApplicationPosition grid(int row, int column) {
     return new ApplicationPosition(gridSection.getStorageId(), null, column, row, null, null, null);
+  }
+
+  private ApplicationPosition bannerColumn(String containerId, int column) {
+    return new ApplicationPosition(null, containerId, column, null, null, null, null);
   }
 
   private ApplicationPosition container(String containerId, Integer index, String before, String after) {

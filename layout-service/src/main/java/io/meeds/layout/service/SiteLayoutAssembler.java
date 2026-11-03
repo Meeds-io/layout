@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
@@ -35,6 +36,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 import io.meeds.layout.mcp.constant.StylingDestination;
 import io.meeds.layout.mcp.model.ApplicationDescription;
+import io.meeds.layout.mcp.model.SiteColumnDescription;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
 import io.meeds.layout.mcp.model.SiteContainerOptions;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
@@ -48,12 +50,12 @@ import io.meeds.layout.util.EntityMapper;
  * root, the middle body, its center and the page body are kept from the
  * stored tree, the four sidebar slots are always written (empty when unused)
  * and the banners are written in the order given, as the site layout editor's
- * parseSite and newSite shape them. A container addressed by its id keeps its
- * stored element (a banner its cells) and every option, styling block or
- * display the call leaves null; an application addressed by its id keeps its
- * window the same way; a window the caller cannot see, which the call can
- * neither address nor move, stays in its container at its index when that
- * container is kept, the call being refused otherwise. A side holding both
+ * parseSite and newSite shape them, each with the columns given. A container
+ * or a column addressed by its id keeps its stored element and every option,
+ * styling block or display the call leaves null; an application addressed by
+ * its id keeps its window the same way; a window the caller cannot see, which
+ * the call can neither address nor move, stays in its container or column at
+ * its index when that one is kept, the call being refused otherwise. A side holding both
  * an outer and an inner sidebar, which the read reports as one, is refused.
  */
 public class SiteLayoutAssembler {
@@ -124,6 +126,22 @@ public class SiteLayoutAssembler {
 
   public static final String                                APPLICATION_DISPLAY_NOT_ACCEPTED = "value is not accepted for display";
 
+  public static final String                                COLUMNS_NOT_ACCEPTED            = "value is not accepted for columns";
+
+  public static final String                                COLUMN_ID_NOT_ACCEPTED          = "value is not accepted for columns.column_id";
+
+  public static final String                                COLUMN_NOT_FOUND                = "does not exist: column";
+
+  public static final String                                COLUMN_WIDTH_NOT_ACCEPTED       = "value is not accepted for columns.width";
+
+  public static final String                                COLUMN_FIT_CONTENT_NOT_ACCEPTED =
+                                                                                         "value is not accepted for columns.fit_content";
+
+  public static final String                                FIT_CONTENT                     = "fit-content";
+
+  public static final String                                COLUMN_APPLICATIONS_NOT_ACCEPTED =
+                                                                                          "value is not accepted for columns.applications";
+
   public static final int                                   DEFAULT_BANNER_HEIGHT           = 57;
 
   public static final int                                   BANNER_HEIGHT_MAX               = 1000;
@@ -136,6 +154,12 @@ public class SiteLayoutAssembler {
 
   public static final int                                   MAX_BANNERS                     = 10;
 
+  public static final int                                   MAX_COLUMNS                     = 64;
+
+  public static final int                                   COLUMN_WIDTH_MIN                = 50;
+
+  public static final int                                   COLUMN_WIDTH_MAX                = 1000;
+
   public static final int                                   MAX_APPLICATIONS                = 50;
 
   public static final int                                   MAX_ELEMENTS                    = 200;
@@ -144,6 +168,8 @@ public class SiteLayoutAssembler {
 
   private static final Pattern                              BANNER_TOKENS                   =
                                                                           Pattern.compile("(^| )(layout-banner-top-section|layout-banner-bottom-section|layout-sticky-section)(?= |$)");
+
+  private static final Pattern                              PIXELS                          = Pattern.compile("-?\\d+");
 
   private static final Pattern                              STICKY_TOKEN                    =
                                                                          Pattern.compile("(^| )layout-sticky-section(?= |$)");
@@ -168,6 +194,8 @@ public class SiteLayoutAssembler {
   private final Set<String>                                 placedHidden                    = new HashSet<>();
 
   private final Map<String, Boolean>                        storedStickiness                = new HashMap<>();
+
+  private final Map<String, Integer>                        storedWidths                    = new HashMap<>();
 
   /**
    * @param root           the stored tree, wrapped
@@ -227,7 +255,7 @@ public class SiteLayoutAssembler {
     }
     int elements = (update.leftSidebar() == null ? 0 : 1) + (update.rightSidebar() == null ? 0 : 1) + topbars.size() + bottomBars.size()
                    + applications(update.leftSidebar()) + applications(update.rightSidebar())
-                   + topbars.stream().mapToInt(this::applications).sum() + bottomBars.stream().mapToInt(this::applications).sum();
+                   + topbars.stream().mapToInt(this::columnElements).sum() + bottomBars.stream().mapToInt(this::columnElements).sum();
     if (elements > MAX_ELEMENTS) {
       throw new IllegalArgumentException(ELEMENTS_NOT_ACCEPTED);
     }
@@ -261,6 +289,9 @@ public class SiteLayoutAssembler {
   private void index(LayoutModel model, LayoutModel parent) {
     if (StringUtils.isNotBlank(model.getStorageId())) {
       byId.put(model.getStorageId(), model);
+      if (isTemplate(model, BANNER_CELL_TEMPLATE) && model.getWidth() != null) {
+        storedWidths.put(model.getStorageId(), storedPixels(model.getWidth()));
+      }
       if (parent != null) {
         parentOf.put(model.getStorageId(), parent);
       }
@@ -322,6 +353,13 @@ public class SiteLayoutAssembler {
     return container == null || container.applications() == null ? 0 : container.applications().size();
   }
 
+  private int columnElements(SiteContainerDescription banner) {
+    List<SiteColumnDescription> columns = banner.columns() == null ? Collections.emptyList() : banner.columns();
+    return columns.size() + columns.stream()
+                                   .mapToInt(column -> column == null || column.applications() == null ? 0 : column.applications().size())
+                                   .sum();
+  }
+
   private LayoutModel sidebarCell(LayoutModel sidebar) {
     return children(sidebar).stream().filter(c -> isTemplate(c, SIDEBAR_CELL_TEMPLATE)).findFirst().orElse(null);
   }
@@ -372,27 +410,37 @@ public class SiteLayoutAssembler {
   }
 
   /**
-   * A banner keeps its stored cells when addressed by id, a new one has one
-   * cell; the position token is written from the banner's side. Only a
-   * topbar is kept in place when the page scrolls, as the skin and the
-   * editor's drawer have it: sticky is refused on a bottom bar unless the
-   * kept bar already stores the token, which the read reports and the write
-   * then drops with its scroll colour, since neither has an effect there
+   * A banner is written with the columns given, in their order: a column
+   * addressed by its id keeps its stored cell, which must be one of the kept
+   * banner's, a new one is created, and a stored column left out is removed.
+   * A column holds one application and has a width in pixels, takes the
+   * width of its application (fit_content) or shares the remaining width; a
+   * width in pixels is never set on the last one, which takes the remaining
+   * width, as the site layout editor draws them. A column's width is part
+   * of the structure: omitted, the column shares the remaining width; sent
+   * back as the read answered it, it is kept whatever its value, the bounds
+   * applying to a changed width. A column the editor or an earlier write
+   * left holding several applications is kept as it is when each one is
+   * sent back by id; a column holding a window the caller cannot see takes
+   * no new or moved application. An application kept from a column never
+   * moves alone into another column of a topbar or a bottom bar, its column
+   * carrying the settings the editor gives it; listed in a sidebar, it moves
+   * there alone, without its column. The position token is written from the banner's side. Only a topbar is kept in place when the page scrolls,
+   * as the skin and the editor's drawer have it: sticky is refused on a
+   * bottom bar unless the kept bar already stores the token, which the read
+   * reports and the write then drops with its scroll colour, since neither
+   * has an effect there
    */
   private LayoutModel banner(SiteContainerDescription description, boolean top) throws ObjectNotFoundException {
-    LayoutModel banner;
-    List<LayoutModel> cells;
-    if (description.containerId() == null) {
-      banner = newContainer(BANNER_TEMPLATE);
-      cells = List.of(newContainer(BANNER_CELL_TEMPLATE));
-    } else {
-      banner = container(description.containerId(), BANNER_TEMPLATE);
-      cells = children(banner).stream().filter(c -> isTemplate(c, BANNER_CELL_TEMPLATE)).toList();
-      cells.forEach(cell -> cell.setChildren(new ArrayList<>()));
-      if (cells.isEmpty()) {
-        cells = List.of(newContainer(BANNER_CELL_TEMPLATE));
-      }
+    if (description.applications() != null) {
+      throw new IllegalArgumentException(APPLICATIONS_NOT_ACCEPTED);
     }
+    List<SiteColumnDescription> columns = description.columns();
+    if (columns == null || columns.isEmpty() || columns.size() > MAX_COLUMNS || columns.stream().anyMatch(c -> c == null)) {
+      throw new IllegalArgumentException(COLUMNS_NOT_ACCEPTED);
+    }
+    LayoutModel banner = description.containerId() == null ? newContainer(BANNER_TEMPLATE)
+                                                           : container(description.containerId(), BANNER_TEMPLATE);
     SiteContainerOptions options = options(description);
     if (options.width() != null) {
       throw new IllegalArgumentException(WIDTH_NOT_ACCEPTED);
@@ -412,14 +460,98 @@ public class SiteLayoutAssembler {
     } else if (StringUtils.isBlank(banner.getHeight())) {
       banner.setHeight(String.valueOf(DEFAULT_BANNER_HEIGHT));
     }
+    List<LayoutModel> cells = new ArrayList<>();
+    for (int i = 0; i < columns.size(); i++) {
+      cells.add(column(banner, columns.get(i), i == columns.size() - 1));
+    }
     String bannerClass = LayoutStylingService.append(LayoutStylingService.strip(banner.getCssClass(), BANNER_TOKENS),
                                                      top ? BANNER_TOP_TOKEN : BANNER_BOTTOM_TOKEN);
     banner.setCssClass(sticky ? LayoutStylingService.append(bannerClass, STICKY_SECTION_TOKEN) : bannerClass);
     applyStyling(banner, description.styling(), StylingDestination.BANNER, sticky, top);
     stylingService.applyDisplay(banner, options.display(), StylingDestination.BANNER, DISPLAY_NOT_ACCEPTED);
-    placeApplications(description.applications(), cells);
-    banner.setChildren(new ArrayList<>(cells));
+    for (int i = 0; i < columns.size(); i++) {
+      placeApplications(columns.get(i).applications(), List.of(cells.get(i)));
+    }
+    banner.setChildren(cells);
     return banner;
+  }
+
+  private LayoutModel column(LayoutModel banner, SiteColumnDescription description, boolean last) throws ObjectNotFoundException {
+    LayoutModel cell;
+    if (description.columnId() == null) {
+      cell = newContainer(BANNER_CELL_TEMPLATE);
+    } else {
+      cell = byId.get(description.columnId());
+      if (cell == null) {
+        throw new ObjectNotFoundException(COLUMN_NOT_FOUND);
+      } else if (!isTemplate(cell, BANNER_CELL_TEMPLATE) || parentOf.get(description.columnId()) != banner
+                 || !used.add(description.columnId())) {
+        throw new IllegalArgumentException(COLUMN_ID_NOT_ACCEPTED);
+      }
+    }
+    Integer width = description.width();
+    boolean fitContent = Boolean.TRUE.equals(description.fitContent());
+    if (fitContent && width != null) {
+      throw new IllegalArgumentException(COLUMN_FIT_CONTENT_NOT_ACCEPTED);
+    }
+    boolean storedWidth = width != null && description.columnId() != null && width.equals(storedWidths.get(description.columnId()));
+    if (width != null && !storedWidth && (last || width < COLUMN_WIDTH_MIN || width > COLUMN_WIDTH_MAX)) {
+      throw new IllegalArgumentException(COLUMN_WIDTH_NOT_ACCEPTED);
+    }
+    if (fitContent) {
+      cell.setWidth(FIT_CONTENT);
+    } else {
+      cell.setWidth(width == null ? null : String.valueOf(width));
+    }
+    List<ApplicationDescription> applications = description.applications() == null ? Collections.emptyList() : description.applications();
+    LayoutModel column = cell;
+    boolean holdsHidden = hiddenWindows.keySet().stream().anyMatch(id -> parentOf.get(id) == column);
+    int held = applications.size() + (holdsHidden ? 1 : 0);
+    if (held > 1 && !applications.stream().allMatch(a -> keptFrom(a, column))) {
+      throw new IllegalArgumentException(COLUMN_APPLICATIONS_NOT_ACCEPTED);
+    } else if (applications.stream().anyMatch(a -> inAnotherColumn(a, column))) {
+      throw new IllegalArgumentException(COLUMN_APPLICATIONS_NOT_ACCEPTED);
+    }
+    cell.setChildren(new ArrayList<>());
+    return cell;
+  }
+
+  /**
+   * @return the stored width in pixels as the read answers it, or null when
+   *         it holds none or one too large to be sent back
+   */
+  private Integer storedPixels(String width) {
+    Matcher pixels = PIXELS.matcher(width);
+    if (!pixels.find()) {
+      return null;
+    }
+    try {
+      return Integer.valueOf(pixels.group());
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  /**
+   * @return whether the application is kept by its id from a column of a
+   *         topbar or a bottom bar other than the given one: the column
+   *         carries the settings the site layout editor gives the
+   *         application, so the application moves with its column, by the
+   *         columns' order, and never alone into another one
+   */
+  private boolean inAnotherColumn(ApplicationDescription application, LayoutModel column) {
+    LayoutModel storedCell = application == null || application.applicationId() == null
+                             || hiddenWindows.containsKey(application.applicationId()) ? null : parentOf.get(application.applicationId());
+    return storedCell != null && storedCell != column && isTemplate(storedCell, BANNER_CELL_TEMPLATE);
+  }
+
+  /**
+   * @return whether the application is kept by its id from the given stored
+   *         column, so that a column the editor or an earlier write left
+   *         holding several applications can be sent back as it is
+   */
+  private boolean keptFrom(ApplicationDescription application, LayoutModel cell) {
+    return application != null && application.applicationId() != null && parentOf.get(application.applicationId()) == cell;
   }
 
   /**
