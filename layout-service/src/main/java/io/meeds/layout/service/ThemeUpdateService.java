@@ -35,6 +35,8 @@ import org.springframework.stereotype.Service;
 
 import org.exoplatform.portal.branding.BrandingService;
 import org.exoplatform.portal.branding.model.Branding;
+import org.exoplatform.services.log.ExoLogger;
+import org.exoplatform.services.log.Log;
 
 import io.meeds.layout.mcp.constant.ThemePart;
 import io.meeds.layout.util.BrandingPageStyleValidator;
@@ -48,8 +50,10 @@ import io.meeds.layout.mcp.constant.ThemeOptions;
  * the whole. An untouched theme variable stored at its configured default is
  * submitted absent, so that it keeps following that default. A page field's
  * value is validated here against the Page drawer's vocabulary; a theme
- * variable's value by the branding service before its first write, which
- * refuses with its own message code.
+ * variable's value by the branding service before its first write, whose
+ * message code is answered as the option it names, or as the options
+ * refused when it names none; any other failure of the write is answered as
+ * the theme not saved, the service's own text staying in the server log.
  */
 @Service
 public class ThemeUpdateService {
@@ -59,6 +63,14 @@ public class ThemeUpdateService {
   public static final String OPTIONS_NOT_ACCEPTED = "value is not accepted for options";
 
   public static final String RESET_NOT_ACCEPTED   = "value is not accepted for reset";
+
+  public static final String THEME_NOT_SAVED      = "could not be saved: theme";
+
+  private static final String BRANDING_CODE        = "branding.";
+
+  private static final String INVALID_VALUE_CODE   = "branding.theme.invalidValue:";
+
+  private static final Log    LOG                  = ExoLogger.getLogger(ThemeUpdateService.class);
 
   @Autowired
   private BrandingService    brandingService;
@@ -81,9 +93,10 @@ public class ThemeUpdateService {
    *                                    or a background image other than none
    *                                    or one gradient, when an option is
    *                                    both set and
-   *                                    reset, when nothing is asked, or with
-   *                                    the branding service's message code
-   *                                    when a value is refused
+   *                                    reset, when nothing is asked, or when
+   *                                    the branding service refuses a value
+   * @throws IllegalStateException    when the branding service fails to
+   *                                    save the theme
    */
   public Map<String, String> updateTheme(ThemePart part,
                                          Map<String, String> options,
@@ -123,8 +136,28 @@ public class ThemeUpdateService {
       }
     });
     branding.setThemeStyle(themeStyle);
-    brandingService.updateBrandingInformation(branding);
+    saveBranding(branding, username);
     return describe(part, accepted);
+  }
+
+  private void saveBranding(Branding branding, String username) {
+    try {
+      brandingService.updateBrandingInformation(branding);
+    } catch (IllegalArgumentException e) {
+      String code = StringUtils.defaultString(e.getMessage());
+      if (code.startsWith(INVALID_VALUE_CODE)) {
+        LOG.debug("Theme value refused to {}", username, e);
+        throw new IllegalArgumentException(OPTIONS_NOT_ACCEPTED + ": " + code.substring(INVALID_VALUE_CODE.length()));
+      } else if (code.startsWith(BRANDING_CODE)) {
+        LOG.debug("Theme value refused to {}", username, e);
+        throw new IllegalArgumentException(OPTIONS_NOT_ACCEPTED);
+      }
+      LOG.warn("Theme could not be saved by {}", username, e);
+      throw new IllegalStateException(THEME_NOT_SAVED);
+    } catch (RuntimeException e) {
+      LOG.warn("Theme could not be saved by {}", username, e);
+      throw new IllegalStateException(THEME_NOT_SAVED);
+    }
   }
 
   /**
