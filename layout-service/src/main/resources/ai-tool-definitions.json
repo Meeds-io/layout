@@ -1829,6 +1829,117 @@
         "idempotentHint": false,
         "openWorldHint": false
       }
+    },
+    {
+      "name": "move_layout_application",
+      "title": "Place or move an application on a layout",
+      "description": "Place an application from the catalog, or move one already on the layout, on a page or in a site container of the current user's draft, in one draft save, without resending the layout, as dragging an application in the layout editors does. Give application_id to move an application, or application to place a new one, never both. In a dynamic section an application goes in a column, at an index or before or after another application of that column; in a grid section it goes in an empty cell, named by its row and column; in a topbar, a bottom bar or a sidebar it goes at an index or before or after another application of that container. A cell already holding an application is refused with cell already taken, never swapped; a column, row or index outside the section or the container is refused as a value for position, and a cell covered by another cell's span, a neighbour outside the column or the container, or a container with no cell cannot be placed there. Applications the user cannot see keep their place, and an index counts the applications the read returns only. A moved application keeps its window, with its settings, its widget code and its styling, written for its new place: a styling block the new place does not offer is dropped, as the editors offer them. The column, cell or container it leaves stays. A new application takes the catalog instance's settings and name; settings, styling and display are then changed with configure_layout_applications, set_layout_styles and set_layout_visibility. Exactly one of page_ref and site_id names the layout. Ids address the layout get_page_layout or get_site returned (the user's draft when they have one, the published layout otherwise); an id the read does not answer does not exist for this tool, an element the user cannot see included, and a section, cell or container id is refused as an application_id. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. The first draft of a page needs the right to edit the site's navigation, as opening the editor does, and the page must be referenced by a navigation item of its site. Every value is checked before anything is written; a refused value is answered naming the option. When this call creates the draft, every window of the layout is copied into it as the editors copy it, keeping the settings its application keeps on a copy: an application that regenerates its settings when copied, such as a News or Content list, may lose some of them, which configure_layout_applications sets again. Returns the application_id the application has in the draft and the layout as get_page_layout or get_site does, with its ids, which change when this call creates the draft: use the returned ones in later calls.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "page_ref": {
+            "type": "string",
+            "description": "The page reference, from list_site_pages (for example portal::mysite::home); omit when site_id is given"
+          },
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites; omit when page_ref is given"
+          },
+          "application_id": {
+            "type": "string",
+            "description": "The application_id of the application to move, as get_page_layout or get_site returned it; omit when application is given"
+          },
+          "application": {
+            "type": "object",
+            "description": "The catalog application to place, from list_layout_applications: its instance_id, or its content_id when it matches exactly one instance the user may place; omit when application_id is given",
+            "properties": {
+              "instance_id": {
+                "type": "integer",
+                "description": "The catalog instance_id; omit to match content_id"
+              },
+              "content_id": {
+                "type": "string",
+                "description": "The content_id as list_layout_applications returns it; omit when instance_id is given, or give it to check the instance matches"
+              }
+            }
+          },
+          "position": {
+            "type": "object",
+            "description": "Where the application goes, every number counting from 1 as get_page_layout numbers grid cells. In a dynamic section: section_id and column, plus at most one of index, before and after; with none of them the application goes at the end of the column. In a grid section: section_id, row and column of the target cell, which must hold no application. In a site container (a topbar, a bottom bar or a sidebar): container_id, plus at most one of index, before and after; with none of them the application goes at the end of the container.",
+            "properties": {
+              "section_id": {
+                "type": "string",
+                "description": "The section_id of a section of the page, from get_page_layout; omit for a site container"
+              },
+              "container_id": {
+                "type": "string",
+                "description": "The container_id of a topbar, a bottom bar or a sidebar of the site, from get_site; omit for a page section"
+              },
+              "column": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "description": "In a dynamic section, the column the application goes in, 1 being the first; in a grid section, the column of the target cell"
+              },
+              "row": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 12,
+                "description": "In a grid section, the row of the target cell, 1 being the first; omit elsewhere"
+              },
+              "index": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "The position among the applications of the column or the container, 1 being the first; one more than their count puts it last; omit to use before, after or the end"
+              },
+              "before": {
+                "type": "string",
+                "description": "The application_id of an application of the same column or container the application goes just before; omit to use index, after or the end"
+              },
+              "after": {
+                "type": "string",
+                "description": "The application_id of an application of the same column or container the application goes just after; omit to use index, before or the end"
+              }
+            }
+          }
+        },
+        "required": ["position"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": false,
+        "openWorldHint": false
+      }
+    },
+    {
+      "name": "remove_layout_application",
+      "title": "Remove an application from a layout",
+      "description": "Remove one application from a page or a site container of the current user's draft, in one draft save, without resending the layout, as the layout editors' delete does. The column, grid cell, topbar, bottom bar or sidebar it leaves stays, empty when it held no other application; every other element stays as it is. Exactly one of page_ref and site_id names the layout. Ids address the layout get_page_layout or get_site returned (the user's draft when they have one, the published layout otherwise); an id the read does not answer does not exist for this tool, an element the user cannot see included, and a section, cell or container id is refused as an application_id. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. The first draft of a page needs the right to edit the site's navigation, as opening the editor does, and the page must be referenced by a navigation item of its site. Every value is checked before anything is written; a refused value is answered naming the option. When this call creates the draft, every window of the layout is copied into it as the editors copy it, keeping the settings its application keeps on a copy: an application that regenerates its settings when copied, such as a News or Content list, may lose some of them, which configure_layout_applications sets again. Returns the draft as get_page_layout or get_site does, with its ids, which change when this call creates the draft: use the returned ones in later calls.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "page_ref": {
+            "type": "string",
+            "description": "The page reference, from list_site_pages (for example portal::mysite::home); omit when site_id is given"
+          },
+          "site_id": {
+            "type": "integer",
+            "description": "The site identifier, from list_sites; omit when page_ref is given"
+          },
+          "application_id": {
+            "type": "string",
+            "description": "The application_id of the application to remove, as get_page_layout or get_site returned it"
+          }
+        },
+        "required": ["application_id"]
+      },
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
     }
   ]
 }
