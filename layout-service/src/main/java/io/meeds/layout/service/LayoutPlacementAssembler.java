@@ -60,7 +60,7 @@ import io.meeds.layout.util.EntityMapper;
  * hold one application: a taken one is refused, never swapped. An
  * application alone in a column of a topbar or a bottom bar moves to
  * another column with its own column, which carries the settings the site
- * layout editor gives it, as the editor's drag does. Every value is checked before the tree changes.
+ * layout editor gives it: the two columns swap places. Every value is checked before the tree changes.
  */
 public class LayoutPlacementAssembler {
 
@@ -326,8 +326,8 @@ public class LayoutPlacementAssembler {
   /**
    * An application alone in a column of a topbar or a bottom bar moves with
    * its column, which carries the settings the site layout editor gives the
-   * application, as dragging it in the editor does: the column takes the
-   * empty column's place and the empty column takes its place
+   * application: the column takes the empty column's place and the empty
+   * column takes its place, the other columns staying where they are
    */
   private void swapColumns(LayoutModel source, LayoutModel target) {
     LayoutModel sourceBanner = bannerOf.get(source);
