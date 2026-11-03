@@ -807,7 +807,7 @@
                         "type": "integer",
                         "minimum": 50,
                         "maximum": 1000,
-                        "description": "the width in pixels, 50 to 1000; omit to share the remaining width; never on the last column, which takes the remaining width"
+                        "description": "the width in pixels, 50 to 1000, never on the last column, which takes the remaining width; a width get_site returned is kept when sent back unchanged; omit to share the remaining width"
                       },
                       "applications": {
                         "type": "array",
@@ -893,7 +893,7 @@
                             }
                           }
                         },
-                        "description": "the application the column holds, at most one; an application of the layout absent from the call is removed"
+                        "description": "the application the column holds, at most one, and none when the column holds an application the user cannot see; a column get_site returned with several applications is kept as it is when each one is sent back by application_id; an application of the layout absent from the call is removed"
                       }
                     }
                   },
@@ -979,7 +979,7 @@
                         "type": "integer",
                         "minimum": 50,
                         "maximum": 1000,
-                        "description": "the width in pixels, 50 to 1000; omit to share the remaining width; never on the last column, which takes the remaining width"
+                        "description": "the width in pixels, 50 to 1000, never on the last column, which takes the remaining width; a width get_site returned is kept when sent back unchanged; omit to share the remaining width"
                       },
                       "applications": {
                         "type": "array",
@@ -1065,7 +1065,7 @@
                             }
                           }
                         },
-                        "description": "the application the column holds, at most one; an application of the layout absent from the call is removed"
+                        "description": "the application the column holds, at most one, and none when the column holds an application the user cannot see; a column get_site returned with several applications is kept as it is when each one is sent back by application_id; an application of the layout absent from the call is removed"
                       }
                     }
                   },

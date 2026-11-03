@@ -1787,6 +1787,87 @@ public class LayoutDescriptionServiceTest {
   }
 
   @Test
+  public void aColumnHoldingSeveralApplicationsIsKeptAsItIsAndTakesNoOther() throws Exception {
+    PortalConfig site = storedSite();
+    instance(10L, "content/NewsListView", "News");
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container stacked = (Container) topBanner.getChildren().get(0);
+    Container empty = (Container) topBanner.getChildren().get(1);
+    children(stacked, stacked.getChildren().get(0), application("7", null, null));
+    ApplicationDescription two = new ApplicationDescription("2", null, null, null, null, null, null, null, null);
+    ApplicationDescription seven = new ApplicationDescription("7", null, null, null, null, null, null, null, null);
+    ApplicationDescription news = new ApplicationDescription(null, null, 10L, null, null, null, null, false, null);
+
+    SiteDescription read = descriptionService.toSiteDescription(describedPortalSite(), site.getPortalLayout(), "Test", null, true);
+    assertEquals(List.of("2", "7"),
+                 read.topbars().get(0).columns().get(0).applications().stream().map(ApplicationDescription::applicationId).toList());
+
+    LayoutModel writtenTop = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(stacked.getStorageId(), null, two, seven), column(empty.getStorageId(), null))), null)
+                                                                                                                                                                                  .getChildren()
+                                                                                                                                                                                  .get(1)
+                                                                                                                                                                                  .getChildren()
+                                                                                                                                                                                  .get(0);
+    assertEquals(List.of("2", "7"), writtenTop.getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
+
+    assertEquals(SiteLayoutAssembler.COLUMN_APPLICATIONS_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(stacked.getStorageId(), null, two, seven, news), column(empty.getStorageId(), null))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_APPLICATIONS_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(stacked.getStorageId(), null, two), column(empty.getStorageId(), null, seven, news))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_APPLICATIONS_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(empty.getStorageId(), null, two, seven))), null)));
+  }
+
+  @Test
+  public void aColumnHoldingAWindowTheUserCannotSeeTakesNoOtherApplication() throws Exception {
+    PortalConfig site = storedSite();
+    instance(10L, "content/NewsListView", "News");
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container firstColumn = (Container) topBanner.getChildren().get(0);
+    Container secondColumn = (Container) topBanner.getChildren().get(1);
+    when(aclService.hasAccessPermission(firstColumn.getChildren().get(0), USER)).thenReturn(false);
+    ApplicationDescription news = new ApplicationDescription(null, null, 10L, null, null, null, null, false, null);
+
+    assertEquals(SiteLayoutAssembler.COLUMN_APPLICATIONS_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null, news), column(secondColumn.getStorageId(), null))), null)));
+
+    LayoutModel writtenTop = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null), column(secondColumn.getStorageId(), null, news))), null)
+                                                                                                                                                                                              .getChildren()
+                                                                                                                                                                                              .get(1)
+                                                                                                                                                                                              .getChildren()
+                                                                                                                                                                                              .get(0);
+    assertEquals(List.of("2"), writtenTop.getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    assertEquals("content/NewsListView", writtenTop.getChildren().get(1).getChildren().get(0).getContentId());
+  }
+
+  @Test
+  public void aStoredColumnWidthIsKeptWhenSentBackUnchanged() throws Exception {
+    PortalConfig site = storedSite();
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container firstColumn = (Container) topBanner.getChildren().get(0);
+    Container secondColumn = (Container) topBanner.getChildren().get(1);
+    firstColumn.setWidth("1400");
+    secondColumn.setWidth("30");
+
+    SiteDescription read = descriptionService.toSiteDescription(describedPortalSite(), site.getPortalLayout(), "Test", null, true);
+    assertEquals(1400, read.topbars().get(0).columns().get(0).width());
+    assertEquals(30, read.topbars().get(0).columns().get(1).width());
+
+    LayoutModel writtenTop = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), 1400), column(secondColumn.getStorageId(), 30))), null)
+                                                                                                                                                                                       .getChildren()
+                                                                                                                                                                                       .get(1)
+                                                                                                                                                                                       .getChildren()
+                                                                                                                                                                                       .get(0);
+    assertEquals(List.of("1400", "30"), writtenTop.getChildren().stream().map(LayoutModel::getWidth).toList());
+
+    assertEquals(SiteLayoutAssembler.COLUMN_WIDTH_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), 1401), column(secondColumn.getStorageId(), null))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_WIDTH_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(secondColumn.getStorageId(), 1400), column(firstColumn.getStorageId(), null))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_WIDTH_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null), column(secondColumn.getStorageId(), 31))), null)));
+  }
+
+  @Test
   public void aSideHoldingTwoSidebarsIsRefused() throws Exception {
     PortalConfig site = storedSite();
     Container center = findContainer(site.getPortalLayout(), LayoutDescriptionService.SITE_MIDDLE_CENTER_TEMPLATE, 0);

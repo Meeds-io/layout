@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
@@ -163,6 +164,8 @@ public class SiteLayoutAssembler {
   private static final Pattern                              BANNER_TOKENS                   =
                                                                           Pattern.compile("(^| )(layout-banner-top-section|layout-banner-bottom-section|layout-sticky-section)(?= |$)");
 
+  private static final Pattern                              PIXELS                          = Pattern.compile("-?\\d+");
+
   private static final Pattern                              STICKY_TOKEN                    =
                                                                          Pattern.compile("(^| )layout-sticky-section(?= |$)");
 
@@ -186,6 +189,8 @@ public class SiteLayoutAssembler {
   private final Set<String>                                 placedHidden                    = new HashSet<>();
 
   private final Map<String, Boolean>                        storedStickiness                = new HashMap<>();
+
+  private final Map<String, Integer>                        storedWidths                    = new HashMap<>();
 
   /**
    * @param root           the stored tree, wrapped
@@ -279,6 +284,10 @@ public class SiteLayoutAssembler {
   private void index(LayoutModel model, LayoutModel parent) {
     if (StringUtils.isNotBlank(model.getStorageId())) {
       byId.put(model.getStorageId(), model);
+      if (isTemplate(model, BANNER_CELL_TEMPLATE) && model.getWidth() != null) {
+        Matcher pixels = PIXELS.matcher(model.getWidth());
+        storedWidths.put(model.getStorageId(), pixels.find() ? Integer.valueOf(pixels.group()) : null);
+      }
       if (parent != null) {
         parentOf.put(model.getStorageId(), parent);
       }
@@ -402,7 +411,12 @@ public class SiteLayoutAssembler {
    * banner's, a new one is created, and a stored column left out is removed.
    * A column holds one application, has a width in pixels or shares the
    * remaining width, and the last one always takes the remaining width, as
-   * the site layout editor draws them. The position token is written from
+   * the site layout editor draws them. A column's width is part of the
+   * structure: omitted, the column shares the remaining width; sent back as
+   * the read answered it, it is kept whatever its value, the bounds applying
+   * to a changed width. A column the editor or an earlier write left holding
+   * several applications is kept as it is when each one is sent back by id;
+   * a column holding a window the caller cannot see takes no other one. The position token is written from
    * the banner's side. Only a topbar is kept in place when the page scrolls,
    * as the skin and the editor's drawer have it: sticky is refused on a
    * bottom bar unless the kept bar already stores the token, which the read
@@ -468,15 +482,29 @@ public class SiteLayoutAssembler {
       }
     }
     Integer width = description.width();
-    if (width != null && (last || width < COLUMN_WIDTH_MIN || width > COLUMN_WIDTH_MAX)) {
+    boolean storedWidth = width != null && description.columnId() != null && width.equals(storedWidths.get(description.columnId()));
+    if (width != null && !storedWidth && (last || width < COLUMN_WIDTH_MIN || width > COLUMN_WIDTH_MAX)) {
       throw new IllegalArgumentException(COLUMN_WIDTH_NOT_ACCEPTED);
     }
     cell.setWidth(width == null ? null : String.valueOf(width));
-    if (description.applications() != null && description.applications().size() > 1) {
+    List<ApplicationDescription> applications = description.applications() == null ? Collections.emptyList() : description.applications();
+    LayoutModel column = cell;
+    boolean holdsHidden = hiddenWindows.keySet().stream().anyMatch(id -> parentOf.get(id) == column);
+    int held = applications.size() + (holdsHidden ? 1 : 0);
+    if (held > 1 && !applications.stream().allMatch(a -> keptFrom(a, column))) {
       throw new IllegalArgumentException(COLUMN_APPLICATIONS_NOT_ACCEPTED);
     }
     cell.setChildren(new ArrayList<>());
     return cell;
+  }
+
+  /**
+   * @return whether the application is kept by its id from the given stored
+   *         column, so that a column the editor or an earlier write left
+   *         holding several applications can be sent back as it is
+   */
+  private boolean keptFrom(ApplicationDescription application, LayoutModel cell) {
+    return application != null && application.applicationId() != null && parentOf.get(application.applicationId()) == cell;
   }
 
   /**
