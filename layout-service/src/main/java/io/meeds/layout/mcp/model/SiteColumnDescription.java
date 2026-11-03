@@ -26,8 +26,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  * A column of a topbar or a bottom bar, as the site layout editor shows it:
- * its width in pixels when it has one, the last column taking the remaining
- * width, and the application it holds. A stored column holding several
+ * its width in pixels when it has one, or fit_content when it takes the
+ * width of its application, the last column taking the remaining width
+ * otherwise, and the application it holds. A stored column holding several
  * applications is read whole; a write places one application per column,
  * and keeps a column as it is when each application given is sent back by
  * its id from that same column.
@@ -35,5 +36,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonInclude(Include.NON_NULL)
 public record SiteColumnDescription(@JsonProperty("column_id") String columnId,
                                     @JsonProperty("width") Integer width,
+                                    @JsonProperty("fit_content") Boolean fitContent,
                                     @JsonProperty("applications") List<ApplicationDescription> applications) {
+
+  /**
+   * A column with a width in pixels, or sharing the remaining width
+   */
+  public SiteColumnDescription(String columnId, Integer width, List<ApplicationDescription> applications) {
+    this(columnId, width, null, applications);
+  }
+
 }

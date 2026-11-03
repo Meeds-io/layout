@@ -134,6 +134,11 @@ public class SiteLayoutAssembler {
 
   public static final String                                COLUMN_WIDTH_NOT_ACCEPTED       = "value is not accepted for columns.width";
 
+  public static final String                                COLUMN_FIT_CONTENT_NOT_ACCEPTED =
+                                                                                         "value is not accepted for columns.fit_content";
+
+  public static final String                                FIT_CONTENT                     = "fit-content";
+
   public static final String                                COLUMN_APPLICATIONS_NOT_ACCEPTED =
                                                                                           "value is not accepted for columns.applications";
 
@@ -408,16 +413,18 @@ public class SiteLayoutAssembler {
    * A banner is written with the columns given, in their order: a column
    * addressed by its id keeps its stored cell, which must be one of the kept
    * banner's, a new one is created, and a stored column left out is removed.
-   * A column holds one application, has a width in pixels or shares the
-   * remaining width, and a width is never set on the last one, which takes
-   * the remaining width, as the site layout editor draws them. A column's width is part of the
-   * structure: omitted, the column shares the remaining width; sent back as
-   * the read answered it, it is kept whatever its value, the bounds applying
-   * to a changed width. A column the editor or an earlier write left holding
-   * several applications is kept as it is when each one is sent back by id;
-   * a column holding a window the caller cannot see takes no new or moved
-   * application. The position token is written from
-   * the banner's side. Only a topbar is kept in place when the page scrolls,
+   * A column holds one application and has a width in pixels, takes the
+   * width of its application (fit_content) or shares the remaining width; a
+   * width in pixels is never set on the last one, which takes the remaining
+   * width, as the site layout editor draws them. A column's width is part
+   * of the structure: omitted, the column shares the remaining width; sent
+   * back as the read answered it, it is kept whatever its value, the bounds
+   * applying to a changed width. A column the editor or an earlier write
+   * left holding several applications is kept as it is when each one is
+   * sent back by id; a column holding a window the caller cannot see takes
+   * no new or moved application. An application kept from a column stays in
+   * it: it moves with its column, which carries the settings the editor
+   * gives it. The position token is written from the banner's side. Only a topbar is kept in place when the page scrolls,
    * as the skin and the editor's drawer have it: sticky is refused on a
    * bottom bar unless the kept bar already stores the token, which the read
    * reports and the write then drops with its scroll colour, since neither
@@ -482,16 +489,26 @@ public class SiteLayoutAssembler {
       }
     }
     Integer width = description.width();
+    boolean fitContent = Boolean.TRUE.equals(description.fitContent());
+    if (fitContent && width != null) {
+      throw new IllegalArgumentException(COLUMN_FIT_CONTENT_NOT_ACCEPTED);
+    }
     boolean storedWidth = width != null && description.columnId() != null && width.equals(storedWidths.get(description.columnId()));
     if (width != null && !storedWidth && (last || width < COLUMN_WIDTH_MIN || width > COLUMN_WIDTH_MAX)) {
       throw new IllegalArgumentException(COLUMN_WIDTH_NOT_ACCEPTED);
     }
-    cell.setWidth(width == null ? null : String.valueOf(width));
+    if (fitContent) {
+      cell.setWidth(FIT_CONTENT);
+    } else {
+      cell.setWidth(width == null ? null : String.valueOf(width));
+    }
     List<ApplicationDescription> applications = description.applications() == null ? Collections.emptyList() : description.applications();
     LayoutModel column = cell;
     boolean holdsHidden = hiddenWindows.keySet().stream().anyMatch(id -> parentOf.get(id) == column);
     int held = applications.size() + (holdsHidden ? 1 : 0);
     if (held > 1 && !applications.stream().allMatch(a -> keptFrom(a, column))) {
+      throw new IllegalArgumentException(COLUMN_APPLICATIONS_NOT_ACCEPTED);
+    } else if (applications.stream().anyMatch(a -> inAnotherColumn(a, column))) {
       throw new IllegalArgumentException(COLUMN_APPLICATIONS_NOT_ACCEPTED);
     }
     cell.setChildren(new ArrayList<>());
@@ -512,6 +529,19 @@ public class SiteLayoutAssembler {
     } catch (NumberFormatException e) {
       return null;
     }
+  }
+
+  /**
+   * @return whether the application is kept by its id from a column of a
+   *         topbar or a bottom bar other than the given one: the column
+   *         carries the settings the site layout editor gives the
+   *         application, so the application moves with its column, by the
+   *         columns' order, and never alone into another one
+   */
+  private boolean inAnotherColumn(ApplicationDescription application, LayoutModel column) {
+    LayoutModel storedCell = application == null || application.applicationId() == null
+                             || hiddenWindows.containsKey(application.applicationId()) ? null : parentOf.get(application.applicationId());
+    return storedCell != null && storedCell != column && isTemplate(storedCell, BANNER_CELL_TEMPLATE);
   }
 
   /**

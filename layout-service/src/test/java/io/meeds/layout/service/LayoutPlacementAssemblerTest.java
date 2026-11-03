@@ -379,6 +379,55 @@ public class LayoutPlacementAssemblerTest {
   }
 
   @Test
+  public void anApplicationAloneInAColumnMovesWithItsColumn() throws Exception {
+    PortalConfig site = storedSite();
+    Container top = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container bottom = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1);
+    Container firstTop = (Container) top.getChildren().get(0);
+    Container secondTop = (Container) top.getChildren().get(1);
+    Container thirdTop = container(LayoutDescriptionService.BANNER_CELL_TEMPLATE, null);
+    top.getChildren().add(thirdTop);
+    firstTop.setCssClass("hidden-sm-and-down");
+    firstTop.setWidth("fit-content");
+    Container bottomColumn = (Container) bottom.getChildren().get(0);
+
+    PlacedLayout inSection = descriptionService.toMovedSite("a", bannerColumn(top.getStorageId(), 3), site, false, USER);
+    List<LayoutModel> columns = inSection.layout().getChildren().get(1).getChildren().get(0).getChildren();
+    assertEquals(List.of(thirdTop.getStorageId(), secondTop.getStorageId(), firstTop.getStorageId()),
+                 columns.stream().map(LayoutModel::getStorageId).toList());
+    assertEquals("hidden-sm-and-down", columns.get(2).getCssClass());
+    assertEquals("fit-content", columns.get(2).getWidth());
+    assertEquals(List.of("a"), ids(columns.get(2)));
+    assertEquals(List.of(1, 0, 2, 0), inSection.path());
+
+    PlacedLayout across = descriptionService.toMovedSite("a", bannerColumn(bottom.getStorageId(), 1), site, false, USER);
+    LayoutModel middle = across.layout().getChildren().get(1);
+    assertEquals(List.of(bottomColumn.getStorageId(), secondTop.getStorageId(), thirdTop.getStorageId()),
+                 middle.getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    assertEquals(List.of(firstTop.getStorageId()), middle.getChildren().get(2).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    assertEquals("hidden-sm-and-down", middle.getChildren().get(2).getChildren().get(0).getCssClass());
+    assertEquals(List.of("a"), ids(middle.getChildren().get(2).getChildren().get(0)));
+    assertEquals(List.of(1, 2, 0, 0), across.path());
+  }
+
+  @Test
+  public void anApplicationSharingItsColumnMovesAlone() throws Exception {
+    PortalConfig site = storedSite();
+    Container top = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container bottom = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1);
+    Container firstTop = (Container) top.getChildren().get(0);
+    firstTop.getChildren().add(application("s"));
+
+    PlacedLayout moved = descriptionService.toMovedSite("a", bannerColumn(bottom.getStorageId(), 1), site, false, USER);
+
+    LayoutModel middle = moved.layout().getChildren().get(1);
+    assertEquals(firstTop.getStorageId(), middle.getChildren().get(0).getChildren().get(0).getStorageId());
+    assertEquals(List.of("s"), ids(middle.getChildren().get(0).getChildren().get(0)));
+    assertEquals(List.of("a"), ids(middle.getChildren().get(2).getChildren().get(0)));
+    assertEquals(((Container) bottom.getChildren().get(0)).getStorageId(), middle.getChildren().get(2).getChildren().get(0).getStorageId());
+  }
+
+  @Test
   public void aColumnHoldingAnApplicationTheUserCannotSeeIsTaken() throws Exception {
     PortalConfig site = storedSite();
     Container bottom = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 1);

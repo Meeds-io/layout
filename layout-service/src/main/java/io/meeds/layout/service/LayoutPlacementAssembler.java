@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -56,7 +57,10 @@ import io.meeds.layout.util.EntityMapper;
  * application keeps its window, its preferences and its styling, written
  * for its new place in the editor's matrix: a block the new place does not
  * offer is dropped. A grid cell and a column of a topbar or a bottom bar
- * hold one application: a taken one is refused, never swapped. Every value is checked before the tree changes.
+ * hold one application: a taken one is refused, never swapped. An
+ * application alone in a column of a topbar or a bottom bar moves to
+ * another column with its own column, which carries the settings the site
+ * layout editor gives it, as the editor's drag does. Every value is checked before the tree changes.
  */
 public class LayoutPlacementAssembler {
 
@@ -89,6 +93,8 @@ public class LayoutPlacementAssembler {
   private final Map<String, List<LayoutModel>>  siteContainers  = new HashMap<>();
 
   private final Set<String>                     banners         = new HashSet<>();
+
+  private final Map<LayoutModel, LayoutModel>   bannerOf        = new IdentityHashMap<>();
 
   private final Map<String, LayoutModel>        applications    = new HashMap<>();
 
@@ -128,6 +134,12 @@ public class LayoutPlacementAssembler {
   public PlacedLayout move(String applicationId, ApplicationPosition position) throws ObjectNotFoundException {
     LayoutModel application = requireApplication(applicationId);
     PlacementSlot slot = resolve(position, application.getStorageId());
+    LayoutModel source = cellOf.get(application.getStorageId());
+    if (bannerOf.containsKey(source) && bannerOf.containsKey(slot.cell()) && storedChildren(source).size() == 1) {
+      swapColumns(source, slot.cell());
+      stripGeneratedTokens();
+      return new PlacedLayout(root, pathOf(root, application));
+    }
     StylingDestination from = destinationOf.get(application.getStorageId());
     detach(application);
     insert(slot, application);
@@ -311,6 +323,41 @@ public class LayoutPlacementAssembler {
     slot.cell().setChildren(children);
   }
 
+  /**
+   * An application alone in a column of a topbar or a bottom bar moves with
+   * its column, which carries the settings the site layout editor gives the
+   * application, as dragging it in the editor does: the column takes the
+   * empty column's place and the empty column takes its place
+   */
+  private void swapColumns(LayoutModel source, LayoutModel target) {
+    LayoutModel sourceBanner = bannerOf.get(source);
+    LayoutModel targetBanner = bannerOf.get(target);
+    List<LayoutModel> sourceColumns = new ArrayList<>(storedChildren(sourceBanner));
+    int sourceIndex = indexOf(sourceColumns, source);
+    if (sourceBanner == targetBanner) {
+      int targetIndex = indexOf(sourceColumns, target);
+      sourceColumns.set(sourceIndex, target);
+      sourceColumns.set(targetIndex, source);
+      sourceBanner.setChildren(sourceColumns);
+    } else {
+      List<LayoutModel> targetColumns = new ArrayList<>(storedChildren(targetBanner));
+      int targetIndex = indexOf(targetColumns, target);
+      sourceColumns.set(sourceIndex, target);
+      targetColumns.set(targetIndex, source);
+      sourceBanner.setChildren(sourceColumns);
+      targetBanner.setChildren(targetColumns);
+    }
+  }
+
+  private int indexOf(List<LayoutModel> list, LayoutModel element) {
+    for (int i = 0; i < list.size(); i++) {
+      if (list.get(i) == element) {
+        return i;
+      }
+    }
+    throw new IllegalStateException(CANNOT_BE_PLACED);
+  }
+
   private void detach(LayoutModel application) {
     LayoutModel cell = cellOf.get(application.getStorageId());
     cell.setChildren(storedChildren(cell).stream().filter(child -> child != application).collect(Collectors.toCollection(ArrayList::new)));
@@ -422,6 +469,7 @@ public class LayoutPlacementAssembler {
                                                  .filter(c -> isTemplate(c, LayoutDescriptionService.BANNER_CELL_TEMPLATE))
                                                  .toList();
         siteContainer(child.getStorageId(), cells);
+        cells.forEach(cell -> bannerOf.put(cell, child));
         if (StringUtils.isNotBlank(child.getStorageId())) {
           banners.add(child.getStorageId());
         }

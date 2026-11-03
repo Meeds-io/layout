@@ -996,6 +996,8 @@ public class LayoutDescriptionService {
                                                           .filter(c -> isTemplate(c, BANNER_CELL_TEMPLATE))
                                                           .map(cell -> new SiteColumnDescription(cell.getStorageId(),
                                                                                                  parsePixels(cell.getWidth()),
+                                                                                                 SiteLayoutAssembler.FIT_CONTENT.equals(cell.getWidth()) ? Boolean.TRUE
+                                                                                                                                                          : null,
                                                                                                  toApplications(cell,
                                                                                                                 scope,
                                                                                                                 StylingDestination.SITE_CONTAINER_APPLICATION)))

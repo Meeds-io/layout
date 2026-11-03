@@ -1771,20 +1771,73 @@ public class LayoutDescriptionServiceTest {
     children(thirdColumn, application("6", null, null));
     children(topBanner, firstColumn, secondColumn, thirdColumn);
 
+    firstColumn.setCssClass("hidden-sm-and-down");
+    ApplicationDescription two = new ApplicationDescription("2", null, null, null, null, null, null, null, null);
     SiteContainerDescription top = banner(topBanner.getStorageId(),
                                           null,
                                           null,
-                                          column(thirdColumn.getStorageId(), 120, new ApplicationDescription("2", null, null, null, null, null, null, null, null)),
-                                          column(firstColumn.getStorageId(), null));
+                                          column(thirdColumn.getStorageId(), 120),
+                                          column(firstColumn.getStorageId(), null, two));
 
     LayoutModel writtenTop = build(site, null, List.of(top), null).getChildren().get(1).getChildren().get(0);
 
     assertEquals(List.of(thirdColumn.getStorageId(), firstColumn.getStorageId()),
                  writtenTop.getChildren().stream().map(LayoutModel::getStorageId).toList());
     assertEquals("120", writtenTop.getChildren().get(0).getWidth());
-    assertEquals(List.of("2"), writtenTop.getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    assertTrue(writtenTop.getChildren().get(0).getChildren().isEmpty());
     assertNull(writtenTop.getChildren().get(1).getWidth());
-    assertTrue(writtenTop.getChildren().get(1).getChildren().isEmpty());
+    assertEquals("hidden-sm-and-down", writtenTop.getChildren().get(1).getCssClass());
+    assertEquals(List.of("2"), writtenTop.getChildren().get(1).getChildren().stream().map(LayoutModel::getStorageId).toList());
+
+    assertEquals(SiteLayoutAssembler.COLUMN_APPLICATIONS_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(thirdColumn.getStorageId(), 120, two), column(firstColumn.getStorageId(), null))), null)));
+    assertEquals(SiteLayoutAssembler.COLUMN_APPLICATIONS_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(null, null, two))), null)));
+    Container outerLeftCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
+    SiteContainerDescription left = new SiteContainerDescription(outerLeftCell.getStorageId(), null, null, List.of(two));
+    LayoutModel movedToSidebar = build(site, left, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null))), null);
+    assertEquals(List.of("2"), movedToSidebar.getChildren().get(0).getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    SiteContainerDescription emptyLeft = new SiteContainerDescription(outerLeftCell.getStorageId(), null, null, List.of());
+    ApplicationDescription one = new ApplicationDescription("1", null, null, null, null, null, null, null, null);
+    LayoutModel movedFromSidebar = build(site, emptyLeft, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null, two), column(null, null, one))), null);
+    assertEquals(List.of("1"), movedFromSidebar.getChildren().get(1).getChildren().get(0).getChildren().get(1).getChildren().stream().map(LayoutModel::getStorageId).toList());
+  }
+
+  @Test
+  public void aColumnTakingTheWidthOfItsApplicationIsReadAndWrittenAsFitContent() throws Exception {
+    PortalConfig site = storedSite();
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container firstColumn = (Container) topBanner.getChildren().get(0);
+    Container secondColumn = (Container) topBanner.getChildren().get(1);
+    firstColumn.setWidth("fit-content");
+
+    SiteDescription read = descriptionService.toSiteDescription(describedPortalSite(), site.getPortalLayout(), "Test", null, true);
+    SiteColumnDescription readColumn = read.topbars().get(0).columns().get(0);
+    assertEquals(Boolean.TRUE, readColumn.fitContent());
+    assertNull(readColumn.width());
+    assertNull(read.topbars().get(0).columns().get(1).fitContent());
+
+    LayoutModel kept = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, readColumn, column(secondColumn.getStorageId(), null))), null)
+                                                                                                                                                         .getChildren()
+                                                                                                                                                         .get(1)
+                                                                                                                                                         .getChildren()
+                                                                                                                                                         .get(0);
+    assertEquals("fit-content", kept.getChildren().get(0).getWidth());
+
+    LayoutModel shared = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null), column(secondColumn.getStorageId(), null))), null)
+                                                                                                                                                                                  .getChildren()
+                                                                                                                                                                                  .get(1)
+                                                                                                                                                                                  .getChildren()
+                                                                                                                                                                                  .get(0);
+    assertNull(shared.getChildren().get(0).getWidth());
+
+    SiteColumnDescription lastFitting = new SiteColumnDescription(null, null, true, List.of());
+    LayoutModel added = build(site, null, List.of(banner(null, null, null, column(null, 200), lastFitting)), null).getChildren().get(1).getChildren().get(0);
+    assertEquals(List.of("200", "fit-content"), added.getChildren().stream().map(LayoutModel::getWidth).toList());
+
+    SiteColumnDescription both = new SiteColumnDescription(null, 200, true, List.of());
+    assertEquals(SiteLayoutAssembler.COLUMN_FIT_CONTENT_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(null, null, null, both, column(null, null))), null)));
   }
 
   @Test
@@ -1847,10 +1900,11 @@ public class LayoutDescriptionServiceTest {
                                                                                                                                                                                              .getChildren()
                                                                                                                                                                                              .get(0);
     assertEquals(List.of("2", "8"), keptBeside.getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
-    children(secondColumn, application("9", null, null));
-    ApplicationDescription nine = new ApplicationDescription("9", null, null, null, null, null, null, null, null);
+    Container outerLeftCell = findContainer(site.getPortalLayout(), LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0);
+    SiteContainerDescription emptyLeft = new SiteContainerDescription(outerLeftCell.getStorageId(), null, null, List.of());
+    ApplicationDescription one = new ApplicationDescription("1", null, null, null, null, null, null, null, null);
     assertEquals(SiteLayoutAssembler.COLUMN_APPLICATIONS_NOT_ACCEPTED,
-                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null, nine), column(secondColumn.getStorageId(), null))), null)));
+                 refused(() -> build(site, emptyLeft, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null, one), column(secondColumn.getStorageId(), null))), null)));
   }
 
   @Test
