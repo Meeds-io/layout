@@ -88,6 +88,7 @@ import io.meeds.layout.mcp.model.ScheduleDescription;
 import io.meeds.layout.mcp.model.SectionDescription;
 import io.meeds.layout.mcp.model.SidesBlock;
 import io.meeds.layout.mcp.model.SiteContainerDescription;
+import io.meeds.layout.mcp.model.SiteColumnDescription;
 import io.meeds.layout.mcp.model.SiteContainerOptions;
 import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
@@ -986,13 +987,21 @@ public class LayoutDescriptionService {
     return result;
   }
 
+  /**
+   * A topbar or a bottom bar is read as the editor shows it: its columns in
+   * order, each with its width and its applications
+   */
   private SiteContainerDescription toBanner(LayoutModel banner, ApplicationReadScope scope) {
-    List<ApplicationDescription> applications = children(banner).stream()
-                                                                .filter(c -> isTemplate(c, BANNER_CELL_TEMPLATE))
-                                                                .flatMap(cell -> toApplications(cell,
-                                                                                                scope,
-                                                                                                StylingDestination.SITE_CONTAINER_APPLICATION).stream())
-                                                                .toList();
+    List<SiteColumnDescription> columns = children(banner).stream()
+                                                          .filter(c -> isTemplate(c, BANNER_CELL_TEMPLATE))
+                                                          .map(cell -> new SiteColumnDescription(cell.getStorageId(),
+                                                                                                 parsePixels(cell.getWidth()),
+                                                                                                 SiteLayoutAssembler.FIT_CONTENT.equals(cell.getWidth()) ? Boolean.TRUE
+                                                                                                                                                          : null,
+                                                                                                 toApplications(cell,
+                                                                                                                scope,
+                                                                                                                StylingDestination.SITE_CONTAINER_APPLICATION)))
+                                                          .toList();
     SiteContainerOptions options = new SiteContainerOptions(parsePixels(banner.getHeight()),
                                                             null,
                                                             hasToken(banner.getCssClass(), STICKY_SECTION_TOKEN),
@@ -1002,7 +1011,8 @@ public class LayoutDescriptionService {
     return new SiteContainerDescription(banner.getStorageId(),
                                         options,
                                         toStyling(banner, StylingDestination.BANNER),
-                                        applications);
+                                        null,
+                                        columns);
   }
 
   /**
@@ -1502,7 +1512,10 @@ public class LayoutDescriptionService {
     Map<String, Integer> values = new HashMap<>();
     Matcher matcher = BG_MARGIN_TOKEN.matcher(cssClass);
     while (matcher.find()) {
-      values.put(matcher.group(2), Integer.valueOf(matcher.group(3)));
+      Integer pixels = toInteger(matcher.group(3));
+      if (pixels != null) {
+        values.put(matcher.group(2), pixels);
+      }
     }
     return values.isEmpty() ? null : new SidesBlock(values.get("top"), values.get("right"), values.get("bottom"), values.get("left"));
   }
@@ -1514,7 +1527,10 @@ public class LayoutDescriptionService {
     Map<String, Integer> values = new HashMap<>();
     Matcher matcher = BG_RADIUS_TOKEN.matcher(cssClass);
     while (matcher.find()) {
-      values.put(matcher.group(2), Integer.valueOf(matcher.group(3)));
+      Integer pixels = toInteger(matcher.group(3));
+      if (pixels != null) {
+        values.put(matcher.group(2), pixels);
+      }
     }
     return values.isEmpty() ? null : toCorners(values.get("tl"), values.get("tr"), values.get("br"), values.get("bl"));
   }
@@ -1634,7 +1650,7 @@ public class LayoutDescriptionService {
     List<Integer> parts = new ArrayList<>();
     Matcher matcher = PIXELS.matcher(value);
     while (matcher.find()) {
-      parts.add(Integer.valueOf(matcher.group()));
+      parts.add(toInteger(matcher.group()));
     }
     return parts;
   }
@@ -1644,7 +1660,20 @@ public class LayoutDescriptionService {
       return null;
     }
     Matcher matcher = PIXELS.matcher(value);
-    return matcher.find() ? Integer.valueOf(matcher.group()) : null;
+    return matcher.find() ? toInteger(matcher.group()) : null;
+  }
+
+  /**
+   * @return the stored digits as a number, or null when they go past an int,
+   *         so that a stored value no editor writes reads as absent rather
+   *         than failing the whole read
+   */
+  private Integer toInteger(String digits) {
+    try {
+      return Integer.valueOf(digits);
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
   private boolean hasToken(String cssClass, String token) {
