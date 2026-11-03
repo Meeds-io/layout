@@ -22,7 +22,7 @@
 <template>
   <div
     v-show="open"
-    class="layout-section-hover">
+    class="layout-editor-control layout-section-hover">
     <v-fade-transition>
       <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -->
       <v-hover v-model="hoverButton">

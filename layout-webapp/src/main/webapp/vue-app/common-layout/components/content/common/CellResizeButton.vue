@@ -38,7 +38,7 @@
       'col-resize-cursor grid-gap-width': dynamicSection,
       'layout-column-resize': dynamicSection && hoverSeparator,
     }, spacingClass]"
-    class="position-absolute z-index-two"
+    class="layout-editor-control position-absolute z-index-two"
     @mousedown.prevent.stop="resizeStart"
     @mouseover="hoverSeparator = true"
     @focusin="hoverSeparator = true"
