@@ -223,6 +223,15 @@ public class ApplicationSettingsService {
    * @throws IllegalAccessException  when an application's own rule refuses
    *                                   the user
    * @throws ObjectNotFoundException when a referenced object does not exist
+   * @throws IllegalArgumentException when no plugin configures an
+   *                                    application where it sits, when a
+   *                                    list holds a null item, or when a
+   *                                    plugin refuses a value, with its fixed
+   *                                    text
+   * @throws IllegalStateException   when a plugin answers a fixed state
+   *                                   refusal, or fails without a fixed
+   *                                   text, answered as the application not
+   *                                   saved
    */
   public void validate(List<ApplicationSettingsContext> contexts,
                        List<Map<String, Object>> settings,
