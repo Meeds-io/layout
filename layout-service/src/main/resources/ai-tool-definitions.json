@@ -38,7 +38,7 @@
               "draft",
               "published"
             ],
-            "description": "draft reads the user's site draft and fails when they have none; published reads the live layout; omit to read the draft when it exists, the published layout otherwise"
+            "description": "draft reads the user's site draft and fails when they have none; published reads the live layout, whose ids are the live layout's while the write tools edit the user's draft when they have one: read the draft before writing; omit to read the draft when it exists, the published layout otherwise"
           }
         },
         "required": ["site_id"]
@@ -89,7 +89,7 @@
           "version": {
             "type": "string",
             "enum": ["draft", "published"],
-            "description": "draft reads the user's draft and fails when they have none; published reads the live layout; omit to read the draft when it exists, the published layout otherwise"
+            "description": "draft reads the user's draft and fails when they have none; published reads the live layout, whose ids are the live layout's while the write tools edit the user's draft when they have one: read the draft before writing; omit to read the draft when it exists, the published layout otherwise"
           }
         },
         "required": ["page_ref"]
