@@ -178,7 +178,7 @@ public class LayoutMcpToolDefinitionsTest {
   private static final List<Class<?>>      TOOL_CLASSES              = List.of(LayoutMcpTool.class, BrandingMcpTool.class);
 
   private static final Map<String, String> SAMPLE_INPUTS             = Map.ofEntries(Map.entry("list_sites", "{\"keyword\": \"marketing\"}"),
-                                                                                     Map.entry("get_site", "{\"site_id\": 3}"),
+                                                                                     Map.entry("get_site", "{\"site_id\": 3, \"version\": \"published\"}"),
                                                                                      Map.entry("list_site_pages",
                                                                                                "{\"site_id\": 3, \"include_hidden\": true}"),
                                                                                      Map.entry("get_page_layout",

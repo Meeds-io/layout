@@ -250,10 +250,10 @@ public class LayoutMcpToolTest {
     when(siteLayoutService.getSite(1L, USER)).thenThrow(new ObjectNotFoundException("internal detail"));
     when(siteLayoutService.getSite(2L, USER)).thenThrow(new IllegalAccessException("internal detail"));
 
-    assertEquals(LayoutMcpTool.SITE_NOT_FOUND, assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.getSite(1L))).getMessage());
-    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, assertThrows(IllegalAccessException.class, () -> asUser(() -> tool.getSite(2L))).getMessage());
+    assertEquals(LayoutMcpTool.SITE_NOT_FOUND, assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.getSite(1L, null))).getMessage());
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, assertThrows(IllegalAccessException.class, () -> asUser(() -> tool.getSite(2L, null))).getMessage());
     assertEquals(LayoutMcpTool.SITE_NOT_FOUND, assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.listSitePages(1L, null))).getMessage());
-    assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, assertThrows(IllegalArgumentException.class, () -> asUser(() -> tool.getSite(null))).getMessage());
+    assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, assertThrows(IllegalArgumentException.class, () -> asUser(() -> tool.getSite(null, null))).getMessage());
     assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, assertThrows(IllegalArgumentException.class, () -> asUser(() -> tool.listSitePages(0L, true))).getMessage());
   }
 
@@ -262,7 +262,7 @@ public class LayoutMcpToolTest {
     PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_bob", "draft_9");
     when(siteLayoutService.getSite(9L, USER)).thenReturn(draftSite);
 
-    assertEquals(LayoutMcpTool.SITE_NOT_FOUND, assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.getSite(9L))).getMessage());
+    assertEquals(LayoutMcpTool.SITE_NOT_FOUND, assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.getSite(9L, null))).getMessage());
     assertEquals(LayoutMcpTool.SITE_NOT_FOUND, assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.listSitePages(9L, null))).getMessage());
     verify(descriptionService, never()).toSiteDescription(any(), any(), any(), any(), any(), any(Boolean.class), any());
   }
@@ -282,7 +282,7 @@ public class LayoutMcpToolTest {
     when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> i.getArgument(0));
     when(descriptionService.toSiteDescription(eq(site), eq(draftSite.getPortalLayout()), eq("Site label"), eq("Site description"), eq(draftSite.getSiteKey()), eq(true), eq(USER))).thenReturn(expected);
 
-    assertEquals(expected, asUser(() -> tool.getSite(SITE_ID)));
+    assertEquals(expected, asUser(() -> tool.getSite(SITE_ID, null)));
     verify(descriptionService).filterAccessible(draftSite.getPortalLayout(), USER);
     verify(layoutService, never()).getPortalConfig(any(SiteKey.class));
   }
@@ -301,7 +301,48 @@ public class LayoutMcpToolTest {
     when(descriptionService.filterAccessible(site.getPortalLayout(), USER)).thenReturn(site.getPortalLayout());
     when(descriptionService.toSiteDescription(eq(site), eq(site.getPortalLayout()), eq("test"), isNull(), eq(site.getSiteKey()), eq(false), eq(USER))).thenReturn(expected);
 
-    assertEquals(expected, asUser(() -> tool.getSite(SITE_ID)));
+    assertEquals(expected, asUser(() -> tool.getSite(SITE_ID, null)));
+  }
+
+  @Test
+  public void siteVersionSelectsThePublishedLayoutOrTheDraftTheRevisionNames() throws Exception {
+    PortalConfig site = site("portal", "test", "Test");
+    site.setPortalLayout(new Container("live"));
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(new Container("draft"));
+    SiteDescription published = mock(SiteDescription.class);
+    SiteDescription draft = mock(SiteDescription.class);
+    when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site);
+    when(siteLayoutService.getSiteLabels(SITE_ID, USER)).thenReturn(label("Site label"));
+    when(siteLayoutService.getSiteDescriptions(SITE_ID, USER)).thenReturn(label("Site description"));
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
+    when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
+    when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> i.getArgument(0));
+    when(descriptionService.toSiteDescription(eq(site), eq(site.getPortalLayout()), eq("Site label"), eq("Site description"), eq(site.getSiteKey()), eq(false), eq(USER))).thenReturn(published);
+    when(descriptionService.toSiteDescription(eq(site), eq(draftSite.getPortalLayout()), eq("Site label"), eq("Site description"), eq(draftSite.getSiteKey()), eq(true), eq(USER))).thenReturn(draft);
+
+    assertEquals(published, asUser(() -> tool.getSite(SITE_ID, "published")));
+    verify(draftService, never()).getDraftSiteKey(anyLong(), any());
+    assertEquals(draft, asUser(() -> tool.getSite(SITE_ID, "draft")));
+  }
+
+  @Test
+  public void explicitDraftSiteWithoutARevisionDoesNotExist() throws Exception {
+    PortalConfig site = site("portal", "test", "Test");
+    site.setPortalLayout(new Container("live"));
+    when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site);
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
+
+    assertEquals(LayoutMcpTool.DRAFT_NOT_FOUND,
+                 assertThrows(ObjectNotFoundException.class, () -> asUser(() -> tool.getSite(SITE_ID, "draft"))).getMessage());
+    verify(descriptionService, never()).toSiteDescription(any(), any(), any(), any(), any(), any(Boolean.class), any());
+  }
+
+  @Test
+  public void siteVersionOutsideTheVocabularyIsRefusedBeforeAnyRead() throws Exception {
+    assertEquals("value is not accepted for version",
+                 assertThrows(IllegalArgumentException.class, () -> asUser(() -> tool.getSite(SITE_ID, "live"))).getMessage());
+    verify(siteLayoutService, never()).getSite(anyLong(), any());
   }
 
   @Test
@@ -315,7 +356,7 @@ public class LayoutMcpToolTest {
     when(descriptionService.filterAccessible(site.getPortalLayout(), USER)).thenReturn(site.getPortalLayout());
     when(descriptionService.toSiteDescription(eq(site), eq(site.getPortalLayout()), eq("Marketing"), eq("The marketing space"), eq(site.getSiteKey()), eq(false), eq(USER))).thenReturn(expected);
 
-    assertEquals(expected, asUser(() -> tool.getSite(SITE_ID)));
+    assertEquals(expected, asUser(() -> tool.getSite(SITE_ID, null)));
     verify(siteLayoutService, never()).getSiteLabels(anyLong(), any());
     verify(siteLayoutService, never()).getSiteDescriptions(anyLong(), any());
   }
