@@ -674,12 +674,14 @@ public class PageLayoutServiceTest {
     when(layoutService.getPageContext(PAGE_KEY)).thenReturn(pageContext);
     assertThrows(IllegalAccessException.class,
                  () -> pageLayoutService.updatePagePermissions(PAGE_KEY, permissionModel, TEST_USER));
+    verify(listenerService, never()).broadcast(eq(PageLayoutService.PAGE_PERMISSIONS_UPDATED_EVENT), any(), any());
     when(aclService.canEditPage(PAGE_KEY, TEST_USER)).thenReturn(true);
     when(pageContext.getState()).thenReturn(pageState);
     pageLayoutService.updatePagePermissions(PAGE_KEY, permissionModel, TEST_USER);
     verify(layoutService).save(pageContext);
     verify(pageState).setEditPermission(permissionModel.getEditPermission());
     verify(pageState).setAccessPermissions(permissionModel.getAccessPermissions());
+    verify(listenerService).broadcast(PageLayoutService.PAGE_PERMISSIONS_UPDATED_EVENT, TEST_USER, PAGE_KEY.format());
   }
 
   private void assertDraftRefused(ModelObject... submittedChildren) throws Exception {

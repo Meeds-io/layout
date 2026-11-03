@@ -265,13 +265,40 @@ public class ThemeUpdateServiceTest {
   }
 
   @Test
-  public void brandingServiceRefusalPassesThroughUnchanged() {
+  public void brandingServiceValueRefusalIsAnsweredAsTheOptionItNames() {
     administrator();
     loaded();
     doThrow(new IllegalArgumentException("branding.theme.invalidValue:primaryColor")).when(brandingService)
                                                                                      .updateBrandingInformation(any());
 
-    assertEquals("branding.theme.invalidValue:primaryColor", refusal(ThemePart.COLORS, Map.of("primaryColor", "red"), null));
+    assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED + ": primaryColor",
+                 refusal(ThemePart.COLORS, Map.of("primaryColor", "red"), null));
+  }
+
+  @Test
+  public void brandingServiceCodeNamingNoOptionIsAnsweredAsTheOptionsRefused() {
+    administrator();
+    loaded();
+    doThrow(new IllegalArgumentException("branding.css.forbiddenValue")).when(brandingService).updateBrandingInformation(any());
+
+    assertEquals(ThemeUpdateService.OPTIONS_NOT_ACCEPTED, refusal(ThemePart.COLORS, Map.of("primaryColor", "red"), null));
+  }
+
+  @Test
+  public void brandingServiceFailureIsAnsweredAsTheThemeNotSavedWithoutItsText() {
+    administrator();
+    loaded();
+    doThrow(new IllegalArgumentException("Cannot update /var/data/logo.png")).doThrow(new IllegalStateException("db down"))
+                                                                              .when(brandingService)
+                                                                              .updateBrandingInformation(any());
+
+    assertEquals(ThemeUpdateService.THEME_NOT_SAVED, notSaved());
+    assertEquals(ThemeUpdateService.THEME_NOT_SAVED, notSaved());
+  }
+
+  private String notSaved() {
+    return assertThrows(IllegalStateException.class,
+                        () -> service.updateTheme(ThemePart.COLORS, Map.of("primaryColor", "red"), null, USER)).getMessage();
   }
 
   @Test
