@@ -91,6 +91,17 @@ public class ApplicationSettingsService {
 
   private static final long                              LOCK_TIMEOUT_SECONDS               = 5;
 
+  private static final List<String>                      FIXED_REFUSAL_PREFIXES             =
+                                                                                List.of("does not exist: ",
+                                                                                        "not allowed: ",
+                                                                                        "value is not accepted for ",
+                                                                                        "not configurable ",
+                                                                                        "could not be saved: ",
+                                                                                        LayoutPlacementAssembler.CANNOT_BE_PLACED,
+                                                                                        PageLayoutAssembler.CELL_TAKEN,
+                                                                                        LAYOUT_BUSY,
+                                                                                        ApplicationDraftService.LAYOUT_OUTDATED);
+
   private final Map<String, ApplicationSettingsPlugin>   plugins                            = new ConcurrentHashMap<>();
 
   private final ReentrantLock[]                          locks                              = new ReentrantLock[LOCK_STRIPES];
@@ -233,6 +244,13 @@ public class ApplicationSettingsService {
       } catch (IllegalAccessException e) {
         LOG.debug("Application {} settings refused to {}", context.getApplicationId(), context.getUsername(), e);
         throw new IllegalAccessException(APPLICATION_NOT_ALLOWED);
+      } catch (ObjectNotFoundException | IllegalArgumentException | IllegalStateException e) {
+        if (!isFixedRefusal(e)) {
+          throw notSaved(context, e);
+        }
+        throw e;
+      } catch (RuntimeException e) {
+        throw notSaved(context, e);
       }
     }
   }
@@ -265,12 +283,14 @@ public class ApplicationSettingsService {
         LOG.debug("Application {} settings refused to {}", context.getApplicationId(), context.getUsername(), e);
         throwFailure(applied, new IllegalAccessException(APPLICATION_NOT_ALLOWED));
       } catch (ObjectNotFoundException e) {
-        throwFailure(applied, e);
+        if (isFixedRefusal(e)) {
+          throwFailure(applied, e);
+        }
+        throwFailure(applied, notSaved(context, e));
       } catch (IllegalArgumentException | IllegalStateException e) {
-        throwFailure(applied, e);
+        throwFailure(applied, isFixedRefusal(e) ? e : notSaved(context, e));
       } catch (RuntimeException e) {
-        LOG.warn("Application {} settings could not be saved by {}", context.getApplicationId(), context.getUsername(), e);
-        throwFailure(applied, new IllegalStateException(APPLICATION_NOT_SAVED));
+        throwFailure(applied, notSaved(context, e));
       }
     }
   }
@@ -481,6 +501,21 @@ public class ApplicationSettingsService {
     } finally {
       lock.unlock();
     }
+  }
+
+  /**
+   * @return whether the failure carries one of the fixed texts the tools
+   *         answer, the only messages a plugin's refusal may hand to the
+   *         agent: any other is an engine's own and never leaves the server
+   */
+  private boolean isFixedRefusal(Exception failure) {
+    String message = failure.getMessage();
+    return message != null && FIXED_REFUSAL_PREFIXES.stream().anyMatch(message::startsWith);
+  }
+
+  private IllegalStateException notSaved(ApplicationSettingsContext context, Exception failure) {
+    LOG.warn("Application {} settings could not be saved by {}", context.getApplicationId(), context.getUsername(), failure);
+    return new IllegalStateException(APPLICATION_NOT_SAVED);
   }
 
   private <E extends Exception> void throwFailure(List<String> applied, E failure) throws E {

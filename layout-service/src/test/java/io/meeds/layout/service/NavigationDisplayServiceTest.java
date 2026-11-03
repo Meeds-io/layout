@@ -25,6 +25,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -101,6 +102,25 @@ public class NavigationDisplayServiceTest {
     assertEquals(NavigationDisplayService.CONFIGURATION_NOT_FOUND,
                  assertThrows(ObjectNotFoundException.class, () -> service.updateNavigationDisplay(NO_TOPBAR, null, USER, Locale.ENGLISH)).getMessage());
     verify(navigationConfigurationService, never()).updateConfiguration(any());
+  }
+
+  @Test
+  public void failedSaveIsAnsweredAsTheDisplayNotSavedWithoutItsText() {
+    administrator();
+    stored();
+    doThrow(new IllegalStateException("Could not write /var/settings")).when(navigationConfigurationService)
+                                                                      .updateConfiguration(any());
+
+    IllegalStateException failure = assertThrows(IllegalStateException.class,
+                                                 () -> service.updateNavigationDisplay(new TopbarDisplayOptions(null,
+                                                                                                                false,
+                                                                                                                null,
+                                                                                                                null),
+                                                                                       null,
+                                                                                       USER,
+                                                                                       Locale.ENGLISH));
+
+    assertEquals(NavigationDisplayService.DISPLAY_NOT_SAVED, failure.getMessage());
   }
 
   @Test
