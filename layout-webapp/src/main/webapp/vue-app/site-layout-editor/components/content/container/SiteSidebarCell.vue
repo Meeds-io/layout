@@ -59,7 +59,8 @@
               :class="{
                 'btn white': hasBackground,
                 'd-flex flex-wrap align-center justify-center': !hasBackground,
-              }">
+              }"
+              class="layout-editor-control">
               <v-icon class="icon-default-color pe-2">fa-plus</v-icon>
               <span class="text-no-wrap">{{ $t('layout.addApp') }}</span>
             </component>

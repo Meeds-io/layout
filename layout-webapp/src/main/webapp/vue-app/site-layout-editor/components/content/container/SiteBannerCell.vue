@@ -100,7 +100,7 @@
                   'btn white': hasBackground,
                   'd-flex flex-wrap align-center justify-center': !hasBackground,
                 }"
-                class="position-absolute">
+                class="layout-editor-control position-absolute">
                 <v-icon class="icon-default-color pe-2">fa-plus</v-icon>
                 <span class="text-no-wrap">{{ $t('layout.addApp') }}</span>
               </component>
