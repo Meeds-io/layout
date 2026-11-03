@@ -495,8 +495,7 @@ public class LayoutStylesAssemblerTest {
                  refused(() -> styleSite(site, element(sidebarId, styling(null, new BorderBlock(true, "#111111", 1, false), null, null, null)))));
     assertEquals("value is not accepted for styling.height",
                  refused(() -> styleSite(site, element("2", styling(null, null, null, null, new HeightBlock(true, HeightPreset.SMALL, null))))));
-    assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
-                 assertThrows(ObjectNotFoundException.class, () -> styleSite(site, element(bannerCellId, null))).getMessage());
+    assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> styleSite(site, element(bannerCellId, null))));
     assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
                  assertThrows(ObjectNotFoundException.class, () -> styleSite(site, element(root.getStorageId(), null))).getMessage());
   }
@@ -587,8 +586,7 @@ public class LayoutStylesAssemblerTest {
     String sidebarCellId = findContainer(root, LayoutDescriptionService.SIDEBAR_CELL_TEMPLATE, 0).getStorageId();
     String bannerCellId = findContainer(root, LayoutDescriptionService.BANNER_CELL_TEMPLATE, 0).getStorageId();
 
-    assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
-                 assertThrows(ObjectNotFoundException.class, () -> displaySite(site, visible(bannerCellId, DisplayMode.HIDE_MOBILE))).getMessage());
+    assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> displaySite(site, visible(bannerCellId, DisplayMode.HIDE_MOBILE))));
     assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displaySite(site, visible(topbarId, DisplayMode.HIDE_DESKTOP))));
     assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displaySite(site, visible(bottomBarId, DisplayMode.HIDE_DESKTOP))));
     assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED, refused(() -> displaySite(site, visible(sidebarCellId, DisplayMode.HIDE_DESKTOP))));

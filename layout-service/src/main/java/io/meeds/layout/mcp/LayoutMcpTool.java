@@ -608,8 +608,10 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   /**
    * Replaces the structure of the user's site draft: the sidebars, topbars
-   * and bottom bars given, with their options, styling and applications, as
-   * the site layout editor lays them out; a sidebar or a list omitted is
+   * and bottom bars given, with their options and styling, a sidebar with its
+   * applications and a topbar or a bottom bar with its columns, one
+   * application per column, as the site layout editor lays them out; a
+   * sidebar or a list omitted is
    * absent from the draft, while an option, a styling block or a display
    * left null on a kept element keeps what it holds. Ids address the layout
    * get_site returned: the
