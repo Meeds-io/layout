@@ -41,7 +41,10 @@ import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
 import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.constant.SectionType;
+import io.meeds.layout.mcp.model.ApplicationPlacement;
+import io.meeds.layout.mcp.model.ApplicationPosition;
 import io.meeds.layout.mcp.model.ApplicationSettingsEntry;
+import io.meeds.layout.mcp.model.ApplicationToPlace;
 import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.PageDescription;
@@ -84,7 +87,9 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                "set_page_layout",
                                                                                "set_layout_styles",
                                                                                "set_layout_visibility",
-                                                                               "configure_layout_applications");
+                                                                               "configure_layout_applications",
+                                                                               "move_layout_application",
+                                                                               "remove_layout_application");
 
   private static final Set<String>         APPROVAL_TOOLS            = Set.of("update_theme",
                                                                                "update_navigation_display",
@@ -152,6 +157,12 @@ public class LayoutMcpToolDefinitionsTest {
                         {"application_id": "21", "settings": {"limit": 4, "show_header": null}}]}
       """;
 
+  private static final String              MOVE_APPLICATION_SAMPLE   = """
+      {"page_ref": "portal::mysite::home", "site_id": 3, "application_id": "5",
+       "application": {"instance_id": 10, "content_id": "layout/Links"},
+       "position": {"section_id": "20", "container_id": "12", "column": 2, "row": 1, "index": 3, "before": "6", "after": "7"}}
+      """;
+
   private static final String              CREATE_SITE_SAMPLE        = """
       {"name": "marketing", "label": "Marketing", "description": "About us", "template": "basic",
        "banner_upload_id": "u1", "access_permissions": ["Everyone"], "edit_permission": "*:/platform/administrators",
@@ -195,7 +206,11 @@ public class LayoutMcpToolDefinitionsTest {
                                                                                      Map.entry("set_layout_styles", LAYOUT_STYLES_SAMPLE),
                                                                                      Map.entry("set_layout_visibility", LAYOUT_VISIBILITY_SAMPLE),
                                                                                      Map.entry("configure_layout_applications",
-                                                                                               CONFIGURE_APPLICATIONS_SAMPLE));
+                                                                                               CONFIGURE_APPLICATIONS_SAMPLE),
+                                                                                     Map.entry("move_layout_application",
+                                                                                               MOVE_APPLICATION_SAMPLE),
+                                                                                     Map.entry("remove_layout_application",
+                                                                                               "{\"page_ref\": \"portal::mysite::home\", \"site_id\": 3, \"application_id\": \"5\"}"));
 
   @Test
   public void everyPublicMethodHasADefinitionAndEveryDefinitionAMethod() {
@@ -388,6 +403,25 @@ public class LayoutMcpToolDefinitionsTest {
     assertTrue(typed.get(0).settings().get("links") instanceof List<?>);
     assertEquals(4, ((Number) typed.get(1).settings().get("limit")).intValue());
     assertTrue(typed.get(1).settings().containsKey("show_header"));
+  }
+
+  /**
+   * The position and the application to place bind as records, every field
+   * of the position included
+   */
+  @Test
+  public void moveApplicationArgumentsBindTheirRecordsThroughTheServerConverter() {
+    Map<String, Object> arguments = JSON_HELPER.fromJsonToMap(MOVE_APPLICATION_SAMPLE);
+    ApplicationPosition position = (ApplicationPosition) JSON_HELPER.convertToTypedObject(arguments.get("position"),
+                                                                                          ApplicationPosition.class);
+    ApplicationToPlace application = (ApplicationToPlace) JSON_HELPER.convertToTypedObject(arguments.get("application"),
+                                                                                           ApplicationToPlace.class);
+
+    assertEquals(new ApplicationPosition("20", "12", 2, 1, 3, "6", "7"), position);
+    assertEquals(new ApplicationToPlace(10L, "layout/Links"), application);
+    assertEquals(new ApplicationPosition(null, null, null, null, null, null, null),
+                 JSON_HELPER.convertToTypedObject(JSON_HELPER.fromJsonToMap("{}"), ApplicationPosition.class));
+    assertTrue(JSON_HELPER.toJson(new ApplicationPlacement("9", null)).contains("\"application_id\""));
   }
 
   @Test
