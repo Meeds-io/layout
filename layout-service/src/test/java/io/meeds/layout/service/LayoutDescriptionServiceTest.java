@@ -1846,8 +1846,10 @@ public class LayoutDescriptionServiceTest {
                                                                                                                                                                                              .getChildren()
                                                                                                                                                                                              .get(0);
     assertEquals(List.of("2", "8"), keptBeside.getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    children(secondColumn, application("9", null, null));
+    ApplicationDescription nine = new ApplicationDescription("9", null, null, null, null, null, null, null, null);
     assertEquals(SiteLayoutAssembler.COLUMN_APPLICATIONS_NOT_ACCEPTED,
-                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null), column(secondColumn.getStorageId(), null, eight, news))), null)));
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null, nine), column(secondColumn.getStorageId(), null))), null)));
   }
 
   @Test
@@ -1878,6 +1880,8 @@ public class LayoutDescriptionServiceTest {
                  refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null), column(secondColumn.getStorageId(), 31))), null)));
 
     firstColumn.setWidth("99999999999");
+    SiteDescription overflowing = descriptionService.toSiteDescription(describedPortalSite(), site.getPortalLayout(), "Test", null, true);
+    assertNull(overflowing.topbars().get(0).columns().get(0).width());
     LayoutModel cleared = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null), column(secondColumn.getStorageId(), null))), null)
                                                                                                                                                                                          .getChildren()
                                                                                                                                                                                          .get(1)

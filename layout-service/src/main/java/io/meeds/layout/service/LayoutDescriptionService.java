@@ -1652,7 +1652,14 @@ public class LayoutDescriptionService {
       return null;
     }
     Matcher matcher = PIXELS.matcher(value);
-    return matcher.find() ? Integer.valueOf(matcher.group()) : null;
+    if (!matcher.find()) {
+      return null;
+    }
+    try {
+      return Integer.valueOf(matcher.group());
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
   private boolean hasToken(String cssClass, String token) {
