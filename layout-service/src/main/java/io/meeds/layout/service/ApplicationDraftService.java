@@ -446,17 +446,32 @@ public class ApplicationDraftService {
 
   private Set<String> siteApplicationIds(SiteDescription site) {
     Set<String> ids = new HashSet<>();
-    siteContainers(site).forEach(container -> container.applications()
-                                                       .stream()
-                                                       .map(ApplicationDescription::applicationId)
-                                                       .forEach(ids::add));
+    siteContainers(site).forEach(container -> siteApplications(container).stream()
+                                                                         .map(ApplicationDescription::applicationId)
+                                                                         .forEach(ids::add));
     return ids;
   }
 
   private Set<String> siteContainerIds(SiteDescription site) {
     Set<String> ids = new HashSet<>();
-    siteContainers(site).forEach(container -> ids.add(container.containerId()));
+    siteContainers(site).forEach(container -> {
+      ids.add(container.containerId());
+      if (container.columns() != null) {
+        container.columns().forEach(column -> ids.add(column.columnId()));
+      }
+    });
     return ids;
+  }
+
+  private List<ApplicationDescription> siteApplications(SiteContainerDescription container) {
+    List<ApplicationDescription> applications = new ArrayList<>();
+    if (container.applications() != null) {
+      applications.addAll(container.applications());
+    }
+    if (container.columns() != null) {
+      container.columns().forEach(column -> applications.addAll(column.applications()));
+    }
+    return applications;
   }
 
   private List<SiteContainerDescription> siteContainers(SiteDescription site) {
