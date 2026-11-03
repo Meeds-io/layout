@@ -23,7 +23,7 @@
   <v-fade-transition>
     <div
       v-show="menu"
-      class="position-sticky t-20 z-index-drawer mx-auto">
+      class="layout-editor-control position-sticky t-20 z-index-drawer mx-auto">
       <div
         ref="menu"
         class="layout-no-multi-select absolute-horizontal-center z-index-drawer t-0 mt-n4">
