@@ -71,6 +71,8 @@ public class NavigationDisplayService {
 
   public static final String             DEFAULT_MODE_NOT_ACCEPTED    = "value is not accepted for default_mode";
 
+  public static final String             DISPLAY_NOT_SAVED            = "could not be saved: navigation display";
+
   private static final Log               LOG                          = ExoLogger.getLogger(NavigationDisplayService.class);
 
   private static final String[]          SETTINGS_BUNDLES             = { "locale.portlet.GeneralSettings", "locale.portlet.Portlets" };
@@ -106,6 +108,8 @@ public class NavigationDisplayService {
    *                                   a mode is outside the vocabulary, or
    *                                   when the default mode would not be
    *                                   allowed
+   * @throws IllegalStateException    when the configuration could not be
+   *                                   saved
    */
   public NavigationDisplayDescription updateNavigationDisplay(TopbarDisplayOptions topbar,
                                                               SidebarDisplayOptions sidebar,
@@ -123,7 +127,12 @@ public class NavigationDisplayService {
     }
     mergeTopbar(configuration.getTopbar(), topbar, locale);
     mergeSidebar(configuration.getSidebar(), sidebar);
-    navigationConfigurationService.updateConfiguration(configuration);
+    try {
+      navigationConfigurationService.updateConfiguration(configuration);
+    } catch (RuntimeException e) {
+      LOG.warn("Navigation display could not be saved by {}", username, e);
+      throw new IllegalStateException(DISPLAY_NOT_SAVED);
+    }
     return describe(navigationConfigurationService.getConfiguration(), locale);
   }
 
