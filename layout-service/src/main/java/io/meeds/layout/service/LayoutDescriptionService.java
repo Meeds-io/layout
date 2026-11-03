@@ -69,6 +69,8 @@ import io.meeds.layout.mcp.constant.NavigationItemType;
 import io.meeds.layout.mcp.constant.SectionType;
 import io.meeds.layout.mcp.constant.StylingDestination;
 import io.meeds.layout.mcp.model.ApplicationDescription;
+import io.meeds.layout.mcp.model.ApplicationPosition;
+import io.meeds.layout.mcp.model.ApplicationToPlace;
 import io.meeds.layout.mcp.model.WidgetCodeDescription;
 import io.meeds.layout.mcp.model.BackgroundBlock;
 import io.meeds.layout.mcp.model.BackgroundImageBlock;
@@ -98,6 +100,7 @@ import io.meeds.layout.model.ApplicationCode;
 import io.meeds.layout.model.ApplicationReadScope;
 import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.model.PlacedLayout;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PortletInstance;
 import io.meeds.layout.model.PortletInstanceCategory;
@@ -173,6 +176,8 @@ public class LayoutDescriptionService {
   public static final String     INSTANCE_ID_NOT_ACCEPTED    = "value is not accepted for instance_id";
 
   public static final String     CONTENT_ID_NOT_ACCEPTED     = "value is not accepted for content_id";
+
+  public static final String     APPLICATION_NOT_ACCEPTED    = "value is not accepted for application";
 
   private static final int       SITE_NAME_PAGE              = 200;
 
@@ -564,6 +569,92 @@ public class LayoutDescriptionService {
   }
 
   /**
+   * @param  applicationId the window of a move_layout_application call
+   * @param  position      where it goes
+   * @param  stored        the stored page the ids address: the live page when
+   *                         the user has no draft, their draft otherwise
+   * @param  copyWindows   whether the result is written over a draft built
+   *                         from the live page by this call, in which case
+   *                         every window becomes a copy carrying its
+   *                         preferences
+   * @param  username      the editing user
+   * @return               the page to write and the path of the moved window
+   */
+  public PlacedLayout toMovedPage(String applicationId,
+                                  ApplicationPosition position,
+                                  Page stored,
+                                  boolean copyWindows,
+                                  String username) throws ObjectNotFoundException {
+    PlacedLayout placed = placementAssembler(stored, false, copyWindows, username).move(applicationId, position);
+    return new PlacedLayout(checkedPage(placed.layout(), copyWindows), placed.path());
+  }
+
+  /**
+   * @param  application the catalog application of a move_layout_application
+   *                       call
+   * @param  locale      the user's language, for the catalog names
+   * @return             the page to write and the path of the new window
+   */
+  public PlacedLayout toPlacedPage(ApplicationToPlace application,
+                                   ApplicationPosition position,
+                                   Page stored,
+                                   boolean copyWindows,
+                                   String username,
+                                   Locale locale) throws ObjectNotFoundException {
+    ApplicationDescription description = toPlacedDescription(application);
+    PlacedLayout placed = placementAssembler(stored, false, copyWindows, username).place(() -> newApplication(description,
+                                                                                                             username,
+                                                                                                             locale),
+                                                                                         position);
+    return new PlacedLayout(checkedPage(placed.layout(), copyWindows), placed.path());
+  }
+
+  /**
+   * @return the page to write, the window removed
+   */
+  public LayoutModel toRemovedPage(String applicationId,
+                                   Page stored,
+                                   boolean copyWindows,
+                                   String username) throws ObjectNotFoundException {
+    return checkedPage(placementAssembler(stored, false, copyWindows, username).remove(applicationId), copyWindows);
+  }
+
+  /**
+   * @param  stored the site whose stored layout the ids address, the user's
+   *                  draft or the live site
+   * @return        the site layout to write and the path of the moved window
+   */
+  public PlacedLayout toMovedSite(String applicationId,
+                                  ApplicationPosition position,
+                                  PortalConfig stored,
+                                  boolean copyWindows,
+                                  String username) throws ObjectNotFoundException {
+    PlacedLayout placed = placementAssembler(siteLayout(stored), true, copyWindows, username).move(applicationId, position);
+    return new PlacedLayout(checkedSite(placed.layout(), copyWindows), placed.path());
+  }
+
+  public PlacedLayout toPlacedSite(ApplicationToPlace application,
+                                   ApplicationPosition position,
+                                   PortalConfig stored,
+                                   boolean copyWindows,
+                                   String username,
+                                   Locale locale) throws ObjectNotFoundException {
+    ApplicationDescription description = toPlacedDescription(application);
+    PlacedLayout placed = placementAssembler(siteLayout(stored), true, copyWindows, username).place(() -> newApplication(description,
+                                                                                                                         username,
+                                                                                                                         locale),
+                                                                                                     position);
+    return new PlacedLayout(checkedSite(placed.layout(), copyWindows), placed.path());
+  }
+
+  public LayoutModel toRemovedSite(String applicationId,
+                                   PortalConfig stored,
+                                   boolean copyWindows,
+                                   String username) throws ObjectNotFoundException {
+    return checkedSite(placementAssembler(siteLayout(stored), true, copyWindows, username).remove(applicationId), copyWindows);
+  }
+
+  /**
    * @param  username the reader
    * @param  keyword  null for the portal sites alone, as the sites
    *                    administration lists them; otherwise the portal sites
@@ -778,6 +869,29 @@ public class LayoutDescriptionService {
     LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
                                    new LayoutModel(layout);
     return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling, images);
+  }
+
+  private LayoutPlacementAssembler placementAssembler(ModelObject layout, boolean site, boolean copyWindows, String username) {
+    Set<String> hiddenIds = new HashSet<>();
+    collectHiddenIds(layout, username, false, hiddenIds);
+    LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(layout);
+    return new LayoutPlacementAssembler(root, site, hiddenIds, stylingService, this);
+  }
+
+  private Container siteLayout(PortalConfig stored) {
+    Container layout = stored.getPortalLayout();
+    if (layout == null) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
+    }
+    return layout;
+  }
+
+  private ApplicationDescription toPlacedDescription(ApplicationToPlace application) {
+    if (application == null || (application.instanceId() == null && StringUtils.isBlank(application.contentId()))) {
+      throw new IllegalArgumentException(APPLICATION_NOT_ACCEPTED);
+    }
+    return new ApplicationDescription(null, application.contentId(), application.instanceId(), null, null, null, null, null, null);
   }
 
   private LayoutModel checkedPage(LayoutModel result, boolean copyWindows) {
