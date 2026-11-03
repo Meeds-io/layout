@@ -1837,6 +1837,17 @@ public class LayoutDescriptionServiceTest {
                                                                                                                                                                                               .get(0);
     assertEquals(List.of("2"), writtenTop.getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
     assertEquals("content/NewsListView", writtenTop.getChildren().get(1).getChildren().get(0).getContentId());
+
+    children(firstColumn, firstColumn.getChildren().get(0), application("8", null, null));
+    ApplicationDescription eight = new ApplicationDescription("8", null, null, null, null, null, null, null, null);
+    LayoutModel keptBeside = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null, eight), column(secondColumn.getStorageId(), null))), null)
+                                                                                                                                                                                             .getChildren()
+                                                                                                                                                                                             .get(1)
+                                                                                                                                                                                             .getChildren()
+                                                                                                                                                                                             .get(0);
+    assertEquals(List.of("2", "8"), keptBeside.getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    assertEquals(SiteLayoutAssembler.COLUMN_APPLICATIONS_NOT_ACCEPTED,
+                 refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null), column(secondColumn.getStorageId(), null, eight, news))), null)));
   }
 
   @Test
@@ -1865,6 +1876,14 @@ public class LayoutDescriptionServiceTest {
                  refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(secondColumn.getStorageId(), 1400), column(firstColumn.getStorageId(), null))), null)));
     assertEquals(SiteLayoutAssembler.COLUMN_WIDTH_NOT_ACCEPTED,
                  refused(() -> build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null), column(secondColumn.getStorageId(), 31))), null)));
+
+    firstColumn.setWidth("99999999999");
+    LayoutModel cleared = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null), column(secondColumn.getStorageId(), null))), null)
+                                                                                                                                                                                         .getChildren()
+                                                                                                                                                                                         .get(1)
+                                                                                                                                                                                         .getChildren()
+                                                                                                                                                                                         .get(0);
+    assertNull(cleared.getChildren().get(0).getWidth());
   }
 
   @Test

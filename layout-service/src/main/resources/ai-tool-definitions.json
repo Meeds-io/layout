@@ -893,7 +893,7 @@
                             }
                           }
                         },
-                        "description": "the application the column holds, at most one, and none when the column holds an application the user cannot see; a column get_site returned with several applications is kept as it is when each one is sent back by application_id; an application of the layout absent from the call is removed"
+                        "description": "the application the column holds, at most one; a column is kept as it is, with several applications or beside an application the user cannot see, when each application given is sent back by the application_id get_site returned in that same column; a column holding an application the user cannot see takes no new or moved application; an application of the layout absent from the call is removed"
                       }
                     }
                   },
@@ -1065,7 +1065,7 @@
                             }
                           }
                         },
-                        "description": "the application the column holds, at most one, and none when the column holds an application the user cannot see; a column get_site returned with several applications is kept as it is when each one is sent back by application_id; an application of the layout absent from the call is removed"
+                        "description": "the application the column holds, at most one; a column is kept as it is, with several applications or beside an application the user cannot see, when each application given is sent back by the application_id get_site returned in that same column; a column holding an application the user cannot see takes no new or moved application; an application of the layout absent from the call is removed"
                       }
                     }
                   },

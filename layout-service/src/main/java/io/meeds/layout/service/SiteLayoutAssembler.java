@@ -285,8 +285,7 @@ public class SiteLayoutAssembler {
     if (StringUtils.isNotBlank(model.getStorageId())) {
       byId.put(model.getStorageId(), model);
       if (isTemplate(model, BANNER_CELL_TEMPLATE) && model.getWidth() != null) {
-        Matcher pixels = PIXELS.matcher(model.getWidth());
-        storedWidths.put(model.getStorageId(), pixels.find() ? Integer.valueOf(pixels.group()) : null);
+        storedWidths.put(model.getStorageId(), storedPixels(model.getWidth()));
       }
       if (parent != null) {
         parentOf.put(model.getStorageId(), parent);
@@ -416,7 +415,8 @@ public class SiteLayoutAssembler {
    * the read answered it, it is kept whatever its value, the bounds applying
    * to a changed width. A column the editor or an earlier write left holding
    * several applications is kept as it is when each one is sent back by id;
-   * a column holding a window the caller cannot see takes no other one. The position token is written from
+   * a column holding a window the caller cannot see takes no new or moved
+   * application. The position token is written from
    * the banner's side. Only a topbar is kept in place when the page scrolls,
    * as the skin and the editor's drawer have it: sticky is refused on a
    * bottom bar unless the kept bar already stores the token, which the read
@@ -496,6 +496,22 @@ public class SiteLayoutAssembler {
     }
     cell.setChildren(new ArrayList<>());
     return cell;
+  }
+
+  /**
+   * @return the stored width in pixels as the read answers it, or null when
+   *         it holds none or one too large to be sent back
+   */
+  private Integer storedPixels(String width) {
+    Matcher pixels = PIXELS.matcher(width);
+    if (!pixels.find()) {
+      return null;
+    }
+    try {
+      return Integer.valueOf(pixels.group());
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
   /**
