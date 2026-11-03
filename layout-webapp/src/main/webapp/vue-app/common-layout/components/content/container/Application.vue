@@ -51,7 +51,7 @@
             @move-end="moveEnd" />
         </v-hover>
         <div v-if="displayNoContent" class="full-width text-no-wrap border-color-grey-lighten ms-1">
-          <div class="layout-no-content absolute-vertical-center d-flex full-width ms-n1">
+          <div class="layout-editor-control layout-no-content absolute-vertical-center d-flex full-width ms-n1">
             <div class="light-black-background white--text px-2">
               {{ applicationTitle }}
             </div>
