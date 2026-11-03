@@ -322,15 +322,19 @@ public class LayoutMcpTool implements McpToolPlugin {
   /**
    * Reads a site's properties and its layout: left and right sidebars,
    * topbars and bottom bars with their options, styling and applications. The
-   * user's site draft is returned when they have one (draft: true), the
-   * published layout otherwise; what the user cannot access is absent.
-   * Read-only.
+   * user's site draft is returned by default when they have one (draft:
+   * true), the published layout otherwise; version: "draft" or "published"
+   * asks for one of them. What the user cannot access is absent. Read-only.
    */
-  public SiteDescription getSite(Long siteId) throws ObjectNotFoundException, IllegalAccessException {
+  public SiteDescription getSite(Long siteId, String version) throws ObjectNotFoundException, IllegalAccessException {
     requireSiteId(siteId);
+    LayoutVersion requested = LayoutVersion.parse(version);
     String username = getCurrentUserName();
     PortalConfig site = readSite(siteId, username);
-    PortalConfig draftSite = applicationDraftService.readDraftSite(siteId, username);
+    PortalConfig draftSite = requested == LayoutVersion.PUBLISHED ? null : applicationDraftService.readDraftSite(siteId, username);
+    if (requested == LayoutVersion.DRAFT && draftSite == null) {
+      throw new ObjectNotFoundException(DRAFT_NOT_FOUND);
+    }
     return describeSite(site, draftSite, username);
   }
 
