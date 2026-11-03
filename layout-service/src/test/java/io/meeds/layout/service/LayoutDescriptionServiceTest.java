@@ -1797,6 +1797,10 @@ public class LayoutDescriptionServiceTest {
     SiteContainerDescription left = new SiteContainerDescription(outerLeftCell.getStorageId(), null, null, List.of(two));
     LayoutModel movedToSidebar = build(site, left, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null))), null);
     assertEquals(List.of("2"), movedToSidebar.getChildren().get(0).getChildren().get(0).getChildren().stream().map(LayoutModel::getStorageId).toList());
+    LayoutModel leftColumn = movedToSidebar.getChildren().get(1).getChildren().get(0).getChildren().get(0);
+    assertEquals(firstColumn.getStorageId(), leftColumn.getStorageId());
+    assertEquals("hidden-sm-and-down", leftColumn.getCssClass());
+    assertTrue(leftColumn.getChildren().isEmpty());
     SiteContainerDescription emptyLeft = new SiteContainerDescription(outerLeftCell.getStorageId(), null, null, List.of());
     ApplicationDescription one = new ApplicationDescription("1", null, null, null, null, null, null, null, null);
     LayoutModel movedFromSidebar = build(site, emptyLeft, List.of(banner(topBanner.getStorageId(), null, null, column(firstColumn.getStorageId(), null, two), column(null, null, one))), null);

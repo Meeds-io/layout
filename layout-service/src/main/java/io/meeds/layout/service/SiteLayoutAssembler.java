@@ -422,9 +422,10 @@ public class SiteLayoutAssembler {
    * applying to a changed width. A column the editor or an earlier write
    * left holding several applications is kept as it is when each one is
    * sent back by id; a column holding a window the caller cannot see takes
-   * no new or moved application. An application kept from a column stays in
-   * it: it moves with its column, which carries the settings the editor
-   * gives it. The position token is written from the banner's side. Only a topbar is kept in place when the page scrolls,
+   * no new or moved application. An application kept from a column never
+   * moves alone into another column of a topbar or a bottom bar, its column
+   * carrying the settings the editor gives it; listed in a sidebar, it moves
+   * there alone, without its column. The position token is written from the banner's side. Only a topbar is kept in place when the page scrolls,
    * as the skin and the editor's drawer have it: sticky is refused on a
    * bottom bar unless the kept bar already stores the token, which the read
    * reports and the write then drops with its scroll colour, since neither
