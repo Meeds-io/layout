@@ -121,7 +121,7 @@ public class LayoutMcpToolDefinitionsTest {
                                                       "text": {"enabled": true, "title": {"color": "#333333", "size": 18, "bold": true}}}}]},
        "right_sidebar": {"options": {"width": 300}},
        "topbars": [{"options": {"height": 60, "sticky": true},
-                    "columns": [{"column_id": "14", "width": 200, "applications": [{"content_id": "social/Menu"}]}, {"applications": []}]}],
+                    "columns": [{"column_id": "14", "width": 200, "applications": [{"content_id": "social/Menu"}]}, {"fit_content": true, "applications": []}]}],
        "bottom_bars": []}
       """;
 
@@ -286,6 +286,8 @@ public class LayoutMcpToolDefinitionsTest {
     assertEquals(200, typed.get(0).columns().get(0).width());
     assertEquals("social/Menu", typed.get(0).columns().get(0).applications().get(0).contentId());
     assertNull(typed.get(0).columns().get(1).width());
+    assertEquals(Boolean.TRUE, typed.get(0).columns().get(1).fitContent());
+    assertNull(typed.get(0).columns().get(0).fitContent());
     assertTrue(typed.get(0).columns().get(1).applications().isEmpty());
 
     SiteContainerDescription left = (SiteContainerDescription) JSON_HELPER.convertToTypedObject(arguments.get("left_sidebar"),
