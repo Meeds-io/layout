@@ -117,7 +117,10 @@ import io.meeds.layout.mcp.model.SiteDescription;
 import io.meeds.layout.mcp.model.SiteLayoutUpdate;
 import io.meeds.layout.mcp.model.SiteSummary;
 import io.meeds.layout.mcp.model.ApplicationDescription;
+import io.meeds.layout.mcp.model.ApplicationPlacement;
+import io.meeds.layout.mcp.model.ApplicationPosition;
 import io.meeds.layout.mcp.model.ApplicationSettingsEntry;
+import io.meeds.layout.mcp.model.ApplicationToPlace;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NavigationCreateModel;
 import io.meeds.layout.model.NavigationItemUpdate;
@@ -125,6 +128,7 @@ import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PageCreateModel;
 import io.meeds.layout.model.PageTemplate;
 import io.meeds.layout.model.PermissionUpdateModel;
+import io.meeds.layout.model.PlacedLayout;
 import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SitePropertiesUpdate;
 import io.meeds.layout.model.SiteTemplate;
@@ -133,6 +137,7 @@ import io.meeds.layout.service.ApplicationDraftService;
 import io.meeds.layout.service.ApplicationSettingsService;
 import io.meeds.layout.service.LayoutAclService;
 import io.meeds.layout.service.LayoutDescriptionService;
+import io.meeds.layout.service.LayoutPlacementAssembler;
 import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.service.LayoutDraftService;
 import io.meeds.layout.service.LayoutImageService;
@@ -1261,6 +1266,173 @@ public class LayoutMcpToolTest {
     doThrow(new IllegalStateException("engine detail")).when(draftService).discardDraftPage(PAGE_KEY, LIVE_NODE, USER);
     assertEquals(LayoutMcpTool.PAGE_LAYOUT_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.discardLayoutDraft(null, PAGE_KEY.format())));
     verify(draftService, times(4)).discardDraftPage(PAGE_KEY, LIVE_NODE, USER);
+  }
+
+  @Test
+  public void moveLayoutApplicationOnAPageBuildsTheDraftAndAnswersTheWindowsIdInIt() throws Exception {
+    editablePage();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null, DRAFT_KEY);
+    Page stored = new Page("live");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
+    ApplicationPosition position = new ApplicationPosition("20", null, 1, null, 1, null, null);
+    List<Integer> path = List.of(0, 0, 0, 0);
+    when(descriptionService.toMovedPage("5", position, stored, true, USER)).thenReturn(new PlacedLayout(pageLayout(), path));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    Page written = new Page("draft");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(written);
+    when(applicationSettingsService.atPath(written, path)).thenReturn(new Application("77"));
+    PageDescription expected = describedDraft();
+
+    assertEquals(new ApplicationPlacement("77", expected),
+                 asUser(() -> tool.moveLayoutApplication(null, PAGE_KEY.format(), "5", null, position)));
+
+    verify(draftService).createDraftPage(LIVE_NODE, USER);
+    verify(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(Page.class), eq(false), eq(USER));
+  }
+
+  @Test
+  public void moveLayoutApplicationPlacesACatalogApplicationOnTheExistingDraft() throws Exception {
+    editablePage();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    Page stored = new Page("draft");
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(stored);
+    ApplicationPosition position = new ApplicationPosition("30", null, 2, 1, null, null, null);
+    ApplicationToPlace application = new ApplicationToPlace(10L, null);
+    List<Integer> path = List.of(0, 1, 1, 0);
+    when(descriptionService.toPlacedPage(eq(application), eq(position), eq(stored), eq(false), eq(USER), any()))
+                                                                                                        .thenReturn(new PlacedLayout(pageLayout(), path));
+    when(applicationSettingsService.atPath(stored, path)).thenReturn(new Application("78"));
+    PageDescription expected = describedDraft();
+
+    assertEquals(new ApplicationPlacement("78", expected),
+                 asUser(() -> tool.moveLayoutApplication(null, PAGE_KEY.format(), null, application, position)));
+
+    verify(draftService, never()).createDraftPage(anyLong(), any());
+    verify(descriptionService, never()).toMovedPage(any(), any(), any(), anyBoolean(), any());
+  }
+
+  @Test
+  public void moveLayoutApplicationOnASiteBuildsTheDraftFromTheLiveLayout() throws Exception {
+    PortalConfig site = editableSite();
+    SiteKey draftKey = SiteKey.draft("portal_test_draft_john");
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null, draftKey);
+    ApplicationPosition position = new ApplicationPosition(null, "12", null, null, null, null, "5");
+    List<Integer> path = List.of(1, 0, 0, 1);
+    when(descriptionService.toMovedSite("6", position, site, true, USER)).thenReturn(new PlacedLayout(siteLayout(), path));
+    when(draftService.createDraftSite(site, USER)).thenReturn(draftKey);
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(new Container("draft"));
+    when(siteLayoutService.getSite(draftKey, USER)).thenReturn(draftSite);
+    when(layoutService.getPortalConfig(draftKey)).thenReturn(draftSite);
+    when(applicationSettingsService.atPath(draftSite.getPortalLayout(), path)).thenReturn(new Application("88"));
+    SiteDescription expected = describedSite(site, draftSite);
+
+    assertEquals(new ApplicationPlacement("88", expected), asUser(() -> tool.moveLayoutApplication(SITE_ID, null, "6", null, position)));
+
+    verify(siteLayoutService).updateSiteLayout(eq(draftKey), any(PortalConfig.class), eq(false), eq(USER));
+  }
+
+  @Test
+  public void moveLayoutApplicationPlacesACatalogApplicationOnTheSiteDraft() throws Exception {
+    PortalConfig site = editableSite();
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(new Container("draft"));
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
+    when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
+    ApplicationPosition position = new ApplicationPosition(null, "12", null, null, 1, null, null);
+    ApplicationToPlace application = new ApplicationToPlace(null, "layout/Links");
+    List<Integer> path = List.of(1, 0, 0, 0);
+    when(descriptionService.toPlacedSite(eq(application), eq(position), eq(draftSite), eq(false), eq(USER), any()))
+                                                                                                          .thenReturn(new PlacedLayout(siteLayout(), path));
+    when(layoutService.getPortalConfig(draftSite.getSiteKey())).thenReturn(draftSite);
+    when(applicationSettingsService.atPath(draftSite.getPortalLayout(), path)).thenReturn(new Application("89"));
+    SiteDescription expected = describedSite(site, draftSite);
+
+    assertEquals(new ApplicationPlacement("89", expected), asUser(() -> tool.moveLayoutApplication(SITE_ID, null, null, application, position)));
+
+    verify(siteLayoutService).updateSiteLayout(eq(draftSite.getSiteKey()), any(PortalConfig.class), eq(false), eq(USER));
+    verify(descriptionService, never()).toMovedSite(any(), any(), any(), anyBoolean(), any());
+    verify(draftService, never()).createDraftSite(any(), any());
+  }
+
+  @Test
+  public void removeLayoutApplicationWritesThePageDraftAndTheSiteDraft() throws Exception {
+    editablePage();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null, DRAFT_KEY);
+    Page stored = new Page("live");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
+    when(descriptionService.toRemovedPage("5", stored, true, USER)).thenReturn(pageLayout());
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    PageDescription expectedPage = describedDraft();
+
+    assertEquals(expectedPage, asUser(() -> tool.removeLayoutApplication(null, PAGE_KEY.format(), "5")));
+    verify(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), any(Page.class), eq(false), eq(USER));
+
+    PortalConfig site = editableSite();
+    PortalConfig draftSite = new PortalConfig(PortalConfig.DRAFT, "portal_test_draft_john", "draft_9");
+    draftSite.setPortalLayout(new Container("draft"));
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(draftSite.getSiteKey());
+    when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
+    when(descriptionService.toRemovedSite("6", draftSite, false, USER)).thenReturn(siteLayout());
+    SiteDescription expectedSite = describedSite(site, draftSite);
+
+    assertEquals(expectedSite, asUser(() -> tool.removeLayoutApplication(SITE_ID, null, "6")));
+    verify(siteLayoutService).updateSiteLayout(eq(draftSite.getSiteKey()), any(PortalConfig.class), eq(false), eq(USER));
+    verify(draftService, never()).createDraftSite(any(), any());
+  }
+
+  @Test
+  public void moveAndRemoveLayoutApplicationRefusalsCarryTheFixedTexts() throws Exception {
+    ApplicationPosition position = new ApplicationPosition("20", null, 1, null, null, null, null);
+    ApplicationToPlace application = new ApplicationToPlace(10L, null);
+    assertEquals(LayoutMcpTool.APPLICATION_ID_NOT_ACCEPTED,
+                 refusal(() -> tool.moveLayoutApplication(null, PAGE_KEY.format(), "5", application, position)));
+    assertEquals(LayoutMcpTool.APPLICATION_ID_NOT_ACCEPTED,
+                 refusal(() -> tool.moveLayoutApplication(null, PAGE_KEY.format(), null, null, position)));
+    assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED, refusal(() -> tool.moveLayoutApplication(SITE_ID, PAGE_KEY.format(), "5", null, position)));
+    assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, refusal(() -> tool.moveLayoutApplication(null, null, "5", null, position)));
+    assertEquals(LayoutMcpTool.PAGE_REF_NOT_ACCEPTED, refusal(() -> tool.removeLayoutApplication(SITE_ID, PAGE_KEY.format(), "5")));
+    assertEquals(LayoutMcpTool.SITE_ID_NOT_ACCEPTED, refusal(() -> tool.removeLayoutApplication(null, null, "5")));
+
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(new Page());
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED,
+                 refusal(IllegalAccessException.class, () -> tool.moveLayoutApplication(null, PAGE_KEY.format(), "5", null, position)));
+    assertEquals(LayoutMcpTool.PAGE_NOT_ALLOWED,
+                 refusal(IllegalAccessException.class, () -> tool.removeLayoutApplication(null, PAGE_KEY.format(), "5")));
+    verify(descriptionService, never()).toMovedPage(any(), any(), any(), anyBoolean(), any());
+    verify(descriptionService, never()).toRemovedPage(any(), any(), anyBoolean(), any());
+
+    when(aclService.canEditPage(PAGE_KEY, USER)).thenReturn(true);
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    Page stored = new Page("live");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
+    when(descriptionService.toMovedPage("5", position, stored, true, USER))
+                                                                       .thenThrow(new IllegalArgumentException(LayoutPlacementAssembler.CELL_TAKEN));
+    assertEquals(LayoutPlacementAssembler.CELL_TAKEN,
+                 refusal(IllegalArgumentException.class, () -> tool.moveLayoutApplication(null, PAGE_KEY.format(), "5", null, position)));
+    when(descriptionService.toRemovedPage("9", stored, true, USER))
+                                                              .thenThrow(new ObjectNotFoundException(LayoutPlacementAssembler.APPLICATION_NOT_FOUND));
+    assertEquals(LayoutPlacementAssembler.APPLICATION_NOT_FOUND,
+                 refusal(ObjectNotFoundException.class, () -> tool.removeLayoutApplication(null, PAGE_KEY.format(), "9")));
+    verify(draftService, never()).createDraftPage(anyLong(), any());
+    verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
+
+    when(descriptionService.toRemovedPage("5", stored, true, USER)).thenReturn(pageLayout());
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenThrow(new IllegalAccessException("internal detail"));
+    assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED,
+                 refusal(IllegalAccessException.class, () -> tool.removeLayoutApplication(null, PAGE_KEY.format(), "5")));
+
+    PortalConfig site = site("portal", "test", "Test");
+    when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site);
+    when(aclService.canEditSite(SITE_KEY, USER)).thenReturn(false);
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED,
+                 refusal(IllegalAccessException.class, () -> tool.moveLayoutApplication(SITE_ID, null, "5", null, position)));
+    assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.removeLayoutApplication(SITE_ID, null, "5")));
+    verify(descriptionService, never()).toMovedSite(any(), any(), any(), anyBoolean(), any());
+    verify(descriptionService, never()).toRemovedSite(any(), any(), anyBoolean(), any());
   }
 
   @Test

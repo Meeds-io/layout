@@ -42,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.exoplatform.commons.ObjectAlreadyExistsException;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserACL;
+import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.config.model.Page;
@@ -67,7 +68,10 @@ import org.exoplatform.upload.UploadService;
 import io.meeds.layout.mcp.constant.LayoutVersion;
 import io.meeds.layout.mcp.constant.LinkTarget;
 import io.meeds.layout.mcp.constant.NavigationItemType;
+import io.meeds.layout.mcp.model.ApplicationPlacement;
+import io.meeds.layout.mcp.model.ApplicationPosition;
 import io.meeds.layout.mcp.model.ApplicationSettingsEntry;
+import io.meeds.layout.mcp.model.ApplicationToPlace;
 import io.meeds.layout.mcp.model.ElementDisplay;
 import io.meeds.layout.mcp.model.ElementStyling;
 import io.meeds.layout.mcp.model.LayoutApplicationEntry;
@@ -89,6 +93,7 @@ import io.meeds.layout.model.NodeSchedule;
 import io.meeds.layout.model.PageCreateModel;
 import io.meeds.layout.model.PageTemplate;
 import io.meeds.layout.model.PermissionUpdateModel;
+import io.meeds.layout.model.PlacedLayout;
 import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SitePropertiesUpdate;
 import io.meeds.layout.model.SiteTemplate;
@@ -647,13 +652,14 @@ public class LayoutMcpTool implements McpToolPlugin {
    * Saves a site layout over the user's draft site, created from the live
    * site first when the user has none
    */
-  private void writeSiteDraft(PortalConfig site,
-                              PortalConfig draftSite,
-                              LayoutModel layout,
-                              String username) throws ObjectNotFoundException, IllegalAccessException {
+  private SiteKey writeSiteDraft(PortalConfig site,
+                                 PortalConfig draftSite,
+                                 LayoutModel layout,
+                                 String username) throws ObjectNotFoundException, IllegalAccessException {
     try {
       SiteKey draftSiteKey = draftSite == null ? layoutDraftService.createDraftSite(site, username) : draftSite.getSiteKey();
       siteLayoutService.updateSiteLayout(draftSiteKey, layout.toSite(), false, username);
+      return draftSiteKey;
     } catch (ObjectNotFoundException e) {
       throw new ObjectNotFoundException(SITE_NOT_FOUND);
     } catch (IllegalAccessException e) {
@@ -869,6 +875,72 @@ public class LayoutMcpTool implements McpToolPlugin {
     return describeStoredSite(windows.liveSite().getSiteKey(), username);
   }
 
+  /**
+   * Places an application from the catalog, or moves one the read answered,
+   * on the current user's draft of a page or a site, in one draft save,
+   * without resending the layout. Exactly one of site_id and page_ref names
+   * the layout, and exactly one of application_id (move) and application
+   * (place). Ids address the layout get_page_layout or get_site returned: the
+   * user's draft when they have one, the published layout otherwise, in
+   * which case the draft is created by this call. Returns the id the
+   * application has in the draft and the layout as get_page_layout or
+   * get_site does.
+   */
+  public ApplicationPlacement moveLayoutApplication(Long siteId,
+                                                    String pageRef,
+                                                    String applicationId,
+                                                    ApplicationToPlace application,
+                                                    ApplicationPosition position) throws ObjectNotFoundException,
+                                                                                  IllegalAccessException {
+    if ((applicationId == null) == (application == null)) {
+      throw new IllegalArgumentException(APPLICATION_ID_NOT_ACCEPTED);
+    }
+    if (pageRef != null) {
+      refuseGiven(siteId, PAGE_REF_NOT_ACCEPTED);
+      return movePageApplication(pageRef, applicationId, application, position);
+    }
+    requireSiteId(siteId);
+    String username = getCurrentUserName();
+    PortalConfig site = applicationDraftService.readEditableSite(siteId, username);
+    PortalConfig draftSite = applicationDraftService.readDraftSite(siteId, username);
+    boolean createDraft = draftSite == null;
+    PortalConfig stored = createDraft ? site : draftSite;
+    PlacedLayout placed = application == null ? layoutDescriptionService.toMovedSite(applicationId, position, stored, createDraft, username)
+                                              : layoutDescriptionService.toPlacedSite(application,
+                                                                                      position,
+                                                                                      stored,
+                                                                                      createDraft,
+                                                                                      username,
+                                                                                      getCurrentUserLocale());
+    SiteKey draftSiteKey = writeSiteDraft(site, draftSite, placed.layout(), username);
+    PortalConfig written = layoutService.getPortalConfig(draftSiteKey);
+    return new ApplicationPlacement(placedId(written == null ? null : written.getPortalLayout(), placed.path()),
+                                    describeStoredSite(site.getSiteKey(), username));
+  }
+
+  /**
+   * Removes an application the read answered from the current user's draft
+   * of a page or a site, in one draft save; the column, cell or container it
+   * leaves stays, empty when it held no other application. Exactly one of
+   * site_id and page_ref names the layout. Returns the layout as
+   * get_page_layout or get_site does.
+   */
+  public Object removeLayoutApplication(Long siteId, String pageRef, String applicationId) throws ObjectNotFoundException,
+                                                                                         IllegalAccessException {
+    if (pageRef != null) {
+      refuseGiven(siteId, PAGE_REF_NOT_ACCEPTED);
+      return removePageApplication(pageRef, applicationId);
+    }
+    requireSiteId(siteId);
+    String username = getCurrentUserName();
+    PortalConfig site = applicationDraftService.readEditableSite(siteId, username);
+    PortalConfig draftSite = applicationDraftService.readDraftSite(siteId, username);
+    boolean createDraft = draftSite == null;
+    LayoutModel layout = layoutDescriptionService.toRemovedSite(applicationId, createDraft ? site : draftSite, createDraft, username);
+    writeSiteDraft(site, draftSite, layout, username);
+    return describeStoredSite(site.getSiteKey(), username);
+  }
+
   private PageDescription configurePageApplications(String pageRef,
                                                     List<String> applicationIds,
                                                     List<Map<String, Object>> settings) throws ObjectNotFoundException,
@@ -963,15 +1035,73 @@ public class LayoutMcpTool implements McpToolPlugin {
     return describeStoredPage(pageKey, liveNodeId, username);
   }
 
+  private ApplicationPlacement movePageApplication(String pageRef,
+                                                   String applicationId,
+                                                   ApplicationToPlace application,
+                                                   ApplicationPosition position) throws ObjectNotFoundException,
+                                                                                 IllegalAccessException {
+    PageKey pageKey = parsePageKey(pageRef);
+    String username = getCurrentUserName();
+    applicationDraftService.readEditablePage(pageKey, username);
+    long liveNodeId = applicationDraftService.requireLiveNodeId(pageKey, username);
+    PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
+    boolean createDraft = draftPageKey == null;
+    Page stored = readStoredPage(pageKey, draftPageKey);
+    PlacedLayout placed = application == null ? layoutDescriptionService.toMovedPage(applicationId, position, stored, createDraft, username)
+                                              : layoutDescriptionService.toPlacedPage(application,
+                                                                                      position,
+                                                                                      stored,
+                                                                                      createDraft,
+                                                                                      username,
+                                                                                      getCurrentUserLocale());
+    PageKey targetPageKey = writePageDraft(pageKey, liveNodeId, draftPageKey, placed.layout(), username);
+    return new ApplicationPlacement(placedId(pageLayoutService.getPageLayout(targetPageKey), placed.path()),
+                                    describeStoredPage(pageKey, liveNodeId, username));
+  }
+
+  private PageDescription removePageApplication(String pageRef, String applicationId) throws ObjectNotFoundException,
+                                                                                      IllegalAccessException {
+    PageKey pageKey = parsePageKey(pageRef);
+    String username = getCurrentUserName();
+    applicationDraftService.readEditablePage(pageKey, username);
+    long liveNodeId = applicationDraftService.requireLiveNodeId(pageKey, username);
+    PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
+    boolean createDraft = draftPageKey == null;
+    LayoutModel layout = layoutDescriptionService.toRemovedPage(applicationId, readStoredPage(pageKey, draftPageKey), createDraft, username);
+    writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+    return describeStoredPage(pageKey, liveNodeId, username);
+  }
+
+  /**
+   * @return the stored page the call's ids address: the user's draft when
+   *         they have one, the live page otherwise
+   */
+  private Page readStoredPage(PageKey pageKey, PageKey draftPageKey) throws ObjectNotFoundException {
+    Page stored = pageLayoutService.getPageLayout(draftPageKey == null ? pageKey : draftPageKey);
+    if (stored == null) {
+      throw new ObjectNotFoundException(draftPageKey == null ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
+    }
+    return stored;
+  }
+
+  /**
+   * @return the storage id of the window the written layout holds at the
+   *         given path, null when it holds none there
+   */
+  private String placedId(ModelObject written, List<Integer> path) {
+    Application window = written == null ? null : applicationSettingsService.atPath(written, path);
+    return window == null ? null : window.getStorageId();
+  }
+
   /**
    * Saves a page layout over the user's draft, the draft being created
    * through the editor's own path first when the user has none
    */
-  private void writePageDraft(PageKey pageKey,
-                              long liveNodeId,
-                              PageKey draftPageKey,
-                              LayoutModel layout,
-                              String username) throws ObjectNotFoundException, IllegalAccessException {
+  private PageKey writePageDraft(PageKey pageKey,
+                                 long liveNodeId,
+                                 PageKey draftPageKey,
+                                 LayoutModel layout,
+                                 String username) throws ObjectNotFoundException, IllegalAccessException {
     PageKey targetPageKey = draftPageKey;
     if (draftPageKey == null) {
       try {
@@ -995,6 +1125,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (RuntimeException e) {
       throw applicationDraftService.translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
     }
+    return targetPageKey;
   }
 
   /**
