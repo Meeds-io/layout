@@ -277,8 +277,10 @@ public class NavigationLayoutService {
   }
 
   /**
-   * The site's top menu lists the first displayed item of the navigation and
-   * the items under it, so a new item goes under that first item by default.
+   * The site's top menu lists the first root item it keeps and the items under
+   * it, so a new item goes under that first item by default. The menu's skip of
+   * an item whose page the viewer cannot read depends on the viewer and is not
+   * applied here.
    *
    * @param  siteKey the site
    * @return         the id of the navigation root's first child the top menu
