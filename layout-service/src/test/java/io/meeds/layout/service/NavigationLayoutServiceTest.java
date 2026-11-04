@@ -1056,6 +1056,48 @@ public class NavigationLayoutServiceTest {
     lenient().when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
   }
 
+  @Test
+  public void defaultParentIsTheFirstDisplayedOrScheduledItemOfTheRoot() {
+    assertNull(navigationLayoutService.getDefaultParentNodeId(SITE_KEY));
+
+    NodeContext<NodeContext<Object>> root = rootWithChildren(Visibility.HIDDEN,
+                                                              Visibility.DRAFT,
+                                                              Visibility.SYSTEM,
+                                                              Visibility.DISPLAYED,
+                                                              Visibility.TEMPORAL);
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    assertEquals(34L, navigationLayoutService.getDefaultParentNodeId(SITE_KEY));
+
+    root = rootWithChildren(Visibility.HIDDEN, Visibility.TEMPORAL, Visibility.DISPLAYED);
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    assertEquals(32L, navigationLayoutService.getDefaultParentNodeId(SITE_KEY));
+
+    root = rootWithChildren(Visibility.HIDDEN, Visibility.DRAFT, Visibility.SYSTEM);
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    assertEquals(30L, navigationLayoutService.getDefaultParentNodeId(SITE_KEY));
+
+    root = rootWithChildren();
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    assertEquals(30L, navigationLayoutService.getDefaultParentNodeId(SITE_KEY));
+  }
+
+  /**
+   * A navigation root of id 30 whose children, of ids 31, 32…, have the given
+   * visibilities in that order
+   */
+  private NodeContext<NodeContext<Object>> rootWithChildren(Visibility... visibilities) {
+    NodeContext<NodeContext<Object>> root = childContext("30", "default");
+    lenient().when(root.getNodeCount()).thenReturn(visibilities.length);
+    for (int i = 0; i < visibilities.length; i++) {
+      NodeContext<NodeContext<Object>> child = childContext(String.valueOf(31 + i), "item" + i);
+      NodeState state = mock(NodeState.class);
+      lenient().when(state.getVisibility()).thenReturn(visibilities[i]);
+      lenient().when(child.getState()).thenReturn(state);
+      lenient().when(root.get(i)).thenReturn(child);
+    }
+    return root;
+  }
+
   private NodeContext<NodeContext<Object>> childContext(String id, String name) {
     NodeContext<NodeContext<Object>> child = newNodeContext();
     lenient().when(child.getId()).thenReturn(id);

@@ -277,13 +277,29 @@ public class NavigationLayoutService {
   }
 
   /**
+   * The site's top menu lists the first displayed item of the navigation and
+   * the items under it, so a new item goes under that first item by default.
+   *
    * @param  siteKey the site
-   * @return         the id of the site's navigation root, null when the site
-   *                 has no navigation
+   * @return         the id of the navigation root's first child whose
+   *                 visibility is displayed or scheduled, the root's when it
+   *                 has none, null when the site has no navigation
    */
-  public Long getRootNodeId(SiteKey siteKey) {
+  public Long getDefaultParentNodeId(SiteKey siteKey) {
     NodeContext<NodeContext<Object>> root = navigationService.loadNode(siteKey);
-    return root == null ? null : Long.parseLong(root.getId());
+    if (root == null) {
+      return null;
+    }
+    int count = root.getNodeCount();
+    for (int i = 0; i < count; i++) {
+      NodeContext<NodeContext<Object>> child = root.get(i);
+      NodeState state = child.getState();
+      if (state != null
+          && (state.getVisibility() == Visibility.DISPLAYED || state.getVisibility() == Visibility.TEMPORAL)) {
+        return Long.parseLong(child.getId());
+      }
+    }
+    return Long.parseLong(root.getId());
   }
 
   /**
