@@ -170,7 +170,6 @@ public class LayoutMcpToolTest {
 
   private static final long        LIVE_NODE = 11L;
 
-
   private static final long        NODE_ID   = 12L;
 
   private static final String      FUTURE    = Instant.now().plusSeconds(3600).toString();
