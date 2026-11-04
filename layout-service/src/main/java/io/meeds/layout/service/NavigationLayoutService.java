@@ -281,21 +281,21 @@ public class NavigationLayoutService {
    * the items under it, so a new item goes under that first item by default.
    *
    * @param  siteKey the site
-   * @return         the id of the navigation root's first child whose
-   *                 visibility is displayed or scheduled, the root's when it
-   *                 has none, null when the site has no navigation
+   * @return         the id of the navigation root's first child displayed now:
+   *                 displayed, or scheduled with a window that holds the
+   *                 present time, as the top menu filters them; the root's
+   *                 when it has none, null when the site has no navigation
    */
   public Long getDefaultParentNodeId(SiteKey siteKey) {
     NodeContext<NodeContext<Object>> root = navigationService.loadNode(siteKey);
     if (root == null) {
       return null;
     }
+    long now = System.currentTimeMillis();
     int count = root.getNodeCount();
     for (int i = 0; i < count; i++) {
       NodeContext<NodeContext<Object>> child = root.get(i);
-      NodeState state = child.getState();
-      if (state != null
-          && (state.getVisibility() == Visibility.DISPLAYED || state.getVisibility() == Visibility.TEMPORAL)) {
+      if (isDisplayedAt(child.getState(), now)) {
         return Long.parseLong(child.getId());
       }
     }
@@ -1093,6 +1093,19 @@ public class NavigationLayoutService {
                                                      // localeConfigService
   }
   
+  private boolean isDisplayedAt(NodeState state, long now) {
+    if (state == null) {
+      return false;
+    } else if (state.getVisibility() == Visibility.DISPLAYED) {
+      return true;
+    } else if (state.getVisibility() == Visibility.TEMPORAL) {
+      return (state.getStartPublicationTime() == -1 || now >= state.getStartPublicationTime())
+          && (state.getEndPublicationTime() == -1 || now <= state.getEndPublicationTime());
+    } else {
+      return false;
+    }
+  }
+
   private boolean isSystemVisibility(NodeData nodeData) {
     return nodeData.getState() != null && Visibility.SYSTEM.equals(nodeData.getState().getVisibility());
   }

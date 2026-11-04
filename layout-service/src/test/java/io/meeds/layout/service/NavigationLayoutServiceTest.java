@@ -1081,21 +1081,59 @@ public class NavigationLayoutServiceTest {
     assertEquals(30L, navigationLayoutService.getDefaultParentNodeId(SITE_KEY));
   }
 
+  @Test
+  public void defaultParentSkipsAScheduledItemOutsideItsWindow() {
+    long hour = 3600000L;
+    long now = System.currentTimeMillis();
+    long[] notStarted = { now + hour, -1 };
+    long[] ended = { -1, now - hour };
+    long[] current = { now - hour, now + hour };
+
+    NodeContext<NodeContext<Object>> root = rootWithScheduledChildren(notStarted, ended, current);
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    assertEquals(33L, navigationLayoutService.getDefaultParentNodeId(SITE_KEY));
+
+    root = rootWithScheduledChildren(notStarted, ended);
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    assertEquals(30L, navigationLayoutService.getDefaultParentNodeId(SITE_KEY));
+  }
+
   /**
    * A navigation root of id 30 whose children, of ids 31, 32…, have the given
-   * visibilities in that order
+   * visibilities in that order, a scheduled one with no start and no end
    */
   private NodeContext<NodeContext<Object>> rootWithChildren(Visibility... visibilities) {
     NodeContext<NodeContext<Object>> root = childContext("30", "default");
     lenient().when(root.getNodeCount()).thenReturn(visibilities.length);
     for (int i = 0; i < visibilities.length; i++) {
-      NodeContext<NodeContext<Object>> child = childContext(String.valueOf(31 + i), "item" + i);
-      NodeState state = mock(NodeState.class);
-      lenient().when(state.getVisibility()).thenReturn(visibilities[i]);
-      lenient().when(child.getState()).thenReturn(state);
+      NodeContext<NodeContext<Object>> child = itemContext(31 + i, visibilities[i], -1, -1);
       lenient().when(root.get(i)).thenReturn(child);
     }
     return root;
+  }
+
+  /**
+   * A navigation root of id 30 whose children, of ids 31, 32…, are scheduled
+   * with the given start and end times, -1 for none
+   */
+  private NodeContext<NodeContext<Object>> rootWithScheduledChildren(long[]... windows) {
+    NodeContext<NodeContext<Object>> root = childContext("30", "default");
+    lenient().when(root.getNodeCount()).thenReturn(windows.length);
+    for (int i = 0; i < windows.length; i++) {
+      NodeContext<NodeContext<Object>> child = itemContext(31 + i, Visibility.TEMPORAL, windows[i][0], windows[i][1]);
+      lenient().when(root.get(i)).thenReturn(child);
+    }
+    return root;
+  }
+
+  private NodeContext<NodeContext<Object>> itemContext(int id, Visibility visibility, long start, long end) {
+    NodeContext<NodeContext<Object>> child = childContext(String.valueOf(id), "item" + id);
+    NodeState state = mock(NodeState.class);
+    lenient().when(state.getVisibility()).thenReturn(visibility);
+    lenient().when(state.getStartPublicationTime()).thenReturn(start);
+    lenient().when(state.getEndPublicationTime()).thenReturn(end);
+    lenient().when(child.getState()).thenReturn(state);
+    return child;
   }
 
   private NodeContext<NodeContext<Object>> childContext(String id, String name) {
