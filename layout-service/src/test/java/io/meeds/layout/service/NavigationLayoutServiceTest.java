@@ -1082,6 +1082,23 @@ public class NavigationLayoutServiceTest {
   }
 
   @Test
+  public void defaultParentIsAFirstItemTheMenuKeepsForItsChildrenOrItsUnsetVisibility() {
+    NodeContext<NodeContext<Object>> root = childContext("30", "default");
+    NodeContext<NodeContext<Object>> hiddenWithItems = itemContext(31, Visibility.HIDDEN, -1, -1);
+    lenient().when(hiddenWithItems.getNodeCount()).thenReturn(2);
+    NodeContext<NodeContext<Object>> displayed = itemContext(32, Visibility.DISPLAYED, -1, -1);
+    lenient().when(root.getNodeCount()).thenReturn(2);
+    lenient().when(root.get(0)).thenReturn(hiddenWithItems);
+    lenient().when(root.get(1)).thenReturn(displayed);
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+    assertEquals(31L, navigationLayoutService.getDefaultParentNodeId(SITE_KEY));
+
+    NodeContext<NodeContext<Object>> unset = itemContext(33, null, -1, -1);
+    lenient().when(root.get(0)).thenReturn(unset);
+    assertEquals(33L, navigationLayoutService.getDefaultParentNodeId(SITE_KEY));
+  }
+
+  @Test
   public void defaultParentSkipsAScheduledItemOutsideItsWindow() {
     long hour = 3600000L;
     long now = System.currentTimeMillis();
