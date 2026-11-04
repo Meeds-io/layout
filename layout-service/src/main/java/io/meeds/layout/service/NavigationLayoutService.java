@@ -277,13 +277,33 @@ public class NavigationLayoutService {
   }
 
   /**
+   * The site's top menu lists the items under the first root item it keeps,
+   * and nothing while that item has no items the viewer sees under it, so
+   * a new item goes under that first item by default. The menu's skip of an
+   * item whose page the viewer cannot read depends on the viewer and is not
+   * applied here.
+   *
    * @param  siteKey the site
-   * @return         the id of the site's navigation root, null when the site
-   *                 has no navigation
+   * @return         the id of the navigation root's first child the top menu
+   *                 keeps: one with items under it, whatever its visibility, or
+   *                 one displayed, or scheduled with a window that holds the
+   *                 present time; the root's when there is none, null when the
+   *                 site has no navigation
    */
-  public Long getRootNodeId(SiteKey siteKey) {
+  public Long getDefaultParentNodeId(SiteKey siteKey) {
     NodeContext<NodeContext<Object>> root = navigationService.loadNode(siteKey);
-    return root == null ? null : Long.parseLong(root.getId());
+    if (root == null) {
+      return null;
+    }
+    long now = System.currentTimeMillis();
+    int count = root.getNodeCount();
+    for (int i = 0; i < count; i++) {
+      NodeContext<NodeContext<Object>> child = root.get(i);
+      if (child.getNodeCount() > 0 || isDisplayedAt(child.getState(), now)) {
+        return Long.parseLong(child.getId());
+      }
+    }
+    return Long.parseLong(root.getId());
   }
 
   /**
@@ -1077,6 +1097,19 @@ public class NavigationLayoutService {
                                                      // localeConfigService
   }
   
+  private boolean isDisplayedAt(NodeState state, long now) {
+    if (state == null) {
+      return false;
+    } else if (state.getVisibility() == null || state.getVisibility() == Visibility.DISPLAYED) {
+      return true;
+    } else if (state.getVisibility() == Visibility.TEMPORAL) {
+      return (state.getStartPublicationTime() == -1 || now >= state.getStartPublicationTime())
+          && (state.getEndPublicationTime() == -1 || now <= state.getEndPublicationTime());
+    } else {
+      return false;
+    }
+  }
+
   private boolean isSystemVisibility(NodeData nodeData) {
     return nodeData.getState() != null && Visibility.SYSTEM.equals(nodeData.getState().getVisibility());
   }
