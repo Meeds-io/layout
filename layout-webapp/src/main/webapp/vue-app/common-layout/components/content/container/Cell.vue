@@ -44,7 +44,7 @@
         class="position-relative flex-grow-1 flex-shrink-1 overflow-hidden">
         <div
           v-if="!hasContent"
-          class="absolute-all-center d-flex flex-column align-center justify-center">
+          class="layout-editor-control absolute-all-center d-flex flex-column align-center justify-center">
           <v-icon size="40" class="icon-default-color mb-5">far fa-hourglass</v-icon>
           <span class="font-weight-bold">{{ $t('layout.inSearchOfData') }}</span>
           <span v-if="applicationTitle" class="caption">{{ applicationTitle }}</span>
@@ -91,7 +91,7 @@
             color="transparent"
             class="full-width d-flex flex-wrap align-center justify-center"
             flat>
-            <div class="d-flex flex-wrap align-center justify-center">
+            <div class="layout-editor-control d-flex flex-wrap align-center justify-center">
               <v-icon class="icon-default-color pe-2">fa-plus</v-icon>
               <span class="text-no-wrap">{{ $t('layout.addApp') }}</span>
             </div>
@@ -100,7 +100,7 @@
             <div
               slot-scope="iconHover"
               :aria-label="$t('layout.cellHoverTooltip')"
-              class="d-flex align-center justify-center full-width full-height">
+              class="layout-editor-control d-flex align-center justify-center full-width full-height">
               <v-icon
                 v-if="iconHover.hover && !isSelectedCell"
                 class="icon-default-color"
