@@ -21,6 +21,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 import io.meeds.layout.model.ApplicationCode;
 import io.meeds.layout.model.ApplicationSettingsContext;
+import io.meeds.layout.model.PortletInstance;
 import io.meeds.layout.service.ApplicationCodeService;
 
 /**
@@ -50,5 +51,16 @@ public interface ApplicationCodePlugin {
    * @throws IllegalAccessException when the context's user may not read it
    */
   ApplicationCode read(ApplicationSettingsContext context) throws ObjectNotFoundException, IllegalAccessException;
+
+  /**
+   * @return a new window of the application, placed when no catalog instance
+   *         carries its content id: its content id, name, description and
+   *         preferences, a new object on each call, each window placed from
+   *         it running code of its own; null when the application is placed
+   *         from the catalog only
+   */
+  default PortletInstance newApplication() {
+    return null;
+  }
 
 }

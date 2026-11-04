@@ -120,6 +120,7 @@ import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PortletInstance;
 import io.meeds.layout.model.PortletInstanceCategory;
+import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.util.EntityMapper;
 
 import lombok.SneakyThrows;
@@ -131,6 +132,8 @@ public class LayoutDescriptionServiceTest {
   private static final String      USER       = "john";
 
   private static final String      PAGE_REF   = "portal::test::home";
+
+  private static final String      WIDGET_CONTENT_ID = "ide/WidgetPortlet";
 
   private static final JsonMapper  JSON       = JsonMapper.builder().build();
 
@@ -900,6 +903,77 @@ public class LayoutDescriptionServiceTest {
     assertEquals("content/NewsListView", filtered.get(0).contentId());
 
     assertEquals(12L, descriptionService.describeApplications(2L, null, USER, Locale.FRENCH).get(0).instanceId());
+  }
+
+  @Test
+  public void applicationWithoutCatalogInstanceIsListedOnlyWhileNoPlaceableInstanceCarriesIt() {
+    PortletInstance news = instance(10L, 1L, "News list", "Latest news", false);
+    when(portletInstanceService.getPortletInstances(0, USER, Locale.FRENCH, true)).thenReturn(List.of(news));
+    when(portletInstanceService.getPortletInstances(2L, USER, Locale.FRENCH, true)).thenReturn(List.of());
+    when(applicationCodeService.newApplications()).thenAnswer(invocation -> List.of(widgetApplication()));
+
+    List<LayoutApplicationEntry> all = descriptionService.describeApplications(null, null, USER, Locale.FRENCH);
+    assertEquals(2, all.size());
+    LayoutApplicationEntry widget = all.get(1);
+    assertNull(widget.instanceId());
+    assertEquals(WIDGET_CONTENT_ID, widget.contentId());
+    assertEquals("Widget", widget.name());
+    assertNull(widget.category());
+    assertFalse(widget.configurable());
+    assertEquals(WIDGET_CONTENT_ID, descriptionService.describeApplications(null, "widget", USER, Locale.FRENCH).get(0).contentId());
+    assertTrue(descriptionService.describeApplications(null, "news", USER, Locale.FRENCH)
+                                 .stream()
+                                 .noneMatch(entry -> WIDGET_CONTENT_ID.equals(entry.contentId())));
+    assertTrue(descriptionService.describeApplications(2L, null, USER, Locale.FRENCH).isEmpty());
+
+    PortletInstance catalogWidget = instance(20L, 1L, "My widget", null, false);
+    catalogWidget.setContentId(WIDGET_CONTENT_ID);
+    when(portletInstanceService.getPortletInstances(0, USER, Locale.FRENCH, true)).thenReturn(List.of(news, catalogWidget));
+    List<LayoutApplicationEntry> withCatalogWidget = descriptionService.describeApplications(null, null, USER, Locale.FRENCH);
+    assertEquals(2, withCatalogWidget.size());
+    assertEquals(20L, withCatalogWidget.get(1).instanceId());
+  }
+
+  @Test
+  public void applicationWithoutCatalogInstanceIsPlacedByContentIdAsANewWindowEachTime() throws Exception {
+    when(portletInstanceService.getPortletInstances(0, USER, Locale.ENGLISH, true)).thenReturn(List.of());
+    when(applicationCodeService.newApplication(WIDGET_CONTENT_ID)).thenAnswer(invocation -> widgetApplication());
+    ApplicationDescription widget = new ApplicationDescription(null, WIDGET_CONTENT_ID, null, null, null, null, null, null, null);
+
+    LayoutModel result = toPageLayout(List.of(dynamic(1, List.of(List.of(widget, widget)))), storedPage(), false);
+
+    List<LayoutModel> windows = result.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren();
+    assertEquals(2, windows.size());
+    for (LayoutModel window : windows) {
+      assertEquals(WIDGET_CONTENT_ID, window.getContentId());
+      assertEquals("Widget", window.getTitle());
+      assertEquals(List.of(new PortletInstancePreference("data.init", "{}")), window.getPreferences());
+    }
+    assertFalse(windows.get(0).getPreferences() == windows.get(1).getPreferences());
+    verify(applicationCodeService, times(2)).newApplication(WIDGET_CONTENT_ID);
+  }
+
+  @Test
+  public void catalogInstancesOfAnApplicationWithoutCatalogInstanceKeepTheirRule() throws Exception {
+    PortletInstance catalogWidget = instance(20L, WIDGET_CONTENT_ID, "My widget");
+    when(portletInstanceService.getPortletInstances(0, USER, Locale.ENGLISH, true)).thenReturn(List.of(catalogWidget));
+    lenient().when(applicationCodeService.newApplication(WIDGET_CONTENT_ID)).thenAnswer(invocation -> widgetApplication());
+    ApplicationDescription widget = new ApplicationDescription(null, WIDGET_CONTENT_ID, null, null, null, null, null, null, null);
+
+    LayoutModel result = toPageLayout(List.of(dynamic(1, List.of(List.of(widget)))), storedPage(), false);
+    assertEquals("My widget", result.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0).getTitle());
+
+    PortletInstance secondWidget = instance(21L, WIDGET_CONTENT_ID, "Other widget");
+    when(portletInstanceService.getPortletInstances(0, USER, Locale.ENGLISH, true)).thenReturn(List.of(catalogWidget, secondWidget));
+    assertPageRefused(IllegalArgumentException.class,
+                      LayoutDescriptionService.CONTENT_ID_NOT_ACCEPTED,
+                      List.of(dynamic(1, List.of(List.of(widget)))));
+    verify(applicationCodeService, never()).newApplication(WIDGET_CONTENT_ID);
+
+    when(portletInstanceService.getPortletInstances(0, USER, Locale.ENGLISH, true)).thenReturn(List.of());
+    assertPageRefused(IllegalArgumentException.class,
+                      LayoutDescriptionService.CONTENT_ID_NOT_ACCEPTED,
+                      List.of(dynamic(1, List.of(List.of(new ApplicationDescription(null, "layout/Links", null, null, null, null, null, null, null))))));
   }
 
   @Test
@@ -2534,6 +2608,14 @@ public class LayoutDescriptionServiceTest {
     lenient().when(state.getEditPermission()).thenReturn(editPermission);
     lenient().when(state.getAccessPermissions()).thenReturn(accessPermissions.length == 0 ? null : List.of(accessPermissions));
     return state;
+  }
+
+  private PortletInstance widgetApplication() {
+    PortletInstance application = new PortletInstance();
+    application.setContentId(WIDGET_CONTENT_ID);
+    application.setName("Widget");
+    application.setPreferences(new ArrayList<>(List.of(new PortletInstancePreference("data.init", "{}"))));
+    return application;
   }
 
   private PortletInstance instance(long id, long categoryId, String name, String description, boolean disabled) {

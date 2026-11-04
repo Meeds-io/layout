@@ -35,6 +35,7 @@ import org.exoplatform.commons.exception.ObjectNotFoundException;
 
 import io.meeds.layout.model.ApplicationCode;
 import io.meeds.layout.model.ApplicationSettingsContext;
+import io.meeds.layout.model.PortletInstance;
 import io.meeds.layout.plugin.ApplicationCodePlugin;
 
 import lombok.SneakyThrows;
@@ -102,6 +103,40 @@ public class ApplicationCodeServiceTest {
 
     assertEquals("x()", service.read(WIDGET, context).js());
     verify(first, never()).read(context);
+  }
+
+  @Test
+  public void anApplicationIsPlacedWithoutCatalogOnlyByItsPluginsExactContentId() {
+    ApplicationCodePlugin plugin = plugin("WidgetPortlet");
+    when(plugin.newApplication()).thenAnswer(invocation -> application(WIDGET));
+    service.addPlugin(plugin);
+
+    PortletInstance first = service.newApplication(WIDGET);
+    assertEquals(WIDGET, first.getContentId());
+    assertFalse(first == service.newApplication(WIDGET));
+    assertNull(service.newApplication("other/WidgetPortlet"));
+    assertNull(service.newApplication("content/Links"));
+    assertNull(service.newApplication(null));
+    assertEquals(1, service.newApplications().size());
+  }
+
+  @Test
+  public void aPluginPlacingFromTheCatalogOnlyOffersNoApplication() {
+    ApplicationCodePlugin catalogOnly = plugin("WidgetPortlet");
+    ApplicationCodePlugin blankContentId = plugin("OtherPortlet");
+    when(blankContentId.newApplication()).thenReturn(application(" "));
+    service.addPlugin(catalogOnly);
+    service.addPlugin(blankContentId);
+
+    assertNull(service.newApplication(WIDGET));
+    assertTrue(service.newApplications().isEmpty());
+  }
+
+  private PortletInstance application(String contentId) {
+    PortletInstance application = new PortletInstance();
+    application.setContentId(contentId);
+    application.setName("Widget");
+    return application;
   }
 
   private ApplicationCodePlugin plugin(String portletName) {

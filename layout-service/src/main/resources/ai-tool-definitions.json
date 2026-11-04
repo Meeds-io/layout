@@ -104,7 +104,7 @@
     {
       "name": "list_layout_applications",
       "title": "List the applications that can be placed",
-      "description": "List the applications the current user can place on a page or in a site container, each with its instance_id, content_id, name, description, category and whether it is configurable through configure_layout_applications. category_id narrows the list to one category, keyword to the names and descriptions containing it.",
+      "description": "List the applications the current user can place on a page or in a site container, each with its instance_id, content_id, name, description, category and whether it is configurable through configure_layout_applications. An entry with no instance_id, such as the IDE widget when the catalog holds none, is placed by its content_id. category_id narrows the list to one category, keyword to the names and descriptions containing it.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -501,7 +501,7 @@
                     },
                     "content_id": {
                       "type": "string",
-                      "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                      "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it or when its entry has no instance_id (a new IDE widget, empty until update_widget_code writes it); omit when application_id or instance_id is given"
                     },
                     "title": {
                       "type": "string",
@@ -656,7 +656,7 @@
                     },
                     "content_id": {
                       "type": "string",
-                      "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                      "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it or when its entry has no instance_id (a new IDE widget, empty until update_widget_code writes it); omit when application_id or instance_id is given"
                     },
                     "title": {
                       "type": "string",
@@ -827,7 +827,7 @@
                             },
                             "content_id": {
                               "type": "string",
-                              "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                              "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it or when its entry has no instance_id (a new IDE widget, empty until update_widget_code writes it); omit when application_id or instance_id is given"
                             },
                             "title": {
                               "type": "string",
@@ -1001,7 +1001,7 @@
                             },
                             "content_id": {
                               "type": "string",
-                              "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                              "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it or when its entry has no instance_id (a new IDE widget, empty until update_widget_code writes it); omit when application_id or instance_id is given"
                             },
                             "title": {
                               "type": "string",
@@ -1426,7 +1426,7 @@
                         },
                         "content_id": {
                           "type": "string",
-                          "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                          "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it or when its entry has no instance_id (a new IDE widget, empty until update_widget_code writes it); omit when application_id or instance_id is given"
                         },
                         "title": {
                           "type": "string",
@@ -1546,7 +1546,7 @@
                           },
                           "content_id": {
                             "type": "string",
-                            "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it; omit when application_id or instance_id is given"
+                            "description": "the application content id to add, from list_layout_applications, when exactly one enabled catalog instance has it or when its entry has no instance_id (a new IDE widget, empty until update_widget_code writes it); omit when application_id or instance_id is given"
                           },
                           "title": {
                             "type": "string",
@@ -1905,7 +1905,7 @@
           },
           "application": {
             "type": "object",
-            "description": "The catalog application to place, from list_layout_applications: its instance_id, or its content_id when it matches exactly one instance the user may place; omit when application_id is given",
+            "description": "The catalog application to place, from list_layout_applications: its instance_id, or its content_id when it matches exactly one instance the user may place or its entry has no instance_id; omit when application_id is given",
             "properties": {
               "instance_id": {
                 "type": "integer",

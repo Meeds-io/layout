@@ -25,7 +25,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 @JsonInclude(Include.NON_NULL)
-public record LayoutApplicationEntry(@JsonProperty("instance_id") long instanceId,
+public record LayoutApplicationEntry(@JsonProperty("instance_id") Long instanceId,
                                      @JsonProperty("content_id") String contentId,
                                      @JsonProperty("name") String name,
                                      @JsonProperty("description") String description,
