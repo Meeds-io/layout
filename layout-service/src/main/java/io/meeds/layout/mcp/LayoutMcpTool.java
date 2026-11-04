@@ -1706,17 +1706,19 @@ public class LayoutMcpTool implements McpToolPlugin {
   }
 
   /**
-   * @return the parent given, which must be an item of the site, or the
-   *         site's navigation root when none is given
+   * @return the parent given, which must be an item of the site, or, when none
+   *         is given, the site's default parent: the first root item the top
+   *         menu keeps, leaving aside its per-viewer page read check, or its
+   *         navigation root when there is none
    */
   private long resolveParentNodeId(SiteKey siteKey, Long parentNodeId, String username) throws ObjectNotFoundException,
                                                                                          IllegalAccessException {
     if (parentNodeId == null) {
-      Long rootNodeId = navigationLayoutService.getRootNodeId(siteKey);
-      if (rootNodeId == null) {
+      Long defaultParentNodeId = navigationLayoutService.getDefaultParentNodeId(siteKey);
+      if (defaultParentNodeId == null) {
         throw new ObjectNotFoundException(PARENT_NODE_NOT_FOUND);
       }
-      return rootNodeId;
+      return defaultParentNodeId;
     }
     requireNodeId(parentNodeId, PARENT_NODE_ID_NOT_ACCEPTED);
     NodeData parent = readEditableNode(parentNodeId, username, PARENT_NODE_NOT_FOUND);
