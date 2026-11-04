@@ -132,6 +132,20 @@ public class ApplicationCodeServiceTest {
     assertTrue(service.newApplications().isEmpty());
   }
 
+  @Test
+  public void aPluginFailingToOfferAnApplicationIsSkipped() {
+    ApplicationCodePlugin failing = plugin("WidgetPortlet");
+    ApplicationCodePlugin offering = plugin("OtherPortlet");
+    when(failing.newApplication()).thenThrow(new IllegalStateException("engine"));
+    when(offering.newApplication()).thenAnswer(invocation -> application("other/OtherPortlet"));
+    service.addPlugin(failing);
+    service.addPlugin(offering);
+
+    assertNull(service.newApplication(WIDGET));
+    assertEquals(1, service.newApplications().size());
+    assertEquals("other/OtherPortlet", service.newApplications().get(0).getContentId());
+  }
+
   private PortletInstance application(String contentId) {
     PortletInstance application = new PortletInstance();
     application.setContentId(contentId);

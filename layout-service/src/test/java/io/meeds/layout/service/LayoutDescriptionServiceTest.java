@@ -932,6 +932,15 @@ public class LayoutDescriptionServiceTest {
     List<LayoutApplicationEntry> withCatalogWidget = descriptionService.describeApplications(null, null, USER, Locale.FRENCH);
     assertEquals(2, withCatalogWidget.size());
     assertEquals(20L, withCatalogWidget.get(1).instanceId());
+    assertTrue(descriptionService.describeApplications(null, "news", USER, Locale.FRENCH)
+                                 .stream()
+                                 .noneMatch(entry -> WIDGET_CONTENT_ID.equals(entry.contentId())));
+
+    catalogWidget.setDisabled(true);
+    List<LayoutApplicationEntry> withDisabledCatalogWidget = descriptionService.describeApplications(null, null, USER, Locale.FRENCH);
+    assertEquals(2, withDisabledCatalogWidget.size());
+    assertNull(withDisabledCatalogWidget.get(1).instanceId());
+    verify(portletInstanceService, times(6)).getPortletInstances(0, USER, Locale.FRENCH, true);
   }
 
   @Test

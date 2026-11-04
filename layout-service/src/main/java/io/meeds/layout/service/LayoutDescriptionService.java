@@ -802,18 +802,24 @@ public class LayoutDescriptionService {
                                                                                    c -> StringUtils.defaultString(c.getName()),
                                                                                    (a, b) -> a));
     String needle = StringUtils.lowerCase(StringUtils.trimToNull(keyword));
+    List<PortletInstance> placeable = portletInstanceService.getPortletInstances(categoryId == null ? 0 : categoryId,
+                                                                                 username,
+                                                                                 locale,
+                                                                                 true)
+                                                            .stream()
+                                                            .filter(instance -> !instance.isDisabled())
+                                                            .toList();
     List<LayoutApplicationEntry> entries = new ArrayList<>();
-    portletInstanceService.getPortletInstances(categoryId == null ? 0 : categoryId, username, locale, true)
-                          .stream()
-                          .filter(instance -> !instance.isDisabled())
-                          .filter(instance -> needle == null || matches(instance, needle))
-                          .map(instance -> toApplicationEntry(instance, categories.get(instance.getCategoryId())))
-                          .forEach(entries::add);
+    placeable.stream()
+             .filter(instance -> needle == null || matches(instance, needle))
+             .map(instance -> toApplicationEntry(instance, categories.get(instance.getCategoryId())))
+             .forEach(entries::add);
     if (categoryId == null) {
+      Set<String> placeableContentIds = placeable.stream().map(PortletInstance::getContentId).collect(Collectors.toSet());
       applicationCodeService.newApplications()
                             .stream()
                             .filter(application -> needle == null || matches(application, needle))
-                            .filter(application -> placeableInstances(application.getContentId(), username, locale).isEmpty())
+                            .filter(application -> !placeableContentIds.contains(application.getContentId()))
                             .map(application -> new LayoutApplicationEntry(null,
                                                                            application.getContentId(),
                                                                            application.getName(),

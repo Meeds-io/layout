@@ -97,7 +97,7 @@ public class ApplicationCodeService {
    */
   public PortletInstance newApplication(String contentId) {
     ApplicationCodePlugin plugin = getPlugin(contentId);
-    PortletInstance application = plugin == null ? null : plugin.newApplication();
+    PortletInstance application = plugin == null ? null : newApplication(plugin);
     return application != null && StringUtils.equals(application.getContentId(), contentId) ? application : null;
   }
 
@@ -108,10 +108,19 @@ public class ApplicationCodeService {
   public List<PortletInstance> newApplications() {
     return plugins.values()
                   .stream()
-                  .map(ApplicationCodePlugin::newApplication)
+                  .map(this::newApplication)
                   .filter(Objects::nonNull)
                   .filter(application -> StringUtils.isNotBlank(application.getContentId()))
                   .toList();
+  }
+
+  private PortletInstance newApplication(ApplicationCodePlugin plugin) {
+    try {
+      return plugin.newApplication();
+    } catch (Exception e) {
+      LOG.debug("Application of portlet {} could not be offered without catalog instance", plugin.getPortletName(), e);
+      return null;
+    }
   }
 
   private ApplicationCodePlugin getPlugin(String contentId) {
