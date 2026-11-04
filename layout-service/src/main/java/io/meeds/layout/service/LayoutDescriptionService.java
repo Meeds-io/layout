@@ -791,7 +791,9 @@ public class LayoutDescriptionService {
    *                      no filter
    * @param  username   the reader
    * @param  locale     the language of the names
-   * @return the enabled catalog instances the user may place
+   * @return the enabled catalog instances the user may place, then, with no
+   *           category filter, each application a code plugin places
+   *           without a catalog instance that no such instance carries
    */
   public List<LayoutApplicationEntry> describeApplications(Long categoryId, String keyword, String username, Locale locale) {
     Map<Long, String> categories = portletInstanceService.getPortletInstanceCategories(username, locale, true)
@@ -800,19 +802,44 @@ public class LayoutDescriptionService {
                                                                                    c -> StringUtils.defaultString(c.getName()),
                                                                                    (a, b) -> a));
     String needle = StringUtils.lowerCase(StringUtils.trimToNull(keyword));
-    return portletInstanceService.getPortletInstances(categoryId == null ? 0 : categoryId, username, locale, true)
-                                 .stream()
-                                 .filter(instance -> !instance.isDisabled())
-                                 .filter(instance -> needle == null || matches(instance, needle))
-                                 .map(instance -> new LayoutApplicationEntry(instance.getId(),
-                                                                             instance.getContentId(),
-                                                                             instance.getName(),
-                                                                             instance.getDescription(),
-                                                                             categories.get(instance.getCategoryId()),
-                                                                             applicationSettingsService.isConfigurable(instance.getContentId(),
-                                                                                                                       false),
-                                                                             applicationSettingsService.getSettingsSchema(instance.getContentId())))
-                                 .toList();
+    List<PortletInstance> placeable = portletInstanceService.getPortletInstances(categoryId == null ? 0 : categoryId,
+                                                                                 username,
+                                                                                 locale,
+                                                                                 true)
+                                                            .stream()
+                                                            .filter(instance -> !instance.isDisabled())
+                                                            .toList();
+    List<LayoutApplicationEntry> entries = new ArrayList<>();
+    placeable.stream()
+             .filter(instance -> needle == null || matches(instance, needle))
+             .map(instance -> toApplicationEntry(instance, categories.get(instance.getCategoryId())))
+             .forEach(entries::add);
+    if (categoryId == null) {
+      Set<String> placeableContentIds = placeable.stream().map(PortletInstance::getContentId).collect(Collectors.toSet());
+      applicationCodeService.newApplications()
+                            .stream()
+                            .filter(application -> needle == null || matches(application, needle))
+                            .filter(application -> !placeableContentIds.contains(application.getContentId()))
+                            .map(application -> new LayoutApplicationEntry(null,
+                                                                           application.getContentId(),
+                                                                           application.getName(),
+                                                                           application.getDescription(),
+                                                                           null,
+                                                                           false,
+                                                                           null))
+                            .forEach(entries::add);
+    }
+    return entries;
+  }
+
+  private LayoutApplicationEntry toApplicationEntry(PortletInstance instance, String category) {
+    return new LayoutApplicationEntry(instance.getId(),
+                                      instance.getContentId(),
+                                      instance.getName(),
+                                      instance.getDescription(),
+                                      category,
+                                      applicationSettingsService.isConfigurable(instance.getContentId(), false),
+                                      applicationSettingsService.getSettingsSchema(instance.getContentId()));
   }
 
   public DisplayMode toDisplay(String cssClass) {
@@ -1323,7 +1350,8 @@ public class LayoutDescriptionService {
    * @return the catalog instance the description names, by instance id when
    *         given (its content id, when given too, must match), otherwise
    *         the one enabled instance the caller may place with that content
-   *         id
+   *         id, or, when there is none, a new window of the application
+   *         whose code plugin places it without a catalog instance
    */
   private PortletInstance resolveInstance(ApplicationDescription description, String username, Locale locale) {
     String contentId = StringUtils.trimToNull(description.contentId());
@@ -1341,15 +1369,23 @@ public class LayoutDescriptionService {
       }
       return instance;
     }
-    List<PortletInstance> matches = portletInstanceService.getPortletInstances(0, username, locale, true)
-                                                          .stream()
-                                                          .filter(instance -> !instance.isDisabled()
-                                                                              && StringUtils.equals(instance.getContentId(), contentId))
-                                                          .toList();
-    if (matches.size() != 1) {
+    List<PortletInstance> matches = placeableInstances(contentId, username, locale);
+    if (matches.size() == 1) {
+      return matches.get(0);
+    }
+    PortletInstance application = matches.isEmpty() && contentId != null ? applicationCodeService.newApplication(contentId) : null;
+    if (application == null) {
       throw new IllegalArgumentException(CONTENT_ID_NOT_ACCEPTED);
     }
-    return matches.get(0);
+    return application;
+  }
+
+  private List<PortletInstance> placeableInstances(String contentId, String username, Locale locale) {
+    return portletInstanceService.getPortletInstances(0, username, locale, true)
+                                 .stream()
+                                 .filter(instance -> !instance.isDisabled()
+                                                     && StringUtils.equals(instance.getContentId(), contentId))
+                                 .toList();
   }
 
   private MarginsBlock toMargins(LayoutModel model) {
