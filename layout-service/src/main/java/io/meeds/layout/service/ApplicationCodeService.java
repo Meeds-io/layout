@@ -17,7 +17,9 @@
  */
 package io.meeds.layout.service;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.lang3.StringUtils;
@@ -28,6 +30,7 @@ import org.exoplatform.services.log.Log;
 
 import io.meeds.layout.model.ApplicationCode;
 import io.meeds.layout.model.ApplicationSettingsContext;
+import io.meeds.layout.model.PortletInstance;
 import io.meeds.layout.plugin.ApplicationCodePlugin;
 
 /**
@@ -82,6 +85,40 @@ public class ApplicationCodeService {
       return plugin.read(context);
     } catch (Exception e) {
       LOG.debug("Code of application {} could not be read for {}", context.getApplicationId(), context.getUsername(), e);
+      return null;
+    }
+  }
+
+  /**
+   * @param  contentId the content id to place
+   * @return           a new window of the application with that exact content
+   *                     id that its plugin places without a catalog instance,
+   *                     null when there is none
+   */
+  public PortletInstance newApplication(String contentId) {
+    ApplicationCodePlugin plugin = getPlugin(contentId);
+    PortletInstance application = plugin == null ? null : newApplication(plugin);
+    return application != null && StringUtils.equals(application.getContentId(), contentId) ? application : null;
+  }
+
+  /**
+   * @return a new window of each application its plugin places without a
+   *         catalog instance
+   */
+  public List<PortletInstance> newApplications() {
+    return plugins.values()
+                  .stream()
+                  .map(this::newApplication)
+                  .filter(Objects::nonNull)
+                  .filter(application -> StringUtils.isNotBlank(application.getContentId()))
+                  .toList();
+  }
+
+  private PortletInstance newApplication(ApplicationCodePlugin plugin) {
+    try {
+      return plugin.newApplication();
+    } catch (Exception e) {
+      LOG.debug("Application of portlet {} could not be offered without catalog instance", plugin.getPortletName(), e);
       return null;
     }
   }
