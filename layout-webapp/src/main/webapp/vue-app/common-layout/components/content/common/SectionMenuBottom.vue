@@ -21,7 +21,7 @@
 -->
 <template>
   <v-hover v-model="hoverButton">
-    <div>
+    <div class="layout-editor-control">
       <v-slide-y-transition>
         <div
           v-if="display || hoverButton"
