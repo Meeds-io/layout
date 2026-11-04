@@ -1350,7 +1350,7 @@
     {
       "name": "delete_page",
       "title": "Delete a navigation item",
-      "description": "Delete a navigation item with the items under it, for every user at once and without undo, as the navigation drawer does after its confirmation: in the platform's assistant the user confirms it before it applies; an external client asks for confirmation only if its own settings do. The page the item pointed to is kept, as the drawer keeps it, under no item. Deleting the site's first root item removes the top menu's tabs with it: the menu then opens with the next root item that has items under it, or else that is displayed, within its schedule and on a page the viewer can read, or shows nothing. A home item is renamed or pointed at another page with update_page, never replaced by deleting it. An item the platform manages itself is refused.",
+      "description": "Delete a navigation item with the items under it, for every user at once and without undo, as the navigation drawer does after its confirmation: in the platform's assistant the user confirms it before it applies; an external client asks for confirmation only if its own settings do. The page the item pointed to is kept, as the drawer keeps it, under no item. Deleting the site's first root item removes the top menu's tabs with it: the menu then follows the next root item it keeps, by the rule create_page states, and shows nothing while that item has no items the viewer sees under it. A home item is renamed or pointed at another page with update_page, never replaced by deleting it. An item the platform manages itself is refused.",
       "input_schema": {
         "type": "object",
         "properties": {

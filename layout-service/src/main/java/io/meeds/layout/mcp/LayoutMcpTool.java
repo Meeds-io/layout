@@ -1707,8 +1707,9 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   /**
    * @return the parent given, which must be an item of the site, or, when none
-   *         is given, the site's default parent, the first root item the top
-   *         menu keeps, or its navigation root when there is none
+   *         is given, the site's default parent: the first root item the top
+   *         menu keeps, leaving aside its per-viewer page read check, or its
+   *         navigation root when there is none
    */
   private long resolveParentNodeId(SiteKey siteKey, Long parentNodeId, String username) throws ObjectNotFoundException,
                                                                                          IllegalAccessException {
