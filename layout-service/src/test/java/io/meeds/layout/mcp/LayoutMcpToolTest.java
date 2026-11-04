@@ -170,8 +170,6 @@ public class LayoutMcpToolTest {
 
   private static final long        LIVE_NODE = 11L;
 
-  private static final long        ROOT_NODE = 7L;
-
   private static final long        NODE_ID   = 12L;
 
   private static final String      FUTURE    = Instant.now().plusSeconds(3600).toString();
@@ -2224,7 +2222,7 @@ public class LayoutMcpToolTest {
                  asUser(() -> tool.createPage(SITE_ID, null, "Our Team", null, null, "page", null, null, null, null, null, null, null, null, null)));
     verify(navigationLayoutService).createNodeWithPage(nodes.capture(), pages.capture(), eq(USER));
     NavigationCreateModel node = nodes.getValue();
-    assertEquals(ROOT_NODE, node.getParentNodeId());
+    assertEquals(LIVE_NODE, node.getParentNodeId());
     assertNull(node.getPreviousNodeId());
     assertEquals("ourteam", node.getNodeId());
     assertEquals("Our Team", node.getNodeLabel());
@@ -2327,7 +2325,7 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
 
     when(aclService.canEditNavigation(SITE_KEY, USER)).thenReturn(true);
-    when(navigationLayoutService.getRootNodeId(SITE_KEY)).thenReturn(ROOT_NODE);
+    when(navigationLayoutService.getDefaultParentNodeId(SITE_KEY)).thenReturn(LIVE_NODE);
     assertEquals(LayoutMcpTool.TYPE_NOT_ACCEPTED, refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, null, "folder", null, null, null, null, null, null, null, null, null)));
     assertEquals(LayoutMcpTool.TYPE_NOT_ACCEPTED, refusal(() -> tool.createPage(SITE_ID, null, "Docs", null, null, null, null, null, null, null, null, null, null, null, null)));
     assertEquals(LayoutMcpTool.LABEL_NOT_ACCEPTED, refusal(() -> createGroup(SITE_ID, " ", "docs")));
@@ -2404,7 +2402,7 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.PARENT_NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.createPage(SITE_ID, 21L, "Docs", null, "docs", "group", null, null, null, null, null, null, null, null, null)));
     assertEquals(LayoutMcpTool.PARENT_NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> tool.createPage(SITE_ID, 22L, "Docs", null, "docs", "group", null, null, null, null, null, null, null, null, null)));
     assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.createPage(SITE_ID, 23L, "Docs", null, "docs", "group", null, null, null, null, null, null, null, null, null)));
-    when(navigationLayoutService.getRootNodeId(SITE_KEY)).thenReturn(null);
+    when(navigationLayoutService.getDefaultParentNodeId(SITE_KEY)).thenReturn(null);
     assertEquals(LayoutMcpTool.PARENT_NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
     verify(navigationLayoutService, never()).createNodeWithPage(any(), any(), any());
   }
@@ -2413,7 +2411,7 @@ public class LayoutMcpToolTest {
   public void createPageAnswersTheFixedTextsOnServiceRefusals() throws Exception {
     editableNavigation();
     languages();
-    when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenThrow(new ObjectNotFoundException(String.format(NavigationLayoutService.PARENT_NODE_NOT_FOUND_MESSAGE, ROOT_NODE)))
+    when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenThrow(new ObjectNotFoundException(String.format(NavigationLayoutService.PARENT_NODE_NOT_FOUND_MESSAGE, LIVE_NODE)))
                                                                               .thenThrow(new IllegalAccessException("internal detail"))
                                                                               .thenThrow(new IllegalArgumentException(NavigationLayoutService.NODE_NAME_NOT_ACCEPTED))
                                                                               .thenThrow(new IllegalArgumentException(NavigationLayoutService.SCHEDULE_START_PAST))
@@ -2422,7 +2420,7 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.PARENT_NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
     page(PAGE_KEY, "PAGE", null);
     when(aclService.canViewPage(PAGE_KEY, USER)).thenReturn(true);
-    when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenThrow(new ObjectNotFoundException(String.format(NavigationLayoutService.PARENT_NODE_NOT_FOUND_MESSAGE, ROOT_NODE)))
+    when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenThrow(new ObjectNotFoundException(String.format(NavigationLayoutService.PARENT_NODE_NOT_FOUND_MESSAGE, LIVE_NODE)))
                                                                               .thenThrow(new ObjectNotFoundException("Page with key x doesn't exist"))
                                                                               .thenThrow(new IllegalAccessException("internal detail"))
                                                                               .thenThrow(new IllegalArgumentException(NavigationLayoutService.NODE_NAME_NOT_ACCEPTED))
@@ -2689,13 +2687,13 @@ public class LayoutMcpToolTest {
   }
 
   /**
-   * The site exists, the user edits its navigation, its root is ROOT_NODE
-   * and LIVE_NODE is one of its items
+   * The site exists, the user edits its navigation, and LIVE_NODE is its
+   * first displayed item, the default parent of a new one
    */
   private void editableNavigation() throws Exception {
     when(siteLayoutService.getSite(SITE_ID, USER)).thenReturn(site("portal", "test", "Test"));
     when(aclService.canEditNavigation(SITE_KEY, USER)).thenReturn(true);
-    lenient().when(navigationLayoutService.getRootNodeId(SITE_KEY)).thenReturn(ROOT_NODE);
+    lenient().when(navigationLayoutService.getDefaultParentNodeId(SITE_KEY)).thenReturn(LIVE_NODE);
     NodeData liveNode = node(LIVE_NODE, "home");
     lenient().when(navigationLayoutService.getEditableNode(LIVE_NODE, USER)).thenReturn(liveNode);
   }
