@@ -20,6 +20,9 @@ package io.meeds.layout.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -56,8 +59,11 @@ import org.exoplatform.portal.config.UserPortalConfig;
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.config.model.Application;
 import org.exoplatform.portal.config.model.Container;
+import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.ModelStyle;
 import org.exoplatform.portal.config.model.Page;
+import org.exoplatform.portal.config.model.PageBody;
+import org.exoplatform.portal.config.model.PersistentApplicationState;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.config.model.TransientApplicationState;
 import org.exoplatform.portal.config.serialize.model.SiteLayout;
@@ -586,6 +592,67 @@ public class SiteLayoutServiceTest {
 
   @Test
   @SneakyThrows
+  public void updateSiteLayoutDraftKeepsHeldStorageIds() {
+    PortalConfig storedSite = storedSite();
+    Container storedLayout = storedSite.getPortalLayout();
+    SiteLayout submittedLayout = siteLayout("100",
+                                            container("101", container("102", window("200"), newWindow())),
+                                            container("103", container("104", new PageBody("105")), container(null)));
+
+    siteLayoutService.updateSiteLayout(SITE_KEY, submittedSite(submittedLayout), false, TEST_USER);
+
+    assertNotSame(storedLayout, storedSite.getPortalLayout());
+    assertEquals("100", storedSite.getPortalLayout().getStorageId());
+    verify(layoutService).save(storedSite);
+  }
+
+  @Test
+  public void updateSiteLayoutDraftRefusesWindowNotHeldBySite() {
+    assertSiteDraftRefused(siteLayout("100",
+                                      container("101", container("102", window("200"), window("99"))),
+                                      container("103", container("104", new PageBody("105")))));
+  }
+
+  @Test
+  public void updateSiteLayoutDraftRefusesContainerNotHeldBySite() {
+    assertSiteDraftRefused(siteLayout("100",
+                                      container("101", container("102", window("200"))),
+                                      container("103", container("104", new PageBody("105"))),
+                                      container("98")));
+  }
+
+  @Test
+  public void updateSiteLayoutDraftRefusesRootNotHeldBySite() {
+    assertSiteDraftRefused(siteLayout("98",
+                                      container("101", container("102", window("200"))),
+                                      container("103", container("104", new PageBody("105")))));
+  }
+
+  @Test
+  public void updateSiteLayoutDraftRefusesBodyNotHeldBySite() {
+    assertSiteDraftRefused(siteLayout("100",
+                                      container("101", container("102", window("200"))),
+                                      container("103", container("104", new PageBody("98")))));
+  }
+
+  @Test
+  @SneakyThrows
+  public void updateSiteLayoutPublishesDraftElements() {
+    PortalConfig storedSite = storedSite();
+    // The published layout is the draft site's: its elements are stored under
+    // the draft site and are copied by the publication
+    SiteLayout submittedLayout = siteLayout("300",
+                                            container("301", container("302", newWindow())),
+                                            container("303", container("304", new PageBody("305"))));
+
+    siteLayoutService.updateSiteLayout(SITE_KEY, submittedSite(submittedLayout), true, TEST_USER);
+
+    assertNull(storedSite.getPortalLayout().getStorageId());
+    verify(layoutService).save(storedSite);
+  }
+
+  @Test
+  @SneakyThrows
   public void deleteSite() {
     assertThrows(ObjectNotFoundException.class, () -> siteLayoutService.deleteSite(SITE_KEY, TEST_USER));
     when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
@@ -710,6 +777,67 @@ public class SiteLayoutServiceTest {
     PortalConfig existingDraftSite = new PortalConfig(PortalConfig.DRAFT, DRAFT_SITE_NAME);
     when(layoutService.getPortalConfig(DRAFT_SITE_KEY)).thenReturn(existingDraftSite);
     return existingDraftSite;
+  }
+
+  private void assertSiteDraftRefused(SiteLayout submittedLayout) {
+    PortalConfig storedSite = storedSite();
+    Container storedLayout = storedSite.getPortalLayout();
+    PortalConfig submittedSite = submittedSite(submittedLayout);
+
+    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                                                      () -> siteLayoutService.updateSiteLayout(SITE_KEY,
+                                                                                               submittedSite,
+                                                                                               false,
+                                                                                               TEST_USER));
+    assertEquals("layout.siteOutdatedError", exception.getMessage());
+    assertSame(storedLayout, storedSite.getPortalLayout());
+    verify(layoutService, never()).save(any(PortalConfig.class));
+  }
+
+  /**
+   * @return the stored site the tests edit, its layout rooted at the container
+   *         100, holding the containers 101 to 104, the body placeholder 105
+   *         and the window 200
+   */
+  private PortalConfig storedSite() {
+    PortalConfig storedSite = new PortalConfig(SITE_KEY.getTypeName(), SITE_KEY.getName());
+    storedSite.setPortalLayout(siteLayout("100",
+                                          container("101", container("102", window("200"))),
+                                          container("103", container("104", new PageBody("105")))));
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(storedSite);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    return storedSite;
+  }
+
+  private PortalConfig submittedSite(SiteLayout submittedLayout) {
+    PortalConfig submittedSite = mock(PortalConfig.class);
+    when(submittedSite.getPortalLayout()).thenReturn(submittedLayout);
+    return submittedSite;
+  }
+
+  private static SiteLayout siteLayout(String storageId, ModelObject... children) {
+    SiteLayout siteLayout = new SiteLayout();
+    siteLayout.setStorageId(storageId);
+    siteLayout.setChildren(new ArrayList<>(Arrays.asList(children)));
+    return siteLayout;
+  }
+
+  private static Container container(String storageId, ModelObject... children) {
+    Container container = new Container(storageId);
+    container.setChildren(new ArrayList<>(Arrays.asList(children)));
+    return container;
+  }
+
+  private static Application window(String storageId) {
+    Application application = new Application(storageId);
+    application.setState(new PersistentApplicationState(storageId));
+    return application;
+  }
+
+  private static Application newWindow() {
+    Application application = new Application((String) null);
+    application.setState(new TransientApplicationState("app/portlet"));
+    return application;
   }
 
 }
