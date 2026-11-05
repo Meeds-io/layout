@@ -62,7 +62,9 @@ public interface ApplicationSettingsPlugin {
 
   /**
    * @return whether a window placed in a site container is configurable: a
-   *         setting keyed by a page reference has no page there
+   *         setting keyed by a page reference hangs there on the site's
+   *         home page the context carries, and the plugin refuses the write
+   *         while the site has none
    */
   default boolean isConfigurableInSiteContainer() {
     return false;
