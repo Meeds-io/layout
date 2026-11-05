@@ -49,8 +49,12 @@ public final class LayoutStorageValidator {
    * two id sequences, so a window id is only accepted on a window and a
    * container id (a page or site body placeholder included) only on a
    * container. A window's state id must name the same held window as its
-   * storage id. Ids are read as the storage reads them: an id that does not
-   * parse to a positive number is not an update and is not checked.
+   * storage id: the storage updates a window by its storage id, while a
+   * submitted layout used as is, the meta portal's after its save, renders the
+   * window and stores its preferences through its state id. The layout REST
+   * builds the state id from the storage id. Ids are read as the storage reads
+   * them: an id that does not parse to a positive number is not an update and
+   * is not checked.
    *
    * @param storedElements the root elements of the stored layout, null
    *          elements ignored
