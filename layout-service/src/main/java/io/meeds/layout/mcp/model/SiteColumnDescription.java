@@ -24,11 +24,14 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.meeds.layout.mcp.constant.Alignment;
+
 /**
  * A column of a topbar or a bottom bar, as the site layout editor shows it:
  * its width in pixels when it has one, or fit_content when it takes the
  * width of its application, the last column taking the remaining width
- * otherwise, and the application it holds. A stored column holding several
+ * otherwise, where its application sits in it, horizontally and vertically,
+ * and the application it holds. A stored column holding several
  * applications is read whole; a write places one application per column,
  * and keeps a column as it is when each application given is sent back by
  * its id from that same column.
@@ -37,13 +40,24 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record SiteColumnDescription(@JsonProperty("column_id") String columnId,
                                     @JsonProperty("width") Integer width,
                                     @JsonProperty("fit_content") Boolean fitContent,
+                                    @JsonProperty("h_align") Alignment hAlign,
+                                    @JsonProperty("v_align") Alignment vAlign,
                                     @JsonProperty("applications") List<ApplicationDescription> applications) {
 
   /**
-   * A column with a width in pixels, or sharing the remaining width
+   * A column with a width in pixels, or sharing the remaining width, whose
+   * alignment is kept as stored, or left at the editor's default on a new one
    */
   public SiteColumnDescription(String columnId, Integer width, List<ApplicationDescription> applications) {
-    this(columnId, width, null, applications);
+    this(columnId, width, null, null, null, applications);
+  }
+
+  /**
+   * A column whose alignment is kept as stored, or left at the editor's
+   * default on a new one
+   */
+  public SiteColumnDescription(String columnId, Integer width, Boolean fitContent, List<ApplicationDescription> applications) {
+    this(columnId, width, fitContent, null, null, applications);
   }
 
 }
