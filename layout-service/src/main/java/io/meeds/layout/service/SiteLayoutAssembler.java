@@ -172,11 +172,25 @@ public class SiteLayoutAssembler {
 
   private static final Pattern                              PIXELS                          = Pattern.compile("-?\\d+");
 
+  private static final Pattern                              H_ALIGN_CENTER                  =
+                                                                           token(LayoutDescriptionService.H_ALIGN_CENTER_TOKEN);
+
+  private static final Pattern                              H_ALIGN_END                     =
+                                                                        token(LayoutDescriptionService.H_ALIGN_END_TOKEN);
+
+  private static final Pattern                              V_ALIGN_CENTER                  =
+                                                                           token(LayoutDescriptionService.V_ALIGN_CENTER_TOKEN);
+
+  private static final Pattern                              V_ALIGN_END                     =
+                                                                        token(LayoutDescriptionService.V_ALIGN_END_TOKEN);
+
   private static final Pattern                              H_ALIGN_TOKENS                  =
-                                                                           Pattern.compile("(^| )(application-align-h-center|application-align-h-end)(?= |$)");
+                                                                           tokens(LayoutDescriptionService.H_ALIGN_CENTER_TOKEN,
+                                                                                  LayoutDescriptionService.H_ALIGN_END_TOKEN);
 
   private static final Pattern                              V_ALIGN_TOKENS                  =
-                                                                           Pattern.compile("(^| )(application-align-v-center|application-align-v-end)(?= |$)");
+                                                                           tokens(LayoutDescriptionService.V_ALIGN_CENTER_TOKEN,
+                                                                                  LayoutDescriptionService.V_ALIGN_END_TOKEN);
 
   private static final Pattern                              STICKY_TOKEN                    =
                                                                          Pattern.compile("(^| )layout-sticky-section(?= |$)");
@@ -513,10 +527,14 @@ public class SiteLayoutAssembler {
     cell.setCssClass(align(align(cell.getCssClass(),
                                  description.hAlign(),
                                  H_ALIGN_TOKENS,
+                                 H_ALIGN_CENTER,
+                                 H_ALIGN_END,
                                  LayoutDescriptionService.H_ALIGN_CENTER_TOKEN,
                                  LayoutDescriptionService.H_ALIGN_END_TOKEN),
                            description.vAlign(),
                            V_ALIGN_TOKENS,
+                           V_ALIGN_CENTER,
+                           V_ALIGN_END,
                            LayoutDescriptionService.V_ALIGN_CENTER_TOKEN,
                            LayoutDescriptionService.V_ALIGN_END_TOKEN));
     List<ApplicationDescription> applications = description.applications() == null ? Collections.emptyList() : description.applications();
@@ -536,10 +554,17 @@ public class SiteLayoutAssembler {
    * Writes the alignment of a column's application on one axis as the site
    * layout editor's "Align App" option does: the axis token for center or
    * end, no token for start; an alignment the call omits, or sends back as
-   * the read answered it, leaves the stored tokens as they are, so a kept
-   * column keeps its alignment and a new one is at start
+   * the read answered it on a column holding at most one token per axis,
+   * leaves the stored tokens as they are, so a kept column keeps its
+   * alignment and a new one is at start
    */
-  private String align(String cssClass, Alignment alignment, Pattern axisTokens, String centerToken, String endToken) {
+  private String align(String cssClass,
+                       Alignment alignment,
+                       Pattern axisTokens,
+                       Pattern centerPattern,
+                       Pattern endPattern,
+                       String centerToken,
+                       String endToken) {
     if (alignment == null) {
       return cssClass;
     }
@@ -548,13 +573,21 @@ public class SiteLayoutAssembler {
       case END -> endToken;
       case START -> null;
     };
-    boolean centered = hasToken(cssClass, Pattern.compile("(^| )" + Pattern.quote(centerToken) + "(?= |$)"));
-    boolean ended = hasToken(cssClass, Pattern.compile("(^| )" + Pattern.quote(endToken) + "(?= |$)"));
+    boolean centered = hasToken(cssClass, centerPattern);
+    boolean ended = hasToken(cssClass, endPattern);
     if ((token == null && !centered && !ended) || (centerToken.equals(token) && centered && !ended) || (endToken.equals(token) && ended && !centered)) {
       return cssClass;
     }
     String stripped = LayoutStylingService.strip(cssClass, axisTokens);
     return token == null ? stripped : LayoutStylingService.append(stripped, token);
+  }
+
+  private static Pattern token(String token) {
+    return Pattern.compile("(^| )" + Pattern.quote(token) + "(?= |$)");
+  }
+
+  private static Pattern tokens(String first, String second) {
+    return Pattern.compile("(^| )(" + Pattern.quote(first) + "|" + Pattern.quote(second) + ")(?= |$)");
   }
 
   /**
