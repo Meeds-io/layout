@@ -157,7 +157,7 @@ public class ApplicationDraftService {
                                                                                                         !createDraft,
                                                                                                         username))
                                                        .toList();
-    return new DraftWindows(pageKey, liveNodeId, draftPageKey, null, null, stored, windows, contexts);
+    return new DraftWindows(pageKey, liveNodeId, draftPageKey, null, null, null, stored, windows, contexts);
   }
 
   /**
@@ -182,16 +182,17 @@ public class ApplicationDraftService {
     ModelObject visible = layoutDescriptionService.filterAccessible(storedLayout, username);
     SiteDescription read = layoutDescriptionService.toSiteDescription(site, visible, null, null, false);
     List<Application> windows = resolveWindows(applicationIds, siteApplicationIds(read), siteContainerIds(read), stored.getPortalLayout());
+    String homePageReference = applicationSettingsService.getSiteHomePageReference(site.getSiteKey());
     List<ApplicationSettingsContext> contexts = windows.stream()
                                                        .map(w -> applicationSettingsService.newContext(w,
                                                                                                         null,
                                                                                                         stored.getSiteKey(),
                                                                                                         site.getSiteKey(),
-                                                                                                        null,
+                                                                                                        homePageReference,
                                                                                                         !createDraft,
                                                                                                         username))
                                                        .toList();
-    return new DraftWindows(null, null, null, site, draftSite, stored.getPortalLayout(), windows, contexts);
+    return new DraftWindows(null, null, null, site, draftSite, homePageReference, stored.getPortalLayout(), windows, contexts);
   }
 
   /**
@@ -247,6 +248,7 @@ public class ApplicationDraftService {
     } catch (RuntimeException e) {
       throw translateWriteFailure(e, site.getSiteKey(), username, SITE_LAYOUT_NOT_SAVED);
     }
+    String homePageReference = resolution.homePageReference();
     return onCreatedDraft(() -> toDraftContexts(resolution.windows(),
                                                 resolution.storedLayout(),
                                                 layoutService.getPortalConfig(site.getSiteKey()).getPortalLayout(),
@@ -255,7 +257,7 @@ public class ApplicationDraftService {
                                                                                            null,
                                                                                            draftSiteKey,
                                                                                            site.getSiteKey(),
-                                                                                           null,
+                                                                                           homePageReference,
                                                                                            true,
                                                                                            username)));
   }
