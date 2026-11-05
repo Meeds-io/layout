@@ -154,7 +154,7 @@
     {
       "name": "create_site",
       "title": "Create a site",
-      "description": "Create a portal site from a site template, as the sites administration does, for every user at once (not a draft). name is the site's identifier and URL segment (letters, digits, - and _; at most 200 characters) and can never change; label is the name users see, in the platform's default language. Options omitted take the administration's defaults: the basic template, not displayed in the sites menu, the fa-globe icon, and administrators as the only ones who can access and edit the site. Every value is checked before anything is written, and a refused one is answered naming the option. The banner takes a banner_upload_id obtained from upload_layout_image. Returns the site as stored after the creation, its site_id included, whatever the permissions written let the caller read afterwards.",
+      "description": "Create a portal site from a site template, as the sites administration does, for every user at once (not a draft). The kind of site is the user's choice, asked by the administration before anything else: ask the user whether they want an internal site, shown inside the platform with its topbar and navigation (template basic), or a standalone public site, with its own topbar suggesting to sign in or sign up (template public), or a template an administrator added, named by the user; never choose it for them, and do not create the site until they have answered. Whatever the template, the site created is an ordinary portal site, linked to no space: a space's own public site is created from the space's settings, not here. name is the site's identifier and URL segment (letters, digits, - and _; at most 200 characters) and can never change; label is the name users see, in the platform's default language. Options omitted take the administration's defaults: not displayed in the sites menu, the fa-globe icon, and administrators as the only ones who can access and edit the site. Every value is checked before anything is written, and a refused one is answered naming the option. The banner takes a banner_upload_id obtained from upload_layout_image. Returns the site as stored after the creation, its site_id included, whatever the permissions written let the caller read afterwards.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -172,7 +172,7 @@
           },
           "template": {
             "type": "string",
-            "description": "The layout name of the site template to create the site from, one of the enabled site templates: basic (default), public, spacePublic, or a template an administrator added"
+            "description": "The layout name of the site template the user chose, one of the enabled site templates: basic (an internal site, inside the platform), public (a standalone public site with its own topbar suggesting to sign in or sign up), spacePublic (the layout the administration suggests for a space's public site, which still creates an ordinary portal site here), or a template an administrator added; required, there is no default"
           },
           "banner_upload_id": {
             "type": "string",
@@ -198,7 +198,7 @@
             "description": "The icon shown in the sites menu, a Font Awesome class name such as fa-globe; omit for fa-globe"
           }
         },
-        "required": ["name", "label"]
+        "required": ["name", "label", "template"]
       },
       "annotations": {
         "readOnlyHint": false,
