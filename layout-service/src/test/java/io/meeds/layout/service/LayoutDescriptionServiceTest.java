@@ -83,6 +83,7 @@ import org.exoplatform.portal.pom.spi.portlet.Portlet;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
+import io.meeds.layout.mcp.constant.Alignment;
 import io.meeds.layout.mcp.constant.BackgroundMode;
 import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
@@ -1925,6 +1926,64 @@ public class LayoutDescriptionServiceTest {
     SiteColumnDescription both = new SiteColumnDescription(null, 200, true, List.of());
     assertEquals(SiteLayoutAssembler.COLUMN_FIT_CONTENT_NOT_ACCEPTED,
                  refused(() -> build(site, null, List.of(banner(null, null, null, both, column(null, null))), null)));
+  }
+
+  /**
+   * The site layout editor's "Align App" option writes its choice as tokens
+   * on the column, center or end per axis and none for start, which the
+   * shipped site templates set to center on both axes. The read answers
+   * them per axis, and the write sets exactly the editor's tokens, keeps the
+   * stored ones when the call says nothing, and leaves a new column at start.
+   * Mutants this pins: a read answering start for every column, a write
+   * ignoring the alignment, a write dropping the other axis or the column's
+   * other tokens, and a new column given the templates' center.
+   */
+  @Test
+  public void aColumnAlignmentIsReadFromTheEditorsTokensAndWrittenAsTheEditorDoes() throws Exception {
+    PortalConfig site = storedSite();
+    Container topBanner = findContainer(site.getPortalLayout(), LayoutDescriptionService.BANNER_TEMPLATE, 0);
+    Container centered = (Container) topBanner.getChildren().get(0);
+    Container plain = (Container) topBanner.getChildren().get(1);
+    centered.setCssClass("ms-5 application-align-v-center application-align-h-center");
+
+    SiteContainerDescription read = descriptionService.toSiteDescription(describedPortalSite(), site.getPortalLayout(), "Test", null, true)
+                                                      .topbars()
+                                                      .get(0);
+    assertEquals(Alignment.CENTER, read.columns().get(0).hAlign());
+    assertEquals(Alignment.CENTER, read.columns().get(0).vAlign());
+    assertEquals(Alignment.START, read.columns().get(1).hAlign());
+    assertEquals(Alignment.START, read.columns().get(1).vAlign());
+
+    SiteColumnDescription toEnd = new SiteColumnDescription(centered.getStorageId(), null, null, Alignment.END, null, List.of());
+    SiteColumnDescription untouched = column(plain.getStorageId(), null);
+    SiteColumnDescription added = new SiteColumnDescription(null, null, null, Alignment.CENTER, Alignment.END, List.of());
+    SiteColumnDescription left = new SiteColumnDescription(null, null, null, null, null, List.of());
+    List<LayoutModel> written = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, toEnd, untouched, added, left)), null)
+                                                                                                                                  .getChildren()
+                                                                                                                                  .get(1)
+                                                                                                                                  .getChildren()
+                                                                                                                                  .get(0)
+                                                                                                                                  .getChildren();
+    assertEquals("ms-5 application-align-v-center application-align-h-end", written.get(0).getCssClass());
+    assertNull(written.get(1).getCssClass());
+    assertEquals("application-align-h-center application-align-v-end", written.get(2).getCssClass());
+    assertNull(written.get(3).getCssClass());
+
+    SiteColumnDescription sentBack = read.columns().get(0);
+    LayoutModel roundTrip = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, sentBack, read.columns().get(1))), null)
+                                                                                                                         .getChildren()
+                                                                                                                         .get(1)
+                                                                                                                         .getChildren()
+                                                                                                                         .get(0);
+    assertEquals("ms-5 application-align-v-center application-align-h-center", roundTrip.getChildren().get(0).getCssClass());
+
+    SiteColumnDescription toStart = new SiteColumnDescription(centered.getStorageId(), null, null, Alignment.START, Alignment.START, List.of());
+    LayoutModel cleared = build(site, null, List.of(banner(topBanner.getStorageId(), null, null, toStart, untouched)), null)
+                                                                                                                 .getChildren()
+                                                                                                                 .get(1)
+                                                                                                                 .getChildren()
+                                                                                                                 .get(0);
+    assertEquals("ms-5", cleared.getChildren().get(0).getCssClass());
   }
 
   @Test
