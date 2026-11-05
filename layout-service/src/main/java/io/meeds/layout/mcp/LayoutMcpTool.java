@@ -236,8 +236,6 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   public static final String       BLANK_TEMPLATE_CATEGORY = "blank";
 
-  public static final String       DEFAULT_TEMPLATE      = "basic";
-
   public static final String       DEFAULT_ICON          = "fa-globe";
 
   public static final int          LABEL_MAX_LENGTH      = 200;
@@ -448,12 +446,14 @@ public class LayoutMcpTool implements McpToolPlugin {
   /**
    * Creates a portal site from a site template, as the sites administration
    * does: the name is the site's key and URL segment and never changes, the
-   * label is what users see. Omitted options take the administration's
-   * defaults: the basic template, not displayed in the sites menu, the
-   * fa-globe icon, administrators as access and edit permissions. Every
-   * value is checked before anything is written. Applies at once; not a
-   * draft. Returns the site as stored, which the permissions written may no
-   * longer let the caller read through get_site.
+   * label is what users see. The template is the user's choice and is
+   * required, as the sites administration asks it before anything else;
+   * none is taken by default. Omitted options take the administration's
+   * defaults: not displayed in the sites menu, the fa-globe icon,
+   * administrators as access and edit permissions. Every value is checked
+   * before anything is written. Applies at once; not a draft. Returns the
+   * site as stored, which the permissions written may no longer let the
+   * caller read through get_site.
    */
   public SiteDescription createSite(String name, // NOSONAR
                                     String label,
@@ -1654,10 +1654,14 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   /**
    * @return the id of the enabled site template whose layout has the given
-   *         name, the basic one when none is given
+   *         name; a blank name is refused, since the kind of site is the
+   *         user's choice and none stands in for it
    */
   private long resolveTemplateId(String template) {
-    String layout = StringUtils.defaultIfBlank(StringUtils.trim(template), DEFAULT_TEMPLATE);
+    String layout = StringUtils.trimToNull(template);
+    if (layout == null) {
+      throw new IllegalArgumentException(TEMPLATE_NOT_ACCEPTED);
+    }
     return siteTemplateService.getSiteTemplates(null)
                               .stream()
                               .filter(t -> !t.isDisabled() && StringUtils.equals(t.getLayout(), layout))
