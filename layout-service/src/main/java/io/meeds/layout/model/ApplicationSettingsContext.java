@@ -58,7 +58,9 @@ public class ApplicationSettingsContext {
 
   /**
    * The live page reference a CMS setting of the window hangs on, never a
-   * draft's; null in a site container
+   * draft's: the page holding a page window, the live site's home page for
+   * a site-container window, null while that site has no displayed, or
+   * scheduled and currently published, page
    */
   private String              pageReference;
 

@@ -1089,8 +1089,9 @@ public class LayoutDescriptionServiceTest {
     Container layout = storedSiteLayout();
     SiteKey draftSiteKey = SiteKey.draft("portal_test_draft_john");
     when(applicationSettingsService.isConfigurable("layout/Test", true)).thenReturn(true);
+    when(applicationSettingsService.getSiteHomePageReference(SITE_KEY)).thenReturn("portal::test::home");
     ApplicationSettingsContext context = new ApplicationSettingsContext();
-    when(applicationSettingsService.newContext(any(), isNull(), eq(draftSiteKey), eq(SITE_KEY), isNull(), eq(true), eq(USER)))
+    when(applicationSettingsService.newContext(any(), isNull(), eq(draftSiteKey), eq(SITE_KEY), eq("portal::test::home"), eq(true), eq(USER)))
                                                                                                                                  .thenReturn(context);
     when(applicationSettingsService.readSettings(context)).thenReturn(Map.of("max_apps_to_list", 6));
 
@@ -1100,8 +1101,15 @@ public class LayoutDescriptionServiceTest {
     assertTrue(topbarApplication.configurable());
     assertEquals(Map.of("max_apps_to_list", 6), topbarApplication.settings());
     ArgumentCaptor<Application> window = ArgumentCaptor.forClass(Application.class);
-    verify(applicationSettingsService, times(2)).newContext(window.capture(), isNull(), eq(draftSiteKey), eq(SITE_KEY), isNull(), eq(true), eq(USER));
+    verify(applicationSettingsService, times(2)).newContext(window.capture(),
+                                                            isNull(),
+                                                            eq(draftSiteKey),
+                                                            eq(SITE_KEY),
+                                                            eq("portal::test::home"),
+                                                            eq(true),
+                                                            eq(USER));
     assertEquals(List.of("1", "2"), window.getAllValues().stream().map(Application::getStorageId).sorted().toList());
+    verify(applicationSettingsService, times(1)).getSiteHomePageReference(SITE_KEY);
   }
 
   @Test

@@ -41,8 +41,12 @@ import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PersistentApplicationState;
 import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.SiteType;
+import org.exoplatform.portal.mop.Visibility;
+import org.exoplatform.portal.mop.navigation.NodeContext;
+import org.exoplatform.portal.mop.navigation.NodeState;
 import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.service.LayoutService;
+import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.portal.pom.spi.portlet.Portlet;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
@@ -110,6 +114,9 @@ public class ApplicationSettingsService {
   private LayoutService                                  layoutService;
 
   @Autowired
+  private NavigationService                              navigationService;
+
+  @Autowired
   private PageLayoutService                              pageLayoutService;
 
   @Autowired
@@ -166,7 +173,11 @@ public class ApplicationSettingsService {
    * @param  pageKey       the page holding it, null in a site container
    * @param  siteKey       the site holding it
    * @param  liveSiteKey   the live site, whose space the setting belongs to
-   * @param  pageReference the live page reference, null in a site container
+   * @param  pageReference the live page reference: the page's for a page
+   *                         window, the live site's home page for a
+   *                         site-container window, which the caller reads
+   *                         once per site ({@link #getSiteHomePageReference}),
+   *                         null while that site has none
    * @param  draft         whether the window is the user's draft
    * @param  username      the acting user
    * @return               the plugins' context of the window
@@ -188,6 +199,28 @@ public class ApplicationSettingsService {
                                           pageReference,
                                           getSpaceId(liveSiteKey),
                                           username);
+  }
+
+  /**
+   * The page a setting of a site-container window hangs on: the page of the
+   * first navigation item of the site, in tree order, that references a
+   * page and is displayed, or scheduled and within its publication window,
+   * whatever that page's own access permissions. Its editors may change the
+   * window's setting, and whoever may access that page may read the
+   * setting, so a first page restricted to a group keeps the setting from
+   * the site's other viewers, as a window the site layout editor placed
+   * takes the right of the page the site first rendered it on.
+   *
+   * @param  siteKey the live site
+   * @return         the page reference, null while no such item of the site
+   *                 references a page
+   */
+  public String getSiteHomePageReference(SiteKey siteKey) {
+    if (siteKey == null) {
+      return null;
+    }
+    PageKey pageKey = findHomePage(navigationService.loadNode(siteKey));
+    return pageKey == null ? null : pageKey.format();
   }
 
   /**
@@ -418,6 +451,45 @@ public class ApplicationSettingsService {
       current = container.getChildren().get(index);
     }
     return current instanceof Application application ? application : null;
+  }
+
+  /**
+   * @return the page of the first displayed, or scheduled and currently
+   *         published, item of the subtree, in tree order; a hidden, system
+   *         or draft item, and a scheduled one outside its publication
+   *         window, are passed over with their children, as the site's
+   *         menus pass over them
+   */
+  private PageKey findHomePage(NodeContext<NodeContext<Object>> node) {
+    if (node == null || StringUtils.contains(node.getName(), LayoutDraftService.DRAFT_NAME_MARKER)) {
+      return null;
+    }
+    NodeState state = node.getState();
+    if (!isListed(state)) {
+      return null;
+    }
+    if (state != null && state.getPageRef() != null) {
+      return state.getPageRef();
+    }
+    for (int i = 0; i < node.getNodeCount(); i++) {
+      PageKey pageKey = findHomePage(node.get(i));
+      if (pageKey != null) {
+        return pageKey;
+      }
+    }
+    return null;
+  }
+
+  private boolean isListed(NodeState state) {
+    Visibility visibility = state == null || state.getVisibility() == null ? Visibility.DISPLAYED : state.getVisibility();
+    if (visibility == Visibility.DISPLAYED) {
+      return true;
+    } else if (visibility != Visibility.TEMPORAL) {
+      return false;
+    }
+    long now = System.currentTimeMillis();
+    return (state.getStartPublicationTime() == -1 || now >= state.getStartPublicationTime())
+           && (state.getEndPublicationTime() == -1 || now <= state.getEndPublicationTime());
   }
 
   private Map<String, String> preferencesOf(Portlet portlet) {

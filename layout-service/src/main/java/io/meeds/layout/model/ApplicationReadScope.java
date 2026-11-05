@@ -34,6 +34,7 @@ public record ApplicationReadScope(Map<String, String> contentIds,
                                    PageKey pageKey,
                                    SiteKey siteKey,
                                    SiteKey liveSiteKey,
+                                   /** The live page's reference, the live site's home page for a site layout */
                                    String pageReference,
                                    boolean draft,
                                    String username) {
