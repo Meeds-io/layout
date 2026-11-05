@@ -828,6 +828,10 @@ public class SiteLayoutServiceTest {
     return container;
   }
 
+  /**
+   * @return a window as the layout REST builds it, its state id being its
+   *         storage id
+   */
   private static Application window(String storageId) {
     Application application = new Application(storageId);
     application.setState(new PersistentApplicationState(storageId));

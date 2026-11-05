@@ -546,6 +546,11 @@ public class PageLayoutServiceTest {
     assertDraftRefused(container("10", container("12", window("21"), container("13", window("22"), window("99")))));
   }
 
+  /**
+   * The state id is also another id than the storage id here:
+   * {@link #updatePageLayoutDraftRefusesWindowStateWithoutStorageId()} pins the
+   * state id check alone
+   */
   @Test
   public void updatePageLayoutDraftRefusesWindowStateNotHeldByPage() throws Exception {
     assertDraftRefused(container("10", container("11", window("20", "99"))));
@@ -556,6 +561,11 @@ public class PageLayoutServiceTest {
     assertDraftRefused(container("10", container("11", window(null, "99"))));
   }
 
+  /**
+   * The storage id is also another id than the state id here:
+   * {@link #updatePageLayoutDraftRefusesWindowNotHeldWithTransientState()} pins
+   * the storage id check alone
+   */
   @Test
   public void updatePageLayoutDraftRefusesWindowNotHeldWithHeldState() throws Exception {
     assertDraftRefused(container("10", container("11", window("99", "20"))));
@@ -712,6 +722,10 @@ public class PageLayoutServiceTest {
     return container;
   }
 
+  /**
+   * @return a window as the layout REST builds it, its state id being its
+   *         storage id
+   */
   private static Application window(String storageId) {
     return window(storageId, storageId);
   }
