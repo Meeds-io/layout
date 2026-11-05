@@ -784,11 +784,11 @@ public class SiteLayoutServiceTest {
     Container storedLayout = storedSite.getPortalLayout();
     PortalConfig submittedSite = submittedSite(submittedLayout);
 
-    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                                                      () -> siteLayoutService.updateSiteLayout(SITE_KEY,
-                                                                                               submittedSite,
-                                                                                               false,
-                                                                                               TEST_USER));
+    IllegalStateException exception = assertThrows(IllegalStateException.class,
+                                                   () -> siteLayoutService.updateSiteLayout(SITE_KEY,
+                                                                                            submittedSite,
+                                                                                            false,
+                                                                                            TEST_USER));
     assertEquals("layout.siteOutdatedError", exception.getMessage());
     assertSame(storedLayout, storedSite.getPortalLayout());
     verify(layoutService, never()).save(any(PortalConfig.class));

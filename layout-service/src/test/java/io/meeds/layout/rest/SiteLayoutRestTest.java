@@ -460,6 +460,21 @@ public class SiteLayoutRestTest {
 
   @Test
   @SneakyThrows
+  void updateSiteLayoutWhenOutdated() {
+    // an outdated site layout is a 400 carrying its message code, as on the page layout save, never a 500
+    doThrow(new IllegalStateException("layout.siteOutdatedError")).when(siteLayoutService)
+                                                                 .updateSiteLayout(eq(SITE_KEY),
+                                                                                   any(),
+                                                                                   anyBoolean(),
+                                                                                   eq(SIMPLE_USER));
+    ResultActions response = mockMvc.perform(put(LAYOUT_REST_PATH_WITH_PARAMS).content("{}")
+                                                                              .contentType(MediaType.APPLICATION_JSON)
+                                                                              .with(testSimpleUser()));
+    response.andExpect(status().isBadRequest()).andExpect(status().reason("layout.siteOutdatedError"));
+  }
+
+  @Test
+  @SneakyThrows
   void updateSiteLayoutWhenIllegalAccess() {
     doThrow(IllegalAccessException.class).when(siteLayoutService)
                                          .updateSiteLayout(eq(SITE_KEY), any(), anyBoolean(), eq(SIMPLE_USER));

@@ -677,11 +677,11 @@ public class PageLayoutServiceTest {
     ArrayList<ModelObject> storedChildren = storedPage.getChildren();
     Page submittedPage = submittedPage(submittedChildren);
 
-    IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
-                                                      () -> pageLayoutService.updatePageLayout(PAGE_KEY.format(),
-                                                                                               submittedPage,
-                                                                                               false,
-                                                                                               TEST_USER));
+    IllegalStateException exception = assertThrows(IllegalStateException.class,
+                                                   () -> pageLayoutService.updatePageLayout(PAGE_KEY.format(),
+                                                                                            submittedPage,
+                                                                                            false,
+                                                                                            TEST_USER));
     assertEquals("layout.pageOutdatedError", exception.getMessage());
     assertSame(storedChildren, storedPage.getChildren());
     verify(layoutService, never()).save(any(Page.class));

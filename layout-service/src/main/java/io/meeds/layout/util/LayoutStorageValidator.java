@@ -60,9 +60,10 @@ public final class LayoutStorageValidator {
    *          elements ignored
    * @param submittedElements the root elements of the layout to save, null
    *          elements ignored
-   * @param errorCode the message code of the refusal
-   * @throws IllegalArgumentException when a submitted id is not held by the
-   *           stored layout
+   * @param errorCode the message code of the refusal, the one the save raises
+   *          for an outdated layout
+   * @throws IllegalStateException when a submitted id is not held by the
+   *           stored layout: the submitted layout was not built from it
    */
   public static void validateHeldStorageIds(Collection<? extends ModelObject> storedElements,
                                             Collection<? extends ModelObject> submittedElements,
@@ -103,12 +104,12 @@ public final class LayoutStorageValidator {
       if ((applicationId > 0 && !windowIds.contains(applicationId))
           || (stateId > 0 && !windowIds.contains(stateId))
           || (applicationId > 0 && stateId > 0 && applicationId != stateId)) {
-        throw new IllegalArgumentException(errorCode);
+        throw new IllegalStateException(errorCode);
       }
     } else {
       long containerId = toId(element.getStorageId());
       if (containerId > 0 && !containerIds.contains(containerId)) {
-        throw new IllegalArgumentException(errorCode);
+        throw new IllegalStateException(errorCode);
       }
       if (element instanceof Container container && container.getChildren() != null) {
         container.getChildren().forEach(child -> checkHeldIds(child, windowIds, containerIds, errorCode));
