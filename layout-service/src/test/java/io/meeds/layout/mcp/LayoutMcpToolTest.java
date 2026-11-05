@@ -456,7 +456,7 @@ public class LayoutMcpToolTest {
     when(siteLayoutService.createSite(model.capture(), eq(USER))).thenReturn(created);
     SiteDescription expected = describedSite(created);
 
-    assertEquals(expected, asUser(() -> tool.createSite(" marketing ", " Marketing ", null, null, null, null, null, null, null)));
+    assertEquals(expected, asUser(() -> tool.createSite(" marketing ", " Marketing ", null, "basic", null, null, null, null, null)));
     assertEquals(7L, model.getValue().getSiteId());
     PortalConfig config = model.getValue().getPortalConfig();
     assertEquals(PortalConfig.PORTAL_TYPE, config.getType());
@@ -510,7 +510,7 @@ public class LayoutMcpToolTest {
     when(aclService.canAddSite(USER)).thenReturn(false);
 
     assertEquals(LayoutMcpTool.CREATE_SITE_NOT_ALLOWED,
-                 refusal(IllegalAccessException.class, () -> tool.createSite("marketing", "Marketing", null, null, "u1", null, null, null, null)));
+                 refusal(IllegalAccessException.class, () -> tool.createSite("marketing", "Marketing", null, "basic", "u1", null, null, null, null)));
     verifyNoInteractions(siteTemplateService, organizationService, uploadService);
     verify(siteLayoutService, never()).createSite(any(), any());
   }
@@ -522,27 +522,48 @@ public class LayoutMcpToolTest {
     permissions();
 
     for (String name : new String[] { "bad name", "", "  ", null, "a".repeat(201), "mark/eting" }) {
-      assertEquals(LayoutMcpTool.NAME_NOT_ACCEPTED, refusal(() -> tool.createSite(name, "Marketing", null, null, null, null, null, null, null)), name);
+      assertEquals(LayoutMcpTool.NAME_NOT_ACCEPTED, refusal(() -> tool.createSite(name, "Marketing", null, "basic", null, null, null, null, null)), name);
     }
     for (String label : new String[] { " ", "", null, "a".repeat(201) }) {
-      assertEquals(LayoutMcpTool.LABEL_NOT_ACCEPTED, refusal(() -> tool.createSite("marketing", label, null, null, null, null, null, null, null)), label);
+      assertEquals(LayoutMcpTool.LABEL_NOT_ACCEPTED, refusal(() -> tool.createSite("marketing", label, null, "basic", null, null, null, null, null)), label);
     }
     assertEquals(LayoutMcpTool.DESCRIPTION_NOT_ACCEPTED,
-                 refusal(() -> tool.createSite("marketing", "Marketing", "a".repeat(2001), null, null, null, null, null, null)));
-    for (String template : new String[] { "public", "nope" }) {
+                 refusal(() -> tool.createSite("marketing", "Marketing", "a".repeat(2001), "basic", null, null, null, null, null)));
+    for (String template : new String[] { "public", "nope", null, "", " " }) {
       assertEquals(LayoutMcpTool.TEMPLATE_NOT_ACCEPTED, refusal(() -> tool.createSite("marketing", "Marketing", null, template, null, null, null, null, null)), template);
     }
     for (String icon : new String[] { "fa-globe; color: red", "Fa-Globe", " ", "" }) {
-      assertEquals(LayoutMcpTool.ICON_NOT_ACCEPTED, refusal(() -> tool.createSite("marketing", "Marketing", null, null, null, null, null, null, icon)), icon);
+      assertEquals(LayoutMcpTool.ICON_NOT_ACCEPTED, refusal(() -> tool.createSite("marketing", "Marketing", null, "basic", null, null, null, null, icon)), icon);
     }
     for (List<String> access : List.<List<String>> of(List.of(), List.of("nope"), List.of("*:/nope"), List.of("admin:/platform/users"), List.of("/platform/users"), List.of("Everyone", "*"))) {
-      assertEquals(LayoutMcpTool.ACCESS_PERMISSIONS_NOT_ACCEPTED, refusal(() -> tool.createSite("marketing", "Marketing", null, null, null, access, null, null, null)), access.toString());
+      assertEquals(LayoutMcpTool.ACCESS_PERMISSIONS_NOT_ACCEPTED, refusal(() -> tool.createSite("marketing", "Marketing", null, "basic", null, access, null, null, null)), access.toString());
     }
     for (String edit : new String[] { "Everyone", "*:/nope", "admin:/platform/users", "users" }) {
-      assertEquals(LayoutMcpTool.EDIT_PERMISSION_NOT_ACCEPTED, refusal(() -> tool.createSite("marketing", "Marketing", null, null, null, null, edit, null, null)), edit);
+      assertEquals(LayoutMcpTool.EDIT_PERMISSION_NOT_ACCEPTED, refusal(() -> tool.createSite("marketing", "Marketing", null, "basic", null, null, edit, null, null)), edit);
     }
     verify(siteLayoutService, never()).createSite(any(), any());
     verifyNoInteractions(uploadService);
+  }
+
+  /**
+   * The kind of site is the user's choice: as the sites administration asks
+   * for the template before anything else, a missing one is refused rather
+   * than taken as the basic, internal, template
+   */
+  @Test
+  public void createSiteRefusesAMissingTemplateInsteadOfTakingTheBasicOne() throws Exception {
+    when(aclService.canAddSite(USER)).thenReturn(true);
+    templates(template(7L, "basic", false));
+    PortalConfig created = site("portal", "marketing", "Marketing");
+    lenient().when(siteLayoutService.createSite(any(), eq(USER))).thenReturn(created);
+    describedSite(created);
+
+    for (String template : new String[] { null, "", " " }) {
+      assertEquals(LayoutMcpTool.TEMPLATE_NOT_ACCEPTED,
+                   refusal(() -> tool.createSite("marketing", "Marketing", null, template, null, null, null, null, null)),
+                   String.valueOf(template));
+    }
+    verify(siteLayoutService, never()).createSite(any(), any());
   }
 
   @Test
@@ -554,7 +575,7 @@ public class LayoutMcpToolTest {
     when(siteLayoutService.createSite(model.capture(), eq(USER))).thenReturn(created);
     describedSite(created);
 
-    asUser(() -> tool.createSite("marketing", "l".repeat(200), "d".repeat(2000), null, null, null, null, null, null));
+    asUser(() -> tool.createSite("marketing", "l".repeat(200), "d".repeat(2000), "basic", null, null, null, null, null));
     assertEquals("l".repeat(200), model.getValue().getPortalConfig().getLabel());
     assertEquals("d".repeat(2000), model.getValue().getPortalConfig().getDescription());
   }
@@ -574,7 +595,7 @@ public class LayoutMcpToolTest {
     when(siteLayoutService.getSite(anyLong(), eq(USER))).thenThrow(new IllegalAccessException("not viewable any more"));
     doThrow(new IllegalAccessException("not viewable any more")).when(siteLayoutService).getSiteLabels(SITE_ID, USER);
 
-    assertEquals(createdDescription, asUser(() -> tool.createSite("marketing", "Marketing", null, null, null, null, null, null, null)));
+    assertEquals(createdDescription, asUser(() -> tool.createSite("marketing", "Marketing", null, "basic", null, null, null, null, null)));
 
     PortalConfig site = site("portal", "test", "Test");
     doReturn(site).doThrow(new IllegalAccessException("not viewable any more")).when(siteLayoutService).getSite(SITE_ID, USER);
@@ -613,30 +634,30 @@ public class LayoutMcpToolTest {
     upload("u1");
 
     assertEquals(LayoutMcpTool.UPLOAD_NOT_FOUND,
-                 refusal(ObjectNotFoundException.class, () -> tool.createSite("marketing", "Marketing", null, null, "u0", null, null, null, null)));
+                 refusal(ObjectNotFoundException.class, () -> tool.createSite("marketing", "Marketing", null, "basic", "u0", null, null, null, null)));
     verify(siteLayoutService, never()).createSite(any(), any());
     verify(uploadService, never()).removeUploadResource(any());
 
     when(siteLayoutService.createSite(any(), eq(USER))).thenThrow(new IllegalAccessException("internal detail"));
     assertEquals(LayoutMcpTool.CREATE_SITE_NOT_ALLOWED,
-                 refusal(IllegalAccessException.class, () -> tool.createSite("marketing", "Marketing", null, null, "u1", null, null, null, null)));
+                 refusal(IllegalAccessException.class, () -> tool.createSite("marketing", "Marketing", null, "basic", "u1", null, null, null, null)));
     verify(uploadService, times(1)).removeUploadResource("u1");
 
     when(siteLayoutService.createSite(any(), eq(USER))).thenThrow(new ObjectAlreadyExistsException("internal detail"));
     assertEquals(LayoutMcpTool.SITE_ALREADY_EXISTS,
-                 refusal(() -> tool.createSite("marketing", "Marketing", null, null, "u1", null, null, null, null)));
+                 refusal(() -> tool.createSite("marketing", "Marketing", null, "basic", "u1", null, null, null, null)));
     verify(uploadService, times(2)).removeUploadResource("u1");
 
     when(siteLayoutService.createSite(any(), eq(USER))).thenAnswer(i -> {
       throw new ObjectNotFoundException("Site with id 7 doesn't exist");
     });
     assertEquals(LayoutMcpTool.TEMPLATE_NOT_ACCEPTED,
-                 refusal(() -> tool.createSite("marketing", "Marketing", null, null, "u1", null, null, null, null)));
+                 refusal(() -> tool.createSite("marketing", "Marketing", null, "basic", "u1", null, null, null, null)));
     verify(uploadService, times(3)).removeUploadResource("u1");
 
     when(siteLayoutService.createSite(any(), eq(USER))).thenThrow(new IllegalStateException("Error while saving site image file"));
     assertEquals(LayoutMcpTool.SITE_NOT_SAVED,
-                 refusal(IllegalStateException.class, () -> tool.createSite("marketing", "Marketing", null, null, "u1", null, null, null, null)));
+                 refusal(IllegalStateException.class, () -> tool.createSite("marketing", "Marketing", null, "basic", "u1", null, null, null, null)));
     verify(uploadService, times(4)).removeUploadResource("u1");
   }
 
@@ -2118,7 +2139,7 @@ public class LayoutMcpToolTest {
     when(layoutImageService.isConsumable("marys", USER)).thenReturn(false);
 
     assertEquals(LayoutMcpTool.UPLOAD_NOT_FOUND,
-                 refusal(ObjectNotFoundException.class, () -> tool.createSite("marketing", "Marketing", null, null, "marys", null, null, null, null)));
+                 refusal(ObjectNotFoundException.class, () -> tool.createSite("marketing", "Marketing", null, "basic", "marys", null, null, null, null)));
 
     verify(layoutImageService).isConsumable("marys", USER);
     verifyNoInteractions(siteLayoutService);
