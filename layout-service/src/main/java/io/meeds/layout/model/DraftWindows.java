@@ -38,6 +38,8 @@ import org.exoplatform.portal.mop.page.PageKey;
  * @param liveSite the live site, null for a page
  * @param draftSite the user's draft site, null when none exists or for a
  *          page
+ * @param homePageReference the live site's home page a site-container
+ *          setting hangs on, read once for the site; null for a page
  * @param storedLayout the stored tree the windows were resolved in, the
  *          draft's when one exists, the live layout otherwise
  * @param windows the stored windows, in the order of the ids
@@ -48,6 +50,7 @@ public record DraftWindows(PageKey livePageKey,
                            PageKey draftPageKey,
                            PortalConfig liveSite,
                            PortalConfig draftSite,
+                           String homePageReference,
                            ModelObject storedLayout,
                            List<Application> windows,
                            List<ApplicationSettingsContext> contexts) {

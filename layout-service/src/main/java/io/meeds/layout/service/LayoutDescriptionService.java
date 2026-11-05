@@ -315,7 +315,8 @@ public class LayoutDescriptionService {
                                                           null,
                                                           layoutSiteKey,
                                                           site.getSiteKey(),
-                                                          null,
+                                                          layoutSiteKey == null ? null
+                                                                                : applicationSettingsService.getSiteHomePageReference(site.getSiteKey()),
                                                           draft,
                                                           layoutSiteKey == null ? null : username);
     LayoutModel root = layout == null ? new LayoutModel() : new LayoutModel(layout);
@@ -1120,8 +1121,7 @@ public class LayoutDescriptionService {
                                                                                              siteContainer ? null : scope.pageKey(),
                                                                                              scope.siteKey(),
                                                                                              scope.liveSiteKey(),
-                                                                                             siteContainer ? null
-                                                                                                           : scope.pageReference(),
+                                                                                             scope.pageReference(),
                                                                                              scope.draft(),
                                                                                              scope.username()));
     return code == null ? null : new WidgetCodeDescription(code.html(), code.css(), code.js());
@@ -1279,8 +1279,7 @@ public class LayoutDescriptionService {
                                                                                          siteContainer ? null : scope.pageKey(),
                                                                                          scope.siteKey(),
                                                                                          scope.liveSiteKey(),
-                                                                                         siteContainer ? null
-                                                                                                       : scope.pageReference(),
+                                                                                         scope.pageReference(),
                                                                                          scope.draft(),
                                                                                          scope.username()));
   }
