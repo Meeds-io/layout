@@ -21,9 +21,11 @@ package io.meeds.layout.plugin.upgrade;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -156,6 +158,29 @@ class PageContainerBackgroundUpgradePluginTest {
 
     verify(plugin).upgradePage(LOGIN_PAGE_KEY);
     verify(plugin).upgradePage(REGISTER_PAGE_KEY);
+  }
+
+  @Test
+  void upgradesTheOtherPagesAndThrowsWhenAPageFails() {
+    PageContainerBackgroundUpgradePlugin plugin = spy(newPlugin("global", "#FFFFFF", "login", "register"));
+    doThrow(new IllegalStateException("save failed")).when(plugin).upgradePage(LOGIN_PAGE_KEY);
+    doReturn(true).when(plugin).upgradePage(REGISTER_PAGE_KEY);
+
+    IllegalStateException exception = assertThrows(IllegalStateException.class, () -> plugin.processUpgrade(null, null));
+
+    verify(plugin).upgradePage(REGISTER_PAGE_KEY);
+    assertTrue(exception.getMessage().contains(LOGIN_PAGE_KEY.format()));
+    assertFalse(exception.getMessage().contains(REGISTER_PAGE_KEY.format()));
+  }
+
+  @Test
+  void letsAPageSaveFailurePropagate() {
+    PageContainerBackgroundUpgradePlugin plugin = newPlugin("global", "#FFFFFF", "login");
+    Page page = page(containerWithBackground("#FFFFFF"));
+    when(layoutService.getPage(LOGIN_PAGE_KEY)).thenReturn(page);
+    doThrow(new IllegalStateException("save failed")).when(layoutService).save(page);
+
+    assertThrows(IllegalStateException.class, () -> plugin.removeContainerBackground(LOGIN_PAGE_KEY));
   }
 
   @Test

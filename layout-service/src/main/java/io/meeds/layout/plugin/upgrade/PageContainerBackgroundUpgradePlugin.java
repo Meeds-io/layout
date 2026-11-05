@@ -18,6 +18,7 @@
  */
 package io.meeds.layout.plugin.upgrade;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -107,14 +108,29 @@ public class PageContainerBackgroundUpgradePlugin extends UpgradeProductPlugin {
              siteType,
              siteName);
     int upgradedPages = 0;
+    List<String> failedPages = new ArrayList<>();
     for (String pageName : pageNames) {
-      if (upgradePage(new PageKey(siteType, siteName, StringUtils.trim(pageName)))) {
-        upgradedPages++;
+      PageKey pageKey = new PageKey(siteType, siteName, StringUtils.trim(pageName));
+      try {
+        if (upgradePage(pageKey)) {
+          upgradedPages++;
+        }
+      } catch (RuntimeException e) {
+        LOG.warn("| -- Page {}: container background color not removed, the upgrade will run again at next startup",
+                 pageKey.format(),
+                 e);
+        failedPages.add(pageKey.format());
       }
     }
-    LOG.info("End:: Removed page container background color from {} pages in {} ms",
+    LOG.info("End:: Removed page container background color from {} pages, {} failed, in {} ms",
              upgradedPages,
+             failedPages.size(),
              System.currentTimeMillis() - start);
+    if (!failedPages.isEmpty()) {
+      // Thrown so that the upgrade is not recorded as done and runs again at
+      // next startup; the pages already saved find no color to remove then
+      throw new IllegalStateException("Page container background color not removed from pages " + failedPages);
+    }
   }
 
   /**
