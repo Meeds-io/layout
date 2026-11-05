@@ -34,6 +34,7 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.withSettings;
@@ -64,8 +65,12 @@ import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.PersistentApplicationState;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.Visibility;
+import org.exoplatform.portal.mop.navigation.NodeContext;
+import org.exoplatform.portal.mop.navigation.NodeState;
 import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.service.LayoutService;
+import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.portal.pom.spi.portlet.Portlet;
 import org.exoplatform.social.core.space.model.Space;
 import org.exoplatform.social.core.space.spi.SpaceService;
@@ -88,6 +93,9 @@ public class ApplicationSettingsServiceTest {
 
   @MockitoBean
   private LayoutService              layoutService;
+
+  @MockitoBean
+  private NavigationService          navigationService;
 
   @MockitoBean
   private PageLayoutService          pageLayoutService;
@@ -469,6 +477,60 @@ public class ApplicationSettingsServiceTest {
     assertEquals(0L, service.newContext(window, null, SITE_KEY, SITE_KEY, null, false, USER).getSpaceId());
   }
 
+  /**
+   * A site-container window's setting hangs on the site's home page: the
+   * first displayed or scheduled navigation item, in tree order, that
+   * references a page; a hidden or system item with its children, a draft
+   * item, a scheduled item outside its publication window and a group
+   * without a page are passed over. The context carries the reference its
+   * caller read, a page's or a site's alike
+   */
+  @Test
+  @SneakyThrows
+  public void aSiteContainerContextHangsOnTheSiteHomePage() {
+    Application window = new Application("120");
+    when(layoutService.getId(window.getState())).thenReturn("content/Links");
+    NodeContext<NodeContext<Object>> root = node("default", null, Visibility.DISPLAYED);
+    NodeContext<NodeContext<Object>> folder = node("folder", null, Visibility.DISPLAYED);
+    long now = System.currentTimeMillis();
+    nodes(folder,
+          node("hidden", PageKey.parse("portal::test::secret"), Visibility.HIDDEN),
+          node("home_draft_john", PageKey.parse("portal::test::home_draft_john"), Visibility.DISPLAYED),
+          scheduled("past", PageKey.parse("portal::test::past"), now - 2000, now - 1000),
+          scheduled("future", PageKey.parse("portal::test::future"), now + 1000, -1),
+          scheduled("scheduled", PageKey.parse("portal::test::event"), now - 1000, now + 100000));
+    NodeContext<NodeContext<Object>> hiddenGroup = node("hiddenGroup", null, Visibility.HIDDEN);
+    nodes(hiddenGroup, node("unlisted", PageKey.parse("portal::test::unlisted"), Visibility.DISPLAYED));
+    nodes(root, node("system", PageKey.parse("portal::test::admin"), Visibility.SYSTEM), hiddenGroup, folder,
+          node("news", PageKey.parse("portal::test::news"), Visibility.DISPLAYED));
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+
+    String homePage = service.getSiteHomePageReference(SITE_KEY);
+    ApplicationSettingsContext context = service.newContext(window, null, SiteKey.draft("portal_test_draft_john"), SITE_KEY, homePage, true, USER);
+
+    assertEquals("portal::test::event", homePage);
+    assertTrue(context.isSiteContainer());
+    assertNull(context.getPageKey());
+    assertEquals(SiteKey.draft("portal_test_draft_john"), context.getSiteKey());
+    assertEquals("portal::test::event", context.getPageReference());
+    assertNull(service.newContext(window, null, SITE_KEY, SITE_KEY, null, false, USER).getPageReference());
+    assertEquals(DRAFT_PAGE.format(),
+                 service.newContext(window, DRAFT_PAGE, SITE_KEY, SITE_KEY, DRAFT_PAGE.format(), true, USER).getPageReference());
+    verify(navigationService, times(1)).loadNode(SITE_KEY);
+  }
+
+  @Test
+  public void aSiteHasNoHomePageWhileNoListedItemReferencesAPage() {
+    NodeContext<NodeContext<Object>> root = node("default", null, Visibility.DISPLAYED);
+    nodes(root, node("hidden", PageKey.parse("portal::test::secret"), Visibility.HIDDEN), node("group", null, Visibility.DISPLAYED));
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(root);
+
+    assertNull(service.getSiteHomePageReference(SITE_KEY));
+    when(navigationService.loadNode(SITE_KEY)).thenReturn(null);
+    assertNull(service.getSiteHomePageReference(SITE_KEY));
+    assertNull(service.getSiteHomePageReference(null));
+  }
+
   @Test
   @SneakyThrows
   public void settingsAreReadThroughThePluginAndAFailedReadAnswersNone() {
@@ -482,6 +544,34 @@ public class ApplicationSettingsServiceTest {
     assertNull(service.readSettings(window));
     assertNull(service.readSettings(context(30, "content/Links", true)));
     assertNull(service.readSettings(context(21, "content/Image", false)));
+  }
+
+  @SuppressWarnings("unchecked")
+  private NodeContext<NodeContext<Object>> node(String name, PageKey pageRef, Visibility visibility) {
+    NodeContext<NodeContext<Object>> node = mock(NodeContext.class);
+    lenient().when(node.getName()).thenReturn(name);
+    lenient().when(node.getState()).thenReturn(new NodeState.Builder().pageRef(pageRef).visibility(visibility).build());
+    lenient().when(node.getNodeCount()).thenReturn(0);
+    return node;
+  }
+
+  private NodeContext<NodeContext<Object>> scheduled(String name, PageKey pageRef, long start, long end) {
+    NodeContext<NodeContext<Object>> node = node(name, pageRef, Visibility.TEMPORAL);
+    lenient().when(node.getState())
+             .thenReturn(new NodeState.Builder().pageRef(pageRef)
+                                                .visibility(Visibility.TEMPORAL)
+                                                .startPublicationTime(start)
+                                                .endPublicationTime(end)
+                                                .build());
+    return node;
+  }
+
+  @SafeVarargs
+  private void nodes(NodeContext<NodeContext<Object>> parent, NodeContext<NodeContext<Object>>... children) {
+    lenient().when(parent.getNodeCount()).thenReturn(children.length);
+    for (int i = 0; i < children.length; i++) {
+      lenient().when(parent.get(i)).thenReturn(children[i]);
+    }
   }
 
   private ApplicationSettingsPlugin plugin(String portletName, boolean siteContainers) {

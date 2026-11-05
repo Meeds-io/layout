@@ -29,6 +29,7 @@ import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -301,7 +302,8 @@ public class ApplicationDraftServiceTest {
     SiteDescription siteRead = siteRead("20", "top");
     when(descriptionService.toSiteDescription(site, draftLayout, null, null, false)).thenReturn(siteRead);
     ApplicationSettingsContext context = new ApplicationSettingsContext();
-    when(settingsService.newContext(window, null, DRAFT_SITE_KEY, SITE_KEY, null, true, USER)).thenReturn(context);
+    when(settingsService.getSiteHomePageReference(SITE_KEY)).thenReturn(PAGE_REF);
+    when(settingsService.newContext(window, null, DRAFT_SITE_KEY, SITE_KEY, PAGE_REF, true, USER)).thenReturn(context);
 
     DraftWindows resolved = service.resolveSite(SITE_ID, List.of("20"), USER);
 
@@ -310,6 +312,8 @@ public class ApplicationDraftServiceTest {
     assertSame(site, resolved.liveSite());
     assertSame(draftSite, resolved.draftSite());
     assertEquals(List.of(context), resolved.contexts());
+    assertEquals(PAGE_REF, resolved.homePageReference());
+    verify(settingsService, times(1)).getSiteHomePageReference(SITE_KEY);
     assertEquals(ApplicationDraftService.APPLICATION_ID_NOT_ACCEPTED,
                  assertThrows(IllegalArgumentException.class, () -> service.resolveSite(SITE_ID, List.of("top"), USER)).getMessage());
     assertEquals(ApplicationDraftService.APPLICATION_ID_NOT_ACCEPTED,
@@ -344,6 +348,7 @@ public class ApplicationDraftServiceTest {
     when(descriptionService.filterAccessible(liveLayout, USER)).thenReturn(liveLayout);
     SiteDescription siteRead = siteRead("20", "top");
     when(descriptionService.toSiteDescription(site, liveLayout, null, null, false)).thenReturn(siteRead);
+    when(settingsService.getSiteHomePageReference(SITE_KEY)).thenReturn(PAGE_REF);
     DraftWindows resolved = service.resolveSite(SITE_ID, List.of("20"), USER);
     assertTrue(resolved.createDraft());
 
@@ -353,9 +358,10 @@ public class ApplicationDraftServiceTest {
     SiteLayout draftLayout = (SiteLayout) draftSite.getPortalLayout();
     when(settingsService.atPath(draftLayout, List.of(0, 0))).thenReturn(draftWindow);
     ApplicationSettingsContext context = new ApplicationSettingsContext();
-    when(settingsService.newContext(draftWindow, null, DRAFT_SITE_KEY, SITE_KEY, null, true, USER)).thenReturn(context);
+    when(settingsService.newContext(draftWindow, null, DRAFT_SITE_KEY, SITE_KEY, PAGE_REF, true, USER)).thenReturn(context);
 
     assertEquals(List.of(context), service.createDraft(resolved, USER));
+    verify(settingsService, times(1)).getSiteHomePageReference(SITE_KEY);
 
     doThrow(new IllegalStateException("engine text")).when(draftService).createDraftSite(site, USER);
     assertEquals(ApplicationDraftService.SITE_LAYOUT_NOT_SAVED,
