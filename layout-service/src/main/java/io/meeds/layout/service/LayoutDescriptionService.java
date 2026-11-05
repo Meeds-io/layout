@@ -60,6 +60,7 @@ import org.exoplatform.portal.mop.page.PageState;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
 
+import io.meeds.layout.mcp.constant.Alignment;
 import io.meeds.layout.mcp.constant.BackgroundMode;
 import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
@@ -142,6 +143,14 @@ public class LayoutDescriptionService {
   public static final String     HIDE_DESKTOP_TOKEN          = "hidden-md-and-up";
 
   public static final String     STICKY_SECTION_TOKEN        = "layout-sticky-section";
+
+  public static final String     H_ALIGN_CENTER_TOKEN        = "application-align-h-center";
+
+  public static final String     H_ALIGN_END_TOKEN           = "application-align-h-end";
+
+  public static final String     V_ALIGN_CENTER_TOKEN        = "application-align-v-center";
+
+  public static final String     V_ALIGN_END_TOKEN           = "application-align-v-end";
 
   public static final String     GRID_COLUMNS_PREFIX         = "grid-cols";
 
@@ -1016,7 +1025,9 @@ public class LayoutDescriptionService {
 
   /**
    * A topbar or a bottom bar is read as the editor shows it: its columns in
-   * order, each with its width and its applications
+   * order, each with its width, the alignment of its application on each
+   * axis, from the tokens the editor's "Align App" option writes on the
+   * column, start when it holds none, and its applications
    */
   private SiteContainerDescription toBanner(LayoutModel banner, ApplicationReadScope scope) {
     List<SiteColumnDescription> columns = children(banner).stream()
@@ -1025,6 +1036,8 @@ public class LayoutDescriptionService {
                                                                                                  parsePixels(cell.getWidth()),
                                                                                                  SiteLayoutAssembler.FIT_CONTENT.equals(cell.getWidth()) ? Boolean.TRUE
                                                                                                                                                           : null,
+                                                                                                 toAlignment(cell.getCssClass(), H_ALIGN_CENTER_TOKEN, H_ALIGN_END_TOKEN),
+                                                                                                 toAlignment(cell.getCssClass(), V_ALIGN_CENTER_TOKEN, V_ALIGN_END_TOKEN),
                                                                                                  toApplications(cell,
                                                                                                                 scope,
                                                                                                                 StylingDestination.SITE_CONTAINER_APPLICATION)))
@@ -1709,6 +1722,16 @@ public class LayoutDescriptionService {
       return Integer.valueOf(digits);
     } catch (NumberFormatException e) {
       return null;
+    }
+  }
+
+  private Alignment toAlignment(String cssClass, String centerToken, String endToken) {
+    if (hasToken(cssClass, endToken)) {
+      return Alignment.END;
+    } else if (hasToken(cssClass, centerToken)) {
+      return Alignment.CENTER;
+    } else {
+      return Alignment.START;
     }
   }
 
