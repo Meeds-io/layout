@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.util.JsonHelper;
 
+import io.meeds.layout.mcp.constant.Alignment;
 import io.meeds.layout.mcp.constant.BackgroundMode;
 import io.meeds.layout.mcp.constant.DisplayMode;
 import io.meeds.layout.mcp.constant.HeightPreset;
@@ -121,7 +122,7 @@ public class LayoutMcpToolDefinitionsTest {
                                                       "text": {"enabled": true, "title": {"color": "#333333", "size": 18, "bold": true}}}}]},
        "right_sidebar": {"options": {"width": 300}},
        "topbars": [{"options": {"height": 60, "sticky": true},
-                    "columns": [{"column_id": "14", "width": 200, "applications": [{"content_id": "social/Menu"}]}, {"fit_content": true, "applications": []}]}],
+                    "columns": [{"column_id": "14", "width": 200, "h_align": "end", "v_align": "center", "applications": [{"content_id": "social/Menu"}]}, {"fit_content": true, "applications": []}]}],
        "bottom_bars": []}
       """;
 
@@ -288,6 +289,10 @@ public class LayoutMcpToolDefinitionsTest {
     assertNull(typed.get(0).columns().get(1).width());
     assertEquals(Boolean.TRUE, typed.get(0).columns().get(1).fitContent());
     assertNull(typed.get(0).columns().get(0).fitContent());
+    assertEquals(Alignment.END, typed.get(0).columns().get(0).hAlign());
+    assertEquals(Alignment.CENTER, typed.get(0).columns().get(0).vAlign());
+    assertNull(typed.get(0).columns().get(1).hAlign());
+    assertNull(typed.get(0).columns().get(1).vAlign());
     assertTrue(typed.get(0).columns().get(1).applications().isEmpty());
 
     SiteContainerDescription left = (SiteContainerDescription) JSON_HELPER.convertToTypedObject(arguments.get("left_sidebar"),

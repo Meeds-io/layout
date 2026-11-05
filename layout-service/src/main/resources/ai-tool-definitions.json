@@ -24,7 +24,7 @@
     {
       "name": "get_site",
       "title": "Get a site and its layout",
-      "description": "Read a site's properties (label, description, banner, access and edit permissions) and its layout: left_sidebar, right_sidebar, topbars and bottom_bars, each with its container_id, options (height or width, sticky, display) and styling; a sidebar lists the applications it holds, a topbar or a bottom bar its columns, left to right, each with its column_id, its width in pixels when it has one, fit_content when it takes the width of its application, and the applications it holds, each application with its application_id. Returns the user's site draft by default when they have one (draft: true), the published layout otherwise; version selects one explicitly.",
+      "description": "Read a site's properties (label, description, banner, access and edit permissions) and its layout: left_sidebar, right_sidebar, topbars and bottom_bars, each with its container_id, options (height or width, sticky, display) and styling; a sidebar lists the applications it holds, a topbar or a bottom bar its columns, left to right, each with its column_id, its width in pixels when it has one, fit_content when it takes the width of its application, h_align and v_align (start, center or end: where its application sits across the column and along the height of the bar, as the editor's Align App option sets it), and the applications it holds, each application with its application_id. Returns the user's site draft by default when they have one (draft: true), the published layout otherwise; version selects one explicitly.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -410,7 +410,7 @@
     {
       "name": "set_site_layout",
       "title": "Set the layout of a site",
-      "description": "Replace the structure of the site layout shared by every page of the site, in the current user's draft, as the site layout editor does: the left and right sidebars with their applications, the topbars and the bottom bars with their columns, one application per column, each container with its options and styling. What is sent is the whole structure, as get_site returns it: a sidebar omitted is removed, topbars or bottom_bars omitted means none. Ids address the layout get_site returned (the user's draft when they have one, the published layout otherwise): a container_id keeps the stored container, a column_id keeps a stored column of that topbar or bottom bar, with its application, which never moves alone into another column, and a column absent from the call is removed, an application_id keeps the application with its settings, an application given by instance_id or content_id is added, and an application of the layout absent from the call is removed. A site layout holding a container the user cannot see is refused; an application the user cannot see stays where it is when its container, or its column, is kept by id, the call being refused otherwise. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. On a kept container or application, an option, a styling block or a display omitted keeps what it holds; enabled false clears a block. A site whose stored layout holds two sidebars on one side, which get_site reports as one, is refused. At most 200 containers, columns and applications in one call. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_site does, with the ids to use in later calls; after publish_layout the ids change, read the site again. New images are not accepted by this tool: a stored image stays unless its background block is turned off.",
+      "description": "Replace the structure of the site layout shared by every page of the site, in the current user's draft, as the site layout editor does: the left and right sidebars with their applications, the topbars and the bottom bars with their columns, one application per column, each column with its width and the alignment of its application, each container with its options and styling. What is sent is the whole structure, as get_site returns it: a sidebar omitted is removed, topbars or bottom_bars omitted means none. Ids address the layout get_site returned (the user's draft when they have one, the published layout otherwise): a container_id keeps the stored container, a column_id keeps a stored column of that topbar or bottom bar, with its application, which never moves alone into another column, and a column absent from the call is removed, an application_id keeps the application with its settings, an application given by instance_id or content_id is added, and an application of the layout absent from the call is removed. A site layout holding a container the user cannot see is refused; an application the user cannot see stays where it is when its container, or its column, is kept by id, the call being refused otherwise. Nothing is visible to other users until publish_layout; discard_layout_draft starts again from the published layout. On a kept container or application, an option, a styling block or a display omitted keeps what it holds, and so does a kept column's alignment; enabled false clears a block. A site whose stored layout holds two sidebars on one side, which get_site reports as one, is refused. At most 200 containers, columns and applications in one call. Every value is checked before anything is written; a refused value is answered naming the option. Returns the draft as get_site does, with the ids to use in later calls; after publish_layout the ids change, read the site again. New images are not accepted by this tool: a stored image stays unless its background block is turned off.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -811,6 +811,16 @@
                         "type": "boolean",
                         "description": "true when the column takes the width of its application, as the editor's fixed width option does; never with width; omit, with width, to share the remaining width"
                       },
+                      "h_align": {
+                        "type": "string",
+                        "enum": ["start", "center", "end"],
+                        "description": "where the application sits across the column, as the editor's Align App option offers it: start (left), center or end (right); omit to keep the stored alignment on a kept column (start on a new one)"
+                      },
+                      "v_align": {
+                        "type": "string",
+                        "enum": ["start", "center", "end"],
+                        "description": "where the application sits along the height of the bar, as the editor's Align App option offers it: start (top), center (middle) or end (bottom); omit to keep the stored alignment on a kept column (start on a new one)"
+                      },
                       "applications": {
                         "type": "array",
                         "items": {
@@ -984,6 +994,16 @@
                       "fit_content": {
                         "type": "boolean",
                         "description": "true when the column takes the width of its application, as the editor's fixed width option does; never with width; omit, with width, to share the remaining width"
+                      },
+                      "h_align": {
+                        "type": "string",
+                        "enum": ["start", "center", "end"],
+                        "description": "where the application sits across the column, as the editor's Align App option offers it: start (left), center or end (right); omit to keep the stored alignment on a kept column (start on a new one)"
+                      },
+                      "v_align": {
+                        "type": "string",
+                        "enum": ["start", "center", "end"],
+                        "description": "where the application sits along the height of the bar, as the editor's Align App option offers it: start (top), center (middle) or end (bottom); omit to keep the stored alignment on a kept column (start on a new one)"
                       },
                       "applications": {
                         "type": "array",
