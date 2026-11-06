@@ -635,6 +635,25 @@ public class SiteLayoutServiceTest {
                                       container("103", container("104", new PageBody("98")))));
   }
 
+  /**
+   * A site whose stored root container is missing is read with an empty layout,
+   * never a null one, as the stored site here, with no layout set, holds: no id
+   * is held, so the layout a resolved site accepts is refused.
+   */
+  @Test
+  public void updateSiteLayoutDraftRefusesStorageIdsOnUnresolvedSite() {
+    PortalConfig storedSite = new PortalConfig(SITE_KEY.getTypeName(), SITE_KEY.getName());
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(storedSite);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+    assertNull(storedSite.getPortalLayout().getStorageId());
+    assertTrue(storedSite.getPortalLayout().getChildren().isEmpty());
+
+    assertSiteDraftRefused(storedSite,
+                           siteLayout("100",
+                                      container("101", container("102", window("200"))),
+                                      container("103", container("104", new PageBody("105")))));
+  }
+
   @Test
   @SneakyThrows
   public void updateSiteLayoutPublishesDraftElements() {
@@ -780,7 +799,10 @@ public class SiteLayoutServiceTest {
   }
 
   private void assertSiteDraftRefused(SiteLayout submittedLayout) {
-    PortalConfig storedSite = storedSite();
+    assertSiteDraftRefused(storedSite(), submittedLayout);
+  }
+
+  private void assertSiteDraftRefused(PortalConfig storedSite, SiteLayout submittedLayout) {
     Container storedLayout = storedSite.getPortalLayout();
     PortalConfig submittedSite = submittedSite(submittedLayout);
 
