@@ -180,7 +180,7 @@ class PageContainerBackgroundUpgradePluginTest {
     when(layoutService.getPage(LOGIN_PAGE_KEY)).thenReturn(page);
     doThrow(new IllegalStateException("save failed")).when(layoutService).save(page);
 
-    assertThrows(IllegalStateException.class, () -> plugin.removeContainerBackground(LOGIN_PAGE_KEY));
+    assertThrows(IllegalStateException.class, () -> plugin.upgradePage(LOGIN_PAGE_KEY));
   }
 
   @Test
