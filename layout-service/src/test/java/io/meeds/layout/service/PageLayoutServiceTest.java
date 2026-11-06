@@ -22,12 +22,15 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -55,6 +58,7 @@ import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.ModelStyle;
 import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PageBody;
+import org.exoplatform.portal.config.model.PersistentApplicationState;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.config.model.TransientApplicationState;
 import org.exoplatform.portal.config.serialize.model.SiteLayout;
@@ -508,6 +512,108 @@ public class PageLayoutServiceTest {
   }
 
   @Test
+  public void updatePageLayoutDraftKeepsHeldStorageIds() throws Exception {
+    Page storedPage = storedPage();
+    Page submittedPage = submittedPage(container("10",
+                                                 container("11", window("20")),
+                                                 container("12",
+                                                           window("21"),
+                                                           container("13", window("22"), newWindow()))),
+                                       container(null, newWindow()),
+                                       container("abc"),
+                                       container("0"),
+                                       container("-5"));
+
+    pageLayoutService.updatePageLayout(PAGE_KEY.format(), submittedPage, false, TEST_USER);
+
+    verify(submittedPage).checkStorage();
+    assertSame(submittedPage.getChildren(), storedPage.getChildren());
+    verify(layoutService).save(storedPage);
+  }
+
+  @Test
+  public void updatePageLayoutDraftRefusesWindowNotHeldByPage() throws Exception {
+    assertDraftRefused(container("10", container("11", window("20"), window("99"))));
+  }
+
+  @Test
+  public void updatePageLayoutDraftRefusesContainerNotHeldByPage() throws Exception {
+    assertDraftRefused(container("10", container("11", window("20"))), container("98"));
+  }
+
+  @Test
+  public void updatePageLayoutDraftRefusesElementNotHeldByPageAtAnyDepth() throws Exception {
+    assertDraftRefused(container("10", container("12", window("21"), container("13", window("22"), window("99")))));
+  }
+
+  /**
+   * The state id is also another id than the storage id here:
+   * {@link #updatePageLayoutDraftRefusesWindowStateWithoutStorageId()} pins the
+   * state id check alone
+   */
+  @Test
+  public void updatePageLayoutDraftRefusesWindowStateNotHeldByPage() throws Exception {
+    assertDraftRefused(container("10", container("11", window("20", "99"))));
+  }
+
+  @Test
+  public void updatePageLayoutDraftRefusesWindowStateWithoutStorageId() throws Exception {
+    assertDraftRefused(container("10", container("11", window(null, "99"))));
+  }
+
+  /**
+   * The storage id is also another id than the state id here:
+   * {@link #updatePageLayoutDraftRefusesWindowNotHeldWithTransientState()} pins
+   * the storage id check alone
+   */
+  @Test
+  public void updatePageLayoutDraftRefusesWindowNotHeldWithHeldState() throws Exception {
+    assertDraftRefused(container("10", container("11", window("99", "20"))));
+  }
+
+  @Test
+  public void updatePageLayoutDraftRefusesWindowNotHeldWithTransientState() throws Exception {
+    Application window = newWindow();
+    window.setStorageId("99");
+    assertDraftRefused(container("10", container("11", window)));
+  }
+
+  @Test
+  public void updatePageLayoutDraftRefusesWindowWithStateOfAnotherHeldWindow() throws Exception {
+    assertDraftRefused(container("10", container("11", window("20", "21"))));
+  }
+
+  @Test
+  public void updatePageLayoutDraftRefusesHeldWindowIdOnContainer() throws Exception {
+    assertDraftRefused(container("10", container("20")));
+  }
+
+  @Test
+  public void updatePageLayoutDraftRefusesHeldContainerIdOnWindow() throws Exception {
+    assertDraftRefused(container("10", container("11", window("12"))));
+  }
+
+  @Test
+  public void updatePageLayoutDraftRefusesSignedStorageIdNotHeldByPage() throws Exception {
+    assertDraftRefused(container("10", container("+98")));
+  }
+
+  @Test
+  public void updatePageLayoutPublishesDraftElements() throws Exception {
+    Page storedPage = storedPage();
+    // The published layout is the draft's: its elements are stored under the
+    // draft page and are copied by the publication
+    Page submittedPage = submittedPage(container("30", container("31", window("40"))));
+
+    pageLayoutService.updatePageLayout(PAGE_KEY.format(), submittedPage, true, TEST_USER);
+
+    verify(submittedPage).resetStorage();
+    verify(submittedPage, never()).checkStorage();
+    assertSame(submittedPage.getChildren(), storedPage.getChildren());
+    verify(layoutService).save(storedPage);
+  }
+
+  @Test
   public void restorePageLayout() throws IllegalAccessException, ObjectNotFoundException {
     assertThrows(ObjectNotFoundException.class, () -> pageLayoutService.restorePageLayout(PAGE_KEY, TEST_USER));
     when(layoutService.getPageContext(PAGE_KEY)).thenReturn(pageContext);
@@ -564,6 +670,76 @@ public class PageLayoutServiceTest {
     verify(layoutService).save(pageContext);
     verify(pageState).setEditPermission(permissionModel.getEditPermission());
     verify(pageState).setAccessPermissions(permissionModel.getAccessPermissions());
+  }
+
+  private void assertDraftRefused(ModelObject... submittedChildren) throws Exception {
+    Page storedPage = storedPage();
+    ArrayList<ModelObject> storedChildren = storedPage.getChildren();
+    Page submittedPage = submittedPage(submittedChildren);
+
+    IllegalStateException exception = assertThrows(IllegalStateException.class,
+                                                   () -> pageLayoutService.updatePageLayout(PAGE_KEY.format(),
+                                                                                            submittedPage,
+                                                                                            false,
+                                                                                            TEST_USER));
+    assertEquals("layout.pageOutdatedError", exception.getMessage());
+    assertSame(storedChildren, storedPage.getChildren());
+    verify(layoutService, never()).save(any(Page.class));
+    verify(listenerService, never()).broadcast(any(String.class), any(), any());
+  }
+
+  /**
+   * @return the stored page the tests edit, holding the containers 10 to 13
+   *         and the windows 20 to 22
+   */
+  private Page storedPage() {
+    Page storedPage = new Page("1");
+    storedPage.setChildren(new ArrayList<>(List.of(container("10",
+                                                            container("11", window("20")),
+                                                            container("12",
+                                                                      window("21"),
+                                                                      container("13", window("22")))))));
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(storedPage);
+    when(aclService.canEditPage(PAGE_KEY, TEST_USER)).thenReturn(true);
+    return storedPage;
+  }
+
+  /**
+   * @return a page layout to save, whose storage checks, which resolve the
+   *         window states through the container, are stubbed
+   */
+  private Page submittedPage(ModelObject... children) throws Exception {
+    Page submittedPage = spy(new Page());
+    submittedPage.setChildren(new ArrayList<>(Arrays.asList(children)));
+    lenient().doNothing().when(submittedPage).checkStorage();
+    lenient().doNothing().when(submittedPage).resetStorage();
+    return submittedPage;
+  }
+
+  private static Container container(String storageId, ModelObject... children) {
+    Container container = new Container(storageId);
+    container.setChildren(new ArrayList<>(Arrays.asList(children)));
+    return container;
+  }
+
+  /**
+   * @return a window as the layout REST builds it, its state id being its
+   *         storage id
+   */
+  private static Application window(String storageId) {
+    return window(storageId, storageId);
+  }
+
+  private static Application window(String storageId, String stateId) {
+    Application application = new Application(storageId);
+    application.setState(new PersistentApplicationState(stateId));
+    return application;
+  }
+
+  private static Application newWindow() {
+    Application application = new Application((String) null);
+    application.setState(new TransientApplicationState("app/portlet"));
+    return application;
   }
 
 }
