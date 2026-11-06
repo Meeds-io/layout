@@ -1,0 +1,1752 @@
+/**
+ * This file is part of the Meeds project (https://meeds.io/).
+ *
+ * Copyright (C) 2020 - 2026 Meeds Association contact@meeds.io
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+package io.meeds.layout.service;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+import org.apache.commons.collections4.CollectionUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import org.exoplatform.portal.config.model.Application;
+import org.exoplatform.portal.config.model.Container;
+import org.exoplatform.portal.config.model.ModelObject;
+import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.config.model.Page;
+import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.mop.PageType;
+import org.exoplatform.portal.mop.SiteFilter;
+import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.SiteType;
+import org.exoplatform.portal.mop.Visibility;
+import org.exoplatform.portal.mop.navigation.NodeContext;
+import org.exoplatform.portal.mop.navigation.NodeState;
+import org.exoplatform.portal.mop.page.PageContext;
+import org.exoplatform.portal.mop.page.PageKey;
+import org.exoplatform.portal.mop.page.PageState;
+import org.exoplatform.portal.mop.service.LayoutService;
+import org.exoplatform.portal.mop.service.NavigationService;
+
+import io.meeds.layout.mcp.constant.Alignment;
+import io.meeds.layout.mcp.constant.BackgroundMode;
+import io.meeds.layout.mcp.constant.DisplayMode;
+import io.meeds.layout.mcp.constant.HeightPreset;
+import io.meeds.layout.mcp.constant.LayoutVersion;
+import io.meeds.layout.mcp.constant.LinkTarget;
+import io.meeds.layout.mcp.constant.NavigationItemType;
+import io.meeds.layout.mcp.constant.SectionType;
+import io.meeds.layout.mcp.constant.StylingDestination;
+import io.meeds.layout.mcp.model.ApplicationDescription;
+import io.meeds.layout.mcp.model.ApplicationPosition;
+import io.meeds.layout.mcp.model.ApplicationToPlace;
+import io.meeds.layout.mcp.model.WidgetCodeDescription;
+import io.meeds.layout.mcp.model.BackgroundBlock;
+import io.meeds.layout.mcp.model.BackgroundImageBlock;
+import io.meeds.layout.mcp.model.BorderBlock;
+import io.meeds.layout.mcp.model.CellDescription;
+import io.meeds.layout.mcp.model.CornersBlock;
+import io.meeds.layout.mcp.model.ElementDisplay;
+import io.meeds.layout.mcp.model.ElementStyling;
+import io.meeds.layout.mcp.model.HeightBlock;
+import io.meeds.layout.mcp.model.LayoutApplicationEntry;
+import io.meeds.layout.mcp.model.MarginsBlock;
+import io.meeds.layout.mcp.model.NavigationItemDescription;
+import io.meeds.layout.mcp.model.PageDescription;
+import io.meeds.layout.mcp.model.ScheduleDescription;
+import io.meeds.layout.mcp.model.SectionDescription;
+import io.meeds.layout.mcp.model.SidesBlock;
+import io.meeds.layout.mcp.model.SiteContainerDescription;
+import io.meeds.layout.mcp.model.SiteColumnDescription;
+import io.meeds.layout.mcp.model.SiteContainerOptions;
+import io.meeds.layout.mcp.model.SiteDescription;
+import io.meeds.layout.mcp.model.SiteLayoutUpdate;
+import io.meeds.layout.mcp.model.SiteSummary;
+import io.meeds.layout.mcp.model.StylingDescription;
+import io.meeds.layout.mcp.model.TextBackgroundBlock;
+import io.meeds.layout.mcp.model.TextBlock;
+import io.meeds.layout.mcp.model.TextRoleBlock;
+import io.meeds.layout.model.ApplicationCode;
+import io.meeds.layout.model.ApplicationReadScope;
+import io.meeds.layout.model.ImageConsumption;
+import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.model.PlacedLayout;
+import io.meeds.layout.model.NodeLabel;
+import io.meeds.layout.model.PortletInstance;
+import io.meeds.layout.model.PortletInstanceCategory;
+import io.meeds.layout.model.PortletInstanceContext;
+import io.meeds.layout.util.EntityMapper;
+import io.meeds.layout.util.LayoutStyleValidator;
+
+/**
+ * Converts a page or site container tree into the description the MCP tools
+ * return. The section grammar lives in the editor's cssClass tokens only
+ * (FlexContainer/GridContainer over CellContainer, grid-cols/grid-rows and
+ * the cell spans, a missing token reading as 1); style values are read from
+ * the model's style fields, never parsed back from the generated tokens.
+ */
+@Service
+public class LayoutDescriptionService {
+
+  public static final String     FLEX_TEMPLATE               = "FlexContainer";
+
+  public static final String     GRID_TEMPLATE               = "GridContainer";
+
+  public static final String     CELL_TEMPLATE               = "CellContainer";
+
+  public static final String     SITE_MIDDLE_TEMPLATE        = "SiteMiddleBody";
+
+  public static final String     SITE_MIDDLE_CENTER_TEMPLATE = "SiteMiddleCenterBody";
+
+  public static final String     SIDEBAR_TEMPLATE            = "Sidebar";
+
+  public static final String     SIDEBAR_CELL_TEMPLATE       = "SidebarCell";
+
+  public static final String     BANNER_TEMPLATE             = "Banner";
+
+  public static final String     BANNER_CELL_TEMPLATE        = "BannerCell";
+
+  public static final String     HIDE_MOBILE_TOKEN           = "hidden-sm-and-down";
+
+  public static final String     HIDE_DESKTOP_TOKEN          = "hidden-md-and-up";
+
+  public static final String     STICKY_SECTION_TOKEN        = "layout-sticky-section";
+
+  public static final String     H_ALIGN_CENTER_TOKEN        = "application-align-h-center";
+
+  public static final String     H_ALIGN_END_TOKEN           = "application-align-h-end";
+
+  public static final String     V_ALIGN_CENTER_TOKEN        = "application-align-v-center";
+
+  public static final String     V_ALIGN_END_TOKEN           = "application-align-v-end";
+
+  public static final String     GRID_COLUMNS_PREFIX         = "grid-cols";
+
+  public static final String     GRID_ROWS_PREFIX            = "grid-rows";
+
+  public static final String     CELL_COLSPAN_PREFIX         = "grid-cell-colspan";
+
+  public static final String     CELL_ROWSPAN_PREFIX         = "grid-cell-rowspan";
+
+  public static final String     CURRENT_BREAKPOINT          = "xl";
+
+  private static final String    TO_BOTTOM                   = "to_bottom";
+
+  private static final String    TO_RIGHT                    = "to_right";
+
+  private static final Pattern   BG_MARGIN_TOKEN             =
+                                                 Pattern.compile("(^| )layout-bg-margin-(top|right|bottom|left)-(\\d+)(?= |$)");
+
+  private static final Pattern   BG_RADIUS_TOKEN             =
+                                                 Pattern.compile("(^| )layout-bg-radius-(tl|tr|br|bl)-(\\d+)(?= |$)");
+
+  private static final Pattern   HEX_COLOR                   = Pattern.compile("#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?");
+
+  private static final Pattern   PERCENT                     = Pattern.compile("(\\d{1,3})%");
+
+  private static final Pattern   CONIC_CORNER                =
+                                              Pattern.compile("at (top|bottom) (left|right)");
+
+  private static final Pattern   PIXELS                      = Pattern.compile("-?\\d+");
+
+  public static final int        SITE_MATCH_LIMIT            = 50;
+
+  public static final String     INSTANCE_ID_NOT_ACCEPTED    = "value is not accepted for instance_id";
+
+  public static final String     CONTENT_ID_NOT_ACCEPTED     = "value is not accepted for content_id";
+
+  public static final String     APPLICATION_NOT_ACCEPTED    = "value is not accepted for application";
+
+  private static final int       SITE_NAME_PAGE              = 200;
+
+  private static final Pattern   CONIC_STOP                  = Pattern.compile("^(#[0-9a-fA-F]{6,8})\\s+(-?\\d+(?:\\.\\d+)?)deg$");
+
+  private static final Map<String, Pattern> TOKEN_PATTERNS   = new ConcurrentHashMap<>();
+
+  private static final Map<String, Pattern> BREAKPOINT_PATTERNS = new ConcurrentHashMap<>();
+
+  @Autowired
+  private LayoutService          layoutService;
+
+  @Autowired
+  private PortletInstanceService portletInstanceService;
+
+  @Autowired
+  private LayoutAclService       aclService;
+
+  @Autowired
+  private NavigationService      navigationService;
+
+  @Autowired
+  private NavigationLayoutService navigationLayoutService;
+
+  @Autowired
+  private LayoutDraftService     layoutDraftService;
+
+  @Autowired
+  private LayoutStylingService   stylingService;
+
+  @Autowired
+  private ApplicationCodeService      applicationCodeService;
+
+  @Autowired
+  private ApplicationSettingsService applicationSettingsService;
+
+  /**
+   * Drops, recursively, every container and application the user has no
+   * access permission on. Only page permissions are considered by the
+   * platform; an element-level permission is legacy data this filter still
+   * honours, as the page read does.
+   */
+  public ModelObject filterAccessible(ModelObject modelObject, String username) {
+    if (modelObject == null || !aclService.hasAccessPermission(modelObject, username)) {
+      return null;
+    } else if (modelObject instanceof Container container && CollectionUtils.isNotEmpty(container.getChildren())) {
+      container.setChildren(container.getChildren()
+                                     .stream()
+                                     .map(c -> filterAccessible(c, username))
+                                     .filter(Objects::nonNull)
+                                     .collect(Collectors.toCollection(ArrayList::new)));
+    }
+    return modelObject;
+  }
+
+  public PageDescription toPageDescription(ModelObject pageTree, String pageRef, LayoutVersion version) {
+    return toPageDescription(pageTree, pageRef, version, null);
+  }
+
+  /**
+   * @param  pageTree the page read, filtered by access permission
+   * @param  pageRef  the live page reference
+   * @param  version  the version read
+   * @param  username the reader, whose settings the configurable
+   *                    applications answer; null to read no settings
+   * @return          the page description
+   */
+  public PageDescription toPageDescription(ModelObject pageTree, String pageRef, LayoutVersion version, String username) {
+    PageKey pageKey = pageTree instanceof Page storedPage ? storedPage.getPageKey() : null;
+    SiteKey liveSiteKey = pageKey == null ? null : PageKey.parse(pageRef).getSite();
+    ApplicationReadScope scope = new ApplicationReadScope(collectContentIds(pageTree),
+                                                          collectWindows(pageTree),
+                                                          pageKey,
+                                                          liveSiteKey,
+                                                          liveSiteKey,
+                                                          pageRef,
+                                                          version == LayoutVersion.DRAFT,
+                                                          pageKey == null ? null : username);
+    LayoutModel page = new LayoutModel(pageTree);
+    LayoutModel sectionsParent = findSectionsParent(page);
+    List<LayoutModel> sections = sectionsParent == null ? null : children(sectionsParent);
+    boolean compatible = sections != null
+                         && sections.stream().allMatch(s -> isTemplate(s, FLEX_TEMPLATE) || isTemplate(s, GRID_TEMPLATE));
+    if (!compatible) {
+      return new PageDescription(pageRef, version, Collections.emptyList(), false);
+    }
+    return new PageDescription(pageRef,
+                               version,
+                               sections.stream().map(s -> toSection(s, scope)).toList(),
+                               null);
+  }
+
+  /**
+   * @param  site        the live site, for its properties
+   * @param  layout      the site layout to describe, the draft's when the user
+   *                       has one, already filtered by access permission
+   * @param  label       the site label resolved in the user's language
+   * @param  description the site description resolved in the user's language
+   * @param  draft       whether the layout is the user's draft
+   * @return the site description
+   */
+  public SiteDescription toSiteDescription(PortalConfig site, // NOSONAR
+                                           ModelObject layout,
+                                           String label,
+                                           String description,
+                                           boolean draft) {
+    return toSiteDescription(site, layout, label, description, null, draft, null);
+  }
+
+  /**
+   * @param  site          the live site, for its properties
+   * @param  layout        the site layout to describe, the draft's when the
+   *                         user has one, already filtered by access
+   *                         permission
+   * @param  label         the site label resolved in the user's language
+   * @param  description   the site description resolved in the user's
+   *                         language
+   * @param  layoutSiteKey the site holding the layout, the user's draft site
+   *                         or the live site; null to read no settings
+   * @param  draft         whether the layout is the user's draft
+   * @param  username      the reader, whose settings the configurable
+   *                         applications answer; null to read no settings
+   * @return               the site description
+   */
+  public SiteDescription toSiteDescription(PortalConfig site, // NOSONAR
+                                           ModelObject layout,
+                                           String label,
+                                           String description,
+                                           SiteKey layoutSiteKey,
+                                           boolean draft,
+                                           String username) {
+    ApplicationReadScope scope = new ApplicationReadScope(collectContentIds(layout),
+                                                          collectWindows(layout),
+                                                          null,
+                                                          layoutSiteKey,
+                                                          site.getSiteKey(),
+                                                          layoutSiteKey == null ? null
+                                                                                : applicationSettingsService.getSiteHomePageReference(site.getSiteKey()),
+                                                          draft,
+                                                          layoutSiteKey == null ? null : username);
+    LayoutModel root = layout == null ? new LayoutModel() : new LayoutModel(layout);
+    List<LayoutModel> children = children(root);
+    LayoutModel outerLeft = sidebarAt(children, 0);
+    LayoutModel outerRight = sidebarAt(children, 2);
+    LayoutModel middle = children.stream().filter(c -> isTemplate(c, SITE_MIDDLE_TEMPLATE)).findFirst().orElse(null);
+    List<LayoutModel> middleChildren = children(middle);
+    int centerIndex = -1;
+    for (int i = 0; i < middleChildren.size(); i++) {
+      if (isTemplate(middleChildren.get(i), SITE_MIDDLE_CENTER_TEMPLATE)) {
+        centerIndex = i;
+      }
+    }
+    List<SiteContainerDescription> topbars = new ArrayList<>();
+    List<SiteContainerDescription> bottomBars = new ArrayList<>();
+    for (int i = 0; i < middleChildren.size(); i++) {
+      LayoutModel child = middleChildren.get(i);
+      if (isTemplate(child, BANNER_TEMPLATE)) {
+        (centerIndex < 0 || i < centerIndex ? topbars : bottomBars).add(toBanner(child, scope));
+      }
+    }
+    List<LayoutModel> centerChildren = centerIndex < 0 ? Collections.emptyList() : children(middleChildren.get(centerIndex));
+    LayoutModel innerLeft = sidebarAt(centerChildren, 0);
+    LayoutModel innerRight = sidebarAt(centerChildren, 2);
+    return new SiteDescription(site.getId(),
+                               site.getType(),
+                               site.getName(),
+                               label,
+                               description,
+                               site.getBannerFileId() != 0,
+                               site.isDisplayed(),
+                               site.getAccessPermissions() == null ? null : List.of(site.getAccessPermissions()),
+                               site.getEditPermission(),
+                               draft,
+                               toSidebar(outerLeft, innerLeft, scope),
+                               toSidebar(outerRight, innerRight, scope),
+                               topbars,
+                               bottomBars);
+  }
+
+  /**
+   * Rebuilds a site layout from a set_site_layout call over the stored tree,
+   * every value checked before anything is written. The windows the caller
+   * cannot see stay in place; a container they cannot see refuses the call.
+   *
+   * @param  update                  the four arguments of the call
+   * @param  stored                  the site whose stored layout is rebuilt,
+   *                                   the user's draft or the live site
+   * @param  copyWindows             true when the layout is the live one and
+   *                                   the result becomes a new draft: every
+   *                                   kept window is then a copy carrying
+   *                                   the live window's preferences, as
+   *                                   createDraftSite makes them
+   * @param  username                the caller
+   * @param  locale                  the caller's locale, for the title of an
+   *                                   application added from the catalog
+   * @return                         the tree to save, ready for toSite, its
+   *                                   style values checked as the save checks
+   *                                   them, so a refusal precedes any write
+   * @throws ObjectNotFoundException when an addressed container or window
+   *                                   is not in the stored layout
+   * @throws IllegalAccessException  when the stored layout holds an element
+   *                                   the caller cannot see and the call
+   *                                   would not keep it in place
+   */
+  public LayoutModel toSiteLayout(SiteLayoutUpdate update,
+                                  PortalConfig stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  Locale locale) throws ObjectNotFoundException, IllegalAccessException {
+    return toSiteLayout(update, stored, copyWindows, username, locale, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a styling block
+   *          carrying an image_upload_id claims its id before any write
+   */
+  public LayoutModel toSiteLayout(SiteLayoutUpdate update,
+                                  PortalConfig stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  Locale locale,
+                                  ImageConsumption images) throws ObjectNotFoundException, IllegalAccessException {
+    Container layout = stored.getPortalLayout();
+    if (layout == null) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
+    }
+    Map<String, Integer> hiddenWindows = new LinkedHashMap<>();
+    collectHidden(layout, username, hiddenWindows, SiteLayoutAssembler.SITE_LAYOUT_HIDDEN);
+    LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(layout);
+    LayoutModel result = new SiteLayoutAssembler(root,
+                                                 hiddenWindows,
+                                                 stylingService,
+                                                 this::toStyling,
+                                                 description -> newApplication(description, username, locale),
+                                                 images).assemble(update);
+    if (copyWindows) {
+      result.resetStorage();
+    }
+    try {
+      LayoutStyleValidator.validate(EntityMapper.toModelObject(result));
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
+    }
+    return result;
+  }
+
+  /**
+   * @param  sections    the page's sections as set_page_layout takes them
+   * @param  stored      the stored page the ids address, as the storage holds
+   *                       it: the live page when the user has no draft, their
+   *                       draft otherwise
+   * @param  copyWindows whether the result is written over a draft built from
+   *                       the live page by this call, in which case every kept
+   *                       window becomes a copy carrying its preferences
+   * @param  username    the editing user
+   * @param  locale      the user's language, for the catalog names
+   * @return             the page to write, its sections parent's children
+   *                       replaced
+   */
+  public LayoutModel toPageLayout(List<SectionDescription> sections,
+                                  Page stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  Locale locale) throws ObjectNotFoundException, IllegalAccessException {
+    return toPageLayout(sections, stored, copyWindows, username, locale, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a styling block
+   *          carrying an image_upload_id claims its id before any write
+   */
+  public LayoutModel toPageLayout(List<SectionDescription> sections,
+                                  Page stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  Locale locale,
+                                  ImageConsumption images) throws ObjectNotFoundException, IllegalAccessException {
+    Map<String, Integer> hiddenWindows = new LinkedHashMap<>();
+    collectHidden(stored, username, hiddenWindows, PageLayoutAssembler.PAGE_LAYOUT_HIDDEN);
+    LayoutModel root = copyWindows ? new LayoutModel(stored, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(stored);
+    LayoutModel result = new PageLayoutAssembler(root,
+                                                 hiddenWindows,
+                                                 stylingService,
+                                                 this::toStyling,
+                                                 description -> newApplication(description, username, locale),
+                                                 images).assemble(sections);
+    if (copyWindows) {
+      result.resetStorage();
+    }
+    try {
+      LayoutStyleValidator.validate(result.toPage());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
+    }
+    return result;
+  }
+
+  /**
+   * @param  elements    the elements of a set_layout_styles call
+   * @param  stored      the stored page the ids address: the live page when
+   *                       the user has no draft, their draft otherwise
+   * @param  copyWindows whether the result is written over a draft built from
+   *                       the live page by this call, in which case every
+   *                       window becomes a copy carrying its preferences
+   * @param  username    the editing user
+   * @return             the page to write, its structure as stored
+   */
+  public LayoutModel toStyledPage(List<ElementStyling> elements,
+                                  Page stored,
+                                  boolean copyWindows,
+                                  String username) throws ObjectNotFoundException {
+    return toStyledPage(elements, stored, copyWindows, username, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a block carrying an
+   *          image_upload_id claims its id before any write
+   */
+  public LayoutModel toStyledPage(List<ElementStyling> elements,
+                                  Page stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  ImageConsumption images) throws ObjectNotFoundException {
+    return checkedPage(pageAssembler(stored, copyWindows, username, images).stylePage(elements), copyWindows);
+  }
+
+  /**
+   * @param  elements    the elements of a set_layout_visibility call
+   * @param  stored      the stored page the ids address: the live page when
+   *                       the user has no draft, their draft otherwise
+   * @param  copyWindows whether the result is written over a draft built from
+   *                       the live page by this call, in which case every
+   *                       window becomes a copy carrying its preferences
+   * @param  username    the editing user
+   * @return             the page to write, its structure as stored
+   */
+  public LayoutModel toDisplayedPage(List<ElementDisplay> elements,
+                                     Page stored,
+                                     boolean copyWindows,
+                                     String username) throws ObjectNotFoundException {
+    return checkedPage(pageAssembler(stored, copyWindows, username, ImageConsumption.none()).displayPage(elements), copyWindows);
+  }
+
+  /**
+   * @param  elements    the elements of a set_layout_styles call
+   * @param  stored      the site whose stored layout the ids address, the
+   *                       user's draft or the live site
+   * @param  copyWindows whether the result becomes a new draft built from the
+   *                       live layout, in which case every window becomes a
+   *                       copy carrying its preferences
+   * @param  username    the editing user
+   * @return             the site layout to write, its structure as stored
+   */
+  public LayoutModel toStyledSite(List<ElementStyling> elements,
+                                  PortalConfig stored,
+                                  boolean copyWindows,
+                                  String username) throws ObjectNotFoundException {
+    return toStyledSite(elements, stored, copyWindows, username, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a block carrying an
+   *          image_upload_id claims its id before any write
+   */
+  public LayoutModel toStyledSite(List<ElementStyling> elements,
+                                  PortalConfig stored,
+                                  boolean copyWindows,
+                                  String username,
+                                  ImageConsumption images) throws ObjectNotFoundException {
+    return checkedSite(siteAssembler(stored, copyWindows, username, images).styleSite(elements), copyWindows);
+  }
+
+  /**
+   * @param  elements    the elements of a set_layout_visibility call
+   * @param  stored      the site whose stored layout the ids address, the
+   *                       user's draft or the live site
+   * @param  copyWindows whether the result becomes a new draft built from the
+   *                       live layout, in which case every window becomes a
+   *                       copy carrying its preferences
+   * @param  username    the editing user
+   * @return             the site layout to write, its structure as stored
+   */
+  public LayoutModel toDisplayedSite(List<ElementDisplay> elements,
+                                     PortalConfig stored,
+                                     boolean copyWindows,
+                                     String username) throws ObjectNotFoundException {
+    return checkedSite(siteAssembler(stored, copyWindows, username, ImageConsumption.none()).displaySite(elements), copyWindows);
+  }
+
+  /**
+   * @param  applicationId the window of a move_layout_application call
+   * @param  position      where it goes
+   * @param  stored        the stored page the ids address: the live page when
+   *                         the user has no draft, their draft otherwise
+   * @param  copyWindows   whether the result is written over a draft built
+   *                         from the live page by this call, in which case
+   *                         every window becomes a copy carrying its
+   *                         preferences
+   * @param  username      the editing user
+   * @return               the page to write and the path of the moved window
+   */
+  public PlacedLayout toMovedPage(String applicationId,
+                                  ApplicationPosition position,
+                                  Page stored,
+                                  boolean copyWindows,
+                                  String username) throws ObjectNotFoundException {
+    PlacedLayout placed = placementAssembler(stored, false, copyWindows, username).move(applicationId, position);
+    return new PlacedLayout(checkedPage(placed.layout(), copyWindows), placed.path());
+  }
+
+  /**
+   * @param  application the catalog application of a move_layout_application
+   *                       call
+   * @param  locale      the user's language, for the catalog names
+   * @return             the page to write and the path of the new window
+   */
+  public PlacedLayout toPlacedPage(ApplicationToPlace application,
+                                   ApplicationPosition position,
+                                   Page stored,
+                                   boolean copyWindows,
+                                   String username,
+                                   Locale locale) throws ObjectNotFoundException {
+    ApplicationDescription description = toPlacedDescription(application);
+    PlacedLayout placed = placementAssembler(stored, false, copyWindows, username).place(() -> newApplication(description,
+                                                                                                             username,
+                                                                                                             locale),
+                                                                                         position);
+    return new PlacedLayout(checkedPage(placed.layout(), copyWindows), placed.path());
+  }
+
+  /**
+   * @return the page to write, the window removed
+   */
+  public LayoutModel toRemovedPage(String applicationId,
+                                   Page stored,
+                                   boolean copyWindows,
+                                   String username) throws ObjectNotFoundException {
+    return checkedPage(placementAssembler(stored, false, copyWindows, username).remove(applicationId), copyWindows);
+  }
+
+  /**
+   * @param  stored the site whose stored layout the ids address, the user's
+   *                  draft or the live site
+   * @return        the site layout to write and the path of the moved window
+   */
+  public PlacedLayout toMovedSite(String applicationId,
+                                  ApplicationPosition position,
+                                  PortalConfig stored,
+                                  boolean copyWindows,
+                                  String username) throws ObjectNotFoundException {
+    PlacedLayout placed = placementAssembler(siteLayout(stored), true, copyWindows, username).move(applicationId, position);
+    return new PlacedLayout(checkedSite(placed.layout(), copyWindows), placed.path());
+  }
+
+  public PlacedLayout toPlacedSite(ApplicationToPlace application,
+                                   ApplicationPosition position,
+                                   PortalConfig stored,
+                                   boolean copyWindows,
+                                   String username,
+                                   Locale locale) throws ObjectNotFoundException {
+    ApplicationDescription description = toPlacedDescription(application);
+    PlacedLayout placed = placementAssembler(siteLayout(stored), true, copyWindows, username).place(() -> newApplication(description,
+                                                                                                                         username,
+                                                                                                                         locale),
+                                                                                                     position);
+    return new PlacedLayout(checkedSite(placed.layout(), copyWindows), placed.path());
+  }
+
+  public LayoutModel toRemovedSite(String applicationId,
+                                   PortalConfig stored,
+                                   boolean copyWindows,
+                                   String username) throws ObjectNotFoundException {
+    return checkedSite(placementAssembler(siteLayout(stored), true, copyWindows, username).remove(applicationId), copyWindows);
+  }
+
+  /**
+   * @param  username the reader
+   * @param  keyword  null for the portal sites alone, as the sites
+   *                    administration lists them; otherwise the portal sites
+   *                    whose name or label contains it, then the group sites
+   *                    whose own name (for a space, the group name it was
+   *                    created with, which a rename leaves as is) contains it
+   * @return the sites the user can view, the portal sites by display order
+   *         then label, sorted here because the portal's site query is
+   *         cached by its predicates alone, the sort of its first caller
+   *         serving every later one
+   */
+  public List<SiteSummary> describeSites(String username, String keyword) {
+    String needle = StringUtils.lowerCase(StringUtils.trimToNull(keyword));
+    SiteFilter filter = new SiteFilter();
+    filter.setSiteType(SiteType.PORTAL);
+    filter.setExcludeSpaceSites(true);
+    List<SiteSummary> sites = new ArrayList<>(layoutService.getSites(filter)
+                                                           .stream()
+                                                           .filter(site -> needle == null || matches(site, needle))
+                                                           .filter(site -> aclService.canViewSite(site.getSiteKey(), username))
+                                                           .sorted(Comparator.comparingInt(PortalConfig::getDisplayOrder)
+                                                                             .thenComparing(site -> StringUtils.defaultIfBlank(site.getLabel(),
+                                                                                                                             site.getName()),
+                                                                                            String.CASE_INSENSITIVE_ORDER))
+                                                           .map(this::toSiteSummary)
+                                                           .toList());
+    if (needle != null) {
+      sites.addAll(describeGroupSites(username, needle));
+    }
+    return sites;
+  }
+
+  /**
+   * Group sites are matched on the last segment of their name (a space site
+   * is named /spaces/&lt;name at creation&gt;, whatever the space is called
+   * since) before any is loaded, and at most
+   * SITE_MATCH_LIMIT of them are loaded, viewable or not, so that no listing
+   * reads every space's layout. The portal's SPACE and GROUP name listings
+   * overlap, so a name is considered once.
+   */
+  private List<SiteSummary> describeGroupSites(String username, String needle) {
+    List<SiteSummary> sites = new ArrayList<>();
+    Set<String> considered = new HashSet<>();
+    int loaded = 0;
+    for (SiteType namesType : new SiteType[] { SiteType.SPACE, SiteType.GROUP }) {
+      int offset = 0;
+      List<String> names;
+      do {
+        names = layoutService.getSiteNames(namesType, offset, SITE_NAME_PAGE);
+        for (String name : names) {
+          if (!considered.add(name) || !StringUtils.containsIgnoreCase(StringUtils.substringAfterLast("/" + name, "/"), needle)) {
+            continue;
+          }
+          if (loaded >= SITE_MATCH_LIMIT) {
+            return sites;
+          }
+          loaded++;
+          PortalConfig site = layoutService.getPortalConfig(SiteKey.group(name));
+          if (site != null && aclService.canViewSite(site.getSiteKey(), username)) {
+            sites.add(toSiteSummary(site));
+          }
+        }
+        offset += names.size();
+      } while (names.size() == SITE_NAME_PAGE);
+    }
+    return sites;
+  }
+
+  private SiteSummary toSiteSummary(PortalConfig site) {
+    return new SiteSummary(site.getId(),
+                           site.getType(),
+                           site.getName(),
+                           StringUtils.defaultIfBlank(site.getLabel(), site.getName()),
+                           site.getDescription(),
+                           site.isDisplayed());
+  }
+
+  private boolean matches(PortalConfig site, String needle) {
+    return StringUtils.containsIgnoreCase(site.getName(), needle) || StringUtils.containsIgnoreCase(site.getLabel(), needle);
+  }
+
+  /**
+   * @param  siteKey       the site whose navigation is read; the caller has
+   *                         checked it can be viewed
+   * @param  includeHidden whether the hidden and system items are wanted;
+   *                         they are returned only to a user who can edit the
+   *                         site's navigation
+   * @param  username      the reader
+   * @return the navigation tree the user can view, draft items excluded
+   */
+  public List<NavigationItemDescription> describeNavigation(SiteKey siteKey, boolean includeHidden, String username) {
+    boolean withHidden = includeHidden && aclService.canEditNavigation(siteKey, username);
+    NodeContext<NodeContext<Object>> root = navigationService.loadNode(siteKey);
+    return root == null ? Collections.emptyList() : toNavigationItems(root, siteKey, withHidden, username);
+  }
+
+  /**
+   * One navigation item with its children, as describeNavigation lists it,
+   * for a user who edits the site's navigation, the writer of the item: the
+   * hidden items are included, and the item itself is not filtered by the
+   * view right on its page, which the permissions just written may have
+   * taken from them; its labels are, as the navigation drawer's own label
+   * read is, so they are omitted then; its children are listed as
+   * describeNavigation lists them.
+   *
+   * @param  siteKey                 the site the item belongs to
+   * @param  nodeId                  the item
+   * @param  username                the reader
+   * @return                         the item, null when it is absent from
+   *                                 the site's navigation or is a draft
+   * @throws IllegalAccessException  the user cannot edit the site's
+   *                                 navigation
+   */
+  public NavigationItemDescription describeNavigationItem(SiteKey siteKey, long nodeId, String username) throws IllegalAccessException {
+    if (!aclService.canEditNavigation(siteKey, username)) {
+      throw new IllegalAccessException();
+    }
+    NodeContext<NodeContext<Object>> node = findNodeById(navigationService.loadNode(siteKey), String.valueOf(nodeId));
+    NodeState state = node == null ? null : node.getState();
+    if (state == null || layoutDraftService.isDraftNode(node.getName())) {
+      return null;
+    }
+    Visibility visibility = state.getVisibility() == null ? Visibility.DISPLAYED : state.getVisibility();
+    if (visibility == Visibility.DRAFT) {
+      return null;
+    }
+    return toNavigationItem(node, state, visibility, siteKey, true, username);
+  }
+
+  /**
+   * @param  categoryId a category, null for every category
+   * @param  keyword    a text the name or description must contain, null for
+   *                      no filter
+   * @param  username   the reader
+   * @param  locale     the language of the names
+   * @return the enabled catalog instances the user may place, then, with no
+   *           category filter, each application a code plugin places
+   *           without a catalog instance that no such instance carries
+   */
+  public List<LayoutApplicationEntry> describeApplications(Long categoryId, String keyword, String username, Locale locale) {
+    Map<Long, String> categories = portletInstanceService.getPortletInstanceCategories(username, locale, true)
+                                                         .stream()
+                                                         .collect(Collectors.toMap(PortletInstanceCategory::getId,
+                                                                                   c -> StringUtils.defaultString(c.getName()),
+                                                                                   (a, b) -> a));
+    String needle = StringUtils.lowerCase(StringUtils.trimToNull(keyword));
+    List<PortletInstance> placeable = portletInstanceService.getPortletInstances(categoryId == null ? 0 : categoryId,
+                                                                                 username,
+                                                                                 locale,
+                                                                                 true)
+                                                            .stream()
+                                                            .filter(instance -> !instance.isDisabled())
+                                                            .toList();
+    List<LayoutApplicationEntry> entries = new ArrayList<>();
+    placeable.stream()
+             .filter(instance -> needle == null || matches(instance, needle))
+             .map(instance -> toApplicationEntry(instance, categories.get(instance.getCategoryId())))
+             .forEach(entries::add);
+    if (categoryId == null) {
+      Set<String> placeableContentIds = placeable.stream().map(PortletInstance::getContentId).collect(Collectors.toSet());
+      applicationCodeService.newApplications()
+                            .stream()
+                            .filter(application -> needle == null || matches(application, needle))
+                            .filter(application -> !placeableContentIds.contains(application.getContentId()))
+                            .map(application -> new LayoutApplicationEntry(null,
+                                                                           application.getContentId(),
+                                                                           application.getName(),
+                                                                           application.getDescription(),
+                                                                           null,
+                                                                           false,
+                                                                           null))
+                            .forEach(entries::add);
+    }
+    return entries;
+  }
+
+  private LayoutApplicationEntry toApplicationEntry(PortletInstance instance, String category) {
+    return new LayoutApplicationEntry(instance.getId(),
+                                      instance.getContentId(),
+                                      instance.getName(),
+                                      instance.getDescription(),
+                                      category,
+                                      applicationSettingsService.isConfigurable(instance.getContentId(), false),
+                                      applicationSettingsService.getSettingsSchema(instance.getContentId()));
+  }
+
+  public DisplayMode toDisplay(String cssClass) {
+    if (hasToken(cssClass, HIDE_DESKTOP_TOKEN)) {
+      return DisplayMode.HIDE_DESKTOP;
+    } else if (hasToken(cssClass, HIDE_MOBILE_TOKEN)) {
+      return DisplayMode.HIDE_MOBILE;
+    } else {
+      return DisplayMode.BOTH;
+    }
+  }
+
+  /**
+   * @param  cssClass the container's class tokens
+   * @param  prefix   grid-cols, grid-rows, grid-cell-colspan or
+   *                    grid-cell-rowspan
+   * @return the value of the token at the editor's current breakpoint, 1 when
+   *         the token is absent, as the editor's parser reads it
+   */
+  public int breakpointValue(String cssClass, String prefix) {
+    if (StringUtils.isBlank(cssClass)) {
+      return 1;
+    }
+    Pattern pattern = BREAKPOINT_PATTERNS.computeIfAbsent(prefix,
+                                                          p -> Pattern.compile("(^| )" + Pattern.quote(p) + "-"
+                                                              + CURRENT_BREAKPOINT + "-(\\d{1,2})(?= |$)"));
+    Matcher matcher = pattern.matcher(cssClass);
+    return matcher.find() ? Integer.parseInt(matcher.group(2)) : 1;
+  }
+
+  public StylingDescription toStyling(LayoutModel model, StylingDestination destination) {
+    return new StylingDescription(toMargins(model),
+                                  destination.hasBorder() ? toBorder(model) : null,
+                                  destination.hasCorners() ? toCorners(model) : null,
+                                  toBackground(model),
+                                  destination.hasText() ? toText(model) : null,
+                                  destination.hasHeight() ? toHeight(model) : null);
+  }
+
+  private LayoutStylesAssembler pageAssembler(Page stored, boolean copyWindows, String username, ImageConsumption images) {
+    Set<String> hiddenIds = new HashSet<>();
+    collectHiddenIds(stored, username, false, hiddenIds);
+    LayoutModel root = copyWindows ? new LayoutModel(stored, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(stored);
+    return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling, images);
+  }
+
+  private LayoutStylesAssembler siteAssembler(PortalConfig stored, boolean copyWindows, String username, ImageConsumption images) {
+    Container layout = stored.getPortalLayout();
+    if (layout == null) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
+    }
+    Set<String> hiddenIds = new HashSet<>();
+    collectHiddenIds(layout, username, false, hiddenIds);
+    LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(layout);
+    return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling, images);
+  }
+
+  private LayoutPlacementAssembler placementAssembler(ModelObject layout, boolean site, boolean copyWindows, String username) {
+    Set<String> hiddenIds = new HashSet<>();
+    collectHiddenIds(layout, username, false, hiddenIds);
+    LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
+                                   new LayoutModel(layout);
+    return new LayoutPlacementAssembler(root, site, hiddenIds, stylingService, this);
+  }
+
+  private Container siteLayout(PortalConfig stored) {
+    Container layout = stored.getPortalLayout();
+    if (layout == null) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.SITE_LAYOUT_NOT_EDITABLE);
+    }
+    return layout;
+  }
+
+  private ApplicationDescription toPlacedDescription(ApplicationToPlace application) {
+    if (application == null || (application.instanceId() == null && StringUtils.isBlank(application.contentId()))) {
+      throw new IllegalArgumentException(APPLICATION_NOT_ACCEPTED);
+    }
+    return new ApplicationDescription(null, application.contentId(), application.instanceId(), null, null, null, null, null, null);
+  }
+
+  private LayoutModel checkedPage(LayoutModel result, boolean copyWindows) {
+    if (copyWindows) {
+      result.resetStorage();
+    }
+    try {
+      LayoutStyleValidator.validate(result.toPage());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
+    }
+    return result;
+  }
+
+  private LayoutModel checkedSite(LayoutModel result, boolean copyWindows) {
+    if (copyWindows) {
+      result.resetStorage();
+    }
+    try {
+      LayoutStyleValidator.validate(EntityMapper.toModelObject(result));
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(SiteLayoutAssembler.STYLING_NOT_ACCEPTED);
+    }
+    return result;
+  }
+
+  private SectionDescription toSection(LayoutModel section, ApplicationReadScope scope) {
+    List<LayoutModel> cells = children(section).stream().filter(c -> isTemplate(c, CELL_TEMPLATE)).toList();
+    if (isTemplate(section, FLEX_TEMPLATE)) {
+      List<List<ApplicationDescription>> columns = cells.stream()
+                                                        .map(cell -> toApplications(cell, scope, StylingDestination.APPLICATION))
+                                                        .toList();
+      return new SectionDescription(section.getStorageId(),
+                                    SectionType.DYNAMIC,
+                                    columns.size(),
+                                    null,
+                                    columns,
+                                    null,
+                                    toStyling(section, StylingDestination.DYNAMIC_SECTION),
+                                    toDisplay(section.getCssClass()));
+    } else {
+      int columns = breakpointValue(section.getCssClass(), GRID_COLUMNS_PREFIX);
+      int rows = breakpointValue(section.getCssClass(), GRID_ROWS_PREFIX);
+      return new SectionDescription(section.getStorageId(),
+                                    SectionType.GRID,
+                                    columns,
+                                    rows,
+                                    null,
+                                    toGridCells(cells, rows, columns, scope),
+                                    toStyling(section, StylingDestination.GRID_SECTION),
+                                    null);
+    }
+  }
+
+  /**
+   * Places the cells as the editor does: in reading order, each cell taking
+   * the first free position, its spans marking the positions it covers.
+   */
+  private List<CellDescription> toGridCells(List<LayoutModel> cells, int rows, int columns, ApplicationReadScope scope) {
+    boolean[][] taken = new boolean[rows][columns];
+    List<CellDescription> result = new ArrayList<>();
+    int rowIndex = 0;
+    int colIndex = 0;
+    for (LayoutModel cell : cells) {
+      int colSpan = breakpointValue(cell.getCssClass(), CELL_COLSPAN_PREFIX);
+      int rowSpan = breakpointValue(cell.getCssClass(), CELL_ROWSPAN_PREFIX);
+      while (rowIndex < rows && taken[rowIndex][colIndex]) {
+        colIndex++;
+        if (colIndex >= columns) {
+          colIndex = 0;
+          rowIndex++;
+        }
+      }
+      for (int row = rowIndex; row < Math.min(rows, rowIndex + rowSpan); row++) {
+        for (int col = colIndex; col < Math.min(columns, colIndex + colSpan); col++) {
+          taken[row][col] = true;
+        }
+      }
+      List<ApplicationDescription> applications = toApplications(cell, scope, StylingDestination.GRID_CELL_APPLICATION);
+      result.add(new CellDescription(cell.getStorageId(),
+                                     rowIndex + 1,
+                                     colIndex + 1,
+                                     rowSpan == 1 ? null : rowSpan,
+                                     colSpan == 1 ? null : colSpan,
+                                     applications.isEmpty() ? null : applications.get(0)));
+      colIndex += colSpan;
+      if (colIndex >= columns) {
+        colIndex = 0;
+        rowIndex++;
+      }
+    }
+    return result;
+  }
+
+  /**
+   * A topbar or a bottom bar is read as the editor shows it: its columns in
+   * order, each with its width, the alignment of its application on each
+   * axis, from the tokens the editor's "Align App" option writes on the
+   * column, start when it holds none, and its applications
+   */
+  private SiteContainerDescription toBanner(LayoutModel banner, ApplicationReadScope scope) {
+    List<SiteColumnDescription> columns = children(banner).stream()
+                                                          .filter(c -> isTemplate(c, BANNER_CELL_TEMPLATE))
+                                                          .map(cell -> new SiteColumnDescription(cell.getStorageId(),
+                                                                                                 parsePixels(cell.getWidth()),
+                                                                                                 SiteLayoutAssembler.FIT_CONTENT.equals(cell.getWidth()) ? Boolean.TRUE
+                                                                                                                                                          : null,
+                                                                                                 toAlignment(cell.getCssClass(), H_ALIGN_CENTER_TOKEN, H_ALIGN_END_TOKEN),
+                                                                                                 toAlignment(cell.getCssClass(), V_ALIGN_CENTER_TOKEN, V_ALIGN_END_TOKEN),
+                                                                                                 toApplications(cell,
+                                                                                                                scope,
+                                                                                                                StylingDestination.SITE_CONTAINER_APPLICATION)))
+                                                          .toList();
+    SiteContainerOptions options = new SiteContainerOptions(parsePixels(banner.getHeight()),
+                                                            null,
+                                                            hasToken(banner.getCssClass(), STICKY_SECTION_TOKEN),
+                                                            hasToken(banner.getCssClass(), HIDE_MOBILE_TOKEN) ? DisplayMode.HIDE_MOBILE
+                                                                                                                : DisplayMode.BOTH,
+                                                            null);
+    return new SiteContainerDescription(banner.getStorageId(),
+                                        options,
+                                        toStyling(banner, StylingDestination.BANNER),
+                                        null,
+                                        columns);
+  }
+
+  /**
+   * A sidebar is in use when it holds its cell; the outer one spans the
+   * banners (full height), the inner one sits between them. The cell carries
+   * the width, the mobile visibility, the styling and the applications; the
+   * sidebar itself carries the sticky token.
+   */
+  private SiteContainerDescription toSidebar(LayoutModel outer, LayoutModel inner, ApplicationReadScope scope) {
+    LayoutModel outerCell = sidebarCell(outer);
+    LayoutModel innerCell = sidebarCell(inner);
+    LayoutModel sidebar = outerCell != null ? outer : inner;
+    LayoutModel cell = outerCell != null ? outerCell : innerCell;
+    if (cell == null) {
+      return null;
+    }
+    SiteContainerOptions options = new SiteContainerOptions(null,
+                                                            parsePixels(cell.getWidth()),
+                                                            hasToken(sidebar.getCssClass(), STICKY_SECTION_TOKEN),
+                                                            hasToken(cell.getCssClass(), HIDE_MOBILE_TOKEN) ? DisplayMode.HIDE_MOBILE
+                                                                                                              : DisplayMode.BOTH,
+                                                            outerCell != null);
+    return new SiteContainerDescription(cell.getStorageId(),
+                                        options,
+                                        toStyling(cell, StylingDestination.SIDEBAR),
+                                        toApplications(cell, scope, StylingDestination.SITE_CONTAINER_APPLICATION));
+  }
+
+  private LayoutModel sidebarCell(LayoutModel sidebar) {
+    return sidebar == null ? null :
+                           children(sidebar).stream().filter(c -> isTemplate(c, SIDEBAR_CELL_TEMPLATE)).findFirst().orElse(null);
+  }
+
+  private LayoutModel sidebarAt(List<LayoutModel> children, int index) {
+    return children.size() > index && isTemplate(children.get(index), SIDEBAR_TEMPLATE) ? children.get(index) : null;
+  }
+
+  private List<ApplicationDescription> toApplications(LayoutModel cell,
+                                                      ApplicationReadScope scope,
+                                                      StylingDestination destination) {
+    return children(cell).stream()
+                         .filter(c -> StringUtils.isBlank(c.getTemplate()))
+                         .map(application -> toApplication(application, scope, destination))
+                         .toList();
+  }
+
+  private ApplicationDescription toApplication(LayoutModel application,
+                                               ApplicationReadScope scope,
+                                               StylingDestination destination) {
+    String storageId = application.getStorageId();
+    Long instanceId = null;
+    if (NumberUtils.isDigits(storageId)) {
+      long portletInstanceId = portletInstanceService.getApplicationPortletInstanceId(Long.parseLong(storageId));
+      instanceId = portletInstanceId > 0 ? portletInstanceId : null;
+    }
+    String contentId = scope.contentIds().getOrDefault(storageId, application.getContentId());
+    boolean siteContainer = destination == StylingDestination.SITE_CONTAINER_APPLICATION;
+    boolean configurable = applicationSettingsService.isConfigurable(contentId, siteContainer);
+    return new ApplicationDescription(storageId,
+                                      contentId,
+                                      instanceId,
+                                      application.getTitle(),
+                                      toStyling(application, destination),
+                                      toDisplay(application.getCssClass()),
+                                      configurable ? readSettings(scope, storageId, siteContainer) : null,
+                                      configurable,
+                                      readCode(scope, storageId, contentId, siteContainer));
+  }
+
+  private WidgetCodeDescription readCode(ApplicationReadScope scope, String storageId, String contentId, boolean siteContainer) {
+    Application window = scope.username() == null || !applicationCodeService.hasPlugin(contentId) ? null
+                                                                                                   : scope.windows().get(storageId);
+    if (window == null) {
+      return null; // NOSONAR
+    }
+    ApplicationCode code = applicationCodeService.read(contentId,
+                                                       applicationSettingsService.newContext(window,
+                                                                                             siteContainer ? null : scope.pageKey(),
+                                                                                             scope.siteKey(),
+                                                                                             scope.liveSiteKey(),
+                                                                                             scope.pageReference(),
+                                                                                             scope.draft(),
+                                                                                             scope.username()));
+    return code == null ? null : new WidgetCodeDescription(code.html(), code.css(), code.js());
+  }
+
+  private List<NavigationItemDescription> toNavigationItems(NodeContext<NodeContext<Object>> parent,
+                                                            SiteKey siteKey,
+                                                            boolean withHidden,
+                                                            String username) {
+    List<NavigationItemDescription> items = new ArrayList<>();
+    for (int i = 0; i < parent.getNodeCount(); i++) {
+      NodeContext<NodeContext<Object>> node = parent.get(i);
+      NodeState state = node.getState();
+      Visibility visibility = state == null || state.getVisibility() == null ? Visibility.DISPLAYED : state.getVisibility();
+      boolean hidden = visibility == Visibility.HIDDEN || visibility == Visibility.SYSTEM;
+      if (state == null
+          || layoutDraftService.isDraftNode(node.getName())
+          || visibility == Visibility.DRAFT
+          || (hidden && !withHidden)
+          || !aclService.canViewNavigation(siteKey, state.getPageRef(), username)) {
+        continue;
+      }
+      items.add(toNavigationItem(node, state, visibility, siteKey, withHidden, username));
+    }
+    return items;
+  }
+
+  private NavigationItemDescription toNavigationItem(NodeContext<NodeContext<Object>> node, // NOSONAR
+                                                     NodeState state,
+                                                     Visibility visibility,
+                                                     SiteKey siteKey,
+                                                     boolean withHidden,
+                                                     String username) {
+    long nodeId = Long.parseLong(node.getId());
+    Map<String, String> labels = readLabels(nodeId, username);
+    String name = labels.isEmpty() ? state.getLabel() : labels.values().iterator().next();
+    PageKey pageRef = state.getPageRef();
+    PageState pageState = null;
+    if (pageRef != null) {
+      PageContext pageContext = layoutService.getPageContext(pageRef);
+      pageState = pageContext == null ? null : pageContext.getState();
+    }
+    boolean link = pageState != null && PageType.LINK.name().equalsIgnoreCase(pageState.getType());
+    NavigationItemType type;
+    if (pageRef == null) {
+      type = NavigationItemType.GROUP;
+    } else if (link) {
+      type = NavigationItemType.LINK;
+    } else {
+      type = NavigationItemType.PAGE;
+    }
+    ScheduleDescription schedule = visibility == Visibility.TEMPORAL ?
+                                                                     new ScheduleDescription(toInstant(state.getStartPublicationTime()),
+                                                                                             toInstant(state.getEndPublicationTime())) :
+                                                                     null;
+    boolean hidden = visibility == Visibility.HIDDEN || visibility == Visibility.SYSTEM;
+    return new NavigationItemDescription(nodeId,
+                                         name,
+                                         labels.isEmpty() ? null : labels,
+                                         node.getName(),
+                                         type,
+                                         pageRef == null ? null : pageRef.format(),
+                                         link ? pageState.getLink() : null,
+                                         pageRef == null ? null : LinkTarget.fromStateValue(state.getTarget()).getValue(),
+                                         state.getIcon(),
+                                         !hidden,
+                                         schedule,
+                                         pageState == null ? null : pageState.getAccessPermissions(),
+                                         pageState == null ? null : pageState.getEditPermission(),
+                                         toNavigationItems(node, siteKey, withHidden, username));
+  }
+
+  private NodeContext<NodeContext<Object>> findNodeById(NodeContext<NodeContext<Object>> node, String nodeId) {
+    if (node == null) {
+      return null;
+    } else if (nodeId.equals(node.getId())) {
+      return node;
+    }
+    int count = node.getNodeCount();
+    for (int i = 0; i < count; i++) {
+      NodeContext<NodeContext<Object>> found = findNodeById(node.get(i), nodeId);
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
+  }
+
+  private Map<String, String> readLabels(long nodeId, String username) {
+    try {
+      NodeLabel nodeLabel = navigationLayoutService.getNodeLabels(nodeId, username);
+      Map<String, String> labels = nodeLabel == null ? null : nodeLabel.getLabels();
+      if (labels == null || labels.isEmpty()) {
+        return Collections.emptyMap();
+      }
+      String defaultLanguage = nodeLabel.getDefaultLanguage();
+      if (defaultLanguage != null && labels.containsKey(defaultLanguage)) {
+        Map<String, String> ordered = new LinkedHashMap<>();
+        ordered.put(defaultLanguage, labels.get(defaultLanguage));
+        ordered.putAll(labels);
+        return ordered;
+      }
+      return labels;
+    } catch (ObjectNotFoundException | IllegalAccessException e) {
+      return Collections.emptyMap();
+    }
+  }
+
+  private String toInstant(long time) {
+    return time > 0 ? Instant.ofEpochMilli(time).toString() : null;
+  }
+
+  private boolean matches(PortletInstance instance, String needle) {
+    return StringUtils.containsIgnoreCase(instance.getName(), needle)
+           || StringUtils.containsIgnoreCase(instance.getDescription(), needle);
+  }
+
+  private LayoutModel findSectionsParent(LayoutModel layout) {
+    List<LayoutModel> children = children(layout);
+    if (children.isEmpty()) {
+      return null;
+    } else if (isTemplate(children.get(0), EntityMapper.PAGE_LAYOUT_TEMPLATE)) {
+      return children.get(0);
+    } else {
+      return findSectionsParent(children.get(0));
+    }
+  }
+
+  private Map<String, String> collectContentIds(ModelObject modelObject) {
+    Map<String, String> contentIds = new HashMap<>();
+    collectContentIds(modelObject, contentIds);
+    return contentIds;
+  }
+
+  private Map<String, Application> collectWindows(ModelObject modelObject) {
+    Map<String, Application> windows = new HashMap<>();
+    collectWindows(modelObject, windows);
+    return windows;
+  }
+
+  private void collectWindows(ModelObject modelObject, Map<String, Application> windows) {
+    if (modelObject instanceof Container container && CollectionUtils.isNotEmpty(container.getChildren())) {
+      container.getChildren().forEach(child -> collectWindows(child, windows));
+    } else if (modelObject instanceof Application application && NumberUtils.isDigits(application.getStorageId())) {
+      windows.put(application.getStorageId(), application);
+    }
+  }
+
+  private Map<String, Object> readSettings(ApplicationReadScope scope, String storageId, boolean siteContainer) {
+    Application window = scope.username() == null ? null : scope.windows().get(storageId);
+    if (window == null) {
+      return null; // NOSONAR
+    }
+    return applicationSettingsService.readSettings(applicationSettingsService.newContext(window,
+                                                                                         siteContainer ? null : scope.pageKey(),
+                                                                                         scope.siteKey(),
+                                                                                         scope.liveSiteKey(),
+                                                                                         scope.pageReference(),
+                                                                                         scope.draft(),
+                                                                                         scope.username()));
+  }
+
+  private void collectContentIds(ModelObject modelObject, Map<String, String> contentIds) {
+    if (modelObject instanceof Container container && CollectionUtils.isNotEmpty(container.getChildren())) {
+      container.getChildren().forEach(child -> collectContentIds(child, contentIds));
+    } else if (modelObject instanceof Application application) {
+      String storageId = application.getStorageId() == null ? application.getId() : application.getStorageId();
+      if (StringUtils.isNotBlank(storageId)) {
+        contentIds.put(storageId, layoutService.getId(application.getState()));
+      }
+    }
+  }
+
+  private void collectHidden(ModelObject object,
+                             String username,
+                             Map<String, Integer> hiddenWindows,
+                             String hiddenContainerRefusal) throws IllegalAccessException {
+    if (object instanceof Container container) {
+      if (!aclService.hasAccessPermission(container, username)) {
+        throw new IllegalAccessException(hiddenContainerRefusal);
+      }
+      List<ModelObject> children = container.getChildren() == null ? Collections.emptyList() : container.getChildren();
+      for (int i = 0; i < children.size(); i++) {
+        ModelObject child = children.get(i);
+        if (child instanceof Application application) {
+          if (!aclService.hasAccessPermission(application, username)) {
+            hiddenWindows.put(application.getStorageId(), i);
+          }
+        } else {
+          collectHidden(child, username, hiddenWindows, hiddenContainerRefusal);
+        }
+      }
+    }
+  }
+
+  /**
+   * Collects the storage id of every element the read leaves out: an element
+   * the user has no access permission on, and everything under it
+   */
+  private void collectHiddenIds(ModelObject object, String username, boolean underHidden, Set<String> hiddenIds) {
+    boolean hidden = underHidden || !aclService.hasAccessPermission(object, username);
+    if (hidden && StringUtils.isNotBlank(object.getStorageId())) {
+      hiddenIds.add(object.getStorageId());
+    }
+    if (object instanceof Container container && container.getChildren() != null) {
+      container.getChildren().forEach(child -> collectHiddenIds(child, username, hidden, hiddenIds));
+    }
+  }
+
+  /**
+   * @return the window of an application the caller adds, as the editor's
+   *         application drawer builds it from the catalog: the instance's
+   *         content id and preferences, its name as title
+   */
+  private LayoutModel newApplication(ApplicationDescription description, String username, Locale locale) {
+    PortletInstance instance = resolveInstance(description, username, locale);
+    LayoutModel application = new LayoutModel();
+    application.setContentId(instance.getContentId());
+    application.setPreferences(instance.getPreferences());
+    application.setTitle(instance.getName());
+    return application;
+  }
+
+  /**
+   * @return the catalog instance the description names, by instance id when
+   *         given (its content id, when given too, must match), otherwise
+   *         the one enabled instance the caller may place with that content
+   *         id, or, when there is none, a new window of the application
+   *         whose code plugin places it without a catalog instance
+   */
+  private PortletInstance resolveInstance(ApplicationDescription description, String username, Locale locale) {
+    String contentId = StringUtils.trimToNull(description.contentId());
+    if (description.instanceId() != null) {
+      PortletInstance instance;
+      try {
+        instance = portletInstanceService.getPortletInstance(description.instanceId(), username, locale, true);
+      } catch (ObjectNotFoundException | IllegalAccessException e) {
+        throw new IllegalArgumentException(INSTANCE_ID_NOT_ACCEPTED);
+      }
+      if (instance.isDisabled()) {
+        throw new IllegalArgumentException(INSTANCE_ID_NOT_ACCEPTED);
+      } else if (contentId != null && !StringUtils.equals(contentId, instance.getContentId())) {
+        throw new IllegalArgumentException(CONTENT_ID_NOT_ACCEPTED);
+      }
+      return instance;
+    }
+    List<PortletInstance> matches = placeableInstances(contentId, username, locale);
+    if (matches.size() == 1) {
+      return matches.get(0);
+    }
+    PortletInstance application = matches.isEmpty() && contentId != null ? applicationCodeService.newApplication(contentId) : null;
+    if (application == null) {
+      throw new IllegalArgumentException(CONTENT_ID_NOT_ACCEPTED);
+    }
+    return application;
+  }
+
+  private List<PortletInstance> placeableInstances(String contentId, String username, Locale locale) {
+    return portletInstanceService.getPortletInstances(0, username, locale, true)
+                                 .stream()
+                                 .filter(instance -> !instance.isDisabled()
+                                                     && StringUtils.equals(instance.getContentId(), contentId))
+                                 .toList();
+  }
+
+  private MarginsBlock toMargins(LayoutModel model) {
+    Integer top = model.getMarginTop();
+    Integer right = model.getMarginRight();
+    Integer bottom = model.getMarginBottom();
+    Integer left = model.getMarginLeft();
+    boolean enabled = top != null || right != null || bottom != null || left != null;
+    Integer all = top != null && top.equals(right) && top.equals(bottom) && top.equals(left) ? top : null;
+    return new MarginsBlock(enabled, all, top, right, bottom, left);
+  }
+
+  private BorderBlock toBorder(LayoutModel model) {
+    boolean enabled = StringUtils.isNotBlank(model.getBorderColor());
+    return new BorderBlock(enabled,
+                           model.getBorderColor(),
+                           parsePixels(model.getBorderSize()),
+                           enabled ? Boolean.valueOf("true".equals(model.getBoxShadow())) : null);
+  }
+
+  private CornersBlock toCorners(LayoutModel model) {
+    return toCorners(model.getRadiusTopLeft(),
+                     model.getRadiusTopRight(),
+                     model.getRadiusBottomRight(),
+                     model.getRadiusBottomLeft());
+  }
+
+  private CornersBlock toCorners(Integer topLeft, Integer topRight, Integer bottomRight, Integer bottomLeft) {
+    boolean enabled = topLeft != null || topRight != null || bottomRight != null || bottomLeft != null;
+    Integer all = topLeft != null && topLeft.equals(topRight) && topLeft.equals(bottomRight) && topLeft.equals(bottomLeft) ?
+                                                                                                                              topLeft :
+                                                                                                                              null;
+    return new CornersBlock(enabled, all, topLeft, topRight, bottomRight, bottomLeft);
+  }
+
+  private BackgroundBlock toBackground(LayoutModel model) {
+    String color = model.getBackgroundColor();
+    String effect = model.getBackgroundEffect();
+    String image = model.getBackgroundImage();
+    boolean enabled = StringUtils.isNotBlank(color) || StringUtils.isNotBlank(effect) || StringUtils.isNotBlank(image);
+    if (!enabled) {
+      return new BackgroundBlock(false, null, null, null, null, null, null, null, null, null);
+    }
+    String scrollColor = null;
+    if (color != null && color.contains("@")) {
+      String[] parts = color.split("@", 2);
+      color = parts[0];
+      scrollColor = parts[1];
+    }
+    BackgroundImageBlock imageBlock = StringUtils.isBlank(image) ? null :
+                                                                 new BackgroundImageBlock(null,
+                                                                                          image,
+                                                                                          model.getBackgroundSize(),
+                                                                                          model.getBackgroundPosition(),
+                                                                                          model.getBackgroundAttachment(),
+                                                                                          model.getBackgroundRepeat(),
+                                                                                          toImageMargins(model.getCssClass()),
+                                                                                          toImageCorners(model.getCssClass()));
+    if (StringUtils.isBlank(effect)) {
+      return new BackgroundBlock(true, BackgroundMode.SOLID, color, null, null, null, null, scrollColor, null, imageBlock);
+    }
+    BackgroundBlock gradient = parseGradient(effect);
+    return new BackgroundBlock(true,
+                               gradient.mode(),
+                               gradient.mode() == null ? color : null,
+                               gradient.from(),
+                               gradient.to(),
+                               gradient.ratio(),
+                               gradient.direction(),
+                               scrollColor,
+                               gradient.effect(),
+                               imageBlock);
+  }
+
+  /**
+   * Reads the three gradient forms the editor writes (linear-gradient with an
+   * optional "to right", radial-gradient, conic-gradient from a corner); any
+   * other effect is returned as is in the effect field.
+   */
+  private BackgroundBlock parseGradient(String effect) {
+    BackgroundMode mode = null;
+    String direction = null;
+    if (effect.startsWith("linear-gradient(")) {
+      mode = BackgroundMode.LINEAR;
+      direction = effect.contains("to right") ? TO_RIGHT : TO_BOTTOM;
+    } else if (effect.startsWith("radial-gradient(")) {
+      mode = BackgroundMode.RADIAL;
+    } else if (effect.startsWith("conic-gradient(")) {
+      mode = BackgroundMode.ANGULAR;
+      Matcher corner = CONIC_CORNER.matcher(effect);
+      direction = corner.find() ? corner.group(1) + "_" + corner.group(2) : null;
+    }
+    List<String> colors = new ArrayList<>();
+    Matcher colorMatcher = HEX_COLOR.matcher(effect);
+    while (colorMatcher.find()) {
+      colors.add(colorMatcher.group());
+    }
+    List<Integer> stops = new ArrayList<>();
+    Matcher stopMatcher = PERCENT.matcher(effect);
+    while (stopMatcher.find()) {
+      stops.add(Integer.parseInt(stopMatcher.group(1)));
+    }
+    if (mode == BackgroundMode.ANGULAR) {
+      return parseConicGradient(effect, direction);
+    }
+    if (mode == null || colors.size() < 2) {
+      return new BackgroundBlock(true, null, null, null, null, null, null, null, effect, null);
+    }
+    Integer ratio = stops.size() >= 3 ? stops.get(1) : null;
+    return new BackgroundBlock(true, mode, null, colors.get(0), colors.get(colors.size() - 1), ratio, direction, null, null, null);
+  }
+
+  /**
+   * The editor writes conic-gradient(from &lt;angle&gt; at &lt;corner&gt;, E 0deg, X
+   * &lt;mid&gt;deg, F 90deg) with degree stops, the plateau next to the From
+   * colour's edge: for top right and bottom left the first stop is the To
+   * colour and the ratio is the complement of the middle angle's share.
+   */
+  private BackgroundBlock parseConicGradient(String effect, String direction) {
+    String inner = effect.substring("conic-gradient(".length()).replaceAll("\\)$", "");
+    int firstComma = inner.indexOf(',');
+    if (firstComma < 0) {
+      return new BackgroundBlock(true, null, null, null, null, null, null, null, effect, null);
+    }
+    List<Matcher> stops = new ArrayList<>();
+    for (String stop : inner.substring(firstComma + 1).split(",")) {
+      Matcher matcher = CONIC_STOP.matcher(stop.trim());
+      if (!matcher.matches()) {
+        return new BackgroundBlock(true, null, null, null, null, null, null, null, effect, null);
+      }
+      stops.add(matcher);
+    }
+    if (stops.size() < 2) {
+      return new BackgroundBlock(true, null, null, null, null, null, null, null, effect, null);
+    }
+    boolean reversed = "top_right".equals(direction) || "bottom_left".equals(direction);
+    String firstColor = stops.get(0).group(1);
+    String lastColor = stops.get(stops.size() - 1).group(1);
+    Integer ratio = null;
+    if (stops.size() == 3) {
+      int midPercent = (int) Math.round(Double.parseDouble(stops.get(1).group(2)) / 90 * 100);
+      ratio = reversed ? 100 - midPercent : midPercent;
+    }
+    return new BackgroundBlock(true,
+                               BackgroundMode.ANGULAR,
+                               null,
+                               reversed ? lastColor : firstColor,
+                               reversed ? firstColor : lastColor,
+                               ratio,
+                               direction,
+                               null,
+                               null,
+                               null);
+  }
+
+  private SidesBlock toImageMargins(String cssClass) {
+    if (StringUtils.isBlank(cssClass)) {
+      return null;
+    }
+    Map<String, Integer> values = new HashMap<>();
+    Matcher matcher = BG_MARGIN_TOKEN.matcher(cssClass);
+    while (matcher.find()) {
+      Integer pixels = toInteger(matcher.group(3));
+      if (pixels != null) {
+        values.put(matcher.group(2), pixels);
+      }
+    }
+    return values.isEmpty() ? null : new SidesBlock(values.get("top"), values.get("right"), values.get("bottom"), values.get("left"));
+  }
+
+  private CornersBlock toImageCorners(String cssClass) {
+    if (StringUtils.isBlank(cssClass)) {
+      return null;
+    }
+    Map<String, Integer> values = new HashMap<>();
+    Matcher matcher = BG_RADIUS_TOKEN.matcher(cssClass);
+    while (matcher.find()) {
+      Integer pixels = toInteger(matcher.group(3));
+      if (pixels != null) {
+        values.put(matcher.group(2), pixels);
+      }
+    }
+    return values.isEmpty() ? null : toCorners(values.get("tl"), values.get("tr"), values.get("br"), values.get("bl"));
+  }
+
+  private TextBlock toText(LayoutModel model) { // NOSONAR
+    TextRoleBlock title = toTextRole(model.getTextTitleColor(),
+                                     model.getTextTitleFontSize(),
+                                     model.getTextTitleFontWeight(),
+                                     model.getTextTitleFontStyle(),
+                                     toTextBackground(model.getTextTitleBackgroundColor(),
+                                                      model.getTextTitleBackgroundEffect(),
+                                                      model.getTextTitleBackgroundImage(),
+                                                      model.getTextTitleBackgroundSize(),
+                                                      model.getTextTitleBackgroundRepeat(),
+                                                      model.getTextTitleBackgroundPosition(),
+                                                      model.getTextTitleBackgroundPadding(),
+                                                      model.getTextTitleBackgroundRadius()));
+    TextRoleBlock header = toTextRole(model.getTextHeaderColor(),
+                                      model.getTextHeaderFontSize(),
+                                      model.getTextHeaderFontWeight(),
+                                      model.getTextHeaderFontStyle(),
+                                      toTextBackground(model.getTextHeaderBackgroundColor(),
+                                                       model.getTextHeaderBackgroundEffect(),
+                                                       model.getTextHeaderBackgroundImage(),
+                                                       model.getTextHeaderBackgroundSize(),
+                                                       model.getTextHeaderBackgroundRepeat(),
+                                                       model.getTextHeaderBackgroundPosition(),
+                                                       model.getTextHeaderBackgroundPadding(),
+                                                       model.getTextHeaderBackgroundRadius()));
+    TextRoleBlock content = toTextRole(model.getTextColor(),
+                                       model.getTextFontSize(),
+                                       model.getTextFontWeight(),
+                                       model.getTextFontStyle(),
+                                       null);
+    TextRoleBlock subtitle = toTextRole(model.getTextSubtitleColor(),
+                                        model.getTextSubtitleFontSize(),
+                                        model.getTextSubtitleFontWeight(),
+                                        model.getTextSubtitleFontStyle(),
+                                        null);
+    boolean enabled = title != null || header != null || content != null || subtitle != null
+                      || StringUtils.isNotBlank(model.getIconColor());
+    return new TextBlock(enabled, title, header, content, subtitle, model.getIconColor());
+  }
+
+  private TextRoleBlock toTextRole(String color, String fontSize, String fontWeight, String fontStyle, TextBackgroundBlock background) {
+    boolean bold = "bold".equals(fontWeight);
+    boolean italic = "italic".equals(fontStyle);
+    if (StringUtils.isBlank(color) && StringUtils.isBlank(fontSize) && !bold && !italic && background == null) {
+      return null;
+    }
+    return new TextRoleBlock(color, parsePixels(fontSize), bold, italic, background);
+  }
+
+  private TextBackgroundBlock toTextBackground(String color, // NOSONAR
+                                               String effect,
+                                               String image,
+                                               String size,
+                                               String repeat,
+                                               String position,
+                                               String padding,
+                                               String radius) {
+    if (StringUtils.isBlank(color) && StringUtils.isBlank(effect) && StringUtils.isBlank(image)) {
+      return null;
+    }
+    BackgroundImageBlock imageBlock = StringUtils.isBlank(image) ? null :
+                                                                 new BackgroundImageBlock(null,
+                                                                                          image,
+                                                                                          size,
+                                                                                          position,
+                                                                                          null,
+                                                                                          repeat,
+                                                                                          null,
+                                                                                          null);
+    BackgroundBlock gradient = StringUtils.isBlank(effect) ? null : parseGradient(effect);
+    BackgroundMode mode = gradient == null ? BackgroundMode.SOLID : gradient.mode();
+    return new TextBackgroundBlock(true,
+                                   mode,
+                                   gradient == null || gradient.mode() == null ? color : null,
+                                   gradient == null ? null : gradient.from(),
+                                   gradient == null ? null : gradient.to(),
+                                   gradient == null ? null : gradient.ratio(),
+                                   gradient == null ? null : gradient.direction(),
+                                   gradient == null ? null : gradient.effect(),
+                                   imageBlock,
+                                   toSides(padding),
+                                   toSpacedCorners(radius));
+  }
+
+  private HeightBlock toHeight(LayoutModel model) {
+    String height = model.getHeight();
+    if (StringUtils.isBlank(height)) {
+      return new HeightBlock(false, null, null);
+    }
+    HeightPreset preset = HeightPreset.fromStoredValue(height);
+    return new HeightBlock(true, preset, preset == HeightPreset.CUSTOM ? parsePixels(height) : null);
+  }
+
+  /**
+   * @param  value a "T R B L" list of pixel values, as the text background
+   *                 padding is stored
+   * @return the four sides, null when the value is blank or malformed
+   */
+  private SidesBlock toSides(String value) {
+    List<Integer> parts = parsePixelList(value);
+    return parts.size() == 4 ? new SidesBlock(parts.get(0), parts.get(1), parts.get(2), parts.get(3)) : null;
+  }
+
+  private CornersBlock toSpacedCorners(String value) {
+    List<Integer> parts = parsePixelList(value);
+    return parts.size() == 4 ? toCorners(parts.get(0), parts.get(1), parts.get(2), parts.get(3)) : null;
+  }
+
+  private List<Integer> parsePixelList(String value) {
+    if (StringUtils.isBlank(value)) {
+      return Collections.emptyList();
+    }
+    List<Integer> parts = new ArrayList<>();
+    Matcher matcher = PIXELS.matcher(value);
+    while (matcher.find()) {
+      parts.add(toInteger(matcher.group()));
+    }
+    return parts;
+  }
+
+  private Integer parsePixels(String value) {
+    if (StringUtils.isBlank(value)) {
+      return null;
+    }
+    Matcher matcher = PIXELS.matcher(value);
+    return matcher.find() ? toInteger(matcher.group()) : null;
+  }
+
+  /**
+   * @return the stored digits as a number, or null when they go past an int,
+   *         so that a stored value no editor writes reads as absent rather
+   *         than failing the whole read
+   */
+  private Integer toInteger(String digits) {
+    try {
+      return Integer.valueOf(digits);
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  private Alignment toAlignment(String cssClass, String centerToken, String endToken) {
+    if (hasToken(cssClass, endToken)) {
+      return Alignment.END;
+    } else if (hasToken(cssClass, centerToken)) {
+      return Alignment.CENTER;
+    } else {
+      return Alignment.START;
+    }
+  }
+
+  private boolean hasToken(String cssClass, String token) {
+    return StringUtils.isNotBlank(cssClass)
+           && TOKEN_PATTERNS.computeIfAbsent(token, t -> Pattern.compile("(^| )" + Pattern.quote(t) + "(?= |$)"))
+                            .matcher(cssClass)
+                            .find();
+  }
+
+  private boolean isTemplate(LayoutModel model, String template) {
+    return model != null && StringUtils.equals(model.getTemplate(), template);
+  }
+
+  private List<LayoutModel> children(LayoutModel model) {
+    return model == null || model.getChildren() == null ? Collections.emptyList() : model.getChildren();
+  }
+
+}

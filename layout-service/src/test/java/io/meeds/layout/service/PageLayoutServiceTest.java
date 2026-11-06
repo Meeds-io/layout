@@ -28,6 +28,8 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -40,6 +42,7 @@ import java.util.Objects;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.InOrder;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -375,6 +378,8 @@ public class PageLayoutServiceTest {
     pageLayoutService.clonePage(PAGE_KEY, TEST_USER);
     verify(page).resetStorage();
     verify(page).setName(PAGE_KEY.getName() + "_draft_" + TEST_USER);
+    verify(page).setAccessPermissions(null);
+    verify(page, never()).setEditPermission(any());
     verify(layoutService).save(any(PageContext.class), eq(page));
   }
 
@@ -436,9 +441,14 @@ public class PageLayoutServiceTest {
     verify(page, never()).resetStorage();
     verify(page).setChildren(any());
     verify(layoutService).save(page);
+    verify(listenerService).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, PAGE_KEY.format());
+    verify(listenerService, never()).broadcast(eq(PageLayoutService.PAGE_PUBLISHED_EVENT), any(), any());
 
     pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER);
     verify(page).resetStorage();
+    InOrder published = inOrder(layoutService, listenerService);
+    published.verify(layoutService, times(2)).save(page);
+    published.verify(listenerService).broadcast(PageLayoutService.PAGE_PUBLISHED_EVENT, TEST_USER, PAGE_KEY.format());
 
     String width = "36px";
     String height = "36%";
@@ -558,12 +568,14 @@ public class PageLayoutServiceTest {
     when(layoutService.getPageContext(PAGE_KEY)).thenReturn(pageContext);
     assertThrows(IllegalAccessException.class,
                  () -> pageLayoutService.updatePagePermissions(PAGE_KEY, permissionModel, TEST_USER));
+    verify(listenerService, never()).broadcast(eq(PageLayoutService.PAGE_PERMISSIONS_UPDATED_EVENT), any(), any());
     when(aclService.canEditPage(PAGE_KEY, TEST_USER)).thenReturn(true);
     when(pageContext.getState()).thenReturn(pageState);
     pageLayoutService.updatePagePermissions(PAGE_KEY, permissionModel, TEST_USER);
     verify(layoutService).save(pageContext);
     verify(pageState).setEditPermission(permissionModel.getEditPermission());
     verify(pageState).setAccessPermissions(permissionModel.getAccessPermissions());
+    verify(listenerService).broadcast(PageLayoutService.PAGE_PERMISSIONS_UPDATED_EVENT, TEST_USER, PAGE_KEY.format());
   }
 
 }

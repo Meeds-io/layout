@@ -1,0 +1,346 @@
+/**
+ * This file is part of the Meeds project (https://meeds.io/).
+ *
+ * Copyright (C) 2020 - 2026 Meeds Association contact@meeds.io
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+package io.meeds.layout.service;
+
+import java.util.ArrayList;
+import java.util.List;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.math.NumberUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import org.exoplatform.commons.exception.ObjectNotFoundException;
+import org.exoplatform.portal.config.model.Page;
+import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.navigation.NodeContext;
+import org.exoplatform.portal.mop.navigation.NodeData;
+import org.exoplatform.portal.mop.navigation.NodeState;
+import org.exoplatform.portal.mop.page.PageKey;
+import org.exoplatform.portal.mop.service.LayoutService;
+import org.exoplatform.portal.mop.service.NavigationService;
+
+import io.meeds.social.coediting.model.CoeditionObjectDraft;
+import io.meeds.social.coediting.model.CoeditionObjectKey;
+import io.meeds.social.coediting.service.CoeditingService;
+
+/**
+ * Resolves the draft a user is editing through the co-editing revision the
+ * layout editors record, never through a draft page or a draft site found in
+ * storage: the editors re-clone the live layout whenever no revision names a
+ * draft, so a leftover draft is a stale copy nobody edits.
+ */
+@Service
+public class LayoutDraftService {
+
+  public static final String NAVIGATION_OBJECT_TYPE = "navigation";
+
+  public static final String SITE_OBJECT_TYPE       = "site";
+
+  public static final String DRAFT_NAME_MARKER      = "_draft_";
+
+  public static final String NO_DRAFT_MESSAGE       = "User %s has no draft of site %s";
+
+  public static final String NO_PAGE_DRAFT_MESSAGE  = "User %s has no draft of page %s";
+
+  @Autowired
+  private CoeditingService   coeditingService;
+
+  @Autowired
+  private NavigationService  navigationService;
+
+  @Autowired
+  private LayoutService      layoutService;
+
+  @Autowired
+  private SiteLayoutService  siteLayoutService;
+
+  @Autowired
+  private NavigationLayoutService navigationLayoutService;
+
+  @Autowired
+  private PageLayoutService  pageLayoutService;
+
+  @Autowired
+  private LayoutAclService   aclService;
+
+  /**
+   * @param  liveNodeId the navigation node of the live page
+   * @param  username   the user whose draft is looked up
+   * @return the key of the draft page the user's revision names, null when
+   *         the user has no draft of that page: the named node must be the
+   *         draft node the editor creates for this user and this live node,
+   *         and point at the page clonePage names for them, since the node's
+   *         page reference is the user's to re-point through the navigation
+   *         and would otherwise make any page their draft
+   */
+  public PageKey getDraftPageKey(long liveNodeId, String username) {
+    String revision = getRevision(username, NAVIGATION_OBJECT_TYPE, String.valueOf(liveNodeId));
+    if (!NumberUtils.isDigits(revision)) {
+      return null;
+    }
+    NodeData liveNode = navigationService.getNodeById(liveNodeId);
+    NodeData draftNode = navigationService.getNodeById(Long.parseLong(revision));
+    if (liveNode == null || draftNode == null || !StringUtils.equals(draftNode.getName(), draftNodeName(liveNode.getName(), username))) {
+      return null;
+    }
+    PageKey livePageKey = liveNode.getState() == null ? null : liveNode.getState().getPageRef();
+    PageKey draftPageKey = draftNode.getState() == null ? null : draftNode.getState().getPageRef();
+    return livePageKey != null
+           && draftPageKey != null
+           && StringUtils.equals(draftPageKey.format(), draftPageKey(livePageKey, username).format())
+           && layoutService.getPage(draftPageKey) != null ? draftPageKey : null;
+  }
+
+  /**
+   * @param  siteId   the live site
+   * @param  username the user whose draft is looked up
+   * @return the key of the draft site the user's revision names, null when
+   *         the user has no draft of that site: the named site must be the
+   *         draft site the editor creates for this user and this live site
+   */
+  public SiteKey getDraftSiteKey(long siteId, String username) {
+    String revision = getRevision(username, SITE_OBJECT_TYPE, String.valueOf(siteId));
+    if (!NumberUtils.isDigits(revision)) {
+      return null;
+    }
+    PortalConfig liveSite = layoutService.getPortalConfig(siteId);
+    PortalConfig draftSite = layoutService.getPortalConfig(Long.parseLong(revision));
+    if (liveSite == null
+        || draftSite == null
+        || !StringUtils.equals(draftSite.getType(), PortalConfig.DRAFT)
+        || !StringUtils.equals(draftSite.getName(), draftSiteName(liveSite, username))) {
+      return null;
+    }
+    return draftSite.getSiteKey();
+  }
+
+  /**
+   * Creates the user's draft of a site through the editor's own path and
+   * records the draft site id as the user's co-editing revision, so the
+   * editor resumes it and the read tools return it; an existing draft of
+   * the same user is replaced, as the editor's "start again" does.
+   *
+   * @param  liveSite                the site drafted
+   * @param  username                the editing user
+   * @return                         the draft site's key
+   * @throws ObjectNotFoundException when the live site does not exist
+   * @throws IllegalAccessException  when the user may not edit the site
+   */
+  public SiteKey createDraftSite(PortalConfig liveSite, String username) throws ObjectNotFoundException, IllegalAccessException {
+    SiteKey draftSiteKey = siteLayoutService.createDraftSite(liveSite.getSiteKey(), username);
+    PortalConfig draftSite = layoutService.getPortalConfig(draftSiteKey);
+    coeditingService.setRevision(username, siteKey(liveSite.getId()), String.valueOf(draftSite.getId()));
+    return draftSiteKey;
+  }
+
+  /**
+   * Publishes the draft the user's revision names over the live site, as the
+   * editor's save does from the stored draft, then removes the revision; a
+   * leftover draft without a revision is never published, and the draft is
+   * read under the view rule a draft site carries, as the read tools read it.
+   *
+   * @param  liveSite                the site published
+   * @param  username                the editing user
+   * @throws ObjectNotFoundException when the user has no draft of the site
+   * @throws IllegalAccessException  when the user may not edit the site
+   */
+  public void publishSite(PortalConfig liveSite, String username) throws ObjectNotFoundException, IllegalAccessException {
+    PortalConfig draftSite = siteLayoutService.getSite(requireDraftSiteKey(liveSite, username), username);
+    siteLayoutService.updateSiteLayout(liveSite.getSiteKey(), draftSite, true, username);
+    coeditingService.removeRevision(username, siteKey(liveSite.getId()));
+  }
+
+  /**
+   * Drops the draft the user's revision names and starts a new one from the
+   * live layout, as the editor's "start again" does.
+   *
+   * @param  liveSite                the site drafted
+   * @param  username                the editing user
+   * @return                         the new draft site's key
+   * @throws ObjectNotFoundException when the user has no draft of the site
+   * @throws IllegalAccessException  when the user may not edit the site
+   */
+  public SiteKey discardDraftSite(PortalConfig liveSite, String username) throws ObjectNotFoundException, IllegalAccessException {
+    requireDraftSiteKey(liveSite, username);
+    return createDraftSite(liveSite, username);
+  }
+
+  /**
+   * Creates the user's draft of a page through the editor's own path and
+   * records the draft node id as the user's co-editing revision on the live
+   * node, so the editor resumes it and the read tools return it; an existing
+   * draft page of the same user is written again from the live page and the
+   * draft node re-pointed, as the editor's "start again" does.
+   *
+   * @param  liveNodeId              the navigation node of the live page
+   * @param  username                the editing user
+   * @return                         the draft page's key
+   * @throws ObjectNotFoundException when the live node does not exist
+   * @throws IllegalAccessException  when the user may not edit the page, or
+   *                                   may not edit the navigation on the
+   *                                   first creation of the draft node
+   */
+  public PageKey createDraftPage(long liveNodeId, String username) throws ObjectNotFoundException, IllegalAccessException {
+    NodeData draftNode = navigationLayoutService.createDraftNode(liveNodeId, username);
+    coeditingService.setRevision(username, navigationKey(liveNodeId), draftNode.getId());
+    return draftNode.getState().getPageRef();
+  }
+
+  /**
+   * Publishes the draft the user's revision names over the live page, as the
+   * editor's publish does, then removes the revision; a leftover draft
+   * without a revision is never published, nor a page the draft node was
+   * re-pointed at. The draft, which the user must be able to edit, is read
+   * as stored, unfiltered, so a window the user cannot see is published in
+   * place as the editor publishes it, and the live page keeps its own
+   * permissions.
+   *
+   * @param  livePageKey             the page published
+   * @param  liveNodeId              the navigation node of the live page
+   * @param  username                the editing user
+   * @throws ObjectNotFoundException when the user has no draft of the page
+   * @throws IllegalAccessException  when the user may not edit the page
+   */
+  public void publishPage(PageKey livePageKey, long liveNodeId, String username) throws ObjectNotFoundException,
+                                                                                   IllegalAccessException {
+    PageKey draftPageKey = requireDraftPageKey(livePageKey, liveNodeId, username);
+    if (!aclService.canEditPage(draftPageKey, username)) {
+      throw new IllegalAccessException(String.format(NO_PAGE_DRAFT_MESSAGE, username, livePageKey.format()));
+    }
+    Page draftPage = pageLayoutService.getPageLayout(draftPageKey);
+    if (draftPage == null) {
+      throw new ObjectNotFoundException(String.format(NO_PAGE_DRAFT_MESSAGE, username, livePageKey.format()));
+    }
+    pageLayoutService.updatePageLayout(livePageKey.format(), draftPage, true, username);
+    coeditingService.removeRevision(username, navigationKey(liveNodeId));
+  }
+
+  /**
+   * Drops the draft the user's revision names and starts a new one from the
+   * live page, as the editor's "start again" does.
+   *
+   * @param  livePageKey             the page drafted
+   * @param  liveNodeId              the navigation node of the live page
+   * @param  username                the editing user
+   * @return                         the new draft page's key
+   * @throws ObjectNotFoundException when the user has no draft of the page
+   * @throws IllegalAccessException  when the user may not edit the page
+   */
+  public PageKey discardDraftPage(PageKey livePageKey, long liveNodeId, String username) throws ObjectNotFoundException,
+                                                                                            IllegalAccessException {
+    requireDraftPageKey(livePageKey, liveNodeId, username);
+    return createDraftPage(liveNodeId, username);
+  }
+
+  /**
+   * @param  pageKey  a page
+   * @param  username the user whose draft is looked up
+   * @return the id of the navigation node of the page's own site the tools
+   *         work from: the non-draft node referencing the page on which the
+   *         user's revision names a draft, so a draft built in the editor
+   *         from any item of the page is the one resumed, else the first
+   *         such node in tree order; null when no node references the page
+   */
+  public Long findLiveNodeId(PageKey pageKey, String username) {
+    NodeContext<NodeContext<Object>> root = navigationService.loadNode(pageKey.getSite());
+    List<Long> nodeIds = new ArrayList<>();
+    collectNodesByPage(root, pageKey, nodeIds);
+    return nodeIds.stream()
+                  .filter(nodeId -> getDraftPageKey(nodeId, username) != null)
+                  .findFirst()
+                  .orElse(nodeIds.isEmpty() ? null : nodeIds.get(0));
+  }
+
+  public boolean isDraftNode(String nodeName) {
+    return StringUtils.contains(nodeName, DRAFT_NAME_MARKER);
+  }
+
+  /**
+   * @param  liveNodeName the live navigation node's name
+   * @param  username     the editing user
+   * @return the name NavigationLayoutService.createDraftNode gives that user's
+   *         draft node
+   */
+  public String draftNodeName(String liveNodeName, String username) {
+    return liveNodeName + DRAFT_NAME_MARKER + username;
+  }
+
+  /**
+   * @param  livePageKey the live page
+   * @param  username    the editing user
+   * @return the key PageLayoutService.clonePage gives that user's draft page
+   */
+  public PageKey draftPageKey(PageKey livePageKey, String username) {
+    return new PageKey(livePageKey.getSite(), livePageKey.getName() + DRAFT_NAME_MARKER + username);
+  }
+
+  /**
+   * @param  liveSite the live site
+   * @param  username the editing user
+   * @return the name SiteLayoutService.createDraftSite gives that user's draft
+   *         site
+   */
+  public String draftSiteName(PortalConfig liveSite, String username) {
+    return liveSite.getType() + "_" + liveSite.getName() + DRAFT_NAME_MARKER + username;
+  }
+
+  private void collectNodesByPage(NodeContext<NodeContext<Object>> node, PageKey pageKey, List<Long> nodeIds) {
+    if (node == null) {
+      return;
+    }
+    NodeState state = node.getState();
+    if (state != null && pageKey.equals(state.getPageRef()) && !isDraftNode(node.getName())) {
+      nodeIds.add(Long.parseLong(node.getId()));
+    }
+    for (int i = 0; i < node.getNodeCount(); i++) {
+      collectNodesByPage(node.get(i), pageKey, nodeIds);
+    }
+  }
+
+  private SiteKey requireDraftSiteKey(PortalConfig liveSite, String username) throws ObjectNotFoundException {
+    SiteKey draftSiteKey = getDraftSiteKey(liveSite.getId(), username);
+    if (draftSiteKey == null) {
+      throw new ObjectNotFoundException(String.format(NO_DRAFT_MESSAGE, username, liveSite.getSiteKey()));
+    }
+    return draftSiteKey;
+  }
+
+  private PageKey requireDraftPageKey(PageKey livePageKey, long liveNodeId, String username) throws ObjectNotFoundException {
+    PageKey draftPageKey = getDraftPageKey(liveNodeId, username);
+    if (draftPageKey == null) {
+      throw new ObjectNotFoundException(String.format(NO_PAGE_DRAFT_MESSAGE, username, livePageKey.format()));
+    }
+    return draftPageKey;
+  }
+
+  private CoeditionObjectKey navigationKey(long liveNodeId) {
+    return new CoeditionObjectKey(NAVIGATION_OBJECT_TYPE, String.valueOf(liveNodeId));
+  }
+
+  private CoeditionObjectKey siteKey(long siteId) {
+    return new CoeditionObjectKey(SITE_OBJECT_TYPE, String.valueOf(siteId));
+  }
+
+  private String getRevision(String username, String objectType, String objectId) {
+    CoeditionObjectDraft draft = coeditingService.getRevision(username, new CoeditionObjectKey(objectType, objectId));
+    return draft == null ? null : draft.getRevision();
+  }
+
+}

@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -36,6 +37,8 @@ import org.exoplatform.commons.ObjectAlreadyExistsException;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.portal.config.UserPortalConfig;
 import org.exoplatform.portal.config.UserPortalConfigService;
+import org.exoplatform.portal.config.model.Application;
+import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelObject;
 import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
@@ -48,20 +51,34 @@ import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.portal.mop.user.UserPortal;
+import org.exoplatform.portal.pom.spi.portlet.Portlet;
 import org.exoplatform.services.listener.ListenerService;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.resources.LocaleConfig;
 import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.resources.LocaleContextInfo;
+import org.exoplatform.social.core.plugin.SiteTranslationPlugin;
 
 import io.meeds.common.ContainerTransactional;
 import io.meeds.layout.util.LayoutStyleValidator;
+import io.meeds.social.translation.service.TranslationService;
 
 import lombok.SneakyThrows;
 
 @Service
 public class SiteLayoutService {
+
+  public static final String      DISPLAYED_NOT_ACCEPTED = "value is not accepted for displayed";
+
+  /**
+   * Broadcast with the acting username and the SiteKey after a publication
+   * replaced a site's layout, whatever the site's kind (portal, group, user,
+   * template): a listener keyed on pages or spaces checks the kind itself
+   */
+  public static final String      SITE_PUBLISHED_EVENT   = "layout.site.published";
+
+  public static final String      SITE_OUTDATED_MESSAGE  = "layout.siteOutdatedError";
 
   private static final String     SITE_NOT_FOUND_MESSAGE = "Site with key %s doesn't exist";
 
@@ -98,6 +115,9 @@ public class SiteLayoutService {
 
   @Autowired
   private NavigationLayoutService navigationLayoutService;
+
+  @Autowired
+  private TranslationService      translationService;
 
   private Map<String, String>     supportedLanguages;
 
@@ -157,21 +177,25 @@ public class SiteLayoutService {
 
     portalConfigService.createSiteFromTemplate(new SiteKey(templatePortalConfig.getType(), templatePortalConfig.getName()),
                                                siteKey);
-
-    PortalConfig createdPortalConfig = layoutService.getPortalConfig(siteKey);
-    createdPortalConfig.setDescription(portalConfig.getDescription());
-    createdPortalConfig.setLabel(portalConfig.getLabel());
-    createdPortalConfig.setDisplayed(portalConfig.isDisplayed());
-    createdPortalConfig.setIcon(portalConfig.getIcon());
-    createdPortalConfig.setDisplayOrder(portalConfig.isDisplayed() ? portalConfig.getDisplayOrder() : 0);
-    createdPortalConfig.setAccessPermissions(accessPermissions);
-    createdPortalConfig.setEditPermission(editPermission);
-    createdPortalConfig.setRemovable(true);
-    if (StringUtils.isNotBlank(portalConfig.getBannerUploadId())) {
-      createdPortalConfig.setBannerUploadId(portalConfig.getBannerUploadId());
+    try {
+      PortalConfig createdPortalConfig = layoutService.getPortalConfig(siteKey);
+      createdPortalConfig.setDescription(portalConfig.getDescription());
+      createdPortalConfig.setLabel(portalConfig.getLabel());
+      createdPortalConfig.setDisplayed(portalConfig.isDisplayed());
+      createdPortalConfig.setIcon(portalConfig.getIcon());
+      createdPortalConfig.setDisplayOrder(portalConfig.isDisplayed() ? portalConfig.getDisplayOrder() : 0);
+      createdPortalConfig.setAccessPermissions(accessPermissions);
+      createdPortalConfig.setEditPermission(editPermission);
+      createdPortalConfig.setRemovable(true);
+      if (StringUtils.isNotBlank(portalConfig.getBannerUploadId())) {
+        createdPortalConfig.setBannerUploadId(portalConfig.getBannerUploadId());
+      }
+      layoutService.save(createdPortalConfig);
+      return createdPortalConfig;
+    } catch (RuntimeException e) {
+      removeCreatedSite(siteKey);
+      throw e;
     }
-    layoutService.save(createdPortalConfig);
-    return createdPortalConfig;
   }
 
   public SiteKey createDraftSite(SiteKey siteKey, String username) throws ObjectNotFoundException, IllegalAccessException {
@@ -232,18 +256,83 @@ public class SiteLayoutService {
     } else if (!aclService.canEditSite(siteKey, username)) {
       throw new IllegalAccessException(String.format(EDIT_DENIED_MESSAGE, siteKey, username));
     }
-    portalConfig.setDescription(updateModel.getSiteDescription());
-    portalConfig.setLabel(updateModel.getSiteLabel());
-    portalConfig.setIcon(updateModel.getSiteIcon());
-    portalConfig.setDisplayed(updateModel.isDisplayed());
-    portalConfig.setDisplayOrder(updateModel.isDisplayed() ? updateModel.getDisplayOrder() : 0);
-    if (updateModel.isBannerRemoved() && portalConfig.getBannerFileId() != 0) {
-      layoutService.removeSiteBanner(siteKey.getName());
-      portalConfig.setBannerFileId(0);
-    } else if (StringUtils.isNotBlank(updateModel.getBannerUploadId())) {
-      portalConfig.setBannerUploadId(updateModel.getBannerUploadId());
+    applySiteProperties(portalConfig, updateModel);
+  }
+
+  /**
+   * Updates a site's permissions, then its properties, the way the sites
+   * administration does it in two requests: the permissions first, so a
+   * refusal on them leaves the properties untouched; then the properties,
+   * every one the caller did not state kept from the stored site. A stated
+   * label or description is also written as the site's translation in the
+   * platform's default language, the one the sites list shows ahead of the
+   * stored property, as the form's main field does; the other languages keep
+   * their translation. The edit right is checked once, before the first
+   * write, so handing the edit right to a group the caller is not in applies,
+   * with or without properties, as the permissions drawer's own request does.
+   * The properties save, which consumes the banner upload, comes last: when
+   * it fails, or when a translation write fails, what was written before it
+   * is put back, the permissions first, then each default-language
+   * translation attempted, to the value it held or to none; a put-back that
+   * fails itself is logged and the first failure is the one raised.
+   *
+   * @param  siteKey                 the site to update
+   * @param  properties              the properties the caller states, null
+   *                                   fields kept from the stored site
+   * @param  permissions             the permissions to write first, null to
+   *                                   leave them
+   * @param  username                the acting user
+   * @throws ObjectNotFoundException when the site does not exist
+   * @throws IllegalAccessException  when the user may not edit the site
+   */
+  public void updateSiteAndPermissions(SiteKey siteKey,
+                                       SitePropertiesUpdate properties,
+                                       PermissionUpdateModel permissions,
+                                       String username) throws ObjectNotFoundException, IllegalAccessException {
+    PortalConfig portalConfig = layoutService.getPortalConfig(siteKey);
+    if (portalConfig == null) {
+      throw new ObjectNotFoundException(String.format(SITE_NOT_FOUND_MESSAGE, siteKey));
+    } else if (!aclService.canEditSite(siteKey, username)) {
+      throw new IllegalAccessException(String.format(EDIT_DENIED_MESSAGE, siteKey, username));
     }
-    layoutService.save(portalConfig);
+    long siteId = portalConfig.getId();
+    String[] storedAccessPermissions = portalConfig.getAccessPermissions() == null ? null :
+                                                                                   portalConfig.getAccessPermissions().clone();
+    String storedEditPermission = portalConfig.getEditPermission();
+    SiteUpdateModel updateModel = toUpdateModel(portalConfig, properties);
+    Locale defaultLocale = getDefaultLocale();
+    String storedLabel = storedTranslation(siteId, SiteTranslationPlugin.SITE_LABEL_FIELD_NAME, defaultLocale, properties.label());
+    String storedDescription = storedTranslation(siteId,
+                                                 SiteTranslationPlugin.SITE_DESCRIPTION_FIELD_NAME,
+                                                 defaultLocale,
+                                                 properties.description());
+    if (permissions != null) {
+      updateSitePermissions(permissions, username);
+    }
+    boolean labelWritten = false;
+    boolean descriptionWritten = false;
+    try {
+      if (properties.label() != null) {
+        labelWritten = true;
+        saveTranslation(siteId, SiteTranslationPlugin.SITE_LABEL_FIELD_NAME, defaultLocale, properties.label());
+      }
+      if (properties.description() != null) {
+        descriptionWritten = true;
+        saveTranslation(siteId, SiteTranslationPlugin.SITE_DESCRIPTION_FIELD_NAME, defaultLocale, properties.description());
+      }
+      applySiteProperties(layoutService.getPortalConfig(siteKey), updateModel);
+    } catch (Exception e) {
+      if (permissions != null) {
+        restorePermissions(siteKey, storedAccessPermissions, storedEditPermission);
+      }
+      if (labelWritten) {
+        restoreTranslation(siteId, SiteTranslationPlugin.SITE_LABEL_FIELD_NAME, defaultLocale, storedLabel);
+      }
+      if (descriptionWritten) {
+        restoreTranslation(siteId, SiteTranslationPlugin.SITE_DESCRIPTION_FIELD_NAME, defaultLocale, storedDescription);
+      }
+      throw e;
+    }
   }
 
   public void restoreSite(SiteKey siteKey,
@@ -308,6 +397,12 @@ public class SiteLayoutService {
     layoutService.save(portalConfig);
   }
 
+  /**
+   * Replaces a site's layout with the given one: a draft save checks that
+   * every window the tree names still exists, a publication recreates every
+   * window with the preferences it carries and broadcasts the site
+   * publication event, as the site layout editor's publish does
+   */
   public void updateSiteLayout(SiteKey siteKey,
                                PortalConfig site,
                                boolean publish,
@@ -332,9 +427,43 @@ public class SiteLayoutService {
       }
     } catch (ObjectNotFoundException e) {
       LOG.debug("Error while accessing Site applications storage information", e);
-      throw new IllegalStateException("layout.siteOutdatedError");
+      throw new IllegalStateException(SITE_OUTDATED_MESSAGE);
     }
     layoutService.save(portalConfig);
+    if (publish) {
+      listenerService.broadcast(SITE_PUBLISHED_EVENT, username, siteKey);
+    }
+  }
+
+  /**
+   * Sets preferences of a window of a site's layout, as the page method does
+   * for a page window: the given values replace the window's preferences, or
+   * are set over them when keepExisting is true. Like a site layout save that
+   * is not a publication, it broadcasts nothing.
+   */
+  public void updateSiteApplicationPreferences(SiteKey siteKey,
+                                               long applicationId,
+                                               List<PortletInstancePreference> preferences,
+                                               String username,
+                                               boolean keepExisting) throws IllegalAccessException, ObjectNotFoundException {
+    PortalConfig portalConfig = layoutService.getPortalConfig(siteKey);
+    if (portalConfig == null) {
+      throw new ObjectNotFoundException(String.format(SITE_DOESNT_EXIST_MSG, siteKey));
+    } else if (!aclService.canEditSite(siteKey, username)) {
+      throw new IllegalAccessException(String.format(EDIT_DENIED_MESSAGE, siteKey, username));
+    }
+    Application application = findApplication(portalConfig.getPortalLayout(), String.valueOf(applicationId));
+    if (application == null) {
+      throw new ObjectNotFoundException(String.format("Application with id %s wasn't found in site %s", applicationId, siteKey));
+    }
+    Portlet portletPreferences = keepExisting ? layoutService.load(application.getState()) : null;
+    if (portletPreferences == null) {
+      portletPreferences = new Portlet();
+    }
+    for (PortletInstancePreference preference : preferences) {
+      portletPreferences.setValue(preference.getName(), preference.getValue());
+    }
+    layoutService.save(application.getState(), portletPreferences);
   }
 
   public NodeLabel getSiteLabels(Long siteId, String username) throws ObjectNotFoundException, IllegalAccessException {
@@ -343,6 +472,114 @@ public class SiteLayoutService {
 
   public NodeLabel getSiteDescriptions(Long siteId, String username) throws ObjectNotFoundException, IllegalAccessException {
     return getSiteLabel(siteId, username, false);
+  }
+
+  private SiteUpdateModel toUpdateModel(PortalConfig portalConfig, SitePropertiesUpdate properties) {
+    SiteUpdateModel updateModel = new SiteUpdateModel();
+    updateModel.setSiteType(portalConfig.getType());
+    updateModel.setSiteName(portalConfig.getName());
+    updateModel.setSiteLabel(properties.label() == null ? portalConfig.getLabel() : properties.label());
+    updateModel.setSiteDescription(properties.description() == null ? portalConfig.getDescription() :
+                                                                       StringUtils.trimToNull(properties.description()));
+    updateModel.setSiteIcon(properties.icon() == null ? portalConfig.getIcon() : properties.icon());
+    if (Boolean.FALSE.equals(properties.displayed()) && isMetaSite(portalConfig)) {
+      throw new IllegalArgumentException(DISPLAYED_NOT_ACCEPTED);
+    }
+    updateModel.setDisplayed(properties.displayed() == null ? portalConfig.isDisplayed() : properties.displayed());
+    updateModel.setDisplayOrder(portalConfig.getDisplayOrder());
+    updateModel.setBannerUploadId(properties.bannerUploadId());
+    updateModel.setBannerRemoved(Boolean.TRUE.equals(properties.removeBanner()));
+    return updateModel;
+  }
+
+  /**
+   * @return the translation a field holds in the default language before an
+   *         update writes the given value over it, a blank when it holds
+   *         none; null when the update writes nothing there
+   */
+  private String storedTranslation(long siteId, String fieldName, Locale locale, String value) {
+    if (value == null) {
+      return null;
+    }
+    String stored = translationService.getTranslationLabel(SiteTranslationPlugin.SITE_OBJECT_TYPE, siteId, fieldName, locale);
+    return StringUtils.defaultString(stored);
+  }
+
+  private void saveTranslation(long siteId, String fieldName, Locale locale, String value) throws ObjectNotFoundException {
+    translationService.saveTranslationLabel(SiteTranslationPlugin.SITE_OBJECT_TYPE, siteId, fieldName, locale, value);
+  }
+
+  private void restoreTranslation(long siteId, String fieldName, Locale locale, String storedValue) {
+    try {
+      if (StringUtils.isBlank(storedValue)) {
+        translationService.deleteTranslationLabel(SiteTranslationPlugin.SITE_OBJECT_TYPE, siteId, fieldName, locale);
+      } else {
+        translationService.saveTranslationLabel(SiteTranslationPlugin.SITE_OBJECT_TYPE, siteId, fieldName, locale, storedValue);
+      }
+    } catch (Exception e) {
+      LOG.warn("The {} translation of site {} could not be put back after a failed update", fieldName, siteId, e);
+    }
+  }
+
+  private void applySiteProperties(PortalConfig portalConfig, SiteUpdateModel updateModel) throws ObjectNotFoundException {
+    portalConfig.setDescription(updateModel.getSiteDescription());
+    portalConfig.setLabel(updateModel.getSiteLabel());
+    portalConfig.setIcon(updateModel.getSiteIcon());
+    portalConfig.setDisplayed(updateModel.isDisplayed());
+    portalConfig.setDisplayOrder(updateModel.isDisplayed() ? updateModel.getDisplayOrder() : 0);
+    if (updateModel.isBannerRemoved() && portalConfig.getBannerFileId() != 0) {
+      layoutService.removeSiteBanner(updateModel.getSiteName());
+      portalConfig.setBannerFileId(0);
+    } else if (StringUtils.isNotBlank(updateModel.getBannerUploadId())) {
+      portalConfig.setBannerUploadId(updateModel.getBannerUploadId());
+    }
+    layoutService.save(portalConfig);
+  }
+
+  /**
+   * The meta site is the one the sites administration form never lets out of
+   * the sites menu
+   */
+  private boolean isMetaSite(PortalConfig portalConfig) {
+    return StringUtils.equalsIgnoreCase(portalConfig.getType(), PortalConfig.PORTAL_TYPE)
+           && StringUtils.equals(portalConfig.getName(), portalConfigService.getMetaPortal());
+  }
+
+  /**
+   * Removes the site a failed creation left behind, instantiated from its
+   * template but without the stated properties, so a retry can create it.
+   * The clone carries the template's removable flag, false on a system
+   * template, and the site storage refuses to remove such a site: the flag
+   * is saved first, without the banner upload the failed save consumed, and
+   * nothing is destroyed when that save fails, which leaves the site whole.
+   */
+  private void removeCreatedSite(SiteKey siteKey) {
+    try {
+      PortalConfig createdPortalConfig = layoutService.getPortalConfig(siteKey);
+      if (createdPortalConfig != null) {
+        createdPortalConfig.setBannerUploadId(null);
+        createdPortalConfig.setRemovable(true);
+        layoutService.save(createdPortalConfig);
+        navigationService.destroyNavigation(siteKey);
+        layoutService.removePages(siteKey);
+        layoutService.remove(layoutService.getPortalConfig(siteKey));
+      }
+    } catch (Exception e) {
+      LOG.warn("Site {} could not be removed after its creation failed", siteKey, e);
+    }
+  }
+
+  private void restorePermissions(SiteKey siteKey, String[] accessPermissions, String editPermission) {
+    try {
+      PortalConfig portalConfig = layoutService.getPortalConfig(siteKey);
+      if (portalConfig != null) {
+        portalConfig.setAccessPermissions(accessPermissions);
+        portalConfig.setEditPermission(editPermission);
+        layoutService.save(portalConfig);
+      }
+    } catch (RuntimeException e) {
+      LOG.warn("The permissions of site {} could not be put back after a failed update", siteKey, e);
+    }
   }
 
   private NodeLabel getSiteLabel(long siteId, String username, boolean isLabel) throws ObjectNotFoundException,
@@ -361,6 +598,20 @@ public class SiteLayoutService {
     Map<String, String> labels = getLabels(portalConfig, defaultLocale, username, isLabel);
     nodeLabel.setLabels(labels);
     return nodeLabel;
+  }
+
+  private Application findApplication(ModelObject modelObject, String storageId) {
+    if (modelObject instanceof Application application) {
+      return StringUtils.equals(application.getStorageId(), storageId) ? application : null;
+    } else if (modelObject instanceof Container container && container.getChildren() != null) {
+      return container.getChildren()
+                      .stream()
+                      .map(child -> findApplication(child, storageId))
+                      .filter(Objects::nonNull)
+                      .findFirst()
+                      .orElse(null);
+    }
+    return null;
   }
 
   private Map<String, String> getLabels(PortalConfig portalConfig, Locale defaultLocale, String username, boolean isLabel) {

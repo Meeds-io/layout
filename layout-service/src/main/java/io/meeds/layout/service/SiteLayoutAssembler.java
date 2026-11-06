@@ -1,0 +1,735 @@
+/**
+ * This file is part of the Meeds project (https://meeds.io/).
+ *
+ * Copyright (C) 2020 - 2026 Meeds Association contact@meeds.io
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU Lesser General Public
+ * License as published by the Free Software Foundation; either
+ * version 3 of the License, or (at your option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software Foundation,
+ * Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+package io.meeds.layout.service;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.commons.lang3.StringUtils;
+
+import org.exoplatform.commons.exception.ObjectNotFoundException;
+
+import io.meeds.layout.mcp.constant.Alignment;
+import io.meeds.layout.mcp.constant.StylingDestination;
+import io.meeds.layout.mcp.model.ApplicationDescription;
+import io.meeds.layout.mcp.model.SiteColumnDescription;
+import io.meeds.layout.mcp.model.SiteContainerDescription;
+import io.meeds.layout.mcp.model.SiteContainerOptions;
+import io.meeds.layout.mcp.model.SiteLayoutUpdate;
+import io.meeds.layout.mcp.model.StylingDescription;
+import io.meeds.layout.model.ImageConsumption;
+import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.util.EntityMapper;
+
+/**
+ * Rebuilds a site layout tree from a set_site_layout call, for one call: the
+ * root, the middle body, its center and the page body are kept from the
+ * stored tree, the four sidebar slots are always written (empty when unused)
+ * and the banners are written in the order given, as the site layout editor's
+ * parseSite and newSite shape them, each with the columns given. A container
+ * or a column addressed by its id keeps its stored element and every option,
+ * styling block or display the call leaves null; an application addressed by
+ * its id keeps its window the same way; a window the caller cannot see, which
+ * the call can neither address nor move, stays in its container or column at
+ * its index when that one is kept, the call being refused otherwise. A side holding both
+ * an outer and an inner sidebar, which the read reports as one, is refused.
+ */
+public class SiteLayoutAssembler {
+
+  public static final String                                SITE_TEMPLATE                   =
+                                                                          "system:/groovy/portal/webui/container/UISiteLayout.gtmpl";
+
+  public static final String                                SITE_MIDDLE_TEMPLATE            = "SiteMiddleBody";
+
+  public static final String                                SITE_MIDDLE_CENTER_TEMPLATE     = "SiteMiddleCenterBody";
+
+  public static final String                                SIDEBAR_TEMPLATE                = "Sidebar";
+
+  public static final String                                SIDEBAR_CELL_TEMPLATE           = "SidebarCell";
+
+  public static final String                                BANNER_TEMPLATE                 = "Banner";
+
+  public static final String                                BANNER_CELL_TEMPLATE            = "BannerCell";
+
+  public static final String                                STICKY_SECTION_TOKEN            = "layout-sticky-section";
+
+  public static final String                                BANNER_TOP_TOKEN                = "layout-banner-top-section";
+
+  public static final String                                BANNER_BOTTOM_TOKEN             = "layout-banner-bottom-section";
+
+  public static final String                                SITE_LAYOUT_NOT_EDITABLE        = "cannot be updated: site layout";
+
+  public static final String                                TWO_LEFT_SIDEBARS               =
+                                                                                       "cannot be updated: site layout holds two left sidebars";
+
+  public static final String                                TWO_RIGHT_SIDEBARS              =
+                                                                                       "cannot be updated: site layout holds two right sidebars";
+
+  public static final String                                STYLING_NOT_ACCEPTED            = "value is not accepted for styling";
+
+  public static final String                                ELEMENTS_NOT_ACCEPTED           =
+                                                                                       "value is not accepted for layout: more than 200 elements";
+
+  public static final String                                SITE_LAYOUT_HIDDEN              =
+                                                                               "not allowed: site layout holds elements you cannot see";
+
+  public static final String                                CONTAINER_NOT_FOUND             = "does not exist: container";
+
+  public static final String                                CONTAINER_ID_NOT_ACCEPTED       = "value is not accepted for container_id";
+
+  public static final String                                APPLICATION_NOT_FOUND           = "does not exist: application";
+
+  public static final String                                APPLICATION_ID_NOT_ACCEPTED     = "value is not accepted for application_id";
+
+  public static final String                                APPLICATIONS_NOT_ACCEPTED       = "value is not accepted for applications";
+
+  public static final String                                TITLE_NOT_ACCEPTED              = "value is not accepted for title";
+
+  public static final String                                TOPBARS_NOT_ACCEPTED            = "value is not accepted for topbars";
+
+  public static final String                                BOTTOM_BARS_NOT_ACCEPTED        = "value is not accepted for bottom_bars";
+
+  public static final String                                HEIGHT_NOT_ACCEPTED             = "value is not accepted for options.height";
+
+  public static final String                                WIDTH_NOT_ACCEPTED              = "value is not accepted for options.width";
+
+  public static final String                                FULL_HEIGHT_NOT_ACCEPTED        =
+                                                                                       "value is not accepted for options.full_height";
+
+  public static final String                                DISPLAY_NOT_ACCEPTED            = "value is not accepted for options.display";
+
+  public static final String                                STICKY_NOT_ACCEPTED             = "value is not accepted for options.sticky";
+
+  public static final String                                APPLICATION_DISPLAY_NOT_ACCEPTED = "value is not accepted for display";
+
+  public static final String                                COLUMNS_NOT_ACCEPTED            = "value is not accepted for columns";
+
+  public static final String                                COLUMN_ID_NOT_ACCEPTED          = "value is not accepted for columns.column_id";
+
+  public static final String                                COLUMN_NOT_FOUND                = "does not exist: column";
+
+  public static final String                                COLUMN_WIDTH_NOT_ACCEPTED       = "value is not accepted for columns.width";
+
+  public static final String                                COLUMN_FIT_CONTENT_NOT_ACCEPTED =
+                                                                                         "value is not accepted for columns.fit_content";
+
+  public static final String                                FIT_CONTENT                     = "fit-content";
+
+  public static final String                                COLUMN_APPLICATIONS_NOT_ACCEPTED =
+                                                                                          "value is not accepted for columns.applications";
+
+  public static final int                                   DEFAULT_BANNER_HEIGHT           = 57;
+
+  public static final int                                   BANNER_HEIGHT_MAX               = 1000;
+
+  public static final int                                   DEFAULT_SIDEBAR_WIDTH           = 310;
+
+  public static final int                                   SIDEBAR_WIDTH_MIN               = 50;
+
+  public static final int                                   SIDEBAR_WIDTH_MAX               = 1000;
+
+  public static final int                                   MAX_BANNERS                     = 10;
+
+  public static final int                                   MAX_COLUMNS                     = 64;
+
+  public static final int                                   COLUMN_WIDTH_MIN                = 50;
+
+  public static final int                                   COLUMN_WIDTH_MAX                = 1000;
+
+  public static final int                                   MAX_APPLICATIONS                = 50;
+
+  public static final int                                   MAX_ELEMENTS                    = 200;
+
+  public static final int                                   TITLE_MAX_LENGTH                = 200;
+
+  private static final Pattern                              BANNER_TOKENS                   =
+                                                                          Pattern.compile("(^| )(layout-banner-top-section|layout-banner-bottom-section|layout-sticky-section)(?= |$)");
+
+  private static final Pattern                              PIXELS                          = Pattern.compile("-?\\d+");
+
+  private static final Pattern                              H_ALIGN_CENTER                  =
+                                                                           token(LayoutDescriptionService.H_ALIGN_CENTER_TOKEN);
+
+  private static final Pattern                              H_ALIGN_END                     =
+                                                                        token(LayoutDescriptionService.H_ALIGN_END_TOKEN);
+
+  private static final Pattern                              V_ALIGN_CENTER                  =
+                                                                           token(LayoutDescriptionService.V_ALIGN_CENTER_TOKEN);
+
+  private static final Pattern                              V_ALIGN_END                     =
+                                                                        token(LayoutDescriptionService.V_ALIGN_END_TOKEN);
+
+  private static final Pattern                              H_ALIGN_TOKENS                  =
+                                                                           tokens(LayoutDescriptionService.H_ALIGN_CENTER_TOKEN,
+                                                                                  LayoutDescriptionService.H_ALIGN_END_TOKEN);
+
+  private static final Pattern                              V_ALIGN_TOKENS                  =
+                                                                           tokens(LayoutDescriptionService.V_ALIGN_CENTER_TOKEN,
+                                                                                  LayoutDescriptionService.V_ALIGN_END_TOKEN);
+
+  private static final Pattern                              STICKY_TOKEN                    =
+                                                                         Pattern.compile("(^| )layout-sticky-section(?= |$)");
+
+  private final LayoutModel                                 root;
+
+  private final Map<String, Integer>                        hiddenWindows;
+
+  private final LayoutStylingService                        stylingService;
+
+  private final BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling;
+
+  private final Function<ApplicationDescription, LayoutModel> newApplication;
+  private final ImageConsumption                            images;
+
+  private final Map<String, LayoutModel>                    byId                            = new HashMap<>();
+
+  private final Map<String, LayoutModel>                    parentOf                        = new HashMap<>();
+
+  private final Set<String>                                 used                            = new HashSet<>();
+
+  private final Set<String>                                 placedHidden                    = new HashSet<>();
+
+  private final Map<String, Boolean>                        storedStickiness                = new HashMap<>();
+
+  private final Map<String, Integer>                        storedWidths                    = new HashMap<>();
+
+  /**
+   * @param root           the stored tree, wrapped
+   * @param hiddenWindows  the storage id of each window the caller cannot
+   *                         see, with its index in its container
+   * @param stylingService the styling writer
+   * @param storedStyling  reads an element's stored styling as get_site
+   *                         answers it, the base a call's description is
+   *                         merged over
+   * @param newApplication builds the window of an application the call adds,
+   *                         from its instance or content id
+   */
+  public SiteLayoutAssembler(LayoutModel root,
+                             Map<String, Integer> hiddenWindows,
+                             LayoutStylingService stylingService,
+                             BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling,
+                             Function<ApplicationDescription, LayoutModel> newApplication) {
+    this(root, hiddenWindows, stylingService, storedStyling, newApplication, ImageConsumption.none());
+  }
+
+  /**
+   * @param images the call's image consumption, on which a block carrying an
+   *          image_upload_id claims its id
+   */
+  public SiteLayoutAssembler(LayoutModel root,
+                             Map<String, Integer> hiddenWindows,
+                             LayoutStylingService stylingService,
+                             BiFunction<LayoutModel, StylingDestination, StylingDescription> storedStyling,
+                             Function<ApplicationDescription, LayoutModel> newApplication,
+                             ImageConsumption images) {
+    this.root = root;
+    this.hiddenWindows = hiddenWindows;
+    this.stylingService = stylingService;
+    this.storedStyling = storedStyling;
+    this.newApplication = newApplication;
+    this.images = images;
+  }
+
+  public LayoutModel assemble(SiteLayoutUpdate update) throws ObjectNotFoundException, IllegalAccessException {
+    index(root, null);
+    List<LayoutModel> rootChildren = children(root);
+    LayoutModel middle = single(rootChildren, SITE_MIDDLE_TEMPLATE, SIDEBAR_TEMPLATE);
+    List<LayoutModel> middleChildren = children(middle);
+    LayoutModel center = single(middleChildren, SITE_MIDDLE_CENTER_TEMPLATE, BANNER_TEMPLATE);
+    List<LayoutModel> centerChildren = children(center);
+    LayoutModel pageBody = single(centerChildren, EntityMapper.PAGE_BODY_TEMPLATE, SIDEBAR_TEMPLATE);
+    List<SiteContainerDescription> topbars = bounded(update.topbars(), TOPBARS_NOT_ACCEPTED);
+    List<SiteContainerDescription> bottomBars = bounded(update.bottomBars(), BOTTOM_BARS_NOT_ACCEPTED);
+    LayoutModel outerLeftSlot = slot(rootChildren, middle, true);
+    LayoutModel outerRightSlot = slot(rootChildren, middle, false);
+    LayoutModel innerLeftSlot = slot(centerChildren, pageBody, true);
+    LayoutModel innerRightSlot = slot(centerChildren, pageBody, false);
+    if (sidebarCell(outerLeftSlot) != null && sidebarCell(innerLeftSlot) != null) {
+      throw new IllegalArgumentException(TWO_LEFT_SIDEBARS);
+    } else if (sidebarCell(outerRightSlot) != null && sidebarCell(innerRightSlot) != null) {
+      throw new IllegalArgumentException(TWO_RIGHT_SIDEBARS);
+    }
+    int elements = (update.leftSidebar() == null ? 0 : 1) + (update.rightSidebar() == null ? 0 : 1) + topbars.size() + bottomBars.size()
+                   + applications(update.leftSidebar()) + applications(update.rightSidebar())
+                   + topbars.stream().mapToInt(this::columnElements).sum() + bottomBars.stream().mapToInt(this::columnElements).sum();
+    if (elements > MAX_ELEMENTS) {
+      throw new IllegalArgumentException(ELEMENTS_NOT_ACCEPTED);
+    }
+
+    boolean leftOuter = outer(update.leftSidebar());
+    boolean rightOuter = outer(update.rightSidebar());
+    rememberStickiness(update.leftSidebar());
+    rememberStickiness(update.rightSidebar());
+    LayoutModel outerLeft = sidebar(outerLeftSlot, leftOuter ? update.leftSidebar() : null);
+    LayoutModel outerRight = sidebar(outerRightSlot, rightOuter ? update.rightSidebar() : null);
+    LayoutModel innerLeft = sidebar(innerLeftSlot, leftOuter ? null : update.leftSidebar());
+    LayoutModel innerRight = sidebar(innerRightSlot, rightOuter ? null : update.rightSidebar());
+
+    List<LayoutModel> newMiddleChildren = new ArrayList<>();
+    for (SiteContainerDescription topbar : topbars) {
+      newMiddleChildren.add(banner(topbar, true));
+    }
+    newMiddleChildren.add(center);
+    for (SiteContainerDescription bottomBar : bottomBars) {
+      newMiddleChildren.add(banner(bottomBar, false));
+    }
+    if (placedHidden.size() < hiddenWindows.size()) {
+      throw new IllegalAccessException(SITE_LAYOUT_HIDDEN);
+    }
+    center.setChildren(new ArrayList<>(List.of(innerLeft, pageBody, innerRight)));
+    middle.setChildren(newMiddleChildren);
+    root.setChildren(new ArrayList<>(List.of(outerLeft, middle, outerRight)));
+    return root;
+  }
+
+  private void index(LayoutModel model, LayoutModel parent) {
+    if (StringUtils.isNotBlank(model.getStorageId())) {
+      byId.put(model.getStorageId(), model);
+      if (isTemplate(model, BANNER_CELL_TEMPLATE) && model.getWidth() != null) {
+        storedWidths.put(model.getStorageId(), storedPixels(model.getWidth()));
+      }
+      if (parent != null) {
+        parentOf.put(model.getStorageId(), parent);
+      }
+    }
+    children(model).forEach(child -> index(child, model));
+  }
+
+  /**
+   * @return the one child of the given template, every other child being of
+   *         the sibling template and at most one on each side of it
+   */
+  private LayoutModel single(List<LayoutModel> children, String template, String siblingTemplate) {
+    List<LayoutModel> matches = children.stream().filter(c -> isTemplate(c, template)).toList();
+    boolean siblings = children.stream().allMatch(c -> isTemplate(c, template) || isTemplate(c, siblingTemplate));
+    if (matches.size() != 1 || !siblings) {
+      throw new IllegalArgumentException(SITE_LAYOUT_NOT_EDITABLE);
+    }
+    int index = children.indexOf(matches.get(0));
+    boolean sidebars = SIDEBAR_TEMPLATE.equals(siblingTemplate);
+    if (sidebars && (index > 1 || children.size() - index > 2)) {
+      throw new IllegalArgumentException(SITE_LAYOUT_NOT_EDITABLE);
+    }
+    return matches.get(0);
+  }
+
+  private LayoutModel slot(List<LayoutModel> children, LayoutModel anchor, boolean before) {
+    int index = children.indexOf(anchor) + (before ? -1 : 1);
+    return index >= 0 && index < children.size() ? children.get(index) : null;
+  }
+
+  /**
+   * @return whether the sidebar goes to the outer slot: as stated, else the
+   *         slot its stored cell is in, else the outer one, as the editor's
+   *         new site has it
+   */
+  private boolean outer(SiteContainerDescription sidebar) {
+    if (sidebar == null) {
+      return false;
+    }
+    Boolean fullHeight = sidebar.options() == null ? null : sidebar.options().fullHeight();
+    if (fullHeight != null) {
+      return fullHeight;
+    }
+    LayoutModel storedSidebar = sidebar.containerId() == null ? null : parentOf.get(sidebar.containerId());
+    return storedSidebar == null || storedSidebar.getStorageId() == null || parentOf.get(storedSidebar.getStorageId()) == root;
+  }
+
+  /**
+   * A kept cell's stickiness is read from its stored wrapper before any slot
+   * is emptied, since the wrapper may be the slot the cell leaves
+   */
+  private void rememberStickiness(SiteContainerDescription sidebar) {
+    if (sidebar != null && sidebar.containerId() != null && parentOf.containsKey(sidebar.containerId())) {
+      storedStickiness.put(sidebar.containerId(), hasToken(parentOf.get(sidebar.containerId()).getCssClass(), STICKY_TOKEN));
+    }
+  }
+
+  private int applications(SiteContainerDescription container) {
+    return container == null || container.applications() == null ? 0 : container.applications().size();
+  }
+
+  private int columnElements(SiteContainerDescription banner) {
+    List<SiteColumnDescription> columns = banner.columns() == null ? Collections.emptyList() : banner.columns();
+    return columns.size() + columns.stream()
+                                   .mapToInt(column -> column == null || column.applications() == null ? 0 : column.applications().size())
+                                   .sum();
+  }
+
+  private LayoutModel sidebarCell(LayoutModel sidebar) {
+    return children(sidebar).stream().filter(c -> isTemplate(c, SIDEBAR_CELL_TEMPLATE)).findFirst().orElse(null);
+  }
+
+  private List<SiteContainerDescription> bounded(List<SiteContainerDescription> banners, String refusal) {
+    List<SiteContainerDescription> list = banners == null ? Collections.emptyList() : banners;
+    if (list.size() > MAX_BANNERS || list.stream().anyMatch(b -> b == null)) {
+      throw new IllegalArgumentException(refusal);
+    }
+    return list;
+  }
+
+  /**
+   * A sidebar slot holds its stored Sidebar when it has one, emptied when the
+   * call leaves the slot unused, as the editor's remove does; the description's
+   * id names the cell, as the read answers it
+   */
+  private LayoutModel sidebar(LayoutModel placeholder, SiteContainerDescription description) throws ObjectNotFoundException {
+    LayoutModel sidebar = placeholder == null ? newContainer(SIDEBAR_TEMPLATE) : placeholder;
+    if (description == null) {
+      sidebar.setChildren(new ArrayList<>());
+      sidebar.setCssClass(null);
+      return sidebar;
+    }
+    boolean kept = description.containerId() != null;
+    LayoutModel cell = kept ? container(description.containerId(), SIDEBAR_CELL_TEMPLATE) : newContainer(SIDEBAR_CELL_TEMPLATE);
+    SiteContainerOptions options = options(description);
+    if (options.height() != null) {
+      throw new IllegalArgumentException(HEIGHT_NOT_ACCEPTED);
+    }
+    boolean sticky = options.sticky() != null ? options.sticky() : kept && storedStickiness.getOrDefault(description.containerId(), false);
+    if (options.width() != null) {
+      if (options.width() < SIDEBAR_WIDTH_MIN || options.width() > SIDEBAR_WIDTH_MAX) {
+        throw new IllegalArgumentException(WIDTH_NOT_ACCEPTED);
+      }
+      cell.setWidth(String.valueOf(options.width()));
+    } else if (StringUtils.isBlank(cell.getWidth())) {
+      cell.setWidth(String.valueOf(DEFAULT_SIDEBAR_WIDTH));
+    }
+    cell.setChildren(new ArrayList<>());
+    String sidebarClass = LayoutStylingService.strip(sidebar.getCssClass(), STICKY_TOKEN);
+    sidebar.setCssClass(sticky ? LayoutStylingService.append(sidebarClass, STICKY_SECTION_TOKEN) : sidebarClass);
+    applyStyling(cell, description.styling(), StylingDestination.SIDEBAR, sticky, false);
+    stylingService.applyDisplay(cell, options.display(), StylingDestination.SIDEBAR, DISPLAY_NOT_ACCEPTED);
+    placeApplications(description.applications(), List.of(cell));
+    sidebar.setChildren(new ArrayList<>(List.of(cell)));
+    return sidebar;
+  }
+
+  /**
+   * A banner is written with the columns given, in their order: a column
+   * addressed by its id keeps its stored cell, which must be one of the kept
+   * banner's, a new one is created, and a stored column left out is removed.
+   * A column holds one application and has a width in pixels, takes the
+   * width of its application (fit_content) or shares the remaining width; a
+   * width in pixels is never set on the last one, which takes the remaining
+   * width, as the site layout editor draws them. A column's width is part
+   * of the structure: omitted, the column shares the remaining width; sent
+   * back as the read answered it, it is kept whatever its value, the bounds
+   * applying to a changed width. A column the editor or an earlier write
+   * left holding several applications is kept as it is when each one is
+   * sent back by id; a column holding a window the caller cannot see takes
+   * no new or moved application. An application kept from a column never
+   * moves alone into another column of a topbar or a bottom bar, its column
+   * carrying the settings the editor gives it; listed in a sidebar, it moves
+   * there alone, without its column. The position token is written from the banner's side. Only a topbar is kept in place when the page scrolls,
+   * as the skin and the editor's drawer have it: sticky is refused on a
+   * bottom bar unless the kept bar already stores the token, which the read
+   * reports and the write then drops with its scroll colour, since neither
+   * has an effect there
+   */
+  private LayoutModel banner(SiteContainerDescription description, boolean top) throws ObjectNotFoundException {
+    if (description.applications() != null) {
+      throw new IllegalArgumentException(APPLICATIONS_NOT_ACCEPTED);
+    }
+    List<SiteColumnDescription> columns = description.columns();
+    if (columns == null || columns.isEmpty() || columns.size() > MAX_COLUMNS || columns.stream().anyMatch(c -> c == null)) {
+      throw new IllegalArgumentException(COLUMNS_NOT_ACCEPTED);
+    }
+    LayoutModel banner = description.containerId() == null ? newContainer(BANNER_TEMPLATE)
+                                                           : container(description.containerId(), BANNER_TEMPLATE);
+    SiteContainerOptions options = options(description);
+    if (options.width() != null) {
+      throw new IllegalArgumentException(WIDTH_NOT_ACCEPTED);
+    } else if (options.fullHeight() != null) {
+      throw new IllegalArgumentException(FULL_HEIGHT_NOT_ACCEPTED);
+    }
+    boolean storedSticky = hasToken(banner.getCssClass(), STICKY_TOKEN);
+    if (!top && Boolean.TRUE.equals(options.sticky()) && !storedSticky) {
+      throw new IllegalArgumentException(STICKY_NOT_ACCEPTED);
+    }
+    boolean sticky = top && (options.sticky() != null ? options.sticky() : storedSticky);
+    if (options.height() != null) {
+      if (options.height() < 0 || options.height() > BANNER_HEIGHT_MAX) {
+        throw new IllegalArgumentException(HEIGHT_NOT_ACCEPTED);
+      }
+      banner.setHeight(String.valueOf(options.height()));
+    } else if (StringUtils.isBlank(banner.getHeight())) {
+      banner.setHeight(String.valueOf(DEFAULT_BANNER_HEIGHT));
+    }
+    List<LayoutModel> cells = new ArrayList<>();
+    for (int i = 0; i < columns.size(); i++) {
+      cells.add(column(banner, columns.get(i), i == columns.size() - 1));
+    }
+    String bannerClass = LayoutStylingService.append(LayoutStylingService.strip(banner.getCssClass(), BANNER_TOKENS),
+                                                     top ? BANNER_TOP_TOKEN : BANNER_BOTTOM_TOKEN);
+    banner.setCssClass(sticky ? LayoutStylingService.append(bannerClass, STICKY_SECTION_TOKEN) : bannerClass);
+    applyStyling(banner, description.styling(), StylingDestination.BANNER, sticky, top);
+    stylingService.applyDisplay(banner, options.display(), StylingDestination.BANNER, DISPLAY_NOT_ACCEPTED);
+    for (int i = 0; i < columns.size(); i++) {
+      placeApplications(columns.get(i).applications(), List.of(cells.get(i)));
+    }
+    banner.setChildren(cells);
+    return banner;
+  }
+
+  private LayoutModel column(LayoutModel banner, SiteColumnDescription description, boolean last) throws ObjectNotFoundException {
+    LayoutModel cell;
+    if (description.columnId() == null) {
+      cell = newContainer(BANNER_CELL_TEMPLATE);
+    } else {
+      cell = byId.get(description.columnId());
+      if (cell == null) {
+        throw new ObjectNotFoundException(COLUMN_NOT_FOUND);
+      } else if (!isTemplate(cell, BANNER_CELL_TEMPLATE) || parentOf.get(description.columnId()) != banner
+                 || !used.add(description.columnId())) {
+        throw new IllegalArgumentException(COLUMN_ID_NOT_ACCEPTED);
+      }
+    }
+    Integer width = description.width();
+    boolean fitContent = Boolean.TRUE.equals(description.fitContent());
+    if (fitContent && width != null) {
+      throw new IllegalArgumentException(COLUMN_FIT_CONTENT_NOT_ACCEPTED);
+    }
+    boolean storedWidth = width != null && description.columnId() != null && width.equals(storedWidths.get(description.columnId()));
+    if (width != null && !storedWidth && (last || width < COLUMN_WIDTH_MIN || width > COLUMN_WIDTH_MAX)) {
+      throw new IllegalArgumentException(COLUMN_WIDTH_NOT_ACCEPTED);
+    }
+    if (fitContent) {
+      cell.setWidth(FIT_CONTENT);
+    } else {
+      cell.setWidth(width == null ? null : String.valueOf(width));
+    }
+    cell.setCssClass(align(align(cell.getCssClass(),
+                                 description.hAlign(),
+                                 H_ALIGN_TOKENS,
+                                 H_ALIGN_CENTER,
+                                 H_ALIGN_END,
+                                 LayoutDescriptionService.H_ALIGN_CENTER_TOKEN,
+                                 LayoutDescriptionService.H_ALIGN_END_TOKEN),
+                           description.vAlign(),
+                           V_ALIGN_TOKENS,
+                           V_ALIGN_CENTER,
+                           V_ALIGN_END,
+                           LayoutDescriptionService.V_ALIGN_CENTER_TOKEN,
+                           LayoutDescriptionService.V_ALIGN_END_TOKEN));
+    List<ApplicationDescription> applications = description.applications() == null ? Collections.emptyList() : description.applications();
+    LayoutModel column = cell;
+    boolean holdsHidden = hiddenWindows.keySet().stream().anyMatch(id -> parentOf.get(id) == column);
+    int held = applications.size() + (holdsHidden ? 1 : 0);
+    if (held > 1 && !applications.stream().allMatch(a -> keptFrom(a, column))) {
+      throw new IllegalArgumentException(COLUMN_APPLICATIONS_NOT_ACCEPTED);
+    } else if (applications.stream().anyMatch(a -> inAnotherColumn(a, column))) {
+      throw new IllegalArgumentException(COLUMN_APPLICATIONS_NOT_ACCEPTED);
+    }
+    cell.setChildren(new ArrayList<>());
+    return cell;
+  }
+
+  /**
+   * Writes the alignment of a column's application on one axis as the site
+   * layout editor's "Align App" option does: the axis token for center or
+   * end, no token for start; an alignment the call omits, or sends back as
+   * the read answered it on a column holding at most one token per axis,
+   * leaves the stored tokens as they are, so a kept column keeps its
+   * alignment and a new one is at start
+   */
+  private String align(String cssClass,
+                       Alignment alignment,
+                       Pattern axisTokens,
+                       Pattern centerPattern,
+                       Pattern endPattern,
+                       String centerToken,
+                       String endToken) {
+    if (alignment == null) {
+      return cssClass;
+    }
+    String token = switch (alignment) {
+      case CENTER -> centerToken;
+      case END -> endToken;
+      case START -> null;
+    };
+    boolean centered = hasToken(cssClass, centerPattern);
+    boolean ended = hasToken(cssClass, endPattern);
+    if ((token == null && !centered && !ended) || (centerToken.equals(token) && centered && !ended) || (endToken.equals(token) && ended && !centered)) {
+      return cssClass;
+    }
+    String stripped = LayoutStylingService.strip(cssClass, axisTokens);
+    return token == null ? stripped : LayoutStylingService.append(stripped, token);
+  }
+
+  private static Pattern token(String token) {
+    return Pattern.compile("(^| )" + Pattern.quote(token) + "(?= |$)");
+  }
+
+  private static Pattern tokens(String first, String second) {
+    return Pattern.compile("(^| )(" + Pattern.quote(first) + "|" + Pattern.quote(second) + ")(?= |$)");
+  }
+
+  /**
+   * @return the stored width in pixels as the read answers it, or null when
+   *         it holds none or one too large to be sent back
+   */
+  private Integer storedPixels(String width) {
+    Matcher pixels = PIXELS.matcher(width);
+    if (!pixels.find()) {
+      return null;
+    }
+    try {
+      return Integer.valueOf(pixels.group());
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  /**
+   * @return whether the application is kept by its id from a column of a
+   *         topbar or a bottom bar other than the given one: the column
+   *         carries the settings the site layout editor gives the
+   *         application, so the application moves with its column, by the
+   *         columns' order, and never alone into another one
+   */
+  private boolean inAnotherColumn(ApplicationDescription application, LayoutModel column) {
+    LayoutModel storedCell = application == null || application.applicationId() == null
+                             || hiddenWindows.containsKey(application.applicationId()) ? null : parentOf.get(application.applicationId());
+    return storedCell != null && storedCell != column && isTemplate(storedCell, BANNER_CELL_TEMPLATE);
+  }
+
+  /**
+   * @return whether the application is kept by its id from the given stored
+   *         column, so that a column the editor or an earlier write left
+   *         holding several applications can be sent back as it is
+   */
+  private boolean keptFrom(ApplicationDescription application, LayoutModel cell) {
+    return application != null && application.applicationId() != null && parentOf.get(application.applicationId()) == cell;
+  }
+
+  /**
+   * Places the applications in the given order: a kept application goes back
+   * to its stored cell when that cell is one of the container's, a new one
+   * follows the application before it; the windows the caller cannot see are
+   * then put back at their stored index
+   */
+  private void placeApplications(List<ApplicationDescription> applications, List<LayoutModel> cells) throws ObjectNotFoundException {
+    List<ApplicationDescription> list = applications == null ? Collections.emptyList() : applications;
+    if (list.size() > MAX_APPLICATIONS || list.stream().anyMatch(a -> a == null)) {
+      throw new IllegalArgumentException(APPLICATIONS_NOT_ACCEPTED);
+    }
+    LayoutModel current = cells.get(0);
+    for (ApplicationDescription description : list) {
+      if (description.settings() != null || description.widgetCode() != null) {
+        throw new IllegalArgumentException(APPLICATIONS_NOT_ACCEPTED);
+      }
+      LayoutModel application;
+      if (description.applicationId() != null) {
+        application = byId.get(description.applicationId());
+        if (application == null
+            || StringUtils.isNotBlank(application.getTemplate())
+            || hiddenWindows.containsKey(description.applicationId())) {
+          throw new ObjectNotFoundException(APPLICATION_NOT_FOUND);
+        } else if (!used.add(description.applicationId())) {
+          throw new IllegalArgumentException(APPLICATION_ID_NOT_ACCEPTED);
+        }
+        LayoutModel storedCell = parentOf.get(description.applicationId());
+        if (storedCell != null && cells.contains(storedCell)) {
+          current = storedCell;
+        }
+      } else if (description.instanceId() == null && StringUtils.isBlank(description.contentId())) {
+        throw new IllegalArgumentException(APPLICATIONS_NOT_ACCEPTED);
+      } else {
+        application = newApplication.apply(description);
+      }
+      if (description.title() != null) {
+        String title = StringUtils.trimToNull(description.title());
+        if (title == null || title.length() > TITLE_MAX_LENGTH) {
+          throw new IllegalArgumentException(TITLE_NOT_ACCEPTED);
+        }
+        application.setTitle(title);
+      }
+      applyStyling(application, description.styling(), StylingDestination.SITE_CONTAINER_APPLICATION, false, false);
+      stylingService.applyDisplay(application,
+                                  description.display(),
+                                  StylingDestination.SITE_CONTAINER_APPLICATION,
+                                  APPLICATION_DISPLAY_NOT_ACCEPTED);
+      current.getChildren().add(application);
+    }
+    hiddenWindows.forEach((storageId, index) -> {
+      LayoutModel storedCell = parentOf.get(storageId);
+      if (storedCell != null && cells.contains(storedCell) && placedHidden.add(storageId)) {
+        List<LayoutModel> children = storedCell.getChildren();
+        children.add(Math.min(index, children.size()), byId.get(storageId));
+      }
+    });
+  }
+
+  /**
+   * Writes the call's styling merged over the element's stored one, so a
+   * block or a value the call leaves null keeps what the element holds
+   */
+  private void applyStyling(LayoutModel element,
+                            StylingDescription styling,
+                            StylingDestination destination,
+                            boolean sticky,
+                            boolean plainColorOnly) throws ObjectNotFoundException {
+    StylingDescription merged = LayoutStylingService.merge(storedStyling.apply(element, destination), styling, sticky);
+    stylingService.applyStyling(element, merged, destination, sticky, plainColorOnly, images);
+  }
+
+  private LayoutModel container(String storageId, String template) throws ObjectNotFoundException {
+    LayoutModel container = byId.get(storageId);
+    if (container == null) {
+      throw new ObjectNotFoundException(CONTAINER_NOT_FOUND);
+    } else if (!isTemplate(container, template) || !used.add(storageId)) {
+      throw new IllegalArgumentException(CONTAINER_ID_NOT_ACCEPTED);
+    }
+    return container;
+  }
+
+  private SiteContainerOptions options(SiteContainerDescription description) {
+    return description.options() == null ? new SiteContainerOptions(null, null, null, null, null) : description.options();
+  }
+
+  private LayoutModel newContainer(String template) {
+    LayoutModel container = new LayoutModel();
+    container.setTemplate(template);
+    container.setChildren(new ArrayList<>());
+    return container;
+  }
+
+  private boolean hasToken(String cssClass, Pattern token) {
+    return StringUtils.isNotBlank(cssClass) && token.matcher(cssClass).find();
+  }
+
+  private boolean isTemplate(LayoutModel model, String template) {
+    return model != null && StringUtils.equals(model.getTemplate(), template);
+  }
+
+  private List<LayoutModel> children(LayoutModel model) {
+    return model == null || model.getChildren() == null ? Collections.emptyList() : model.getChildren();
+  }
+
+}

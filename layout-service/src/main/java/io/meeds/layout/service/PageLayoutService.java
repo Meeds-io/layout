@@ -69,6 +69,13 @@ public class PageLayoutService {
   /** Broadcast after a page's access/edit permissions have been persisted. */
   public static final String     PAGE_PERMISSIONS_UPDATED_EVENT  = "layout.page.permissions.updated";
 
+  /**
+   * Broadcast with the acting username and the live page reference after a
+   * publication replaced a page's layout, from the editor's publish as from
+   * a tool's; never on a draft save, which fires PAGE_UPDATED_EVENT alone
+   */
+  public static final String     PAGE_PUBLISHED_EVENT            = "layout.page.published";
+
   private static final String    ADDON_CONTAINER_FACTORY_ID      = "addonContainer";
 
   private static final Log       LOG                             = ExoLogger.getLogger(PageLayoutService.class);
@@ -265,6 +272,10 @@ public class PageLayoutService {
     page.resetStorage();
     page.setName(page.getName() + "_draft_" + username);
     page.setTitle(page.getTitle() + " Draft " + username);
+    // A draft carries no access permission of its own: UserACL falls back to
+    // the edit permission copied from the live page, so only the page's
+    // editors open the draft, by its address, the REST and the tools alike
+    page.setAccessPermissions(null);
 
     layoutService.save(new PageContext(page.getPageKey(), Utils.toPageState(page)), page);
     return page.getPageKey();
@@ -359,6 +370,9 @@ public class PageLayoutService {
     existingPage.setChildren(page.getChildren());
     layoutService.save(existingPage);
     listenerService.broadcast(PAGE_UPDATED_EVENT, username, pageKey.format());
+    if (publish) {
+      listenerService.broadcast(PAGE_PUBLISHED_EVENT, username, pageKey.format());
+    }
     return layoutService.getPageContext(existingPage.getPageKey());
   }
 
