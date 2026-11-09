@@ -439,9 +439,6 @@ public class LayoutDescriptionService {
    * @param  stored      the stored page the ids address, as the storage holds
    *                       it: the live page when the user has no draft, their
    *                       draft otherwise
-   * @param  copyWindows whether the result is written over a draft built from
-   *                       the live page by this call, in which case every kept
-   *                       window becomes a copy carrying its preferences
    * @param  username    the editing user
    * @param  locale      the user's language, for the catalog names
    * @return             the page to write, its sections parent's children
@@ -449,10 +446,9 @@ public class LayoutDescriptionService {
    */
   public LayoutModel toPageLayout(List<SectionDescription> sections,
                                   Page stored,
-                                  boolean copyWindows,
                                   String username,
                                   Locale locale) throws ObjectNotFoundException, IllegalAccessException {
-    return toPageLayout(sections, stored, copyWindows, username, locale, ImageConsumption.none());
+    return toPageLayout(sections, stored, username, locale, ImageConsumption.none());
   }
 
   /**
@@ -461,22 +457,18 @@ public class LayoutDescriptionService {
    */
   public LayoutModel toPageLayout(List<SectionDescription> sections,
                                   Page stored,
-                                  boolean copyWindows,
                                   String username,
                                   Locale locale,
                                   ImageConsumption images) throws ObjectNotFoundException, IllegalAccessException {
     Map<String, Integer> hiddenWindows = new LinkedHashMap<>();
     collectHidden(stored, username, hiddenWindows, PageLayoutAssembler.PAGE_LAYOUT_HIDDEN);
-    LayoutModel root = layoutModel(stored, copyWindows);
+    LayoutModel root = new LayoutModel(stored);
     LayoutModel result = new PageLayoutAssembler(root,
                                                  hiddenWindows,
                                                  stylingService,
                                                  this::toStyling,
                                                  description -> newApplication(description, username, locale),
                                                  images).assemble(sections);
-    if (copyWindows) {
-      result.resetStorage();
-    }
     try {
       LayoutStyleValidator.validate(result.toPage());
     } catch (IllegalArgumentException e) {
@@ -489,17 +481,13 @@ public class LayoutDescriptionService {
    * @param  elements    the elements of a set_layout_styles call
    * @param  stored      the stored page the ids address: the live page when
    *                       the user has no draft, their draft otherwise
-   * @param  copyWindows whether the result is written over a draft built from
-   *                       the live page by this call, in which case every
-   *                       window becomes a copy carrying its preferences
    * @param  username    the editing user
    * @return             the page to write, its structure as stored
    */
   public LayoutModel toStyledPage(List<ElementStyling> elements,
                                   Page stored,
-                                  boolean copyWindows,
                                   String username) throws ObjectNotFoundException {
-    return toStyledPage(elements, stored, copyWindows, username, ImageConsumption.none());
+    return toStyledPage(elements, stored, username, ImageConsumption.none());
   }
 
   /**
@@ -508,27 +496,22 @@ public class LayoutDescriptionService {
    */
   public LayoutModel toStyledPage(List<ElementStyling> elements,
                                   Page stored,
-                                  boolean copyWindows,
                                   String username,
                                   ImageConsumption images) throws ObjectNotFoundException {
-    return checkedPage(pageAssembler(stored, copyWindows, username, images).stylePage(elements), copyWindows);
+    return checkedPage(pageAssembler(stored, username, images).stylePage(elements));
   }
 
   /**
    * @param  elements    the elements of a set_layout_visibility call
    * @param  stored      the stored page the ids address: the live page when
    *                       the user has no draft, their draft otherwise
-   * @param  copyWindows whether the result is written over a draft built from
-   *                       the live page by this call, in which case every
-   *                       window becomes a copy carrying its preferences
    * @param  username    the editing user
    * @return             the page to write, its structure as stored
    */
   public LayoutModel toDisplayedPage(List<ElementDisplay> elements,
                                      Page stored,
-                                     boolean copyWindows,
                                      String username) throws ObjectNotFoundException {
-    return checkedPage(pageAssembler(stored, copyWindows, username, ImageConsumption.none()).displayPage(elements), copyWindows);
+    return checkedPage(pageAssembler(stored, username, ImageConsumption.none()).displayPage(elements));
   }
 
   /**
@@ -582,20 +565,15 @@ public class LayoutDescriptionService {
    * @param  position      where it goes
    * @param  stored        the stored page the ids address: the live page when
    *                         the user has no draft, their draft otherwise
-   * @param  copyWindows   whether the result is written over a draft built
-   *                         from the live page by this call, in which case
-   *                         every window becomes a copy carrying its
-   *                         preferences
    * @param  username      the editing user
    * @return               the page to write and the path of the moved window
    */
   public PlacedLayout toMovedPage(String applicationId,
                                   ApplicationPosition position,
                                   Page stored,
-                                  boolean copyWindows,
                                   String username) throws ObjectNotFoundException {
-    PlacedLayout placed = placementAssembler(stored, false, copyWindows, username).move(applicationId, position);
-    return new PlacedLayout(checkedPage(placed.layout(), copyWindows), placed.path());
+    PlacedLayout placed = placementAssembler(stored, false, false, username).move(applicationId, position);
+    return new PlacedLayout(checkedPage(placed.layout()), placed.path());
   }
 
   /**
@@ -607,15 +585,14 @@ public class LayoutDescriptionService {
   public PlacedLayout toPlacedPage(ApplicationToPlace application,
                                    ApplicationPosition position,
                                    Page stored,
-                                   boolean copyWindows,
                                    String username,
                                    Locale locale) throws ObjectNotFoundException {
     ApplicationDescription description = toPlacedDescription(application);
-    PlacedLayout placed = placementAssembler(stored, false, copyWindows, username).place(() -> newApplication(description,
+    PlacedLayout placed = placementAssembler(stored, false, false, username).place(() -> newApplication(description,
                                                                                                              username,
                                                                                                              locale),
                                                                                          position);
-    return new PlacedLayout(checkedPage(placed.layout(), copyWindows), placed.path());
+    return new PlacedLayout(checkedPage(placed.layout()), placed.path());
   }
 
   /**
@@ -623,9 +600,8 @@ public class LayoutDescriptionService {
    */
   public LayoutModel toRemovedPage(String applicationId,
                                    Page stored,
-                                   boolean copyWindows,
                                    String username) throws ObjectNotFoundException {
-    return checkedPage(placementAssembler(stored, false, copyWindows, username).remove(applicationId), copyWindows);
+    return checkedPage(placementAssembler(stored, false, false, username).remove(applicationId));
   }
 
   /**
@@ -887,10 +863,10 @@ public class LayoutDescriptionService {
                                   destination.hasHeight() ? toHeight(model) : null);
   }
 
-  private LayoutStylesAssembler pageAssembler(Page stored, boolean copyWindows, String username, ImageConsumption images) {
+  private LayoutStylesAssembler pageAssembler(Page stored, String username, ImageConsumption images) {
     Set<String> hiddenIds = new HashSet<>();
     collectHiddenIds(stored, username, false, hiddenIds);
-    LayoutModel root = layoutModel(stored, copyWindows);
+    LayoutModel root = new LayoutModel(stored);
     return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling, images);
   }
 
@@ -945,10 +921,7 @@ public class LayoutDescriptionService {
     return new ApplicationDescription(null, application.contentId(), application.instanceId(), null, null, null, null, null, null);
   }
 
-  private LayoutModel checkedPage(LayoutModel result, boolean copyWindows) {
-    if (copyWindows) {
-      result.resetStorage();
-    }
+  private LayoutModel checkedPage(LayoutModel result) {
     try {
       LayoutStyleValidator.validate(result.toPage());
     } catch (IllegalArgumentException e) {
