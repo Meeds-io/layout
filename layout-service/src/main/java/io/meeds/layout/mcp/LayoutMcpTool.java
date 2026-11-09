@@ -741,8 +741,8 @@ public class LayoutMcpTool implements McpToolPlugin {
    * applications. Ids address the layout get_page_layout returned: the
    * user's draft when they have one, the published layout otherwise, in
    * which case the draft is created by this call through the editor's own
-   * path and every kept application becomes a copy carrying its
-   * preferences. Every value is checked before anything is written; one
+   * path and every kept application is the draft's copy of it, carrying its
+   * preferences as the editor's draft does. Every value is checked before anything is written; one
    * save. Returns the draft as get_page_layout does, with the ids of every
    * section, cell and application.
    */
@@ -760,11 +760,11 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     ImageConsumption images = layoutImageService.consumption(livePage.getStorageId(), username);
     try {
-      LayoutModel layout = layoutDescriptionService.toPageLayout(sections, stored, createDraft, username, getCurrentUserLocale(), images);
+      LayoutModel layout = layoutDescriptionService.toPageLayout(sections, stored, false, username, getCurrentUserLocale(), images);
       try {
         attachImages(images, username, PAGE_NOT_ALLOWED, PAGE_NOT_FOUND);
         layoutImageService.substitute(layout, images);
-        writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+        writePageDraft(pageKey, liveNodeId, draftPageKey, stored, layout, username);
       } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
         layoutImageService.compensate(images);
         throw e;
@@ -1009,11 +1009,11 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     ImageConsumption images = layoutImageService.consumption(livePage.getStorageId(), username);
     try {
-      LayoutModel layout = layoutDescriptionService.toStyledPage(elements, stored, createDraft, username, images);
+      LayoutModel layout = layoutDescriptionService.toStyledPage(elements, stored, false, username, images);
       try {
         attachImages(images, username, PAGE_NOT_ALLOWED, PAGE_NOT_FOUND);
         layoutImageService.substitute(layout, images);
-        writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+        writePageDraft(pageKey, liveNodeId, draftPageKey, stored, layout, username);
       } catch (ObjectNotFoundException | IllegalAccessException | RuntimeException e) {
         layoutImageService.compensate(images);
         throw e;
@@ -1036,8 +1036,8 @@ public class LayoutMcpTool implements McpToolPlugin {
     if (stored == null) {
       throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
     }
-    LayoutModel layout = layoutDescriptionService.toDisplayedPage(elements, stored, createDraft, username);
-    writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+    LayoutModel layout = layoutDescriptionService.toDisplayedPage(elements, stored, false, username);
+    writePageDraft(pageKey, liveNodeId, draftPageKey, stored, layout, username);
     return describeStoredPage(pageKey, liveNodeId, username);
   }
 
@@ -1051,16 +1051,15 @@ public class LayoutMcpTool implements McpToolPlugin {
     applicationDraftService.readEditablePage(pageKey, username);
     long liveNodeId = applicationDraftService.requireLiveNodeId(pageKey, username);
     PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
-    boolean createDraft = draftPageKey == null;
     Page stored = readStoredPage(pageKey, draftPageKey);
-    PlacedLayout placed = application == null ? layoutDescriptionService.toMovedPage(applicationId, position, stored, createDraft, username)
+    PlacedLayout placed = application == null ? layoutDescriptionService.toMovedPage(applicationId, position, stored, false, username)
                                               : layoutDescriptionService.toPlacedPage(application,
                                                                                       position,
                                                                                       stored,
-                                                                                      createDraft,
+                                                                                      false,
                                                                                       username,
                                                                                       getCurrentUserLocale());
-    PageKey targetPageKey = writePageDraft(pageKey, liveNodeId, draftPageKey, placed.layout(), username);
+    PageKey targetPageKey = writePageDraft(pageKey, liveNodeId, draftPageKey, stored, placed.layout(), username);
     return new ApplicationPlacement(placedId(pageLayoutService.getPageLayout(targetPageKey), placed.path()),
                                     describeStoredPage(pageKey, liveNodeId, username));
   }
@@ -1072,9 +1071,9 @@ public class LayoutMcpTool implements McpToolPlugin {
     applicationDraftService.readEditablePage(pageKey, username);
     long liveNodeId = applicationDraftService.requireLiveNodeId(pageKey, username);
     PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
-    boolean createDraft = draftPageKey == null;
-    LayoutModel layout = layoutDescriptionService.toRemovedPage(applicationId, readStoredPage(pageKey, draftPageKey), createDraft, username);
-    writePageDraft(pageKey, liveNodeId, draftPageKey, layout, username);
+    Page stored = readStoredPage(pageKey, draftPageKey);
+    LayoutModel layout = layoutDescriptionService.toRemovedPage(applicationId, stored, false, username);
+    writePageDraft(pageKey, liveNodeId, draftPageKey, stored, layout, username);
     return describeStoredPage(pageKey, liveNodeId, username);
   }
 
@@ -1101,11 +1100,16 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   /**
    * Saves a page layout over the user's draft, the draft being created
-   * through the editor's own path first when the user has none
+   * through the editor's own path first when the user has none. The layout
+   * is assembled over the stored page without copying its windows; when this
+   * call creates the draft, every element it kept is pointed at the draft's
+   * own copy of it, so each window keeps the preferences the editor's draft
+   * gives it.
    */
   private PageKey writePageDraft(PageKey pageKey,
                                  long liveNodeId,
                                  PageKey draftPageKey,
+                                 Page stored,
                                  LayoutModel layout,
                                  String username) throws ObjectNotFoundException, IllegalAccessException {
     PageKey targetPageKey = draftPageKey;
@@ -1118,6 +1122,9 @@ public class LayoutMcpTool implements McpToolPlugin {
         throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
       } catch (RuntimeException e) {
         throw applicationDraftService.translateWriteFailure(e, pageKey, username, PAGE_LAYOUT_NOT_SAVED);
+      }
+      if (!layout.rebaseStorage(stored, pageLayoutService.getPageLayout(pageKey), pageLayoutService.getPageLayout(targetPageKey))) {
+        throw new IllegalStateException(LAYOUT_OUTDATED);
       }
     }
     try {
