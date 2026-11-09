@@ -58,6 +58,12 @@ import java.util.concurrent.Callable;
 import java.util.Arrays;
 import java.util.stream.IntStream;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -66,6 +72,7 @@ import org.mockito.MockedStatic;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.InOrder;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
@@ -223,8 +230,13 @@ public class LayoutMcpToolTest {
 
   private ConversationState        conversationState;
 
+  private ListAppender<ILoggingEvent> logged;
+
   @BeforeEach
   public void setUp() {
+    logged = new ListAppender<>();
+    logged.start();
+    ((Logger) LoggerFactory.getLogger(LayoutMcpTool.class.getName())).addAppender(logged);
     Identity identity = mock(Identity.class);
     lenient().when(identity.getUserId()).thenReturn(USER);
     conversationState = mock(ConversationState.class);
@@ -235,6 +247,11 @@ public class LayoutMcpToolTest {
              .thenAnswer(i -> new ImageConsumption(i.getArgument(0), id -> uploadService.getUploadResource(id) != null));
     // The draft the editor's path clones from a live page without children
     lenient().when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(new Page("draft"));
+  }
+
+  @AfterEach
+  public void tearDown() {
+    ((Logger) LoggerFactory.getLogger(LayoutMcpTool.class.getName())).detachAppender(logged);
   }
 
   @Test
@@ -657,9 +674,11 @@ public class LayoutMcpToolTest {
                  refusal(() -> tool.createSite("marketing", "Marketing", null, "basic", "u1", null, null, null, null)));
     verify(uploadService, times(3)).removeUploadResource("u1");
 
+    assertEquals(List.of(), warnings());
     when(siteLayoutService.createSite(any(), eq(USER))).thenThrow(new IllegalStateException("Error while saving site image file"));
     assertEquals(LayoutMcpTool.SITE_NOT_SAVED,
                  refusal(IllegalStateException.class, () -> tool.createSite("marketing", "Marketing", null, "basic", "u1", null, null, null, null)));
+    assertEquals(List.of("Site marketing could not be created by john"), warnings());
     verify(uploadService, times(4)).removeUploadResource("u1");
   }
 
@@ -725,13 +744,17 @@ public class LayoutMcpToolTest {
     doThrow(new IllegalAccessException("internal detail")).when(siteLayoutService).updateSiteAndPermissions(eq(SITE_KEY), any(), any(), eq(USER));
     assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> tool.updateSite(SITE_ID, "New", null, null, null, null, null, "u1", null)));
     verify(uploadService, times(2)).removeUploadResource("u1");
+    int warned = warnings().size();
     doThrow(new IllegalStateException("Can't find uploaded resource with id : u1")).when(siteLayoutService)
                                                                                  .updateSiteAndPermissions(eq(SITE_KEY), any(), any(), eq(USER));
     assertEquals(LayoutMcpTool.SITE_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.updateSite(SITE_ID, "New", null, null, null, null, null, "u1", null)));
     verify(uploadService, times(3)).removeUploadResource("u1");
+    assertEquals(warned + 1, warnings().size());
     doThrow(new IllegalArgumentException(SiteLayoutService.DISPLAYED_NOT_ACCEPTED)).when(siteLayoutService)
                                                                                    .updateSiteAndPermissions(eq(SITE_KEY), any(), any(), eq(USER));
     assertEquals(SiteLayoutService.DISPLAYED_NOT_ACCEPTED, refusal(() -> tool.updateSite(SITE_ID, null, null, null, null, false, null, "u1", null)));
+    assertEquals(warned + 1, warnings().size());
+    assertEquals("Site " + SITE_KEY + " could not be updated by john", warnings().get(warned));
     verify(uploadService, times(4)).removeUploadResource("u1");
     doThrow(new IllegalArgumentException("uploadId is mandatory")).when(siteLayoutService)
                                                                   .updateSiteAndPermissions(eq(SITE_KEY), any(), any(), eq(USER));
@@ -794,8 +817,10 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.SITE_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> { tool.deleteSite(SITE_ID); return null; }));
     doThrow(new ObjectNotFoundException("internal detail")).when(siteLayoutService).deleteSite(SITE_KEY, USER);
     assertEquals(LayoutMcpTool.SITE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> { tool.deleteSite(SITE_ID); return null; }));
+    assertEquals(List.of(), warnings());
     doThrow(new IllegalStateException("engine detail")).when(siteLayoutService).deleteSite(SITE_KEY, USER);
     assertEquals(LayoutMcpTool.SITE_NOT_DELETED, refusal(IllegalStateException.class, () -> { tool.deleteSite(SITE_ID); return null; }));
+    assertEquals(List.of("Site " + SITE_KEY + " could not be deleted by john"), warnings());
   }
 
 
@@ -2037,6 +2062,11 @@ public class LayoutMcpToolTest {
     assertEquals(String.format(LayoutMcpTool.IMAGE_TOO_LARGE, 1),
                  refusal(IllegalArgumentException.class, () -> tool.uploadLayoutImage(Base64.getEncoder().encodeToString(large), null)));
     verify(uploadService, never()).createUploadResource(any(UploadResource.class));
+    assertEquals(List.of(), warnings());
+
+    doThrow(new IllegalStateException("disk full")).when(uploadService).createUploadResource(any(UploadResource.class));
+    assertEquals(LayoutMcpTool.IMAGE_NOT_SAVED, refusal(IllegalStateException.class, () -> tool.uploadLayoutImage(PNG_BASE64, null)));
+    assertEquals(List.of("Image could not be staged"), warnings());
   }
 
   /**
@@ -2255,6 +2285,18 @@ public class LayoutMcpToolTest {
                                                                                                    .createUploadResource(any(UploadResource.class));
     when(uploadService.getUploadResource(any())).thenAnswer(i -> staged.get((String) i.getArgument(0)));
     return staged;
+  }
+
+  /**
+   * @return the messages the tool logged at WARN in this test, each with the
+   *         failure attached
+   */
+  private List<String> warnings() {
+    return logged.list.stream()
+                      .filter(event -> event.getLevel() == Level.WARN)
+                      .peek(event -> assertNotNull(event.getThrowableProxy()))
+                      .map(ILoggingEvent::getFormattedMessage)
+                      .toList();
   }
 
   private void editablePage() {
@@ -2551,8 +2593,11 @@ public class LayoutMcpToolTest {
     assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
     assertEquals(LayoutMcpTool.URL_NAME_NOT_ACCEPTED, refusal(() -> createGroup(SITE_ID, "Docs", "docs")));
     assertEquals(LayoutMcpTool.SCHEDULED_NOT_ACCEPTED, refusal(() -> createGroup(SITE_ID, "Docs", "docs")));
+    int warned = warnings().size();
     assertEquals(LayoutMcpTool.NODE_NOT_SAVED, refusal(IllegalStateException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
     assertEquals(LayoutMcpTool.NODE_NOT_SAVED, refusal(IllegalStateException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
+    assertEquals(List.of("Navigation item could not be written by john", "Navigation item could not be written by john"),
+                 warnings().subList(warned, warnings().size()));
     NodeData createddocs = node(NODE_ID, "docs");
     when(navigationLayoutService.createNodeWithPage(any(), any(), eq(USER))).thenReturn(createddocs);
     assertEquals(LayoutMcpTool.NODE_NOT_FOUND, refusal(ObjectNotFoundException.class, () -> createGroup(SITE_ID, "Docs", "docs")));
@@ -2794,7 +2839,9 @@ public class LayoutMcpToolTest {
                                                        .when(navigationLayoutService)
                                                        .deleteNode(NODE_ID, 0, USER);
     assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusal(IllegalAccessException.class, () -> { tool.deletePage(NODE_ID); return null; }));
+    assertEquals(List.of(), warnings());
     assertEquals(LayoutMcpTool.NODE_NOT_DELETED, refusal(IllegalStateException.class, () -> { tool.deletePage(NODE_ID); return null; }));
+    assertEquals(List.of("Navigation item " + NODE_ID + " could not be deleted by john"), warnings());
     asUser(() -> { tool.deletePage(NODE_ID); return null; });
     verify(navigationLayoutService, times(3)).deleteNode(NODE_ID, 0, USER);
   }
