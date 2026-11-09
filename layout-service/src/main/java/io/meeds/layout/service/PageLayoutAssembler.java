@@ -93,10 +93,19 @@ public class PageLayoutAssembler {
 
   public static final int                                   TITLE_MAX_LENGTH             = 200;
 
-  public static final String                                PAGE_LAYOUT_HIDDEN           =
-                                                                               "not allowed: page holds elements you cannot see";
+  /**
+   * The tools that change a layout around the elements the caller cannot
+   * see, which a refusal of a whole-layout write points to
+   */
+  public static final String                                HIDDEN_ELEMENTS_HINT         =
+                                                                                 "; adjust it with move_layout_application, set_layout_styles and set_layout_visibility";
 
-  public static final String                                KEEP_CELL_FORMAT             = PAGE_LAYOUT_HIDDEN + "; keep cell_id %s";
+  public static final String                                PAGE_LAYOUT_HIDDEN           =
+                                                                               "not allowed: page holds elements you cannot see"
+                                                                                   + HIDDEN_ELEMENTS_HINT;
+
+  public static final String                                KEEP_CELL_FORMAT             =
+                                                                             "not allowed: page holds elements you cannot see; keep cell_id %s";
 
   public static final String                                KEEP_SECTION_FORMAT          =
                                                                                 PAGE_LAYOUT_HIDDEN + "; keep section_id %s with %d columns";
