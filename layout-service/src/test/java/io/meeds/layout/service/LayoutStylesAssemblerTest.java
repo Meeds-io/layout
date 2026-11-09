@@ -161,7 +161,6 @@ public class LayoutStylesAssemblerTest {
                                                                                                null),
                                                                                  null))),
                                                          stored,
-                                                         false,
                                                          USER);
 
     LayoutModel section = sections(result).get(0);
@@ -311,11 +310,11 @@ public class LayoutStylesAssemblerTest {
     List<ElementStyling> withNull = new ArrayList<>();
     withNull.add(null);
 
-    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toStyledPage(null, stored, false, USER)));
+    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toStyledPage(null, stored, USER)));
     assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED,
-                 refused(() -> descriptionService.toStyledPage(Collections.emptyList(), stored, false, USER)));
-    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toStyledPage(withNull, stored, false, USER)));
-    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toStyledPage(tooMany, stored, false, USER)));
+                 refused(() -> descriptionService.toStyledPage(Collections.emptyList(), stored, USER)));
+    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toStyledPage(withNull, stored, USER)));
+    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toStyledPage(tooMany, stored, USER)));
     assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> stylePage(stored, element(" ", null))));
     assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> stylePage(stored, element("1", null), element("1", null))));  }
 
@@ -414,33 +413,6 @@ public class LayoutStylesAssemblerTest {
                  refused(() -> stylePage(stored,
                                          element(flexSection.getStorageId(),
                                                  styling(new MarginsBlock(true, 0, null, null, null, null), null, null, null, null)))));
-  }
-
-  @Test
-  public void aDraftBuiltFromTheLivePageCopiesItsWindowsWithTheirPreferences() throws Exception {
-    Page stored = storedPage();
-    copyWindowsWithPreferences();
-
-    LayoutModel copied = descriptionService.toStyledPage(List.of(element("1",
-                                                                         styling(new MarginsBlock(true, 30, null, null, null, null),
-                                                                                 null,
-                                                                                 null,
-                                                                                 null,
-                                                                                 null))),
-                                                         stored,
-                                                         true,
-                                                         USER);
-
-    LayoutModel section = sections(copied).get(0);
-    assertNull(section.getStorageId());
-    LayoutModel window = section.getChildren().get(0).getChildren().get(0);
-    assertNull(window.getStorageId());
-    assertEquals(30, window.getMarginTop());
-    assertEquals("social/Menu", window.getContentId());
-    assertEquals("value", window.getPreferences().get(0).getValue());
-
-    LayoutModel kept = stylePage(stored, element("1", null));
-    assertEquals("1", sections(kept).get(0).getChildren().get(0).getChildren().get(0).getStorageId());
   }
 
   @Test
@@ -615,10 +587,10 @@ public class LayoutStylesAssemblerTest {
                                             .mapToObj(i -> visible("1", DisplayMode.BOTH))
                                             .toList();
 
-    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toDisplayedPage(null, stored, false, USER)));
+    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toDisplayedPage(null, stored, USER)));
     assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED,
-                 refused(() -> descriptionService.toDisplayedPage(Collections.emptyList(), stored, false, USER)));
-    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toDisplayedPage(tooMany, stored, false, USER)));
+                 refused(() -> descriptionService.toDisplayedPage(Collections.emptyList(), stored, USER)));
+    assertEquals(LayoutStylesAssembler.ELEMENTS_NOT_ACCEPTED, refused(() -> descriptionService.toDisplayedPage(tooMany, stored, USER)));
     assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED, refused(() -> displayPage(stored, visible(" ", DisplayMode.BOTH))));
     assertEquals(LayoutStylesAssembler.ELEMENT_ID_NOT_ACCEPTED,
                  refused(() -> displayPage(stored, visible("1", DisplayMode.BOTH), visible("1", DisplayMode.HIDE_MOBILE))));
@@ -692,17 +664,10 @@ public class LayoutStylesAssemblerTest {
   }
 
   @Test
-  public void aVisibilityDraftBuiltFromTheLivePageCopiesItsWindowsAndASiteOneResetsItsIds() throws Exception {
+  public void aVisibilityPageWriteKeepsItsWindowsIdsAndASiteDraftResetsItsIds() throws Exception {
     Page stored = storedPage();
     copyWindowsWithPreferences();
 
-    LayoutModel copied = descriptionService.toDisplayedPage(List.of(visible("1", DisplayMode.HIDE_MOBILE)), stored, true, USER);
-
-    LayoutModel window = sections(copied).get(0).getChildren().get(0).getChildren().get(0);
-    assertNull(sections(copied).get(0).getStorageId());
-    assertNull(window.getStorageId());
-    assertEquals("hidden-sm-and-down", window.getCssClass());
-    assertEquals("value", window.getPreferences().get(0).getValue());
     assertEquals("1", sections(displayPage(stored, visible("1", DisplayMode.BOTH))).get(0).getChildren().get(0).getChildren().get(0).getStorageId());
 
     PortalConfig site = storedSite();
@@ -726,7 +691,7 @@ public class LayoutStylesAssemblerTest {
   }
 
   private LayoutModel stylePage(Page stored, ElementStyling... elements) throws Exception {
-    return descriptionService.toStyledPage(List.of(elements), stored, false, USER);
+    return descriptionService.toStyledPage(List.of(elements), stored, USER);
   }
 
   private LayoutModel styleSite(PortalConfig site, ElementStyling... elements) throws Exception {
@@ -734,7 +699,7 @@ public class LayoutStylesAssemblerTest {
   }
 
   private LayoutModel displayPage(Page stored, ElementDisplay... elements) throws Exception {
-    return descriptionService.toDisplayedPage(List.of(elements), stored, false, USER);
+    return descriptionService.toDisplayedPage(List.of(elements), stored, USER);
   }
 
   private LayoutModel displaySite(PortalConfig site, ElementDisplay... elements) throws Exception {

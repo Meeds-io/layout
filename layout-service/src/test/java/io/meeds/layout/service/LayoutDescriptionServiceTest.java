@@ -268,7 +268,7 @@ public class LayoutDescriptionServiceTest {
     Container shippedCell = (Container) shippedSection("flexSection").getChildren().get(0);
     for (int columns : PageLayoutAssembler.DYNAMIC_COLUMNS) {
       SectionDescription section = new SectionDescription(null, SectionType.DYNAMIC, columns, null, null, null, null, null);
-      LayoutModel result = toPageLayout(List.of(section), storedPage(), false);
+      LayoutModel result = toPageLayout(List.of(section), storedPage());
       LayoutModel parent = result.getChildren().get(0);
       assertEquals(EntityMapper.PAGE_LAYOUT_TEMPLATE, parent.getTemplate());
       LayoutModel written = parent.getChildren().get(0);
@@ -308,7 +308,7 @@ public class LayoutDescriptionServiceTest {
                                                              new CellDescription(null, 2, 3, null, null, links)),
                                                      null,
                                                      null);
-    LayoutModel result = toPageLayout(List.of(grid), storedPage(), false);
+    LayoutModel result = toPageLayout(List.of(grid), storedPage());
     LayoutModel written = result.getChildren().get(0).getChildren().get(0);
     assertEquals(LayoutDescriptionService.GRID_TEMPLATE, written.getTemplate());
     assertEquals("d-flex flex-column d-md-grid grid-cols grid-cols-md-3 grid-cols-lg-3 grid-cols-xl-3 grid-rows grid-rows-md-2 grid-rows-lg-2 grid-rows-xl-2",
@@ -436,7 +436,7 @@ public class LayoutDescriptionServiceTest {
                                                      null,
                                                      null,
                                                      null);
-    LayoutModel result = toPageLayout(List.of(kept), storedPage(section), false);
+    LayoutModel result = toPageLayout(List.of(kept), storedPage(section));
     LayoutModel written = result.getChildren().get(0).getChildren().get(0);
     assertEquals(section.getStorageId(), written.getStorageId());
     assertEquals(hiddenCell.getStorageId(), written.getChildren().get(1).getStorageId());
@@ -478,7 +478,7 @@ public class LayoutDescriptionServiceTest {
                       List.of(grid(2, 1)),
                       storedPage(grid));
     SectionDescription keptCell = grid(2, 1, new CellDescription(pinnedCell.getStorageId(), 1, 1, null, null, null));
-    LayoutModel gridResult = toPageLayout(List.of(keptCell), storedPage(grid), false);
+    LayoutModel gridResult = toPageLayout(List.of(keptCell), storedPage(grid));
     LayoutModel writtenCell = gridResult.getChildren().get(0).getChildren().get(0).getChildren().get(0);
     assertEquals(pinnedCell.getStorageId(), writtenCell.getStorageId());
     assertEquals("9", writtenCell.getChildren().get(0).getStorageId());
@@ -510,7 +510,7 @@ public class LayoutDescriptionServiceTest {
                                                      null,
                                                      null,
                                                      null);
-    LayoutModel result = toPageLayout(List.of(kept), storedPage(section), false);
+    LayoutModel result = toPageLayout(List.of(kept), storedPage(section));
     List<LayoutModel> written = result.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren();
     assertEquals(List.of("9", "8", "6", "5"), written.stream().map(LayoutModel::getStorageId).toList());
   }
@@ -529,44 +529,34 @@ public class LayoutDescriptionServiceTest {
     SectionDescription read = descriptionService.toPageDescription(storedPage(section), PAGE_REF, LayoutVersion.DRAFT).sections().get(0);
     assertEquals(2, read.columns());
 
-    LayoutModel result = toPageLayout(List.of(read), storedPage(section), false);
+    LayoutModel result = toPageLayout(List.of(read), storedPage(section));
     LayoutModel written = result.getChildren().get(0).getChildren().get(0);
     assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS_NOT_STICKY, written.getCssClass());
     assertEquals(wide, written.getChildren().get(0).getCssClass());
     assertEquals(narrow, written.getChildren().get(1).getCssClass());
 
-    LayoutModel fresh = toPageLayout(List.of(dynamic(2, null)), storedPage(), false).getChildren().get(0).getChildren().get(0);
+    LayoutModel fresh = toPageLayout(List.of(dynamic(2, null)), storedPage()).getChildren().get(0).getChildren().get(0);
     assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS, fresh.getCssClass());
     assertEquals(6, descriptionService.breakpointValue(fresh.getChildren().get(0).getCssClass(), LayoutDescriptionService.CELL_COLSPAN_PREFIX));
 
     Container stickySection = container(LayoutDescriptionService.FLEX_TEMPLATE, PageLayoutAssembler.FLEX_SECTION_CLASS + " hidden-sm-and-down");
     children(stickySection, cell(wide), cell(narrow));
     SectionDescription widened = new SectionDescription(stickySection.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
-    LayoutModel keptSticky = toPageLayout(List.of(widened), storedPage(stickySection), false).getChildren().get(0).getChildren().get(0);
+    LayoutModel keptSticky = toPageLayout(List.of(widened), storedPage(stickySection)).getChildren().get(0).getChildren().get(0);
     assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS + " " + LayoutDescriptionService.HIDE_MOBILE_TOKEN, keptSticky.getCssClass());
     assertEquals(3, keptSticky.getChildren().size());
     assertEquals(4, descriptionService.breakpointValue(keptSticky.getChildren().get(0).getCssClass(), LayoutDescriptionService.CELL_COLSPAN_PREFIX));
 
     Container emptySection = container(LayoutDescriptionService.FLEX_TEMPLATE, PageLayoutAssembler.FLEX_SECTION_CLASS_NOT_STICKY);
     SectionDescription keptEmpty = new SectionDescription(emptySection.getStorageId(), SectionType.DYNAMIC, 1, null, null, null, null, null);
-    LayoutModel stillNotSticky = toPageLayout(List.of(keptEmpty), storedPage(emptySection), false).getChildren().get(0).getChildren().get(0);
+    LayoutModel stillNotSticky = toPageLayout(List.of(keptEmpty), storedPage(emptySection)).getChildren().get(0).getChildren().get(0);
     assertEquals(PageLayoutAssembler.FLEX_SECTION_CLASS_NOT_STICKY, stillNotSticky.getCssClass());
     assertEquals(1, stillNotSticky.getChildren().size());
   }
 
   @Test
-  public void firstPageWriteMakesKeptWindowsCopiesWithTheirPreferencesAndALaterWriteKeepsTheirIds() throws Exception {
-    doAnswer(invocation -> {
-      Application application = invocation.getArgument(0);
-      TransientApplicationState state = new TransientApplicationState("social/Menu");
-      Portlet portlet = new Portlet();
-      portlet.setValue("key", "value");
-      state.setContentState(portlet);
-      application.setState(state);
-      return null;
-    }).when(portletInstanceService).expandPortletPreferences(any(), any());
-    Container section = flexSection("1", "2");
-    SectionDescription kept = new SectionDescription(section.getStorageId(),
+  public void aPageWriteKeepsTheKeptWindowsIdsAndTheirPersistentState() throws Exception {
+    SectionDescription kept = new SectionDescription(null,
                                                      SectionType.DYNAMIC,
                                                      3,
                                                      null,
@@ -576,18 +566,7 @@ public class LayoutDescriptionServiceTest {
                                                      null,
                                                      null,
                                                      null);
-    LayoutModel result = toPageLayout(List.of(kept), storedPage(section), true);
-    assertCopiedForADraft();
-    LayoutModel writtenSection = result.getChildren().get(0).getChildren().get(0);
-    assertNull(writtenSection.getStorageId());
-    LayoutModel window = writtenSection.getChildren().get(0).getChildren().get(0);
-    assertNull(window.getStorageId());
-    assertEquals("social/Menu", window.getContentId());
-    assertEquals("value", window.getPreferences().get(0).getValue());
-    Application copy = (Application) ((Container) ((Container) ((Container) result.toPage().getChildren().get(0)).getChildren().get(0)).getChildren().get(0)).getChildren().get(0);
-    assertTrue(copy.getState() instanceof TransientApplicationState);
-
-    section = flexSection("1", "2");
+    Container section = flexSection("1", "2");
     SectionDescription keptAgain = new SectionDescription(section.getStorageId(),
                                                           kept.type(),
                                                           kept.columns(),
@@ -596,7 +575,7 @@ public class LayoutDescriptionServiceTest {
                                                           null,
                                                           null,
                                                           null);
-    LayoutModel later = toPageLayout(List.of(keptAgain), storedPage(section), false);
+    LayoutModel later = toPageLayout(List.of(keptAgain), storedPage(section));
     LayoutModel keptWindow = later.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0);
     assertEquals("1", keptWindow.getStorageId());
     Application persistent = (Application) ((Container) ((Container) ((Container) later.toPage().getChildren().get(0)).getChildren().get(0)).getChildren().get(0)).getChildren().get(0);
@@ -609,7 +588,7 @@ public class LayoutDescriptionServiceTest {
     children(legacy, application("9", null, null));
     Page stored = new Page("page");
     children(stored, legacy);
-    LayoutModel result = toPageLayout(List.of(), stored, false);
+    LayoutModel result = toPageLayout(List.of(), stored);
     assertEquals(1, result.getChildren().size());
     assertEquals(EntityMapper.PAGE_LAYOUT_TEMPLATE, result.getChildren().get(0).getTemplate());
     assertTrue(result.getChildren().get(0).getChildren().isEmpty());
@@ -619,7 +598,7 @@ public class LayoutDescriptionServiceTest {
     children(legacy, application("9", null, null));
     children(stored, legacy);
     SectionDescription placed = dynamic(1, List.of(List.of(new ApplicationDescription("9", null, null, null, null, null, null, null, null))));
-    LayoutModel rebuilt = toPageLayout(List.of(placed), stored, false);
+    LayoutModel rebuilt = toPageLayout(List.of(placed), stored);
     assertEquals("9", rebuilt.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0).getStorageId());
     assertEquals(1, rebuilt.getChildren().size());
 
@@ -628,7 +607,7 @@ public class LayoutDescriptionServiceTest {
     children(footer, application("9", null, null));
     Container parent = container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null);
     children(stored, parent, footer);
-    LayoutModel moved = toPageLayout(List.of(placed), stored, false);
+    LayoutModel moved = toPageLayout(List.of(placed), stored);
     assertEquals(2, moved.getChildren().size());
     assertEquals("9", moved.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0).getStorageId());
     assertTrue(moved.getChildren().get(1).getChildren().isEmpty());
@@ -644,7 +623,7 @@ public class LayoutDescriptionServiceTest {
     children(stored, container(EntityMapper.PAGE_LAYOUT_TEMPLATE, null), footer);
     SectionDescription keptSection = new SectionDescription(section.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
     SectionDescription keptCell = grid(1, 1, new CellDescription(gridCell.getStorageId(), 1, 1, null, null, null));
-    LayoutModel movedContainers = toPageLayout(List.of(keptSection, keptCell), stored, false);
+    LayoutModel movedContainers = toPageLayout(List.of(keptSection, keptCell), stored);
     List<LayoutModel> sections = movedContainers.getChildren().get(0).getChildren();
     assertEquals(section.getStorageId(), sections.get(0).getStorageId());
     assertEquals(gridCell.getStorageId(), sections.get(1).getChildren().get(0).getStorageId());
@@ -673,7 +652,7 @@ public class LayoutDescriptionServiceTest {
                       List.of(),
                       mixed);
     SectionDescription keptEditorSection = new SectionDescription(editorSection.getStorageId(), SectionType.DYNAMIC, 3, null, null, null, null, null);
-    LayoutModel resent = toPageLayout(List.of(keptEditorSection), mixed, false);
+    LayoutModel resent = toPageLayout(List.of(keptEditorSection), mixed);
     assertEquals(1, resent.getChildren().get(0).getChildren().size());
     assertEquals("7", resent.getChildren().get(0).getChildren().get(0).getChildren().get(1).getChildren().get(0).getStorageId());
   }
@@ -962,7 +941,7 @@ public class LayoutDescriptionServiceTest {
     when(applicationCodeService.newApplication(WIDGET_CONTENT_ID)).thenAnswer(invocation -> widgetApplication());
     ApplicationDescription widget = new ApplicationDescription(null, WIDGET_CONTENT_ID, null, null, null, null, null, null, null);
 
-    LayoutModel result = toPageLayout(List.of(dynamic(1, List.of(List.of(widget, widget)))), storedPage(), false);
+    LayoutModel result = toPageLayout(List.of(dynamic(1, List.of(List.of(widget, widget)))), storedPage());
 
     List<LayoutModel> windows = result.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren();
     assertEquals(2, windows.size());
@@ -982,7 +961,7 @@ public class LayoutDescriptionServiceTest {
     lenient().when(applicationCodeService.newApplication(WIDGET_CONTENT_ID)).thenAnswer(invocation -> widgetApplication());
     ApplicationDescription widget = new ApplicationDescription(null, WIDGET_CONTENT_ID, null, null, null, null, null, null, null);
 
-    LayoutModel result = toPageLayout(List.of(dynamic(1, List.of(List.of(widget)))), storedPage(), false);
+    LayoutModel result = toPageLayout(List.of(dynamic(1, List.of(List.of(widget)))), storedPage());
     assertEquals("My widget", result.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0).getTitle());
 
     PortletInstance secondWidget = instance(21L, WIDGET_CONTENT_ID, "Other widget");
@@ -2513,7 +2492,7 @@ public class LayoutDescriptionServiceTest {
                                                          null,
                                                          null);
 
-    LayoutModel result = toPageLayout(List.of(dynamicKept, gridKept), stored, false);
+    LayoutModel result = toPageLayout(List.of(dynamicKept, gridKept), stored);
 
     LayoutModel placed = result.getChildren().get(0).getChildren().get(1).getChildren().get(0).getChildren().get(0);
     assertEquals("5", placed.getStorageId());
@@ -2545,15 +2524,15 @@ public class LayoutDescriptionServiceTest {
                                                          null,
                                                          null);
 
-    LayoutModel result = toPageLayout(List.of(gridKept), stored, false);
+    LayoutModel result = toPageLayout(List.of(gridKept), stored);
 
     LayoutModel placed = result.getChildren().get(0).getChildren().get(0).getChildren().get(0).getChildren().get(0);
     assertEquals("5", placed.getStorageId());
     assertNull(placed.getHeight());
   }
 
-  private LayoutModel toPageLayout(List<SectionDescription> sections, Page stored, boolean copyWindows) throws Exception {
-    return descriptionService.toPageLayout(sections, stored, copyWindows, USER, Locale.ENGLISH);
+  private LayoutModel toPageLayout(List<SectionDescription> sections, Page stored) throws Exception {
+    return descriptionService.toPageLayout(sections, stored, USER, Locale.ENGLISH);
   }
 
   private void assertPageRefused(Class<? extends Exception> type, String refusal, List<SectionDescription> sections) {
@@ -2561,7 +2540,7 @@ public class LayoutDescriptionServiceTest {
   }
 
   private void assertPageRefused(Class<? extends Exception> type, String refusal, List<SectionDescription> sections, Page stored) {
-    assertEquals(refusal, assertThrows(type, () -> toPageLayout(sections, stored, false)).getMessage());
+    assertEquals(refusal, assertThrows(type, () -> toPageLayout(sections, stored)).getMessage());
   }
 
   private SectionDescription dynamic(Integer columns, List<List<ApplicationDescription>> content) {
@@ -2635,7 +2614,7 @@ public class LayoutDescriptionServiceTest {
                                                                             new BackgroundImageBlock("u1", null, null, null, null, null, null, null)),
                                                         null, null);
 
-    LayoutModel result = descriptionService.toStyledPage(List.of(new ElementStyling(section.getStorageId(), styling, null)), stored, false, USER, images);
+    LayoutModel result = descriptionService.toStyledPage(List.of(new ElementStyling(section.getStorageId(), styling, null)), stored, USER, images);
 
     LayoutModel written = result.getChildren().get(0).getChildren().get(0);
     assertEquals("upload_u1", written.getBackgroundImage());
@@ -2646,7 +2625,7 @@ public class LayoutDescriptionServiceTest {
   }
 
   @Test
-  public void aNewImageOfANewSectionInARebuiltPageIsKeyedOnItsUploadIdAndSurvivesTheCopy() throws Exception {
+  public void aNewImageOfANewSectionInARebuiltPageIsKeyedOnItsUploadId() throws Exception {
     ImageConsumption images = new ImageConsumption("page_44", "u1"::equals);
     StylingDescription styling = new StylingDescription(null, null, null,
                                                         new BackgroundBlock(true, null, null, null, null, null, null, null, null,
@@ -2654,7 +2633,7 @@ public class LayoutDescriptionServiceTest {
                                                         null, null);
     SectionDescription section = new SectionDescription(null, SectionType.DYNAMIC, 1, null, List.of(List.of()), null, styling, null);
 
-    LayoutModel result = descriptionService.toPageLayout(List.of(section), storedPage(), true, USER, Locale.ENGLISH, images);
+    LayoutModel result = descriptionService.toPageLayout(List.of(section), storedPage(), USER, Locale.ENGLISH, images);
 
     LayoutModel written = result.getChildren().get(0).getChildren().get(0);
     assertEquals("upload_u1", written.getBackgroundImage());

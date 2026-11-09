@@ -770,7 +770,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     ImageConsumption images = layoutImageService.consumption(livePage.getStorageId(), username);
     try {
-      LayoutModel layout = layoutDescriptionService.toPageLayout(sections, stored, false, username, getCurrentUserLocale(), images);
+      LayoutModel layout = layoutDescriptionService.toPageLayout(sections, stored, username, getCurrentUserLocale(), images);
       try {
         attachImages(images, username, PAGE_NOT_ALLOWED, PAGE_NOT_FOUND);
         layoutImageService.substitute(layout, images);
@@ -1037,7 +1037,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     }
     ImageConsumption images = layoutImageService.consumption(livePage.getStorageId(), username);
     try {
-      LayoutModel layout = layoutDescriptionService.toStyledPage(elements, stored, false, username, images);
+      LayoutModel layout = layoutDescriptionService.toStyledPage(elements, stored, username, images);
       try {
         attachImages(images, username, PAGE_NOT_ALLOWED, PAGE_NOT_FOUND);
         layoutImageService.substitute(layout, images);
@@ -1064,7 +1064,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     if (stored == null) {
       throw new ObjectNotFoundException(createDraft ? PAGE_NOT_FOUND : DRAFT_NOT_FOUND);
     }
-    LayoutModel layout = layoutDescriptionService.toDisplayedPage(elements, stored, false, username);
+    LayoutModel layout = layoutDescriptionService.toDisplayedPage(elements, stored, username);
     writePageDraft(pageKey, liveNodeId, draftPageKey, stored, layout, username);
     return describeStoredPage(pageKey, liveNodeId, username);
   }
@@ -1080,11 +1080,10 @@ public class LayoutMcpTool implements McpToolPlugin {
     long liveNodeId = applicationDraftService.requireLiveNodeId(pageKey, username);
     PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
     Page stored = readStoredPage(pageKey, draftPageKey);
-    PlacedLayout placed = application == null ? layoutDescriptionService.toMovedPage(applicationId, position, stored, false, username)
+    PlacedLayout placed = application == null ? layoutDescriptionService.toMovedPage(applicationId, position, stored, username)
                                               : layoutDescriptionService.toPlacedPage(application,
                                                                                       position,
                                                                                       stored,
-                                                                                      false,
                                                                                       username,
                                                                                       getCurrentUserLocale());
     PageKey targetPageKey = writePageDraft(pageKey, liveNodeId, draftPageKey, stored, placed.layout(), username);
@@ -1100,7 +1099,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     long liveNodeId = applicationDraftService.requireLiveNodeId(pageKey, username);
     PageKey draftPageKey = layoutDraftService.getDraftPageKey(liveNodeId, username);
     Page stored = readStoredPage(pageKey, draftPageKey);
-    LayoutModel layout = layoutDescriptionService.toRemovedPage(applicationId, stored, false, username);
+    LayoutModel layout = layoutDescriptionService.toRemovedPage(applicationId, stored, username);
     writePageDraft(pageKey, liveNodeId, draftPageKey, stored, layout, username);
     return describeStoredPage(pageKey, liveNodeId, username);
   }
