@@ -67,6 +67,8 @@ import org.exoplatform.portal.config.model.Container;
 import org.exoplatform.portal.config.model.ModelStyle;
 import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
+import org.exoplatform.portal.config.model.ModelObject;
+import org.exoplatform.portal.config.model.PersistentApplicationState;
 import org.exoplatform.portal.config.model.TransientApplicationState;
 import org.exoplatform.portal.config.serialize.model.SiteLayout;
 import org.exoplatform.portal.mop.SiteKey;
@@ -1048,9 +1050,12 @@ public class SiteLayoutServiceTest {
     assertThrows(ObjectNotFoundException.class,
                  () -> siteLayoutService.updateSiteApplicationPreferences(SITE_KEY, 31, preferences, TEST_USER, true));
     PortalConfig site = new PortalConfig(PortalConfig.PORTAL_TYPE, "test");
-    Container layout = new Container();
     Application window = new Application("31");
-    layout.setChildren(new ArrayList<>(List.of(new Container(), window)));
+    window.setState(new PersistentApplicationState("31"));
+    Application otherWindow = new Application("33");
+    otherWindow.setState(new PersistentApplicationState("33"));
+    Container layout = new Container();
+    layout.setChildren(new ArrayList<>(List.of(nested(nested(otherWindow)), nested(nested(window)))));
     site.setPortalLayout(layout);
     when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(site);
     assertThrows(IllegalAccessException.class,
@@ -1067,11 +1072,18 @@ public class SiteLayoutServiceTest {
 
     ArgumentCaptor<Portlet> saved = ArgumentCaptor.forClass(Portlet.class);
     verify(layoutService, times(2)).save(eq(window.getState()), saved.capture());
+    verify(layoutService, never()).save(eq(otherWindow.getState()), any(Portlet.class));
     assertEquals("NewsSlider", saved.getAllValues().get(0).getPreference("viewTemplate").getValue());
     assertEquals("6", saved.getAllValues().get(0).getPreference("limit").getValue());
     assertNull(saved.getAllValues().get(1).getPreference("viewTemplate"));
     assertEquals("6", saved.getAllValues().get(1).getPreference("limit").getValue());
     verifyNoInteractions(listenerService);
+  }
+
+  private Container nested(ModelObject child) {
+    Container container = new Container();
+    container.setChildren(new ArrayList<>(List.of(child)));
+    return container;
   }
 
   private PortalConfig storedSite() {
