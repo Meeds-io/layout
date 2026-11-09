@@ -929,6 +929,29 @@ public class NavigationLayoutServiceTest {
   }
 
   @Test
+  public void updateNodeAndPagePermissionsPutsTheLinkBackWhenThePermissionsFailAfterIt() throws Exception {
+    NodeState stored = new NodeState.Builder().label("Site").pageRef(PAGE_KEY).visibility(Visibility.DISPLAYED).build();
+    storedNode(2L, stored);
+    PageState previous = new PageState("Site", null, false, false, false, null, null, List.of("Everyone"), "*:/platform/users", "LINK", "https://old.example");
+    when(layoutService.getPageContext(PAGE_KEY)).thenReturn(new PageContext(PAGE_KEY, previous));
+    doThrow(new IllegalStateException("storage")).when(pageLayoutService).updatePagePermissions(eq(PAGE_KEY), any(), eq(TEST_USER));
+
+    NavigationItemUpdate update = new NavigationItemUpdate();
+    update.setLink("https://meeds.io");
+    update.setAccessPermissions(List.of("*:/platform/administrators"));
+    assertThrows(IllegalStateException.class, () -> navigationLayoutService.updateNodeAndPagePermissions(2L, update, TEST_USER));
+
+    InOrder order = inOrder(pageLayoutService);
+    order.verify(pageLayoutService).updatePageLink(PAGE_KEY, "https://meeds.io", TEST_USER);
+    order.verify(pageLayoutService).updatePagePermissions(eq(PAGE_KEY), any(), eq(TEST_USER));
+    order.verify(pageLayoutService).updatePageLink(PAGE_KEY, "https://old.example", TEST_USER);
+    verify(pageLayoutService, times(1)).updatePagePermissions(eq(PAGE_KEY), any(), eq(TEST_USER));
+    verify(navigationService, never()).updateNode(anyLong(), any());
+    verify(descriptionService, never()).setDescriptions(any(), any());
+    verify(layoutService, never()).remove(any(PageKey.class));
+  }
+
+  @Test
   public void updateNodeAndPagePermissionsCreatesThePageAndRemovesItOnFailure() throws Exception {
     NodeState stored = new NodeState.Builder().label("Team").visibility(Visibility.DISPLAYED).build();
     storedNode(2L, stored);
