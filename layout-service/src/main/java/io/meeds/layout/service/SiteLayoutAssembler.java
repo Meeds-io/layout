@@ -96,7 +96,8 @@ public class SiteLayoutAssembler {
                                                                                        "value is not accepted for layout: more than 200 elements";
 
   public static final String                                SITE_LAYOUT_HIDDEN              =
-                                                                               "not allowed: site layout holds elements you cannot see";
+                                                                               "not allowed: site layout holds elements you cannot see"
+                                                                                   + PageLayoutAssembler.HIDDEN_ELEMENTS_HINT;
 
   public static final String                                CONTAINER_NOT_FOUND             = "does not exist: container";
 
