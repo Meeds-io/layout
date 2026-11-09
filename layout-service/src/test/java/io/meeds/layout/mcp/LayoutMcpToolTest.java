@@ -1853,6 +1853,49 @@ public class LayoutMcpToolTest {
   }
 
   @Test
+  public void configureLayoutApplicationsRefusesAnUploadIdGivenToTwoApplicationsBeforeAnyWrite() throws Exception {
+    editablePage();
+    realSettingsHelpers();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(pageHolding("20", "40"));
+    ModelObject visible = new Container("visible");
+    when(pageLayoutService.getPageLayout(PAGE_KEY, USER)).thenReturn(visible);
+    List<ApplicationDescription> images = List.of(new ApplicationDescription("20", "content/Image", null, null, null, null, null, true, null),
+                                                  new ApplicationDescription("40", "content/Image", null, null, null, null, null, true, null));
+    PageDescription reading = new PageDescription(PAGE_KEY.format(),
+                                                  LayoutVersion.PUBLISHED,
+                                                  List.of(new SectionDescription("12", SectionType.DYNAMIC, 1, null, List.of(images), null, null, null)),
+                                                  null);
+    when(descriptionService.toPageDescription(visible, PAGE_KEY.format(), LayoutVersion.PUBLISHED)).thenReturn(reading);
+    List<ApplicationSettingsEntry> sameUpload = List.of(new ApplicationSettingsEntry("20", Map.of("image_upload_id", "77")),
+                                                        new ApplicationSettingsEntry("40", Map.of("image_upload_id", " 77 ")));
+
+    assertEquals(ImageConsumption.UPLOAD_USED_TWICE, refusal(() -> tool.configureLayoutApplications(null, PAGE_KEY.format(), sameUpload)));
+
+    PortalConfig site = editableSite();
+    site.setPortalLayout(containerHolding("30", "32"));
+    when(draftService.getDraftSiteKey(SITE_ID, USER)).thenReturn(null);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(site);
+    when(descriptionService.filterAccessible(any(), eq(USER))).thenAnswer(i -> i.getArgument(0));
+    when(descriptionService.toSiteDescription(eq(site), any(), isNull(), isNull(), eq(false))).thenReturn(siteReading("31", "30", "32"));
+    List<ApplicationSettingsEntry> sameSiteUpload = List.of(new ApplicationSettingsEntry("30", Map.of("image_upload_id", "78")),
+                                                            new ApplicationSettingsEntry("32", Map.of("image_upload_id", "78")));
+
+    assertEquals(ImageConsumption.UPLOAD_USED_TWICE, refusal(() -> tool.configureLayoutApplications(SITE_ID, null, sameSiteUpload)));
+
+    verify(applicationSettingsService, never()).validate(any(), any(), any());
+    verify(applicationSettingsService, never()).apply(any(), any(), any());
+    verify(draftService, never()).createDraftPage(anyLong(), any());
+    verify(draftService, never()).createDraftSite(any(), any());
+
+    List<ApplicationSettingsEntry> distinct = List.of(new ApplicationSettingsEntry("30", Map.of("image_upload_id", "78")),
+                                                      new ApplicationSettingsEntry("32", Map.of("image_upload_id", "79")));
+    doThrow(new IllegalArgumentException("validated")).when(applicationSettingsService).validate(any(), any(), any());
+    assertEquals("validated", refusal(() -> tool.configureLayoutApplications(SITE_ID, null, distinct)));
+  }
+
+  @Test
   public void configureLayoutApplicationsRefusalsCarryTheFixedTexts() throws Exception {
     List<ApplicationSettingsEntry> one = List.of(new ApplicationSettingsEntry("20", Map.of()));
     assertEquals(LayoutMcpTool.APPLICATIONS_NOT_ACCEPTED, refusal(() -> tool.configureLayoutApplications(null, PAGE_KEY.format(), null)));
