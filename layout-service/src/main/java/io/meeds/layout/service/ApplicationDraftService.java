@@ -298,7 +298,7 @@ public class ApplicationDraftService {
         || StringUtils.equals(e.getMessage(), PAGE_OUTDATED_MESSAGE)) {
       return new IllegalStateException(LAYOUT_OUTDATED);
     }
-    LOG.debug("Layout {} could not be written by {}", layoutKey, username, e);
+    LOG.warn("Layout {} could not be written by {}", layoutKey, username, e);
     return new IllegalStateException(refusal);
   }
 
