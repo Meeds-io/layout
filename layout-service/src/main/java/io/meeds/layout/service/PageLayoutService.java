@@ -56,6 +56,7 @@ import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.util.EntityMapper;
 import io.meeds.layout.util.JsonUtils;
+import io.meeds.layout.util.LayoutStorageValidator;
 import io.meeds.layout.util.LayoutStyleValidator;
 
 import lombok.SneakyThrows;
@@ -78,6 +79,8 @@ public class PageLayoutService {
   private static final String    PAGE_NOT_ACCESSIBLE_MESSAGE     = "Page with ref %s isn't accessible for user %s";
 
   private static final String    PAGE_NOT_EDITABLE_MESSAGE       = "Page with ref %s isn't editable for user %s";
+
+  private static final String    PAGE_OUTDATED_ERROR             = "layout.pageOutdatedError";
 
   @Autowired
   private LayoutService          layoutService;
@@ -348,12 +351,15 @@ public class PageLayoutService {
         // Update Page Layout only without resetting preferences
         page.resetStorage();
       } else {
+        // A draft save keeps the windows and containers it names by storage
+        // id: each one must already be held by the edited page
+        LayoutStorageValidator.validateHeldStorageIds(existingPage.getChildren(), page.getChildren(), PAGE_OUTDATED_ERROR);
         // Check Page Layout consistency before saving
         page.checkStorage();
       }
     } catch (ObjectNotFoundException e) {
       LOG.debug("Error while accessing page applications storage information", e);
-      throw new IllegalStateException("layout.pageOutdatedError");
+      throw new IllegalStateException(PAGE_OUTDATED_ERROR);
     }
     LayoutStyleValidator.validate(page);
     existingPage.setChildren(page.getChildren());

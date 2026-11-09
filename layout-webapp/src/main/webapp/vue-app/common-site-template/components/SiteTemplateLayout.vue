@@ -255,7 +255,9 @@ export default {
       if (!this.internalLeftSidebar) {
         middleCenterContainer.children[0] = this.$layoutUtils.newContainer(this.$layoutUtils.sidebarTemplate);
       }
-      await this.$siteLayoutService.updateSiteLayout('portal_template', this.siteTemplate.layout, layout);
+      // A new layout: none of its elements is stored yet
+      const layoutToUpdate = this.$layoutUtils.cleanAttributes(layout, true, false);
+      await this.$siteLayoutService.updateSiteLayout('portal_template', this.siteTemplate.layout, layoutToUpdate);
       await this.uploadIllustration();
     },
     async uploadIllustration() {

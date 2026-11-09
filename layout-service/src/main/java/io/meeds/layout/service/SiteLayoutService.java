@@ -56,6 +56,7 @@ import org.exoplatform.services.resources.LocaleConfigService;
 import org.exoplatform.services.resources.LocaleContextInfo;
 
 import io.meeds.common.ContainerTransactional;
+import io.meeds.layout.util.LayoutStorageValidator;
 import io.meeds.layout.util.LayoutStyleValidator;
 
 import lombok.SneakyThrows;
@@ -72,6 +73,8 @@ public class SiteLayoutService {
   private static final String     DRAFT_NAME_CONFLICT    = "layout.siteDraftNameConflict";
 
   private static final String     DRAFT_OWNER_SEPARATOR  = "_draft_";
+
+  private static final String     SITE_OUTDATED_ERROR    = "layout.siteOutdatedError";
 
   private static final Log        LOG                    = ExoLogger.getLogger(SiteLayoutService.class);
 
@@ -321,6 +324,13 @@ public class SiteLayoutService {
                                                      username));
     }
     LayoutStyleValidator.validate(site.getPortalLayout());
+    if (!publish) {
+      // A draft save keeps the windows and containers it names by storage
+      // id: each one must already be held by the edited site layout
+      LayoutStorageValidator.validateHeldStorageIds(Collections.singletonList(portalConfig.getPortalLayout()),
+                                                    Collections.singletonList(site.getPortalLayout()),
+                                                    SITE_OUTDATED_ERROR);
+    }
     portalConfig.setPortalLayout(site.getPortalLayout());
     try {
       if (publish) {
@@ -332,7 +342,7 @@ public class SiteLayoutService {
       }
     } catch (ObjectNotFoundException e) {
       LOG.debug("Error while accessing Site applications storage information", e);
-      throw new IllegalStateException("layout.siteOutdatedError");
+      throw new IllegalStateException(SITE_OUTDATED_ERROR);
     }
     layoutService.save(portalConfig);
   }
