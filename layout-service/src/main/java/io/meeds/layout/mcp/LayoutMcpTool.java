@@ -246,6 +246,12 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   private static final long        MEGABYTE              = 1024L * 1024;
 
+  /**
+   * The setting of the Image application that names an upload_layout_image
+   * upload id, which its write consumes
+   */
+  private static final String      IMAGE_UPLOAD_ID_SETTING = "image_upload_id";
+
   private static final Pattern     NAME_PATTERN          = Pattern.compile("^[a-zA-Z0-9_-]{1,200}$");
 
   /**
@@ -880,6 +886,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     requireSiteId(siteId);
     String username = getCurrentUserName();
     DraftWindows windows = applicationDraftService.resolveSite(siteId, applicationIds, username);
+    refuseUploadIdUsedTwice(settings);
     applicationSettingsService.validate(windows.contexts(), settings, applicationIds);
     applyOnDraft(windows, settings, applicationIds, username);
     return describeStoredSite(windows.liveSite().getSiteKey(), username);
@@ -958,9 +965,26 @@ public class LayoutMcpTool implements McpToolPlugin {
     PageKey pageKey = parsePageKey(pageRef);
     String username = getCurrentUserName();
     DraftWindows windows = applicationDraftService.resolvePage(pageKey, pageRef, applicationIds, username);
+    refuseUploadIdUsedTwice(settings);
     applicationSettingsService.validate(windows.contexts(), settings, applicationIds);
     applyOnDraft(windows, settings, applicationIds, username);
     return describeStoredPage(pageKey, windows.liveNodeId(), username);
+  }
+
+  /**
+   * Refuses an upload id given to two applications of the call: each write
+   * consumes and releases its id, so a second write of the same id would
+   * fail after the first was written, whereas each id is checked on its own
+   * by the validation that precedes every write
+   */
+  private void refuseUploadIdUsedTwice(List<Map<String, Object>> settings) {
+    Set<String> uploadIds = new HashSet<>();
+    for (Map<String, Object> applicationSettings : settings) {
+      if (applicationSettings.get(IMAGE_UPLOAD_ID_SETTING) instanceof String uploadId && StringUtils.isNotBlank(uploadId)
+          && !uploadIds.add(uploadId.trim())) {
+        throw new IllegalArgumentException(ImageConsumption.UPLOAD_USED_TWICE);
+      }
+    }
   }
 
   /**
