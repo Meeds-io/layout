@@ -534,7 +534,7 @@ public class LayoutMcpToolTest {
     for (String template : new String[] { "public", "nope" }) {
       assertEquals(LayoutMcpTool.TEMPLATE_NOT_ACCEPTED, refusal(() -> tool.createSite("marketing", "Marketing", null, template, null, null, null, null, null)), template);
     }
-    for (String icon : new String[] { "fa-globe; color: red", "Fa-Globe", " ", "" }) {
+    for (String icon : new String[] { "fa-globe; color: red", "Fa-Globe", " ", "", "fa  globe", "fa-globe ".repeat(20000) + "!" }) {
       assertEquals(LayoutMcpTool.ICON_NOT_ACCEPTED, refusal(() -> tool.createSite("marketing", "Marketing", null, "basic", null, null, null, null, icon)), icon);
     }
     for (List<String> access : List.<List<String>> of(List.of(), List.of("nope"), List.of("*:/nope"), List.of("admin:/platform/users"), List.of("/platform/users"), List.of("Everyone", "*"))) {
