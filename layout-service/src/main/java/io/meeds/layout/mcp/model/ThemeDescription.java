@@ -22,7 +22,7 @@ import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import io.meeds.layout.mcp.constant.ThemePart;
+import io.meeds.layout.constant.ThemePart;
 
 /**
  * A part of the theme as stored after an update: every option of the part

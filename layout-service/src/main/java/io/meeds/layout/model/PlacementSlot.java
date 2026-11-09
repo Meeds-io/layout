@@ -18,7 +18,7 @@
  */
 package io.meeds.layout.model;
 
-import io.meeds.layout.mcp.constant.StylingDestination;
+import io.meeds.layout.constant.StylingDestination;
 
 /**
  * Where a placement writes an application: the cell or container whose

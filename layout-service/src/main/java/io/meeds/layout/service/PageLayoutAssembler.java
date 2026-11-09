@@ -35,12 +35,12 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
-import io.meeds.layout.mcp.constant.SectionType;
-import io.meeds.layout.mcp.constant.StylingDestination;
-import io.meeds.layout.mcp.model.ApplicationDescription;
-import io.meeds.layout.mcp.model.CellDescription;
-import io.meeds.layout.mcp.model.SectionDescription;
-import io.meeds.layout.mcp.model.StylingDescription;
+import io.meeds.layout.constant.SectionType;
+import io.meeds.layout.constant.StylingDestination;
+import io.meeds.layout.model.ApplicationDescription;
+import io.meeds.layout.model.CellDescription;
+import io.meeds.layout.model.SectionDescription;
+import io.meeds.layout.model.StylingDescription;
 import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.util.EntityMapper;

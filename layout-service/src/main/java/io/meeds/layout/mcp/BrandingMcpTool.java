@@ -27,11 +27,11 @@ import org.springframework.stereotype.Service;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
-import io.meeds.layout.mcp.constant.ThemePart;
-import io.meeds.layout.mcp.model.NavigationDisplayDescription;
-import io.meeds.layout.mcp.model.SidebarDisplayOptions;
+import io.meeds.layout.constant.ThemePart;
+import io.meeds.layout.model.NavigationDisplayDescription;
+import io.meeds.layout.model.SidebarDisplayOptions;
 import io.meeds.layout.mcp.model.ThemeDescription;
-import io.meeds.layout.mcp.model.TopbarDisplayOptions;
+import io.meeds.layout.model.TopbarDisplayOptions;
 import io.meeds.layout.service.NavigationDisplayService;
 import io.meeds.layout.service.ThemeUpdateService;
 import io.meeds.mcp.server.plugin.McpToolPlugin;

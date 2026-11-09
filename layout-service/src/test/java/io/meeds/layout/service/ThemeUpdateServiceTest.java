@@ -49,9 +49,9 @@ import org.exoplatform.portal.branding.BrandingService;
 import org.exoplatform.portal.branding.model.Branding;
 import org.exoplatform.portal.branding.model.Logo;
 
-import io.meeds.layout.mcp.constant.ThemePart;
+import io.meeds.layout.constant.ThemePart;
 import io.meeds.layout.util.BrandingPageStyleValidator;
-import io.meeds.layout.mcp.constant.ThemeOptions;
+import io.meeds.layout.constant.ThemeOptions;
 
 @ExtendWith(MockitoExtension.class)
 public class ThemeUpdateServiceTest {

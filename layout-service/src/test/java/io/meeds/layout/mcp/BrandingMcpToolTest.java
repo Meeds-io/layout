@@ -46,11 +46,11 @@ import org.exoplatform.portal.localization.LocaleContextInfoUtils;
 import org.exoplatform.services.security.ConversationState;
 import org.exoplatform.services.security.Identity;
 
-import io.meeds.layout.mcp.constant.ThemePart;
-import io.meeds.layout.mcp.model.NavigationDisplayDescription;
-import io.meeds.layout.mcp.model.SidebarDisplayOptions;
+import io.meeds.layout.constant.ThemePart;
+import io.meeds.layout.model.NavigationDisplayDescription;
+import io.meeds.layout.model.SidebarDisplayOptions;
 import io.meeds.layout.mcp.model.ThemeDescription;
-import io.meeds.layout.mcp.model.TopbarDisplayOptions;
+import io.meeds.layout.model.TopbarDisplayOptions;
 import io.meeds.layout.service.NavigationDisplayService;
 import io.meeds.layout.service.ThemeUpdateService;
 

@@ -34,14 +34,14 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
-import io.meeds.layout.mcp.constant.Alignment;
-import io.meeds.layout.mcp.constant.StylingDestination;
-import io.meeds.layout.mcp.model.ApplicationDescription;
-import io.meeds.layout.mcp.model.SiteColumnDescription;
-import io.meeds.layout.mcp.model.SiteContainerDescription;
-import io.meeds.layout.mcp.model.SiteContainerOptions;
-import io.meeds.layout.mcp.model.SiteLayoutUpdate;
-import io.meeds.layout.mcp.model.StylingDescription;
+import io.meeds.layout.constant.Alignment;
+import io.meeds.layout.constant.StylingDestination;
+import io.meeds.layout.model.ApplicationDescription;
+import io.meeds.layout.model.SiteColumnDescription;
+import io.meeds.layout.model.SiteContainerDescription;
+import io.meeds.layout.model.SiteContainerOptions;
+import io.meeds.layout.model.SiteLayoutUpdate;
+import io.meeds.layout.model.StylingDescription;
 import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.util.EntityMapper;
