@@ -280,7 +280,6 @@ public class LayoutPlacementAssemblerTest {
     PlacedLayout placed = descriptionService.toPlacedPage(new ApplicationToPlace(10L, null),
                                                           dynamic(2, 1, null, null),
                                                           stored,
-                                                          false,
                                                           USER,
                                                           Locale.ENGLISH);
 
@@ -308,27 +307,6 @@ public class LayoutPlacementAssemblerTest {
     ((Application) firstColumn.getChildren().get(1)).setCssClass("brtr-4 mt-n2 my-class");
 
     assertEquals("my-class", column(movePage(stored, "4", dynamic(1, null, null, null)).layout(), 0).getChildren().get(1).getCssClass());
-  }
-
-  @Test
-  public void aCopiedDraftHoldsTheCopiedWindowAtThePathTheResultNames() throws Exception {
-    doAnswer(invocation -> {
-      Application application = invocation.getArgument(0);
-      TransientApplicationState state = new TransientApplicationState("social/Menu");
-      Portlet portlet = new Portlet();
-      portlet.setValue("key", "value");
-      state.setContentState(portlet);
-      application.setState(state);
-      return null;
-    }).when(portletInstanceService).expandPortletPreferences(any(), any());
-
-    Page stored = storedPage();
-    PlacedLayout placed = descriptionService.toMovedPage("4", dynamic(1, 1, null, null), stored, true, USER);
-
-    LayoutModel window = column(placed.layout(), 0).getChildren().get(0);
-    assertNull(window.getStorageId());
-    assertEquals("value", window.getPreferences().get(0).getValue());
-    assertEquals(List.of(0, 0, 0, 0), placed.path());
   }
 
   @Test
@@ -523,15 +501,15 @@ public class LayoutPlacementAssemblerTest {
   }
 
   private PlacedLayout movePage(Page stored, String applicationId, ApplicationPosition position) throws Exception {
-    return descriptionService.toMovedPage(applicationId, position, stored, false, USER);
+    return descriptionService.toMovedPage(applicationId, position, stored, USER);
   }
 
   private PlacedLayout placePage(Page stored, ApplicationToPlace application, ApplicationPosition position) throws Exception {
-    return descriptionService.toPlacedPage(application, position, stored, false, USER, Locale.ENGLISH);
+    return descriptionService.toPlacedPage(application, position, stored, USER, Locale.ENGLISH);
   }
 
   private LayoutModel removePage(Page stored, String applicationId) throws Exception {
-    return descriptionService.toRemovedPage(applicationId, stored, false, USER);
+    return descriptionService.toRemovedPage(applicationId, stored, USER);
   }
 
   private ApplicationPosition dynamic(Integer column, Integer index, String before, String after) {
