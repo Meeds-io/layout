@@ -116,7 +116,8 @@ public class PageContainerBackgroundUpgradePlugin extends UpgradeProductPlugin {
           upgradedPages++;
         }
       } catch (RuntimeException e) {
-        LOG.warn("| -- Page {}: container background color not removed, the upgrade will run again at next startup",
+        LOG.warn("| -- Page {}: container background color not removed, "
+            + "the upgrade will run again at the next startup of a newer version",
                  pageKey.format(),
                  e);
         failedPages.add(pageKey.format());
@@ -128,7 +129,8 @@ public class PageContainerBackgroundUpgradePlugin extends UpgradeProductPlugin {
              System.currentTimeMillis() - start);
     if (!failedPages.isEmpty()) {
       // Thrown so that the upgrade is not recorded as done and runs again at
-      // next startup; the pages already saved find no color to remove then
+      // the next startup of a newer version; the pages already saved find no
+      // color to remove then
       throw new IllegalStateException("Page container background color not removed from pages " + failedPages);
     }
   }
