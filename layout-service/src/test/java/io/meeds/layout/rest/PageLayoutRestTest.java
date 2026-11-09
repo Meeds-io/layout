@@ -121,7 +121,8 @@ public class PageLayoutRestTest {
              .andExpect(status().isOk())
              .andExpect(header().string(HttpHeaders.CACHE_CONTROL, PageLayoutRest.PRIVATE_NO_STORE));
       mockMvc.perform(get(LAYOUT_PATH).header(HttpHeaders.IF_NONE_MATCH, "\"" + model.hashCode() + "\"").with(testSimpleUser()))
-             .andExpect(status().isNotModified())
+             .andExpect(status().isOk())
+             .andExpect(header().doesNotExist(HttpHeaders.ETAG))
              .andExpect(header().string(HttpHeaders.CACHE_CONTROL, PageLayoutRest.PRIVATE_NO_STORE));
     }
     doThrow(ObjectNotFoundException.class).when(pageLayoutService).getPageLayout(PAGE_KEY, 0L, false, SIMPLE_USER);

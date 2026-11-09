@@ -38,7 +38,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.server.ResponseStatusException;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -108,12 +107,10 @@ public class PageLayoutRest {
   @Operation(summary = "Retrieve page layout by reference", method = "GET", description = "This retrieves page by reference")
   @ApiResponses(value = {
     @ApiResponse(responseCode = "200", description = "Request fulfilled"),
-    @ApiResponse(responseCode = "304", description = "Not modified"),
     @ApiResponse(responseCode = "403", description = "Forbidden"),
     @ApiResponse(responseCode = "404", description = "Not found"),
   })
   public ResponseEntity<LayoutModel> getPageLayout(
-                                                   WebRequest webRequest,
                                                    HttpServletRequest request,
                                                    @Parameter(description = "page reference", required = true)
                                                    @RequestParam("pageRef")
@@ -131,14 +128,9 @@ public class PageLayoutRest {
                                                    @RequestParam(name = "expand", required = false)
                                                    String expand) {
     try {
-      LayoutModel pageLayout = getPageLayout(request, pageRef, siteId, applicationId, impersonate, expand);
-      String eTag = String.valueOf(pageLayout.hashCode());
-      if (webRequest.checkNotModified(eTag)) {
-        return privateResponse(HttpStatus.NOT_MODIFIED).build();
-      } else {
-        return privateResponse(HttpStatus.OK).eTag(eTag)
-                                             .body(pageLayout);
-      }
+      // Stored by no cache, the answer is never revalidated: it carries no
+      // validator
+      return privateResponse(HttpStatus.OK).body(readPageLayout(request, pageRef, siteId, applicationId, impersonate, expand));
     } catch (ObjectNotFoundException e) {
       return privateResponse(HttpStatus.NOT_FOUND).build();
     } catch (IllegalAccessException e) {
@@ -215,7 +207,7 @@ public class PageLayoutRest {
                                          layoutModel.toPage(),
                                          publish.orElse(false).booleanValue(),
                                          request.getRemoteUser());
-      return getPageLayout(request, pageRef, 0, 0, false, expand);
+      return readPageLayout(request, pageRef, 0, 0, false, expand);
     } catch (IllegalArgumentException | IllegalStateException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
     } catch (ObjectNotFoundException e) {
@@ -368,12 +360,12 @@ public class PageLayoutRest {
     return ResponseEntity.status(status).header(HttpHeaders.CACHE_CONTROL, PRIVATE_NO_STORE);
   }
 
-  private LayoutModel getPageLayout(HttpServletRequest request,
-                                    String pageRef,
-                                    long siteId,
-                                    long applicationId,
-                                    boolean impersonate,
-                                    String expand) throws ObjectNotFoundException, IllegalAccessException {
+  private LayoutModel readPageLayout(HttpServletRequest request,
+                                     String pageRef,
+                                     long siteId,
+                                     long applicationId,
+                                     boolean impersonate,
+                                     String expand) throws ObjectNotFoundException, IllegalAccessException {
     ModelObject modelObject = applicationId > 0 ? pageLayoutService.getPageApplicationLayout(PageKey.parse(pageRef),
                                                                                              applicationId,
                                                                                              request.getRemoteUser()) :
