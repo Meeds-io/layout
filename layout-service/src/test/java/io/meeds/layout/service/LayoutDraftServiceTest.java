@@ -28,11 +28,14 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -286,9 +289,23 @@ public class LayoutDraftServiceTest {
 
     layoutDraftService.publishPage(LIVE_PAGE, LIVE_NODE, USER);
 
-    verify(pageLayoutService).updatePageLayout(LIVE_PAGE.format(), draftPage, true, USER);
-    verify(coeditingService).removeRevision(USER, navigationKey());
+    InOrder order = inOrder(pageLayoutService, coeditingService);
+    order.verify(pageLayoutService).updatePageLayout(LIVE_PAGE.format(), draftPage, true, USER);
+    order.verify(coeditingService).removeRevision(USER, navigationKey());
     verify(navigationLayoutService, never()).createDraftNode(anyLong(), any());
+  }
+
+  @Test
+  public void publishPageFailingOnTheLiveWriteKeepsTheRevision() throws Exception {
+    ownDraftPage();
+    when(aclService.canEditPage(DRAFT_PAGE, USER)).thenReturn(true);
+    Page draftPage = new Page("draft");
+    when(pageLayoutService.getPageLayout(DRAFT_PAGE)).thenReturn(draftPage);
+    doThrow(new IllegalStateException("storage")).when(pageLayoutService).updatePageLayout(LIVE_PAGE.format(), draftPage, true, USER);
+
+    assertThrows(IllegalStateException.class, () -> layoutDraftService.publishPage(LIVE_PAGE, LIVE_NODE, USER));
+
+    verify(coeditingService, never()).removeRevision(any(), any());
   }
 
   /**
@@ -349,8 +366,21 @@ public class LayoutDraftServiceTest {
 
     layoutDraftService.publishSite(liveSite, USER);
 
-    verify(siteLayoutService).updateSiteLayout(SiteKey.portal("test"), draftSite, true, USER);
-    verify(coeditingService).removeRevision(USER, new CoeditionObjectKey(LayoutDraftService.SITE_OBJECT_TYPE, String.valueOf(SITE_ID)));
+    InOrder order = inOrder(siteLayoutService, coeditingService);
+    order.verify(siteLayoutService).updateSiteLayout(SiteKey.portal("test"), draftSite, true, USER);
+    order.verify(coeditingService).removeRevision(USER, new CoeditionObjectKey(LayoutDraftService.SITE_OBJECT_TYPE, String.valueOf(SITE_ID)));
+  }
+
+  @Test
+  public void publishSiteFailingOnTheLiveWriteKeepsTheRevision() throws Exception {
+    PortalConfig liveSite = new PortalConfig("portal", "test", "portal_" + SITE_ID);
+    PortalConfig draftSite = draftSite("portal_test_draft_john");
+    when(siteLayoutService.getSite(draftSite.getSiteKey(), USER)).thenReturn(draftSite);
+    doThrow(new IllegalStateException("storage")).when(siteLayoutService).updateSiteLayout(SiteKey.portal("test"), draftSite, true, USER);
+
+    assertThrows(IllegalStateException.class, () -> layoutDraftService.publishSite(liveSite, USER));
+
+    verify(coeditingService, never()).removeRevision(any(), any());
   }
 
   @Test
