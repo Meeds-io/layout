@@ -248,7 +248,11 @@ public class LayoutMcpTool implements McpToolPlugin {
 
   private static final Pattern     NAME_PATTERN          = Pattern.compile("^[a-zA-Z0-9_-]{1,200}$");
 
-  private static final Pattern     ICON_PATTERN          = Pattern.compile("^[a-z0-9-]+( [a-z0-9-]+)*$");
+  /**
+   * Possessive, so that matching never backtracks into the repeated group,
+   * whose recursion per token would overflow the stack on a long value
+   */
+  private static final Pattern     ICON_PATTERN          = Pattern.compile("^[a-z0-9-]++(?: [a-z0-9-]++)*+$");
 
   private static final Pattern     PERMISSION_PATTERN    = Pattern.compile("^(\\*|[a-zA-Z0-9_-]+):(/[a-zA-Z0-9_./-]+)$");
 
