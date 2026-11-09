@@ -48,10 +48,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 import org.exoplatform.services.resources.ResourceBundleService;
 
-import io.meeds.layout.mcp.model.NavigationDisplayDescription;
-import io.meeds.layout.mcp.model.SidebarDisplayOptions;
-import io.meeds.layout.mcp.model.TopbarApplicationOption;
-import io.meeds.layout.mcp.model.TopbarDisplayOptions;
+import io.meeds.layout.model.NavigationDisplayDescription;
+import io.meeds.layout.model.SidebarDisplayOptions;
+import io.meeds.layout.model.TopbarApplicationOption;
+import io.meeds.layout.model.TopbarDisplayOptions;
 import io.meeds.portal.navigation.constant.SidebarItemType;
 import io.meeds.portal.navigation.constant.SidebarMode;
 import io.meeds.portal.navigation.model.NavigationConfiguration;

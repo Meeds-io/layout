@@ -22,7 +22,7 @@ import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import io.meeds.layout.mcp.constant.ThemeOptions;
+import io.meeds.layout.constant.ThemeOptions;
 
 /**
  * The vocabulary of the page fields of the branding, as the Page drawer

@@ -38,9 +38,9 @@ import org.exoplatform.portal.branding.model.Branding;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 
-import io.meeds.layout.mcp.constant.ThemePart;
+import io.meeds.layout.constant.ThemePart;
 import io.meeds.layout.util.BrandingPageStyleValidator;
-import io.meeds.layout.mcp.constant.ThemeOptions;
+import io.meeds.layout.constant.ThemeOptions;
 
 /**
  * Updates one part of the theme the way the Branding page's Apply button

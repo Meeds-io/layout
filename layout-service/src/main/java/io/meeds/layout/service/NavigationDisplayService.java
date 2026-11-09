@@ -32,11 +32,11 @@ import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 import org.exoplatform.services.resources.ResourceBundleService;
 
-import io.meeds.layout.mcp.constant.SidebarDisplayMode;
-import io.meeds.layout.mcp.model.NavigationDisplayDescription;
-import io.meeds.layout.mcp.model.SidebarDisplayOptions;
-import io.meeds.layout.mcp.model.TopbarApplicationOption;
-import io.meeds.layout.mcp.model.TopbarDisplayOptions;
+import io.meeds.layout.constant.SidebarDisplayMode;
+import io.meeds.layout.model.NavigationDisplayDescription;
+import io.meeds.layout.model.SidebarDisplayOptions;
+import io.meeds.layout.model.TopbarApplicationOption;
+import io.meeds.layout.model.TopbarDisplayOptions;
 import io.meeds.portal.navigation.constant.SidebarMode;
 import io.meeds.portal.navigation.model.NavigationConfiguration;
 import io.meeds.portal.navigation.model.SidebarConfiguration;
