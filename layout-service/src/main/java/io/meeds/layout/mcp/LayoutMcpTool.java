@@ -1664,8 +1664,13 @@ public class LayoutMcpTool implements McpToolPlugin {
       if (!everyoneAllowed) {
         throw new IllegalArgumentException(refusal);
       }
-      return permission;
+    } else {
+      requireMembershipPermission(permission, refusal);
     }
+    return permission;
+  }
+
+  private void requireMembershipPermission(String permission, String refusal) {
     var matcher = permission == null ? null : PERMISSION_PATTERN.matcher(permission);
     if (matcher == null || !matcher.matches()) {
       throw new IllegalArgumentException(refusal);
@@ -1684,7 +1689,6 @@ public class LayoutMcpTool implements McpToolPlugin {
       LOG.debug("Error looking up permission expression {}", permission, e);
       throw new IllegalArgumentException(refusal);
     }
-    return permission;
   }
 
   /**
