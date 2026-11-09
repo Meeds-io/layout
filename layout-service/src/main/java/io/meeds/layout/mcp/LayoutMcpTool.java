@@ -1605,7 +1605,7 @@ public class LayoutMcpTool implements McpToolPlugin {
    *         it with a blank
    */
   private String requireDescription(String description) {
-    String siteDescription = StringUtils.trim(description);
+    String siteDescription = StringUtils.trimToEmpty(description);
     if (siteDescription.length() > DESCRIPTION_MAX_LENGTH) {
       throw new IllegalArgumentException(DESCRIPTION_NOT_ACCEPTED);
     }
