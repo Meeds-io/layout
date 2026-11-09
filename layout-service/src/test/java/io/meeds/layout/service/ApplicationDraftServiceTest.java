@@ -35,12 +35,18 @@ import static org.mockito.Mockito.when;
 
 import java.util.List;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -140,6 +146,31 @@ public class ApplicationDraftServiceTest {
     when(descriptionService.toPageDescription(any(), eq(PAGE_REF), eq(LayoutVersion.PUBLISHED))).thenReturn(pageRead);
     when(settingsService.pathOf(any(), eq("20"))).thenReturn(List.of(0, 0));
     when(settingsService.atPath(any(), eq(List.of(0, 0)))).thenReturn(window);
+  }
+
+  @Test
+  public void unknownWriteFailureIsLoggedAsAWarningAndTheOutdatedLayoutIsNot() {
+    ListAppender<ILoggingEvent> logged = new ListAppender<>();
+    logged.start();
+    Logger logger = (Logger) LoggerFactory.getLogger(ApplicationDraftService.class.getName());
+    logger.addAppender(logged);
+    try {
+      RuntimeException outdated = service.translateWriteFailure(new IllegalStateException(ApplicationDraftService.PAGE_OUTDATED_MESSAGE),
+                                                                PAGE_KEY,
+                                                                USER,
+                                                                ApplicationDraftService.PAGE_LAYOUT_NOT_SAVED);
+      assertEquals(ApplicationDraftService.LAYOUT_OUTDATED, outdated.getMessage());
+      assertTrue(logged.list.isEmpty());
+
+      IllegalStateException failure = new IllegalStateException("engine detail");
+      RuntimeException unknown = service.translateWriteFailure(failure, PAGE_KEY, USER, ApplicationDraftService.PAGE_LAYOUT_NOT_SAVED);
+      assertEquals(ApplicationDraftService.PAGE_LAYOUT_NOT_SAVED, unknown.getMessage());
+      assertEquals(1, logged.list.size());
+      assertEquals(Level.WARN, logged.list.get(0).getLevel());
+      assertEquals("engine detail", logged.list.get(0).getThrowableProxy().getMessage());
+    } finally {
+      logger.detachAppender(logged);
+    }
   }
 
   @Test

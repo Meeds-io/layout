@@ -439,7 +439,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (IllegalArgumentException e) {
       throw new IllegalArgumentException(IMAGE_NOT_ACCEPTED);
     } catch (IllegalStateException e) {
-      LOG.debug("Image could not be staged", e);
+      LOG.warn("Image could not be staged", e);
       throw new IllegalStateException(IMAGE_NOT_SAVED);
     }
     UploadResource resource = uploadService.getUploadResource(uploadId);
@@ -513,7 +513,7 @@ public class LayoutMcpTool implements McpToolPlugin {
       if (e instanceof ObjectNotFoundException) {
         throw new IllegalArgumentException(TEMPLATE_NOT_ACCEPTED);
       }
-      LOG.debug("Site {} could not be created by {}", siteName, username, e);
+      LOG.warn("Site {} could not be created by {}", siteName, username, e);
       throw new IllegalStateException(SITE_NOT_SAVED);
     }
     return describeStoredSite(site.getSiteKey(), username);
@@ -581,7 +581,7 @@ public class LayoutMcpTool implements McpToolPlugin {
       if (StringUtils.equals(e.getMessage(), SiteLayoutService.DISPLAYED_NOT_ACCEPTED)) {
         throw new IllegalArgumentException(SiteLayoutService.DISPLAYED_NOT_ACCEPTED);
       }
-      LOG.debug("Site {} could not be updated by {}", siteKey, username, e);
+      LOG.warn("Site {} could not be updated by {}", siteKey, username, e);
       throw new IllegalStateException(SITE_NOT_SAVED);
     }
     return describeStoredSite(siteKey, username);
@@ -611,7 +611,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (IllegalAccessException e) {
       throw new IllegalAccessException(SITE_NOT_ALLOWED);
     } catch (RuntimeException e) {
-      LOG.debug("Site {} could not be deleted by {}", siteKey, username, e);
+      LOG.warn("Site {} could not be deleted by {}", siteKey, username, e);
       throw new IllegalStateException(SITE_NOT_DELETED);
     }
   }
@@ -1413,7 +1413,7 @@ public class LayoutMcpTool implements McpToolPlugin {
     } catch (IllegalAccessException e) {
       throw new IllegalAccessException(NAVIGATION_NOT_ALLOWED);
     } catch (RuntimeException e) {
-      LOG.debug("Navigation item {} could not be deleted by {}", nodeId, username, e);
+      LOG.warn("Navigation item {} could not be deleted by {}", nodeId, username, e);
       throw new IllegalStateException(NODE_NOT_DELETED);
     }
   }
@@ -1799,7 +1799,7 @@ public class LayoutMcpTool implements McpToolPlugin {
         return new IllegalArgumentException(SCHEDULED_NOT_ACCEPTED);
       }
     }
-    LOG.debug("Navigation item could not be written by {}", username, e);
+    LOG.warn("Navigation item could not be written by {}", username, e);
     return new IllegalStateException(refusal);
   }
 
