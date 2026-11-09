@@ -416,8 +416,7 @@ public class LayoutDescriptionService {
     }
     Map<String, Integer> hiddenWindows = new LinkedHashMap<>();
     collectHidden(layout, username, hiddenWindows, SiteLayoutAssembler.SITE_LAYOUT_HIDDEN);
-    LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
-                                   new LayoutModel(layout);
+    LayoutModel root = layoutModel(layout, copyWindows);
     LayoutModel result = new SiteLayoutAssembler(root,
                                                  hiddenWindows,
                                                  stylingService,
@@ -468,8 +467,7 @@ public class LayoutDescriptionService {
                                   ImageConsumption images) throws ObjectNotFoundException, IllegalAccessException {
     Map<String, Integer> hiddenWindows = new LinkedHashMap<>();
     collectHidden(stored, username, hiddenWindows, PageLayoutAssembler.PAGE_LAYOUT_HIDDEN);
-    LayoutModel root = copyWindows ? new LayoutModel(stored, portletInstanceService, new PortletInstanceContext(false, null)) :
-                                   new LayoutModel(stored);
+    LayoutModel root = layoutModel(stored, copyWindows);
     LayoutModel result = new PageLayoutAssembler(root,
                                                  hiddenWindows,
                                                  stylingService,
@@ -892,8 +890,7 @@ public class LayoutDescriptionService {
   private LayoutStylesAssembler pageAssembler(Page stored, boolean copyWindows, String username, ImageConsumption images) {
     Set<String> hiddenIds = new HashSet<>();
     collectHiddenIds(stored, username, false, hiddenIds);
-    LayoutModel root = copyWindows ? new LayoutModel(stored, portletInstanceService, new PortletInstanceContext(false, null)) :
-                                   new LayoutModel(stored);
+    LayoutModel root = layoutModel(stored, copyWindows);
     return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling, images);
   }
 
@@ -904,17 +901,33 @@ public class LayoutDescriptionService {
     }
     Set<String> hiddenIds = new HashSet<>();
     collectHiddenIds(layout, username, false, hiddenIds);
-    LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
-                                   new LayoutModel(layout);
+    LayoutModel root = layoutModel(layout, copyWindows);
     return new LayoutStylesAssembler(root, hiddenIds, stylingService, this::toStyling, images);
   }
 
   private LayoutPlacementAssembler placementAssembler(ModelObject layout, boolean site, boolean copyWindows, String username) {
     Set<String> hiddenIds = new HashSet<>();
     collectHiddenIds(layout, username, false, hiddenIds);
-    LayoutModel root = copyWindows ? new LayoutModel(layout, portletInstanceService, new PortletInstanceContext(false, null)) :
-                                   new LayoutModel(layout);
+    LayoutModel root = layoutModel(layout, copyWindows);
     return new LayoutPlacementAssembler(root, site, hiddenIds, stylingService, this);
+  }
+
+  /**
+   * @param  layout      a stored page or site layout
+   * @param  copyWindows whether the result is written over a new draft of
+   *                       that layout: each window is then a copy whose
+   *                       preferences are generated for a draft of the same
+   *                       window, as createDraftSite generates them, so a
+   *                       preference plugin that reads the draft property
+   *                       keeps the window's own setting
+   * @return             the layout model to assemble from
+   */
+  private LayoutModel layoutModel(ModelObject layout, boolean copyWindows) {
+    return copyWindows ? new LayoutModel(layout,
+                                         portletInstanceService,
+                                         new PortletInstanceContext(false,
+                                                                    Map.of(PortletInstanceContext.DRAFT_PROPERTY, "true"))) :
+                       new LayoutModel(layout);
   }
 
   private Container siteLayout(PortalConfig stored) {

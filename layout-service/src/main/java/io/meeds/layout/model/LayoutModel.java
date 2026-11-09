@@ -20,7 +20,9 @@ package io.meeds.layout.model;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -496,6 +498,81 @@ public class LayoutModel {
       for (LayoutModel child : getChildren()) {
         child.resetStorage();
       }
+    }
+  }
+
+  /**
+   * Points every element of this layout, assembled over a stored layout
+   * without copying its windows, at the element found at the same place in a
+   * copy of that stored layout, so that writing it over the copy keeps the
+   * copy's own containers and windows, with the preferences the copy gave
+   * them. Nothing changes when the check fails.
+   *
+   * @param  stored        the stored layout this one was assembled over
+   * @param  storedNow     the same layout read again once the copy was made
+   * @param  copy          the copy of the stored layout
+   * @return               false, leaving this layout as it was, when the
+   *                       stored layout changed since it was read, the copy
+   *                       does not have its shape, or this layout holds an
+   *                       element the stored layout does not
+   */
+  public boolean rebaseStorage(ModelObject stored, ModelObject storedNow, ModelObject copy) {
+    Map<String, ModelObject> copies = new HashMap<>();
+    if (!mapCopies(stored, storedNow, copy, copies) || !isMapped(this, copies)) {
+      return false;
+    }
+    rebase(this, copies);
+    return true;
+  }
+
+  private static boolean mapCopies(ModelObject stored, ModelObject storedNow, ModelObject copy, Map<String, ModelObject> copies) {
+    if (stored == null || storedNow == null || copy == null
+        || stored.getClass() != storedNow.getClass()
+        || stored.getClass() != copy.getClass()
+        || !Objects.equals(stored.getStorageId(), storedNow.getStorageId())) {
+      return false;
+    }
+    if (stored.getStorageId() != null) {
+      if (copy.getStorageId() == null) {
+        return false;
+      }
+      copies.put(stored.getStorageId(), copy);
+    }
+    if (stored instanceof Container storedContainer) {
+      List<ModelObject> storedChildren = childrenOf(storedContainer);
+      List<ModelObject> storedNowChildren = childrenOf((Container) storedNow);
+      List<ModelObject> copyChildren = childrenOf((Container) copy);
+      if (storedChildren.size() != storedNowChildren.size() || storedChildren.size() != copyChildren.size()) {
+        return false;
+      }
+      for (int i = 0; i < storedChildren.size(); i++) {
+        if (!mapCopies(storedChildren.get(i), storedNowChildren.get(i), copyChildren.get(i), copies)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  private static List<ModelObject> childrenOf(Container container) {
+    return container.getChildren() == null ? Collections.emptyList() : container.getChildren();
+  }
+
+  private static boolean isMapped(LayoutModel layout, Map<String, ModelObject> copies) {
+    if (layout.storageId != null && !copies.containsKey(layout.storageId)) {
+      return false;
+    }
+    return layout.children == null || layout.children.stream().allMatch(child -> isMapped(child, copies));
+  }
+
+  private static void rebase(LayoutModel layout, Map<String, ModelObject> copies) {
+    if (layout.storageId != null) {
+      ModelObject copy = copies.get(layout.storageId);
+      layout.storageId = copy.getStorageId();
+      layout.storageName = copy.getStorageName();
+    }
+    if (layout.children != null) {
+      layout.children.forEach(child -> rebase(child, copies));
     }
   }
 
