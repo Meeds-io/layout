@@ -233,6 +233,8 @@ public class LayoutMcpToolTest {
     lenient().when(layoutImageService.isConsumable(any(), any())).thenAnswer(i -> uploadService.getUploadResource(i.getArgument(0)) != null);
     lenient().when(layoutImageService.consumption(any(), any()))
              .thenAnswer(i -> new ImageConsumption(i.getArgument(0), id -> uploadService.getUploadResource(id) != null));
+    // The draft the editor's path clones from a live page without children
+    lenient().when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(new Page("draft"));
   }
 
   @Test
@@ -939,7 +941,7 @@ public class LayoutMcpToolTest {
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
     List<SectionDescription> sections = List.of(new SectionDescription(null, SectionType.DYNAMIC, 2, null, null, null, null, null));
     LayoutModel layout = pageLayout();
-    when(descriptionService.toPageLayout(eq(sections), eq(stored), eq(true), eq(USER), eq(Locale.FRENCH), any())).thenReturn(layout);
+    when(descriptionService.toPageLayout(eq(sections), eq(stored), eq(false), eq(USER), eq(Locale.FRENCH), any())).thenReturn(layout);
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     PageDescription expected = describedDraft();
 
@@ -987,12 +989,12 @@ public class LayoutMcpToolTest {
     when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
-    when(descriptionService.toPageLayout(eq(sections), eq(stored), eq(true), eq(USER), eq(Locale.FRENCH), any())).thenThrow(new IllegalArgumentException(PageLayoutAssembler.COLUMNS_NOT_ACCEPTED));
+    when(descriptionService.toPageLayout(eq(sections), eq(stored), eq(false), eq(USER), eq(Locale.FRENCH), any())).thenThrow(new IllegalArgumentException(PageLayoutAssembler.COLUMNS_NOT_ACCEPTED));
     assertEquals(PageLayoutAssembler.COLUMNS_NOT_ACCEPTED, refusalInFrench(IllegalArgumentException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
     verify(draftService, never()).createDraftPage(anyLong(), any());
     verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
 
-    doReturn(pageLayout()).when(descriptionService).toPageLayout(eq(sections), eq(stored), eq(true), eq(USER), eq(Locale.FRENCH), any());
+    doReturn(pageLayout()).when(descriptionService).toPageLayout(eq(sections), eq(stored), eq(false), eq(USER), eq(Locale.FRENCH), any());
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenThrow(new IllegalAccessException("internal detail"));
     assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED, refusalInFrench(IllegalAccessException.class, () -> tool.setPageLayout(PAGE_KEY.format(), sections)));
     verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
@@ -1016,7 +1018,7 @@ public class LayoutMcpToolTest {
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
     List<ElementStyling> elements = List.of(new ElementStyling("12", null, null));
-    when(descriptionService.toStyledPage(eq(elements), eq(stored), eq(true), eq(USER), any())).thenReturn(pageLayout());
+    when(descriptionService.toStyledPage(eq(elements), eq(stored), eq(false), eq(USER), any())).thenReturn(pageLayout());
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     PageDescription expected = describedDraft();
 
@@ -1026,6 +1028,46 @@ public class LayoutMcpToolTest {
     verify(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), saved.capture(), eq(false), eq(USER));
     assertEquals(EntityMapper.PAGE_LAYOUT_TEMPLATE, ((Container) saved.getValue().getChildren().get(0)).getTemplate());
     verify(draftService).createDraftPage(LIVE_NODE, USER);
+  }
+
+  @Test
+  public void firstPageWriteKeepsTheWindowsTheEditorsDraftClonedWithTheirPreferences() throws Exception {
+    editablePage();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null, DRAFT_KEY);
+    Page stored = pageWithOneWindow("live", "s1", "w1");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(pageWithOneWindow("draft", "ds1", "dw1"));
+    List<ElementStyling> elements = List.of(new ElementStyling("s1", null, null));
+    when(descriptionService.toStyledPage(eq(elements), eq(stored), eq(false), eq(USER), any())).thenAnswer(i -> new LayoutModel(stored));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+    describedDraft();
+
+    asUser(() -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements));
+
+    ArgumentCaptor<Page> saved = ArgumentCaptor.forClass(Page.class);
+    verify(pageLayoutService).updatePageLayout(eq(DRAFT_KEY.format()), saved.capture(), eq(false), eq(USER));
+    Container section = (Container) saved.getValue().getChildren().get(0);
+    assertEquals("ds1", section.getStorageId());
+    Application window = (Application) section.getChildren().get(0);
+    assertEquals("dw1", window.getStorageId());
+    assertEquals("dw1", ((PersistentApplicationState) window.getState()).getStorageId());
+  }
+
+  @Test
+  public void firstPageWriteIsRefusedAsOutdatedWhenTheLivePageChangedBeforeTheDraftWasCloned() throws Exception {
+    editablePage();
+    when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
+    when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null);
+    Page stored = pageWithOneWindow("live", "s1", "w1");
+    when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored, pageWithOneWindow("live", "s1", "w2"));
+    when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(pageWithOneWindow("draft", "ds1", "dw2"));
+    List<ElementStyling> elements = List.of(new ElementStyling("s1", null, null));
+    when(descriptionService.toStyledPage(eq(elements), eq(stored), eq(false), eq(USER), any())).thenAnswer(i -> new LayoutModel(stored));
+    when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
+
+    assertEquals(LayoutMcpTool.LAYOUT_OUTDATED, refusal(IllegalStateException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
+    verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
   }
 
   @Test
@@ -1098,16 +1140,16 @@ public class LayoutMcpToolTest {
     when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
-    when(descriptionService.toStyledPage(eq(elements), eq(stored), eq(true), eq(USER), any())).thenThrow(new ObjectNotFoundException(LayoutStylesAssembler.ELEMENT_NOT_FOUND));
+    when(descriptionService.toStyledPage(eq(elements), eq(stored), eq(false), eq(USER), any())).thenThrow(new ObjectNotFoundException(LayoutStylesAssembler.ELEMENT_NOT_FOUND));
     assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
                  refusal(ObjectNotFoundException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
-    doThrow(new IllegalArgumentException("value is not accepted for styling.border")).when(descriptionService).toStyledPage(eq(elements), eq(stored), eq(true), eq(USER), any());
+    doThrow(new IllegalArgumentException("value is not accepted for styling.border")).when(descriptionService).toStyledPage(eq(elements), eq(stored), eq(false), eq(USER), any());
     assertEquals("value is not accepted for styling.border",
                  refusal(IllegalArgumentException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
     verify(draftService, never()).createDraftPage(anyLong(), any());
     verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
 
-    doReturn(pageLayout()).when(descriptionService).toStyledPage(eq(elements), eq(stored), eq(true), eq(USER), any());
+    doReturn(pageLayout()).when(descriptionService).toStyledPage(eq(elements), eq(stored), eq(false), eq(USER), any());
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenThrow(new IllegalAccessException("internal detail"));
     assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED,
                  refusal(IllegalAccessException.class, () -> tool.setLayoutStyles(null, PAGE_KEY.format(), elements)));
@@ -1149,7 +1191,7 @@ public class LayoutMcpToolTest {
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
     List<ElementDisplay> elements = List.of(new ElementDisplay("12", DisplayMode.HIDE_MOBILE, null));
-    when(descriptionService.toDisplayedPage(elements, stored, true, USER)).thenReturn(pageLayout());
+    when(descriptionService.toDisplayedPage(elements, stored, false, USER)).thenReturn(pageLayout());
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     PageDescription expected = describedDraft();
 
@@ -1233,17 +1275,17 @@ public class LayoutMcpToolTest {
     when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
-    when(descriptionService.toDisplayedPage(elements, stored, true, USER)).thenThrow(new ObjectNotFoundException(LayoutStylesAssembler.ELEMENT_NOT_FOUND));
+    when(descriptionService.toDisplayedPage(elements, stored, false, USER)).thenThrow(new ObjectNotFoundException(LayoutStylesAssembler.ELEMENT_NOT_FOUND));
     assertEquals(LayoutStylesAssembler.ELEMENT_NOT_FOUND,
                  refusal(ObjectNotFoundException.class, () -> tool.setLayoutVisibility(null, PAGE_KEY.format(), elements)));
     doThrow(new IllegalArgumentException(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED)).when(descriptionService)
-                                                                                     .toDisplayedPage(elements, stored, true, USER);
+                                                                                     .toDisplayedPage(elements, stored, false, USER);
     assertEquals(LayoutStylesAssembler.DISPLAY_NOT_ACCEPTED,
                  refusal(IllegalArgumentException.class, () -> tool.setLayoutVisibility(null, PAGE_KEY.format(), elements)));
     verify(draftService, never()).createDraftPage(anyLong(), any());
     verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
 
-    doReturn(pageLayout()).when(descriptionService).toDisplayedPage(elements, stored, true, USER);
+    doReturn(pageLayout()).when(descriptionService).toDisplayedPage(elements, stored, false, USER);
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenThrow(new IllegalAccessException("internal detail"));
     assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED,
                  refusal(IllegalAccessException.class, () -> tool.setLayoutVisibility(null, PAGE_KEY.format(), elements)));
@@ -1337,7 +1379,7 @@ public class LayoutMcpToolTest {
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
     ApplicationPosition position = new ApplicationPosition("20", null, 1, null, 1, null, null);
     List<Integer> path = List.of(0, 0, 0, 0);
-    when(descriptionService.toMovedPage("5", position, stored, true, USER)).thenReturn(new PlacedLayout(pageLayout(), path));
+    when(descriptionService.toMovedPage("5", position, stored, false, USER)).thenReturn(new PlacedLayout(pageLayout(), path));
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     Page written = new Page("draft");
     when(pageLayoutService.getPageLayout(DRAFT_KEY)).thenReturn(written);
@@ -1424,7 +1466,7 @@ public class LayoutMcpToolTest {
     when(draftService.getDraftPageKey(LIVE_NODE, USER)).thenReturn(null, DRAFT_KEY);
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
-    when(descriptionService.toRemovedPage("5", stored, true, USER)).thenReturn(pageLayout());
+    when(descriptionService.toRemovedPage("5", stored, false, USER)).thenReturn(pageLayout());
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenReturn(DRAFT_KEY);
     PageDescription expectedPage = describedDraft();
 
@@ -1469,18 +1511,18 @@ public class LayoutMcpToolTest {
     when(draftService.findLiveNodeId(PAGE_KEY, USER)).thenReturn(LIVE_NODE);
     Page stored = new Page("live");
     when(pageLayoutService.getPageLayout(PAGE_KEY)).thenReturn(stored);
-    when(descriptionService.toMovedPage("5", position, stored, true, USER))
+    when(descriptionService.toMovedPage("5", position, stored, false, USER))
                                                                        .thenThrow(new IllegalArgumentException(LayoutPlacementAssembler.CELL_TAKEN));
     assertEquals(LayoutPlacementAssembler.CELL_TAKEN,
                  refusal(IllegalArgumentException.class, () -> tool.moveLayoutApplication(null, PAGE_KEY.format(), "5", null, position)));
-    when(descriptionService.toRemovedPage("9", stored, true, USER))
+    when(descriptionService.toRemovedPage("9", stored, false, USER))
                                                               .thenThrow(new ObjectNotFoundException(LayoutPlacementAssembler.APPLICATION_NOT_FOUND));
     assertEquals(LayoutPlacementAssembler.APPLICATION_NOT_FOUND,
                  refusal(ObjectNotFoundException.class, () -> tool.removeLayoutApplication(null, PAGE_KEY.format(), "9")));
     verify(draftService, never()).createDraftPage(anyLong(), any());
     verify(pageLayoutService, never()).updatePageLayout(any(), any(), anyBoolean(), any());
 
-    when(descriptionService.toRemovedPage("5", stored, true, USER)).thenReturn(pageLayout());
+    when(descriptionService.toRemovedPage("5", stored, false, USER)).thenReturn(pageLayout());
     when(draftService.createDraftPage(LIVE_NODE, USER)).thenThrow(new IllegalAccessException("internal detail"));
     assertEquals(LayoutMcpTool.NAVIGATION_NOT_ALLOWED,
                  refusal(IllegalAccessException.class, () -> tool.removeLayoutApplication(null, PAGE_KEY.format(), "5")));
@@ -2187,6 +2229,17 @@ public class LayoutMcpToolTest {
     lenient().when(pageLayoutService.getPageLayout(DRAFT_KEY, USER)).thenReturn(tree);
     lenient().when(descriptionService.toPageDescription(tree, PAGE_KEY.format(), LayoutVersion.DRAFT, USER)).thenReturn(expected);
     return expected;
+  }
+
+  private Page pageWithOneWindow(String pageId, String sectionId, String windowId) {
+    Application window = new Application(windowId);
+    window.setState(new PersistentApplicationState(windowId));
+    Container section = new Container(sectionId);
+    section.setTemplate(EntityMapper.PAGE_LAYOUT_TEMPLATE);
+    section.setChildren(new ArrayList<>(List.of(window)));
+    Page page = new Page(pageId);
+    page.setChildren(new ArrayList<>(List.of(section)));
+    return page;
   }
 
   private LayoutModel pageLayout() {

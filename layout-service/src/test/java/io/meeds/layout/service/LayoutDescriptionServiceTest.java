@@ -28,6 +28,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -118,6 +119,7 @@ import io.meeds.layout.model.ApplicationSettingsContext;
 import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.ImageTarget;
 import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.model.PortletInstanceContext;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.model.PortletInstance;
 import io.meeds.layout.model.PortletInstanceCategory;
@@ -566,6 +568,7 @@ public class LayoutDescriptionServiceTest {
                                                      null,
                                                      null);
     LayoutModel result = toPageLayout(List.of(kept), storedPage(section), true);
+    assertCopiedForADraft();
     LayoutModel writtenSection = result.getChildren().get(0).getChildren().get(0);
     assertNull(writtenSection.getStorageId());
     LayoutModel window = writtenSection.getChildren().get(0).getChildren().get(0);
@@ -1565,6 +1568,7 @@ public class LayoutDescriptionServiceTest {
 
     LayoutModel result = descriptionService.toSiteLayout(new SiteLayoutUpdate(left, null, null, null), site, true, USER, Locale.ENGLISH);
 
+    assertCopiedForADraft();
     LayoutModel cell = result.getChildren().get(0).getChildren().get(0);
     assertNull(cell.getStorageId());
     LayoutModel window = cell.getChildren().get(0);
@@ -2726,4 +2730,18 @@ public class LayoutDescriptionServiceTest {
       when(parent.get(i)).thenReturn(children[i]);
     }
   }
+
+  /**
+   * Every window copied for a new draft has its preferences generated for a
+   * draft of the same window, as createDraftSite generates them
+   */
+  private void assertCopiedForADraft() {
+    ArgumentCaptor<PortletInstanceContext> contexts = ArgumentCaptor.forClass(PortletInstanceContext.class);
+    verify(portletInstanceService, atLeastOnce()).expandPortletPreferences(any(), contexts.capture());
+    assertTrue(contexts.getAllValues()
+                       .stream()
+                       .allMatch(c -> !c.isExport() && c.getProperties() != null
+                                      && "true".equals(c.getProperties().get(PortletInstanceContext.DRAFT_PROPERTY))));
+  }
+
 }
