@@ -1660,6 +1660,9 @@ public class LayoutMcpTool implements McpToolPlugin {
    */
   private String requirePermission(String expression, boolean everyoneAllowed, String refusal) {
     String permission = StringUtils.trim(expression);
+    if (permission == null) {
+      throw new IllegalArgumentException(refusal);
+    }
     if (StringUtils.equals(permission, UserACL.EVERYONE)) {
       if (!everyoneAllowed) {
         throw new IllegalArgumentException(refusal);
@@ -1671,8 +1674,8 @@ public class LayoutMcpTool implements McpToolPlugin {
   }
 
   private void requireMembershipPermission(String permission, String refusal) {
-    var matcher = permission == null ? null : PERMISSION_PATTERN.matcher(permission);
-    if (matcher == null || !matcher.matches()) {
+    var matcher = PERMISSION_PATTERN.matcher(permission);
+    if (!matcher.matches()) {
       throw new IllegalArgumentException(refusal);
     }
     String membershipType = matcher.group(1);
