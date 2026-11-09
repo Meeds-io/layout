@@ -32,11 +32,11 @@ import org.apache.commons.lang3.StringUtils;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
 
-import io.meeds.layout.mcp.constant.DisplayMode;
-import io.meeds.layout.mcp.constant.StylingDestination;
-import io.meeds.layout.mcp.model.ElementDisplay;
-import io.meeds.layout.mcp.model.ElementStyling;
-import io.meeds.layout.mcp.model.StylingDescription;
+import io.meeds.layout.constant.DisplayMode;
+import io.meeds.layout.constant.StylingDestination;
+import io.meeds.layout.model.ElementDisplay;
+import io.meeds.layout.model.ElementStyling;
+import io.meeds.layout.model.StylingDescription;
 import io.meeds.layout.model.ImageConsumption;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.util.EntityMapper;

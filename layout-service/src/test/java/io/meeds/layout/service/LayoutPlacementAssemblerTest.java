@@ -58,8 +58,8 @@ import org.exoplatform.portal.mop.service.LayoutService;
 import org.exoplatform.portal.mop.service.NavigationService;
 import org.exoplatform.portal.pom.spi.portlet.Portlet;
 
-import io.meeds.layout.mcp.model.ApplicationPosition;
-import io.meeds.layout.mcp.model.ApplicationToPlace;
+import io.meeds.layout.model.ApplicationPosition;
+import io.meeds.layout.model.ApplicationToPlace;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.PlacedLayout;
 import io.meeds.layout.model.PortletInstance;

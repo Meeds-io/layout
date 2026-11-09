@@ -62,14 +62,14 @@ import org.exoplatform.portal.mop.SiteKey;
 import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.service.LayoutService;
 
-import io.meeds.layout.mcp.constant.LayoutVersion;
-import io.meeds.layout.mcp.model.ApplicationDescription;
-import io.meeds.layout.mcp.model.CellDescription;
-import io.meeds.layout.mcp.model.PageDescription;
-import io.meeds.layout.mcp.model.SectionDescription;
-import io.meeds.layout.mcp.model.SiteColumnDescription;
-import io.meeds.layout.mcp.model.SiteContainerDescription;
-import io.meeds.layout.mcp.model.SiteDescription;
+import io.meeds.layout.constant.LayoutVersion;
+import io.meeds.layout.model.ApplicationDescription;
+import io.meeds.layout.model.CellDescription;
+import io.meeds.layout.model.PageDescription;
+import io.meeds.layout.model.SectionDescription;
+import io.meeds.layout.model.SiteColumnDescription;
+import io.meeds.layout.model.SiteContainerDescription;
+import io.meeds.layout.model.SiteDescription;
 import io.meeds.layout.model.ApplicationSettingsContext;
 import io.meeds.layout.model.DraftWindows;
 
