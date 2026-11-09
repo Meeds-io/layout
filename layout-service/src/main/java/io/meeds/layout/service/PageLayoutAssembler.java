@@ -105,10 +105,12 @@ public class PageLayoutAssembler {
                                                                                    + HIDDEN_ELEMENTS_HINT;
 
   public static final String                                KEEP_CELL_FORMAT             =
-                                                                             "not allowed: page holds elements you cannot see; keep cell_id %s";
+                                                                             "not allowed: page holds elements you cannot see; keep cell_id %s"
+                                                                                 + HIDDEN_ELEMENTS_HINT;
 
   public static final String                                KEEP_SECTION_FORMAT          =
-                                                                                PAGE_LAYOUT_HIDDEN + "; keep section_id %s with %d columns";
+                                                                                "not allowed: page holds elements you cannot see; keep section_id %s with %d columns"
+                                                                                    + HIDDEN_ELEMENTS_HINT;
 
   public static final String                                SECTIONS_NOT_ACCEPTED        = "value is not accepted for sections";
 
