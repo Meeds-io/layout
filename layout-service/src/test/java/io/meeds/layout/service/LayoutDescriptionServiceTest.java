@@ -185,7 +185,10 @@ public class LayoutDescriptionServiceTest {
                  PageLayoutAssembler.PAGE_LAYOUT_HIDDEN);
     assertEquals("not allowed: site layout holds elements you cannot see; adjust it with move_layout_application, set_layout_styles and set_layout_visibility",
                  SiteLayoutAssembler.SITE_LAYOUT_HIDDEN);
-    assertEquals("not allowed: page holds elements you cannot see; keep cell_id 7", String.format(PageLayoutAssembler.KEEP_CELL_FORMAT, "7"));
+    assertEquals("not allowed: page holds elements you cannot see; keep cell_id 7; adjust it with move_layout_application, set_layout_styles and set_layout_visibility",
+                 String.format(PageLayoutAssembler.KEEP_CELL_FORMAT, "7"));
+    assertEquals("not allowed: page holds elements you cannot see; keep section_id 9 with 3 columns; adjust it with move_layout_application, set_layout_styles and set_layout_visibility",
+                 String.format(PageLayoutAssembler.KEEP_SECTION_FORMAT, "9", 3));
   }
 
   @Test
