@@ -465,6 +465,8 @@ export function getStyle(container, options) {
   // Under a transparent shared Topbar (pageBodyBackgroundColor), an opaque page colour is written to the body as well:
   // that Topbar is above the site scroller, where the body-level image never paints. A page image or gradient is
   // painted by the body itself then (setSharedTopBarPageImage).
+  // The body colour is written with the important priority: a skin may set a default page colour on body as important
+  // (the white of the login related pages, social SidebarLogin skin), and the colour of the site or of the page wins over it.
   const bodyBackground = options.siteStyle || options.pageBodyBackground;
   if (!options.noBackgroundStyle
     && !backgroundLayerValues
@@ -476,14 +478,14 @@ export function getStyle(container, options) {
     }
     if (container.backgroundColor) {
       if (bodyBackground) {
-        document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
+        document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor, 'important');
       } else if (options.pageStyle) {
         style['--pageBodyBackgroundColor'] = container.backgroundColor;
         // Only an opaque colour: the page body paints it again over the body, which would deepen a partly
         // transparent one inside the page width
         if (options.pageBodyBackgroundColor && getColorAlpha(container.backgroundColor) === 1) {
           siteBackgroundOverridden = true;
-          document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
+          document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor, 'important');
         }
       } else if (options.isApplicationBackground) {
         style['--appBackgroundColor'] = container.backgroundColor;
@@ -508,7 +510,7 @@ export function getStyle(container, options) {
       if (bodyBackground) {
         // Without a colour of its own, a page leaves the site or branding colour, which still shows behind the Topbar
         if (!options.pageBodyBackground) {
-          document.body.style.setProperty('--allPagesBackgroundColor', 'transparent');
+          document.body.style.setProperty('--allPagesBackgroundColor', 'transparent', 'important');
         }
       } else if (options.pageStyle) {
         style['--pageBodyBackgroundColor'] = 'transparent';
