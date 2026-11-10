@@ -22,6 +22,39 @@
 // never when the site simply never had a background (see getStyle's siteStyle branch).
 let siteBackgroundOverridden = false;
 
+// The --allPagesBackground* values the server wrote inline on <body> (UIPortalApplication.gtmpl, from the Branding
+// page background), read before getStyle() first overrides them: reverting its override restores them, so the
+// Branding background shows again without a reload
+const BODY_BACKGROUND_PROPERTIES = [
+  '--allPagesBackgroundColor',
+  '--allPagesBackgroundImage',
+  '--allPagesBackgroundRepeat',
+  '--allPagesBackgroundSize',
+  '--allPagesBackgroundPosition',
+  '--allPagesBackgroundAttachment',
+];
+let serverBodyBackground = null;
+
+function overrideSiteBackground() {
+  if (!serverBodyBackground) {
+    serverBodyBackground = {};
+    BODY_BACKGROUND_PROPERTIES.forEach(property => serverBodyBackground[property] = document.body.style.getPropertyValue(property));
+  }
+  siteBackgroundOverridden = true;
+}
+
+function restoreSiteBackground() {
+  BODY_BACKGROUND_PROPERTIES.forEach(property => {
+    const value = serverBodyBackground?.[property];
+    if (value) {
+      document.body.style.setProperty(property, value);
+    } else {
+      document.body.style.removeProperty(property);
+    }
+  });
+  siteBackgroundOverridden = false;
+}
+
 export function installApplication(navUri, applicationStorageId, applicationElement, applicationMode, showSite, fullRender) {
   return getApplicationContent(navUri, applicationStorageId, applicationMode, showSite, fullRender)
     .then(applicationContent => handleApplicationContent(applicationContent, applicationElement, applicationMode));
@@ -465,6 +498,8 @@ export function getStyle(container, options) {
   // Under a transparent shared Topbar (pageBodyBackgroundColor), an opaque page colour is written to the body as well:
   // that Topbar is above the site scroller, where the body-level image never paints. A page image or gradient is
   // painted by the body itself then (setSharedTopBarPageImage).
+  // The body colour is written with the important priority: a skin may set a default page colour on body as important
+  // (the white of the login related pages, social SidebarLogin skin), and the colour of the site or of the page wins over it.
   const bodyBackground = options.siteStyle || options.pageBodyBackground;
   if (!options.noBackgroundStyle
     && !backgroundLayerValues
@@ -472,18 +507,18 @@ export function getStyle(container, options) {
       || container.backgroundColor
       || container.backgroundEffect)) {
     if (bodyBackground) {
-      siteBackgroundOverridden = true;
+      overrideSiteBackground();
     }
     if (container.backgroundColor) {
       if (bodyBackground) {
-        document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
+        document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor, 'important');
       } else if (options.pageStyle) {
         style['--pageBodyBackgroundColor'] = container.backgroundColor;
         // Only an opaque colour: the page body paints it again over the body, which would deepen a partly
         // transparent one inside the page width
         if (options.pageBodyBackgroundColor && getColorAlpha(container.backgroundColor) === 1) {
-          siteBackgroundOverridden = true;
-          document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor);
+          overrideSiteBackground();
+          document.body.style.setProperty('--allPagesBackgroundColor', container.backgroundColor, 'important');
         }
       } else if (options.isApplicationBackground) {
         style['--appBackgroundColor'] = container.backgroundColor;
@@ -508,7 +543,7 @@ export function getStyle(container, options) {
       if (bodyBackground) {
         // Without a colour of its own, a page leaves the site or branding colour, which still shows behind the Topbar
         if (!options.pageBodyBackground) {
-          document.body.style.setProperty('--allPagesBackgroundColor', 'transparent');
+          document.body.style.setProperty('--allPagesBackgroundColor', 'transparent', 'important');
         }
       } else if (options.pageStyle) {
         style['--pageBodyBackgroundColor'] = 'transparent';
@@ -626,19 +661,11 @@ export function getStyle(container, options) {
     style['--appBackgroundPosition'] = 'unset';
     style['--appBackgroundAttachment'] = 'scroll';
   } else if (!options.noBackgroundStyle && !backgroundLayerValues && options.siteStyle && siteBackgroundOverridden) {
-    // Only clear these when a previous call on this same page actually set them:
+    // Only revert these when a previous call on this same page actually set them:
     // the server (UIPortalApplication.gtmpl) writes them as inline <body> style from
-    // the branding admin's default page background, and blindly removing them here
-    // on every render with no site-level override would wipe out that branding
-    // default instead of letting it show through.
-    document.body.style.removeProperty('--allPagesBackgroundColor');
-    document.body.style.removeProperty('--allPagesBackgroundImage');
-    document.body.style.removeProperty('--allPagesBackgroundRepeat');
-    document.body.style.removeProperty('--allPagesBackgroundSize');
-    document.body.style.removeProperty('--allPagesBackgroundPosition');
-    document.body.style.removeProperty('--allPagesBackgroundAttachment');
+    // the branding admin's default page background, which this restores rather than removes
+    restoreSiteBackground();
     removeSharedTopBarPageImage();
-    siteBackgroundOverridden = false;
   }
   // Margins are custom properties at every level, on the platform scale (20 = no extra margin), rendered by one
   // skin rule: calc(var(--appMargin*, var(--allPagesAppMargin*, 20px)) - 20px). The stored attribute travels as is:
@@ -752,7 +779,7 @@ function setSharedTopBarPageImage(container, style, topBannerTransparency) {
       });
     }
   }
-  siteBackgroundOverridden = true;
+  overrideSiteBackground();
   document.body.style.setProperty('background-image', layerValues.map(layer => layer.image).join(','));
   document.body.style.setProperty('background-repeat', layerValues.map(layer => layer.repeat).join(','));
   document.body.style.setProperty('background-size', layerValues.map(layer => layer.size).join(','));
