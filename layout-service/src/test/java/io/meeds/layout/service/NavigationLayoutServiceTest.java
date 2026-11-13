@@ -524,6 +524,35 @@ public class NavigationLayoutServiceTest {
   }
 
   @Test
+  public void aNodeDeletedWithADelayIsDeletedWhenTheNodeStops() throws IllegalAccessException, ObjectNotFoundException {
+    when(navigationService.getNodeById(5l)).thenReturn(nodeData);
+    when(nodeData.getSiteKey()).thenReturn(SITE_KEY);
+    when(aclService.canEditNavigation(SITE_KEY, TEST_USER)).thenReturn(true);
+    navigationLayoutService.deleteNode(5, 3600, TEST_USER);
+    verify(navigationService, never()).deleteNode(5l);
+
+    navigationLayoutService.deletePendingNodes();
+
+    verify(navigationService).deleteNode(5l);
+    // Deleted already: the undo is refused
+    assertThrows(ObjectNotFoundException.class, () -> navigationLayoutService.undoDeleteNode(5, TEST_USER));
+  }
+
+  @Test
+  public void aNodeWhoseDeletionIsUndoneIsNotDeletedWhenTheNodeStops() throws IllegalAccessException,
+                                                                       ObjectNotFoundException {
+    when(navigationService.getNodeById(6l)).thenReturn(nodeData);
+    when(nodeData.getSiteKey()).thenReturn(SITE_KEY);
+    when(aclService.canEditNavigation(SITE_KEY, TEST_USER)).thenReturn(true);
+    navigationLayoutService.deleteNode(6, 3600, TEST_USER);
+
+    navigationLayoutService.undoDeleteNode(6, TEST_USER);
+    navigationLayoutService.deletePendingNodes();
+
+    verify(navigationService, never()).deleteNode(6l);
+  }
+
+  @Test
   public void moveNode() throws IllegalAccessException, ObjectNotFoundException {
     assertThrows(ObjectNotFoundException.class, () -> navigationLayoutService.moveNode(2l, 3l, 4l, TEST_USER));
 
