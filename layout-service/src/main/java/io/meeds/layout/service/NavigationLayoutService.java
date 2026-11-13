@@ -27,8 +27,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.ResourceBundle;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -71,6 +72,7 @@ import io.meeds.layout.model.NavigationUpdateModel;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.portal.web.handler.PortalTemplateRequestHandler;
 
+import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 
 @Service
@@ -89,12 +91,17 @@ public class NavigationLayoutService {
 
   private static final String            NODE_DATA_WITH_NODE_ID_IS_NOT_FOUND = "Node with id %s doesn't exist";
 
+  /** Seconds the stop waits for a deletion that is running */
+  private static final long              STOP_TIMEOUT                        = 10;
+
   /**
    * The nodes deleted with a delay, not yet deleted, by id, with the user who
    * deleted each. Written by the request threads and by the delayed deletion:
    * whichever removes an entry first owns it.
    */
   private static final Map<Long, String> QUEUE                               = new ConcurrentHashMap<>();
+
+  private ScheduledExecutorService       scheduledExecutor;
 
   @Autowired
   private NavigationService              navigationService;
@@ -259,7 +266,7 @@ public class NavigationLayoutService {
     }
     if (delay > 0) {
       QUEUE.put(nodeId, username);
-      CompletableFuture.delayedExecutor(delay, TimeUnit.SECONDS).execute(() -> deletePendingNode(nodeId));
+      scheduledExecutor.schedule(() -> deletePendingNode(nodeId), delay, TimeUnit.SECONDS);
     } else {
       deleteNode(nodeId);
     }
@@ -273,11 +280,38 @@ public class NavigationLayoutService {
     }
   }
 
+  @PostConstruct
+  public void init() {
+    ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(1);
+    // The deletions still waiting for their delay at stop are run by destroy
+    executor.setExecuteExistingDelayedTasksAfterShutdownPolicy(false);
+    scheduledExecutor = executor;
+  }
+
+  /**
+   * Lets a deletion that is running end, up to {@link #STOP_TIMEOUT} seconds,
+   * then runs the deletions still waiting for their delay.
+   */
+  @PreDestroy
+  public void destroy() {
+    if (scheduledExecutor != null) {
+      // A deletion running now ends: interrupted, it would be lost
+      scheduledExecutor.shutdown();
+      try {
+        if (!scheduledExecutor.awaitTermination(STOP_TIMEOUT, TimeUnit.SECONDS)) {
+          LOG.warn("A navigation node deletion did not end within {} seconds of the stop", STOP_TIMEOUT);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+    }
+    deletePendingNodes();
+  }
+
   /**
    * Runs the deletions still waiting for their delay, which would be lost with
    * this node: their undo is no longer possible.
    */
-  @PreDestroy
   public void deletePendingNodes() {
     new ArrayList<>(QUEUE.keySet()).forEach(this::deletePendingNode);
   }
