@@ -22,10 +22,12 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.atLeast;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -37,6 +39,9 @@ import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.exoplatform.portal.mop.Visibility;
 import org.junit.jupiter.api.Test;
@@ -521,6 +526,61 @@ public class NavigationLayoutServiceTest {
     assertThrows(ObjectNotFoundException.class, () -> navigationLayoutService.undoDeleteNode(2, "anotherUser"));
     navigationLayoutService.undoDeleteNode(2, TEST_USER);
     assertThrows(ObjectNotFoundException.class, () -> navigationLayoutService.undoDeleteNode(2, TEST_USER));
+  }
+
+  @Test
+  public void aNodeDeletedWithADelayIsDeletedWhenTheNodeStops() throws IllegalAccessException, ObjectNotFoundException {
+    when(navigationService.getNodeById(5l)).thenReturn(nodeData);
+    when(nodeData.getSiteKey()).thenReturn(SITE_KEY);
+    when(aclService.canEditNavigation(SITE_KEY, TEST_USER)).thenReturn(true);
+    navigationLayoutService.deleteNode(5, 3600, TEST_USER);
+    verify(navigationService, never()).deleteNode(5l);
+
+    navigationLayoutService.deletePendingNodes();
+
+    verify(navigationService).deleteNode(5l);
+    // Deleted already: the undo is refused
+    assertThrows(ObjectNotFoundException.class, () -> navigationLayoutService.undoDeleteNode(5, TEST_USER));
+  }
+
+  @Test
+  public void aNodeWhoseDeletionIsUndoneIsNotDeletedWhenTheNodeStops() throws IllegalAccessException,
+                                                                       ObjectNotFoundException {
+    when(navigationService.getNodeById(6l)).thenReturn(nodeData);
+    when(nodeData.getSiteKey()).thenReturn(SITE_KEY);
+    when(aclService.canEditNavigation(SITE_KEY, TEST_USER)).thenReturn(true);
+    navigationLayoutService.deleteNode(6, 3600, TEST_USER);
+
+    navigationLayoutService.undoDeleteNode(6, TEST_USER);
+    navigationLayoutService.deletePendingNodes();
+
+    verify(navigationService, never()).deleteNode(6l);
+  }
+
+  @Test
+  public void aNodeDeletionRunningWhenTheNodeStopsEnds() throws Exception {
+    when(navigationService.getNodeById(7l)).thenReturn(nodeData);
+    when(nodeData.getSiteKey()).thenReturn(SITE_KEY);
+    when(aclService.canEditNavigation(SITE_KEY, TEST_USER)).thenReturn(true);
+    CountDownLatch started = new CountDownLatch(1);
+    AtomicBoolean ended = new AtomicBoolean();
+    doAnswer(invocation -> {
+      started.countDown();
+      Thread.sleep(500);
+      ended.set(true);
+      return null;
+    }).when(navigationService).deleteNode(7l);
+    navigationLayoutService.deleteNode(7, 1, TEST_USER);
+    assertTrue(started.await(10, TimeUnit.SECONDS));
+
+    try {
+      navigationLayoutService.destroy();
+
+      assertTrue(ended.get());
+    } finally {
+      // The context is shared with the other tests
+      navigationLayoutService.init();
+    }
   }
 
   @Test
