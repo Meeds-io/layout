@@ -102,6 +102,7 @@ export default {
     },
   },
   created() {
+    this.$root.$on('layout-colors-refresh', this.refreshDarkColors);
     this.$root.$on('layout-edit-section-drawer', this.editSection);
     this.$root.$on('layout-add-application-category-drawer', this.openApplicationCategoryDrawer);
     this.$root.$on('layout-replace-section', this.handleReplaceSection);
@@ -121,6 +122,9 @@ export default {
     document.addEventListener('keydown', this.restoreSectionVersion);
   },
   methods: {
+    refreshDarkColors() {
+      this.$layoutUtils.refreshDarkColors(this.$root.layout);
+    },
     setLayout(layout) {
       this.initContainer(layout);
       if (this.mobileDisplayMode) {
@@ -325,6 +329,7 @@ export default {
       }
     },
     undoSectionVersion() {
+      this.$root.$emit('layout-colors-refresh');
       if (this.$root.sectionHistory?.length) {
         const entry = this.$root.sectionHistory.pop();
         if (entry.orderContainerId) {
@@ -344,6 +349,7 @@ export default {
       }
     },
     redoSectionVersion() {
+      this.$root.$emit('layout-colors-refresh');
       if (this.$root.sectionRedo?.length) {
         const entry = this.$root.sectionRedo.pop();
         if (entry.orderContainerId) {

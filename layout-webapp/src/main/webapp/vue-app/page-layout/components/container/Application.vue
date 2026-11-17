@@ -24,6 +24,7 @@
     :id="id"
     :class="cssClass"
     :style="cssStyle"
+    :data-display-mode="container.lightOnly ? 'light' : null"
     class="layout-application">
     <div
       v-if="backgroundLayerStyle"
