@@ -334,7 +334,9 @@ export default {
       } else if (section.template === this.$layoutUtils.gridTemplate) {
         this.$layoutUtils.editGridSection(section, this.rows, this.cols);
       }
+      section.darkColors = null;
       this.$root.$emit('layout-replace-section', this.index, section);
+      this.$root.$emit('layout-colors-refresh');
       this.close();
     },
     close() {
