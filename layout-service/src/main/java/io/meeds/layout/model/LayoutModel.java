@@ -21,6 +21,7 @@ package io.meeds.layout.model;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -259,6 +260,31 @@ public class LayoutModel {
   private boolean                         showApplicationState = true;
 
   private boolean                         showApplicationMode  = true;
+
+  /**
+   * Set (true) by the REST on an application whose portlet is rendered in light
+   * whatever the user's display mode. Never stored.
+   */
+  @JsonProperty(access = Access.READ_ONLY)
+  private Boolean                         lightOnly;
+
+  /**
+   * The dark value of the colours set in the page editor, by field, calculated
+   * by the REST and never stored: a field mapped to the empty string is Auto
+   * (no colour written), a field absent keeps the block's own stored value. A
+   * colour an application inherits and that stays readable on its own
+   * background is not listed: the inherited value applies.
+   */
+  @JsonProperty(access = Access.READ_ONLY)
+  private Map<String, String>             darkColors;
+
+  /**
+   * On a light only application: the stored colors it inherits from its
+   * ancestors (text, icon, border, application background), that it renders
+   * as they are stored in every mode. Never stored.
+   */
+  @JsonProperty(access = Access.READ_ONLY)
+  private Map<String, String>             lightColors;
 
   // Specific to page
   private String                          editPermission;

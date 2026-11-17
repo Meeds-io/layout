@@ -29,6 +29,7 @@
       }]"
       :style="cssStyle"
       :data-storage-id="storageId"
+      :data-display-mode="container.lightOnly ? 'light' : null"
       class="layout-application"
       v-on="!ignoreMenu && {
         mouseover: () => hover = true,
@@ -185,6 +186,7 @@ export default {
   created() {
     this.$root.$on('layout-section-application-update-style', this.updateStyle);
     this.$root.$on('layout-editor-portlet-properties-updated', this.updateApplication);
+    document.addEventListener('displayModeChanged', this.initStyle);
     this.initStyle();
     this.section = this.$layoutUtils.getSectionByContainer(this.$root.layout, this.parentId, this.$root.isSiteLayout);
   },
@@ -197,6 +199,7 @@ export default {
   beforeDestroy() {
     this.$root.$off('layout-section-application-update-style', this.updateStyle);
     this.$root.$off('layout-editor-portlet-properties-updated', this.updateApplication);
+    document.removeEventListener('displayModeChanged', this.initStyle);
   },
   methods: {
     updateApplication(applicationId) {

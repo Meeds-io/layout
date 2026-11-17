@@ -51,6 +51,7 @@ import io.meeds.layout.model.PageCreateModel;
 import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.PortletPreferenceList;
 import io.meeds.layout.rest.util.RestEntityBuilder;
+import io.meeds.layout.service.LayoutDarkColorService;
 import io.meeds.layout.service.PageLayoutService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -70,6 +71,9 @@ public class PageLayoutRest {
 
   @Autowired
   private LayoutService     layoutService;
+
+  @Autowired
+  private LayoutDarkColorService layoutDarkColorService;
 
   @GetMapping
   @Operation(summary = "Retrieve pages", method = "GET", description = "This retrieves pages")
@@ -365,7 +369,7 @@ public class PageLayoutRest {
                                                                                 siteId,
                                                                                 impersonate,
                                                                                 request.getRemoteUser());
-    return RestEntityBuilder.toLayoutModel(modelObject, layoutService, expand);
+    return RestEntityBuilder.toLayoutModel(modelObject, layoutService, expand, layoutDarkColorService);
   }
 
 }

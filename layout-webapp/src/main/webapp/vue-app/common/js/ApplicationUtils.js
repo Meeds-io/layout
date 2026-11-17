@@ -17,6 +17,120 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+import {computeDarkColors} from './PageLayoutService.js';
+
+// The effective display mode of the document, light or dark. It is reactive: a computed property that calls getStyle()
+// is evaluated again when the mode changes, so that the blocks are restyled without reload. The mode changes with the
+// displayModeChanged event of the document (detail: light or dark), that a click on the Display Mode row, the revert
+// of a failed update and, while the mode is Automatic, the change of the device preference dispatch.
+const displayModeState = Vue.observable({
+  mode: readInitialDisplayMode(),
+});
+
+function readInitialDisplayMode() {
+  const mode = document.documentElement?.getAttribute?.('data-display-mode');
+  if (mode === 'dark') {
+    return 'dark';
+  } else if (mode === 'auto') {
+    return window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ? 'dark' : 'light';
+  }
+  return 'light';
+}
+
+document.addEventListener('displayModeChanged', event => {
+  const detail = event?.detail;
+  const mode = typeof detail === 'string' ? detail : detail?.mode;
+  displayModeState.mode = mode === 'dark' ? 'dark' : 'light';
+});
+
+export function getDisplayMode() {
+  return displayModeState.mode;
+}
+
+const PREVIEW_COLOR_FIELDS = [
+  'backgroundColor',
+  'textTitleColor',
+  'textColor',
+  'textHeaderColor',
+  'textSubtitleColor',
+  'iconColor',
+  'borderColor',
+];
+
+export function getDarkColorsOf(blocks) {
+  return computeDarkColors(blocks);
+}
+
+// The dark version of colors set in the page editor and not saved yet, calculated by the same rules as the server does
+// for the saved ones (POST /v1/layout/colors/dark). Resolves null when the document is not in dark mode, there is no
+// color or the calculation failed: the colors are then shown as set.
+export function getDarkColorsPreview(container, page) {
+  if (displayModeState.mode !== 'dark' || !container) {
+    return Promise.resolve(null);
+  }
+  const colors = {};
+  PREVIEW_COLOR_FIELDS.forEach(field => {
+    if (container[field]) {
+      colors[field] = container[field];
+    }
+  });
+  if (!Object.keys(colors).length) {
+    return Promise.resolve(null);
+  }
+  return computeDarkColors([{
+    colors,
+    image: !!(container.backgroundImage || container.backgroundEffect),
+    page: !!page,
+  }])
+    .then(darkColors => darkColors?.[0] || null)
+    .catch(() => null);
+}
+
+// The colors a block renders in the effective mode. In dark, the colors set in the page editor are replaced by their dark
+// value calculated by the server (darkColors: a field mapped to an empty value is Auto, no color written; a field absent
+// keeps its stored value). A light only application, and what options.lightOnly says is light, renders its own values in
+// every mode, and, since its ancestors write their own custom properties in the mode of the document, also the stored
+// colors it inherits from them (lightColors), on its own block.
+const LIGHT_APPLICATION_BACKGROUND_FIELDS = [
+  'appBackgroundColor',
+  'appBackgroundImage',
+  'appBackgroundEffect',
+  'appBackgroundRepeat',
+  'appBackgroundSize',
+  'appBackgroundPosition',
+  'appBackgroundAttachment',
+];
+
+function getEffectiveColors(container, options) {
+  const dark = displayModeState.mode === 'dark';
+  if (container?.lightOnly || options?.lightOnly) {
+    return container?.lightColors ? withInheritedLightColors(container) : container;
+  } else if (!dark || !container?.darkColors) {
+    return container;
+  }
+  const effective = {
+    ...container,
+  };
+  Object.keys(container.darkColors).forEach(field => effective[field] = container.darkColors[field] || null);
+  return effective;
+}
+
+function withInheritedLightColors(container) {
+  const ownBackground = container.backgroundColor || container.backgroundImage || container.backgroundEffect;
+  const effective = {
+    ...container,
+  };
+  Object.keys(container.lightColors).forEach(field => {
+    // the application background an application inherits is replaced by its own background
+    if (!container[field]
+        && !(ownBackground && LIGHT_APPLICATION_BACKGROUND_FIELDS.includes(field))
+        && !(field === 'borderSize' && container.borderColor)) {
+      effective[field] = container.lightColors[field];
+    }
+  });
+  return effective;
+}
+
 // Tracks whether getStyle() itself has overridden the site-level --allPagesBackground*
 // custom properties on <body>, so it only clears them when reverting its own override,
 // never when the site simply never had a background (see getStyle's siteStyle branch).
@@ -197,6 +311,7 @@ function getColorAlpha(color) {
 // older layouts stored for the same margins are dropped at render time so that they do not apply twice
 
 export function getStyle(container, options) {
+  container = getEffectiveColors(container, options);
   if (options.pageBodyBackground && container.backgroundColor && getColorAlpha(container.backgroundColor) === 0) {
     // A fully transparent page colour (stored with a gradient, for instance) is no colour of its own: the body keeps
     // the site or branding colour, which still shows behind the Topbar

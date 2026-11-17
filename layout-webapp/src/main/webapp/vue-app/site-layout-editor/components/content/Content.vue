@@ -107,6 +107,7 @@ export default {
     },
   },
   created() {
+    this.$root.$on('layout-colors-refresh', this.refreshDarkColors);
     this.$root.$on('layout-add-application-category-drawer', this.openApplicationCategoryDrawer);
     this.$root.$on('layout-add-application', this.handleAddApplication);
     this.$root.$on('layout-edit-application', this.handleEditApplication);
@@ -123,6 +124,9 @@ export default {
     this.openChangesReminder();
   },
   methods: {
+    refreshDarkColors() {
+      this.$layoutUtils.refreshDarkColors(this.$root.layout);
+    },
     openChangesReminder() {
       if (!this.isCompatible && !this.changesReminderOpened && this.$refs.changesReminder) {
         this.$refs.changesReminder.open();
@@ -217,6 +221,7 @@ export default {
       }
     },
     undoFromHistory() {
+      this.$root.$emit('layout-colors-refresh');
       if (this.$root.sectionHistory?.length) {
         const layout = this.$root.sectionHistory.pop();
         this.$root.sectionRedo.push(JSON.parse(JSON.stringify(this.$root.layout)));
@@ -224,6 +229,7 @@ export default {
       }
     },
     redoFromHistory() {
+      this.$root.$emit('layout-colors-refresh');
       if (this.$root.sectionRedo?.length) {
         const layout = this.$root.sectionRedo.pop();
         this.$root.sectionHistory.push(JSON.parse(JSON.stringify(this.$root.layout)));

@@ -341,6 +341,7 @@ export default {
         if (toIndex < 0) {
           toCell.children.splice(event.newIndex, 0, application);
         }
+        this.$root.$emit('layout-colors-refresh');
       }
     },
     startAutoScroll() {

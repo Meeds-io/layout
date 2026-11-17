@@ -57,6 +57,7 @@ import io.meeds.layout.model.PermissionUpdateModel;
 import io.meeds.layout.model.SiteCreateModel;
 import io.meeds.layout.model.SiteUpdateModel;
 import io.meeds.layout.rest.util.RestEntityBuilder;
+import io.meeds.layout.service.LayoutDarkColorService;
 import io.meeds.layout.service.SiteLayoutService;
 import io.meeds.layout.service.SiteLayoutUnresolvedException;
 
@@ -77,6 +78,9 @@ public class SiteLayoutRest {
 
   @Autowired
   private LayoutService     layoutService;
+
+  @Autowired
+  private LayoutDarkColorService layoutDarkColorService;
 
   @Autowired
   private UserPortalConfigService portalConfigService;
@@ -181,7 +185,7 @@ public class SiteLayoutRest {
     try {
       ModelObject modelObject = siteLayoutService.getSiteLayout(new SiteKey(siteType, siteName),
                                                                 request.getRemoteUser());
-      LayoutModel layoutModel = RestEntityBuilder.toLayoutModel(modelObject, layoutService, expand);
+      LayoutModel layoutModel = RestEntityBuilder.toLayoutModel(modelObject, layoutService, expand, layoutDarkColorService);
       String eTag = String.valueOf(layoutModel.hashCode());
       if (webRequest.checkNotModified(eTag)) {
         return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
