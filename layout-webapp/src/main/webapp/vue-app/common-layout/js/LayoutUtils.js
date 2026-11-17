@@ -17,7 +17,7 @@
  * Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
-import { parseBackgroundLayerValues, setBackgroundLayerValues } from '../../common/js/ApplicationUtils.js';
+import { parseBackgroundLayerValues, setBackgroundLayerValues, getDarkColorsOf, getDisplayMode } from '../../common/js/ApplicationUtils.js';
 
 export const breakpoints = ['md', 'lg', 'xl'];
 
@@ -423,6 +423,8 @@ export function applyContainerStyle(container, containerStyle) {
   }
   Vue.set(container, 'height', container.height || null);
   Vue.set(container, 'width', container.width || null);
+  // the dark colors were calculated for the previous colors: they are calculated again (refreshDarkColors)
+  Vue.set(container, 'darkColors', null);
   Vue.set(container, 'borderColor', containerStyle.borderColor || null);
   Vue.set(container, 'borderSize', containerStyle.borderSize || '0');
   Vue.set(container, 'boxShadow', containerStyle.boxShadow && 'true' || null);
@@ -1338,4 +1340,144 @@ function cloneScriptElement(node) {
     scriptElement.setAttribute(scriptAttrs[i].name, scriptAttrs[i].value);
   }
   return scriptElement;
+}
+
+const DARK_COLOR_FIELDS = [
+  'backgroundColor',
+  'appBackgroundColor',
+  'textTitleBackgroundColor',
+  'textHeaderBackgroundColor',
+  'textBackgroundColor',
+  'textSubtitleBackgroundColor',
+  'textTitleColor',
+  'textColor',
+  'textHeaderColor',
+  'textSubtitleColor',
+  'iconColor',
+  'borderColor',
+];
+const INHERITED_FIELDS = ['textTitleColor', 'textColor', 'textHeaderColor', 'textSubtitleColor', 'iconColor'];
+const LIGHT_APP_FIELDS = [
+  'appBackgroundColor',
+  'appBackgroundImage',
+  'appBackgroundEffect',
+  'appBackgroundRepeat',
+  'appBackgroundSize',
+  'appBackgroundPosition',
+  'appBackgroundAttachment',
+];
+const darkColorsState = {
+  timer: null,
+  version: 0,
+  pending: null,
+};
+
+// a calculation answered after a newer one started is ignored: the newer one sets the colors
+function applyDarkColors(chunk, results, version) {
+  if (version !== darkColorsState.version) {
+    return;
+  }
+  chunk.forEach((b, index) => {
+    const darkColors = results?.[index];
+    Vue.set(b.container, 'darkColors', darkColors && Object.keys(darkColors).length && darkColors || null);
+  });
+}
+
+// The dark colors of the layout are calculated by the server for the saved layout. Once a color is edited, undone or a
+// block moved, they are calculated again for the edited layout, with the same rules, by the POST /v1/layout/colors/dark,
+// the blocks being sent with what they inherit (the same inheritance as the server's).
+export function refreshDarkColors(layout) {
+  window.clearTimeout(darkColorsState.timer);
+  if (!layout) {
+    return;
+  }
+  darkColorsState.timer = window.setTimeout(() => {
+    const blocks = [];
+    collectDarkColorBlocks(layout, {colors: {}, appBackground: null, image: false, appImage: false, appStyle: {}}, true, blocks);
+    if (getDisplayMode() !== 'dark') {
+      // dark colors are only read in dark: they are calculated when the mode changes
+      darkColorsState.pending = layout;
+      return;
+    }
+    darkColorsState.pending = null;
+    const version = ++darkColorsState.version;
+    const chunks = [];
+    for (let i = 0; i < blocks.length; i += 100) {
+      chunks.push(blocks.slice(i, i + 100));
+    }
+    Promise.all(chunks.map(chunk => getDarkColorsOf(chunk.map(b => b.block))
+      .then(results => applyDarkColors(chunk, results, version))))
+      .catch(() => null);
+  }, 300);
+}
+
+document.addEventListener('displayModeChanged', () => {
+  if (darkColorsState.pending) {
+    refreshDarkColors(darkColorsState.pending);
+  }
+});
+
+const PAGE_TEMPLATES = [sectionsParentTemplate, pageBodyTemplate, siteBodyMiddleCenterTemplate];
+
+// Mirrors the inheritance of the server's rules (LayoutDarkColorService)
+function collectDarkColorBlocks(container, inherited, root, blocks) {
+  const isApplication = !container.children && container.template !== pageBodyTemplate;
+  if (isApplication && container.lightOnly) {
+    // a light only application renders the colors it inherits as they are stored: they follow its ancestors' edits
+    const lightColors = {...inherited.colors, ...inherited.appStyle};
+    Vue.set(container, 'lightColors', Object.keys(lightColors).length && lightColors || null);
+    return;
+  }
+  const hasImage = !!(container.backgroundImage || container.backgroundEffect);
+  const colors = {};
+  DARK_COLOR_FIELDS.forEach(field => {
+    if (container[field]) {
+      colors[field] = container[field];
+    }
+  });
+  const ownBackground = !!container.backgroundColor;
+  const background = ownBackground ? container.backgroundColor : isApplication && inherited.appBackground || null;
+  if (isApplication && background) {
+    Object.keys(inherited.colors).forEach(field => colors[field] = colors[field] || inherited.colors[field]);
+  }
+  // A container lies over the image of its ancestor containers; an application is painted with the application
+  // background: only an inherited application background image counts, and only without an inherited color
+  const inheritedImage = isApplication ? !inherited.appBackground && inherited.appImage : inherited.image;
+  if (Object.keys(colors).length) {
+    blocks.push({
+      container,
+      block: {
+        colors,
+        background: background && !ownBackground ? background : null,
+        image: !ownBackground && (hasImage || inheritedImage),
+        page: root || PAGE_TEMPLATES.includes(container.template),
+      },
+    });
+  }
+  if (container.children) {
+    const childColors = {...inherited.colors};
+    DARK_COLOR_FIELDS.filter(field => INHERITED_FIELDS.includes(field) || (root && field === 'borderColor'))
+      .forEach(field => {
+        if (container[field]) {
+          childColors[field] = container[field];
+        }
+      });
+    if (root && childColors.borderColor && container.borderColor && container.borderSize) {
+      childColors.borderSize = container.borderSize;
+    }
+    const childAppStyle = {...inherited.appStyle};
+    LIGHT_APP_FIELDS.forEach(field => {
+      if (container[field]) {
+        childAppStyle[field] = container[field];
+      }
+    });
+    const childInherited = {
+      colors: childColors,
+      appBackground: container.appBackgroundColor || inherited.appBackground,
+      image: !ownBackground && (hasImage || inherited.image),
+      appImage: !!(container.appBackgroundImage || container.appBackgroundEffect) || inherited.appImage,
+      appStyle: childAppStyle,
+    };
+    container.children.forEach(child => collectDarkColorBlocks(child, childInherited, false, blocks));
+  }
 }

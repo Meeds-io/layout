@@ -261,6 +261,7 @@ export default {
     },
     addSection(index) {
       this.$root.$emit('layout-section-history-add');
+      this.$root.$emit('layout-colors-refresh');
       this.$root.middleContainer.children.splice(index, 0, {
         ...this.$layoutUtils.newContainer(this.$layoutUtils.bannerTemplate),
         children: [

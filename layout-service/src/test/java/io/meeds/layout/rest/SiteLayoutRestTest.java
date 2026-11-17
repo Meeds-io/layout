@@ -65,6 +65,7 @@ import org.exoplatform.social.rest.entity.SiteEntity;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.NodeLabel;
 import io.meeds.layout.rest.util.RestEntityBuilder;
+import io.meeds.layout.service.LayoutDarkColorService;
 import io.meeds.layout.service.SiteLayoutService;
 import io.meeds.layout.service.SiteLayoutUnresolvedException;
 import io.meeds.spring.web.security.PortalAuthenticationManager;
@@ -111,6 +112,9 @@ public class SiteLayoutRestTest {
 
   @MockitoBean
   private LayoutService         layoutService;
+
+  @MockitoBean
+  private LayoutDarkColorService layoutDarkColorService;
 
   @MockitoBean
   private UserPortalConfigService portalConfigService;
@@ -219,7 +223,7 @@ public class SiteLayoutRestTest {
     when(siteLayoutService.getSiteLayout(SITE_KEY, SIMPLE_USER)).thenReturn(modelObject);
     LayoutModel layoutModel = mock(LayoutModel.class);
     try (MockedStatic<RestEntityBuilder> restEntityBuilder = mockStatic(RestEntityBuilder.class)) {
-      restEntityBuilder.when(() -> RestEntityBuilder.toLayoutModel(any(), any(), any())).thenReturn(layoutModel);
+      restEntityBuilder.when(() -> RestEntityBuilder.toLayoutModel(any(), any(), any(), any())).thenReturn(layoutModel);
       ResultActions response = mockMvc.perform(get(LAYOUT_REST_PATH_WITH_PARAMS).with(testSimpleUser()));
       response.andExpect(status().isOk());
     }
@@ -491,7 +495,7 @@ public class SiteLayoutRestTest {
     when(siteLayoutService.getSiteLayout(SITE_KEY, SIMPLE_USER)).thenReturn(modelObject);
     LayoutModel layoutModel = mock(LayoutModel.class);
     try (MockedStatic<RestEntityBuilder> restEntityBuilder = mockStatic(RestEntityBuilder.class)) {
-      restEntityBuilder.when(() -> RestEntityBuilder.toLayoutModel(any(), any(), any())).thenReturn(layoutModel);
+      restEntityBuilder.when(() -> RestEntityBuilder.toLayoutModel(any(), any(), any(), any())).thenReturn(layoutModel);
       ResultActions response = mockMvc.perform(put(LAYOUT_REST_PATH_WITH_PARAMS).content("{}")
                                                                                 .contentType(MediaType.APPLICATION_JSON)
                                                                                 .with(testSimpleUser()));
