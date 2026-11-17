@@ -218,3 +218,20 @@ export function editPageLayout(nodeId, pageId) {
   const params = new URLSearchParams(formData).toString();
   window.open(`${eXo.env.portal.context}/${eXo.env.portal.portalName}/layout-editor?${params}`, '_blank');
 }
+
+export function computeDarkColors(blocks) {
+  return fetch('/layout/rest/colors/dark', {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(blocks),
+  }).then(resp => {
+    if (resp?.ok) {
+      return resp.json();
+    } else {
+      throw new Error('Error when calculating the dark colors');
+    }
+  });
+}
