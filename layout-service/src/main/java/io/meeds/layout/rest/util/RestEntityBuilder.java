@@ -39,6 +39,7 @@ import org.exoplatform.social.rest.api.EntityBuilder;
 import org.exoplatform.social.rest.entity.SiteEntity;
 
 import io.meeds.layout.model.LayoutModel;
+import io.meeds.layout.service.LayoutDarkColorService;
 
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -85,12 +86,30 @@ public class RestEntityBuilder {
   public static LayoutModel toLayoutModel(ModelObject modelObject,
                                           LayoutService layoutService,
                                           String expand) {
+    return toLayoutModel(modelObject, layoutService, expand, null);
+  }
+
+  /**
+   * @param darkColorService when not null, adds to the layout what is never
+   *          stored: the darkColors of its containers and the lightOnly flag
+   *          of its applications
+   */
+  public static LayoutModel toLayoutModel(ModelObject modelObject,
+                                          LayoutService layoutService,
+                                          String expand,
+                                          LayoutDarkColorService darkColorService) {
     LayoutModel layoutModel = new LayoutModel(modelObject);
-    if (StringUtils.contains(expand, "contentId")
-        && modelObject instanceof Container container) {
-      Map<String, String> contentIds = new HashMap<>();
+    boolean expandContentId = StringUtils.contains(expand, "contentId");
+    boolean lightOnlyEnabled = darkColorService != null && darkColorService.hasLightOnlyApplications();
+    Map<String, String> contentIds = new HashMap<>();
+    if ((expandContentId || lightOnlyEnabled) && modelObject instanceof Container container) {
       computeApplicationContentId(layoutService, container.getChildren(), contentIds);
-      applyApplicationContentId(layoutModel.getChildren(), contentIds);
+      if (expandContentId) {
+        applyApplicationContentId(layoutModel.getChildren(), contentIds);
+      }
+    }
+    if (darkColorService != null) {
+      darkColorService.expand(layoutModel, contentIds, lightOnlyEnabled);
     }
     return layoutModel;
   }

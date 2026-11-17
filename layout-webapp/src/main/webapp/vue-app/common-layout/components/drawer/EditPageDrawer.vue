@@ -202,6 +202,7 @@ export default {
     parentContainer: null,
     pageContainer: null,
     appBackgroundProperties: null,
+    darkColors: null,
     width: 1320,
     defaultWidth: 1320,
     minWidth: 300,
@@ -218,6 +219,7 @@ export default {
       return this.$applicationUtils.getStyle({
         ...this.pageContainer,
         backgroundColor: this.pageContainer?.backgroundColor || this.defaultBackgroundColor,
+        darkColors: this.darkColors,
       }, {
         onlyBackgroundStyle: true,
       });
@@ -237,10 +239,15 @@ export default {
       if (this.drawer) {
         this.optionsModified = true;
       }
+      this.refreshDarkColors();
+    },
+    'pageContainer.backgroundColor'() {
+      this.refreshDarkColors();
     },
   },
   created() {
     this.$root.$on('layout-page-properties-open', this.open);
+    document.addEventListener('displayModeChanged', this.refreshDarkColors);
     if (document.body.computedStyleMap && document.body.computedStyleMap().get('--allPagesBackgroundColor')) {
       const backgroundColor = document.body.computedStyleMap().get('--allPagesBackgroundColor')[0]?.trim?.();
       if (backgroundColor) {
@@ -250,8 +257,23 @@ export default {
   },
   beforeDestroy() {
     this.$root.$off('layout-page-properties-open', this.open);
+    window.clearTimeout(this.darkColorsTimer);
+    document.removeEventListener('displayModeChanged', this.refreshDarkColors);
   },
   methods: {
+    refreshDarkColors() {
+      window.clearTimeout(this.darkColorsTimer);
+      this.darkColorsTimer = window.setTimeout(() => {
+        const version = this.darkColorsVersion = (this.darkColorsVersion || 0) + 1;
+        // Only the stored colors: a page without background previews the default one as it is
+        this.$applicationUtils.getDarkColorsPreview(this.pageContainer, true)
+          .then(darkColors => {
+            if (version === this.darkColorsVersion) {
+              this.darkColors = darkColors;
+            }
+          });
+      }, 300);
+    },
     open(pageContainer, parentContainer) {
       // The Icon row shows what the page inherits while it stores nothing: the platform's Page & Apps icon colour, read at
       // the document root. A colour the site stores on its own page area is not read: the editor renders the page alone,
@@ -318,6 +340,7 @@ export default {
         }
 
         this.$layoutUtils.applyContainerStyle(this.originalPageContainer, this.originalPageContainer);
+        this.$root.$emit('layout-colors-refresh');
         if (this.parentContainer) {
           Object.assign(this.originalParentContainer, {
             ...this.parentContainer,

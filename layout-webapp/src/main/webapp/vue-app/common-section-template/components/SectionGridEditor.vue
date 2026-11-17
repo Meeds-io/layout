@@ -137,13 +137,17 @@ export default {
   data: () => ({
     rows: 0,
     cols: 0,
+    darkColors: null,
   }),
   computed: {
     gridClass() {
       return `d-md-grid pb-0 grid-cols-md-${this.cols} grid-rows-md-${this.rows}`;
     },
     cssStyle() {
-      return this.backgroundProperties && this.$applicationUtils.getStyle(this.backgroundProperties, {
+      return this.backgroundProperties && this.$applicationUtils.getStyle({
+        ...this.backgroundProperties,
+        darkColors: this.darkColors,
+      }, {
         onlyBackgroundStyle: true,
       });
     },
@@ -155,6 +159,12 @@ export default {
     },
   },
   watch: {
+    backgroundProperties: {
+      deep: true,
+      handler() {
+        this.refreshDarkColors();
+      },
+    },
     rows() {
       this.$emit('rows-updated', this.rows);
     },
@@ -165,6 +175,26 @@ export default {
   created() {
     this.rows = this.rowsCount;
     this.cols = this.colsCount;
+    document.addEventListener('displayModeChanged', this.refreshDarkColors);
+    this.refreshDarkColors();
+  },
+  beforeDestroy() {
+    window.clearTimeout(this.darkColorsTimer);
+    document.removeEventListener('displayModeChanged', this.refreshDarkColors);
+  },
+  methods: {
+    refreshDarkColors() {
+      window.clearTimeout(this.darkColorsTimer);
+      this.darkColorsTimer = window.setTimeout(() => {
+        const version = this.darkColorsVersion = (this.darkColorsVersion || 0) + 1;
+        this.$applicationUtils.getDarkColorsPreview(this.backgroundProperties, false)
+          .then(darkColors => {
+            if (version === this.darkColorsVersion) {
+              this.darkColors = darkColors;
+            }
+          });
+      }, 300);
+    },
   },
 };
 </script>

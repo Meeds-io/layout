@@ -315,12 +315,14 @@ export default {
     drawer(value, oldVal) {
       if (value && !oldVal && this.styleClasses) {
         this.$layoutUtils.applyContainerStyle(this.container, this.styleClasses);
+        this.$root.$emit('layout-colors-refresh');
       }
     },
     styleClasses(value, oldVal) {
       if (value && oldVal) {
         this.$root.$emit('layout-section-history-add', this.sectionId);
         this.$layoutUtils.applyContainerStyle(this.container, this.styleClasses);
+        this.$root.$emit('layout-colors-refresh');
         this.$root.$emit('layout-section-application-update-style', this.container);
       } else if (value && !oldVal) {
         this.initialized = true;

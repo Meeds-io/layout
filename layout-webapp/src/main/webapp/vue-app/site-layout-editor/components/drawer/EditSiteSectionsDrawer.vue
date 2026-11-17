@@ -240,6 +240,7 @@ export default {
     },
     apply() {
       this.$root.$emit('layout-section-history-add');
+      this.$root.$emit('layout-colors-refresh');
       const options = this.getCurrentOptions();
       if (options.top !== this.topBanner) {
         if (this.topBanner) {
