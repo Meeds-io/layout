@@ -60,6 +60,7 @@ import io.meeds.spring.web.security.PortalAuthenticationManager;
 import io.meeds.spring.web.security.WebSecurityConfiguration;
 import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.rest.util.RestEntityBuilder;
+import io.meeds.layout.service.LayoutDarkColorService;
 import io.meeds.layout.service.PageLayoutService;
 
 import jakarta.servlet.Filter;
@@ -91,6 +92,9 @@ public class PageLayoutRestTest {
   @MockitoBean
   private LayoutService         layoutService;
 
+  @MockitoBean
+  private LayoutDarkColorService layoutDarkColorService;
+
   @Autowired
   private SecurityFilterChain   filterChain;
 
@@ -116,7 +120,7 @@ public class PageLayoutRestTest {
     when(pageLayoutService.getPageLayout(PAGE_KEY, 0L, false, SIMPLE_USER)).thenReturn(new Container("draft"));
     LayoutModel model = new LayoutModel();
     try (MockedStatic<RestEntityBuilder> builder = mockStatic(RestEntityBuilder.class)) {
-      builder.when(() -> RestEntityBuilder.toLayoutModel(any(), any(), isNull())).thenReturn(model);
+      builder.when(() -> RestEntityBuilder.toLayoutModel(any(), any(), isNull(), any())).thenReturn(model);
       mockMvc.perform(get(LAYOUT_PATH).with(testSimpleUser()))
              .andExpect(status().isOk())
              .andExpect(header().string(HttpHeaders.CACHE_CONTROL, PageLayoutRest.PRIVATE_NO_STORE));

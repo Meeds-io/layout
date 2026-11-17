@@ -127,6 +127,7 @@ export default {
     },
   },
   created() {
+    this.$root.$on('layout-colors-refresh', this.refreshDarkColors);
     this.$root.$on('layout-add-section-drawer', this.addSection);
     this.$root.$on('layout-edit-section-drawer', this.editSection);
     this.$root.$on('layout-add-application-category-drawer', this.openApplicationCategoryDrawer);
@@ -154,6 +155,9 @@ export default {
     this.openChangesReminder();
   },
   methods: {
+    refreshDarkColors() {
+      this.$layoutUtils.refreshDarkColors(this.$root.layout);
+    },
     openChangesReminder() {
       if (!this.isCompatible && !this.changesReminderOpened && this.$refs.changesReminder) {
         this.$refs.changesReminder.open();
@@ -402,6 +406,7 @@ export default {
       }
     },
     undoSectionVersion() {
+      this.$root.$emit('layout-colors-refresh');
       if (this.$root.sectionHistory?.length) {
         const entry = this.$root.sectionHistory.pop();
         if (entry.orderContainerId) {
@@ -421,6 +426,7 @@ export default {
       }
     },
     redoSectionVersion() {
+      this.$root.$emit('layout-colors-refresh');
       if (this.$root.sectionRedo?.length) {
         const entry = this.$root.sectionRedo.pop();
         if (entry.orderContainerId) {

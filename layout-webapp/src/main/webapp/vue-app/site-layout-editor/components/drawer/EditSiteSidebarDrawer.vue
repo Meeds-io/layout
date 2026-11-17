@@ -166,6 +166,7 @@ export default {
         Object.assign(container, this.container);
         this.container.hiddenOnMobile = this.hiddenOnMobile;
         this.$layoutUtils.applyContainerStyle(container, this.container);
+        this.$root.$emit('layout-colors-refresh');
         this.$set(this.container, 'cssClass', this.container?.cssClass?.trim() || '');
         if (this.hiddenOnMobile && !this.container.cssClass?.includes?.('hidden-sm-and-down')) {
           this.$set(this.container, 'cssClass', this.container.cssClass ? `${this.container.cssClass} hidden-sm-and-down` : 'hidden-sm-and-down');

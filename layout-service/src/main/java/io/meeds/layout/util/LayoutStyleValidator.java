@@ -35,6 +35,9 @@ import org.exoplatform.portal.config.model.ModelStyle;
  */
 public final class LayoutStyleValidator {
 
+  /** The refusal of a colour read to calculate its dark value. */
+  public static final String INVALID_COLOR = "layout.colors.invalidColor";
+
   private static final Pattern GENERIC_STYLE_VALIDATOR = Pattern.compile("[#0-9a-zA-Z\\(\\),\\./\"'\\-%_ ]+");
 
   /**
@@ -101,6 +104,30 @@ public final class LayoutStyleValidator {
     }
     if (modelObject instanceof Container container && !CollectionUtils.isEmpty(container.getChildren())) {
       container.getChildren().forEach(LayoutStyleValidator::validate);
+    }
+  }
+
+  /**
+   * Validates a colour that is only read, to calculate its dark value, with the
+   * characters allowed for stored colours, each half at most {@link CssColorParser#MAX_LENGTH} long. A "colorA@colorB" scroll pair is
+   * accepted, each half meeting the check on its own.
+   *
+   * @param value the colour, blank accepted
+   * @throws IllegalArgumentException {@link #INVALID_COLOR} when the value is
+   *           refused, a message code that never repeats the value
+   */
+  public static void validateColor(String value) {
+    if (value != null) {
+      for (String half : StringUtils.splitPreserveAllTokens(value, SCROLL_COLOR_SEPARATOR)) {
+        if (half.length() > CssColorParser.MAX_LENGTH) {
+          throw new IllegalArgumentException(INVALID_COLOR);
+        }
+      }
+    }
+    try {
+      validateBackgroundColor(value);
+    } catch (IllegalArgumentException e) {
+      throw new IllegalArgumentException(INVALID_COLOR, e);
     }
   }
 
