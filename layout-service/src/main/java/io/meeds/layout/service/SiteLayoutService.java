@@ -102,6 +102,9 @@ public class SiteLayoutService {
   @Autowired
   private NavigationLayoutService navigationLayoutService;
 
+  @Autowired
+  private PortletService          portletService;
+
   private Map<String, String>     supportedLanguages;
 
   private Locale                  defaultConfiguredLocale;
@@ -324,6 +327,9 @@ public class SiteLayoutService {
                                                      username));
     }
     LayoutStyleValidator.validate(site.getPortalLayout());
+    // a window the client creates gets no protected preference; a stored one
+    // keeps its own, which the storage reset copies
+    portletService.stripProtectedPreferences(Collections.singletonList(site.getPortalLayout()));
     if (!publish) {
       // A draft save keeps the windows and containers it names by storage
       // id: each one must already be held by the edited site layout

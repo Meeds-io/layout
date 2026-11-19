@@ -35,6 +35,8 @@ import static org.mockito.Mockito.when;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Locale;
 
 import io.meeds.layout.model.PortletInstanceContext;
@@ -599,6 +601,67 @@ public class PortletInstanceServiceTest {
     } finally {
       portletInstanceService.removePortletInstancePreferencePlugin(plugin.getPortletName());
     }
+  }
+
+  @Test
+  @SneakyThrows
+  public void getPortletInstancePreferencesNeverReturnsAProtectedPreferenceButToADraft() {
+    when(portletInstanceStorage.getPortletInstance(2)).thenReturn(portletInstance);
+    when(application.getStorageId()).thenReturn("3");
+    when(portletInstanceLayoutStorage.getApplicationPortletName(application)).thenReturn(CONTENT_ID.split("/")[1]);
+    when(portletInstanceLayoutStorage.getOrCreatePortletInstanceApplication(portletInstance)).thenReturn(application);
+    when(portletService.getProtectedPreferences(CONTENT_ID.split("/")[1])).thenReturn(Set.of("groupIds"));
+    Portlet portlet = new Portlet();
+    portlet.setValue("pageSize", "12");
+    portlet.setValue("groupIds", "[{\"groupId\":\"/spaces/hidden\"}]");
+    when(portletInstanceLayoutStorage.getApplicationPreferences(3L)).thenReturn(portlet);
+
+    // a viewer read, a copy, an export
+    for (PortletInstanceContext context : java.util.Arrays.asList(new PortletInstanceContext(false, null),
+                                                                  new PortletInstanceContext(true, new java.util.HashMap<>()),
+                                                                  new PortletInstanceContext(false,
+                                                                                             Map.of(PortletInstanceContext.DRAFT_PROPERTY,
+                                                                                                    "false")))) {
+      List<PortletInstancePreference> preferences = portletInstanceService.getPortletInstancePreferences(2, context, USERNAME);
+      assertEquals(List.of("pageSize"), preferences.stream().map(PortletInstancePreference::getName).toList(), context.toString());
+    }
+    // a draft of the window, published back over it
+    List<PortletInstancePreference> draft =
+                                          portletInstanceService.getPortletInstancePreferences(2,
+                                                                                               new PortletInstanceContext(false,
+                                                                                                                          Map.of(PortletInstanceContext.DRAFT_PROPERTY,
+                                                                                                                                 "true")),
+                                                                                               USERNAME);
+    assertEquals(Set.of("pageSize", "groupIds"), draft.stream().map(PortletInstancePreference::getName).collect(java.util.stream.Collectors.toSet()));
+  }
+
+  @Test
+  public void exportApplicationPreferencesKeepsTheProtectedPreferencesOnACopyOnly() {
+    when(application.getStorageId()).thenReturn("3");
+    org.exoplatform.portal.config.model.ApplicationState state = org.mockito.Mockito.mock(org.exoplatform.portal.config.model.ApplicationState.class);
+    when(application.getState()).thenReturn(state);
+    when(layoutService.getId(state)).thenReturn(CONTENT_ID);
+    when(portletInstanceLayoutStorage.getApplicationPortletName(application)).thenReturn(CONTENT_ID.split("/")[1]);
+    when(portletService.getProtectedPreferences(CONTENT_ID.split("/")[1])).thenReturn(Set.of("groupIds"));
+    Portlet portlet = new Portlet();
+    portlet.setValue("pageSize", "12");
+    portlet.setValue("groupIds", "[{\"groupId\":\"/platform/x\"}]");
+    when(portletInstanceLayoutStorage.getApplicationPreferences(3L)).thenReturn(portlet);
+    org.mockito.ArgumentCaptor<org.exoplatform.portal.config.model.ApplicationState> exported =
+                                                                                             org.mockito.ArgumentCaptor.forClass(org.exoplatform.portal.config.model.ApplicationState.class);
+
+    // a duplicated section keeps the window's groups
+    portletInstanceService.exportApplicationPreferences(application, true);
+    // a template does not
+    portletInstanceService.exportApplicationPreferences(application);
+
+    verify(application, org.mockito.Mockito.times(2)).setState(exported.capture());
+    Portlet copy = ((org.exoplatform.portal.config.model.TransientApplicationState) exported.getAllValues().get(0)).getContentState();
+    Portlet template = ((org.exoplatform.portal.config.model.TransientApplicationState) exported.getAllValues().get(1)).getContentState();
+    assertEquals("[{\"groupId\":\"/platform/x\"}]", copy.getValue("groupIds"));
+    assertEquals("12", copy.getValue("pageSize"));
+    assertNull(template.getPreference("groupIds"));
+    assertEquals("12", template.getValue("pageSize"));
   }
 
   @Test

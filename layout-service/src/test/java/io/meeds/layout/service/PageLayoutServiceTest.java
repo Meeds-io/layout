@@ -38,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.Objects;
 
 import org.junit.jupiter.api.Test;
@@ -117,6 +118,9 @@ public class PageLayoutServiceTest {
 
   @MockitoBean
   private ListenerService         listenerService;
+
+  @MockitoBean
+  private PortletService          portletService;
 
   @Autowired
   private PageLayoutService       pageLayoutService;
@@ -424,6 +428,91 @@ public class PageLayoutServiceTest {
     pageLayoutService.updatePageApplicationPreferences(PAGE_KEY, 2l, preferences, TEST_USER);
     verify(layoutService).save(eq(state), argThat(prefs -> prefs.getValue("name").equals("value")));
     verify(listenerService).broadcast(PageLayoutService.PAGE_UPDATED_EVENT, TEST_USER, PAGE_KEY.format());
+  }
+
+  @Test
+  public void updatePageApplicationPreferencesRefusesAProtectedPreference() throws Exception {
+    Application application = mockPageApplication();
+    when(portletService.getProtectedPreferences("social/PeopleList")).thenReturn(Set.of("groupIds"));
+    List<PortletInstancePreference> preferences = List.of(new PortletInstancePreference("pageSize", "20"),
+                                                          new PortletInstancePreference("groupIds", "[\"/spaces/hidden\"]"));
+
+    assertThrows(IllegalAccessException.class,
+                 () -> pageLayoutService.updatePageApplicationPreferences(PAGE_KEY, 2l, preferences, TEST_USER, true));
+    assertThrows(IllegalAccessException.class,
+                 () -> pageLayoutService.updatePageApplicationPreferences(PAGE_KEY, 2l, preferences, TEST_USER, false));
+    verify(layoutService, never()).save(eq(application.getState()), any(Portlet.class));
+  }
+
+  @Test
+  public void updatePageApplicationPreferencesKeepsTheStoredProtectedPreferencesWhenReplacingTheOthers() throws Exception {
+    Application application = mockPageApplication();
+    when(portletService.getProtectedPreferences("social/PeopleList")).thenReturn(Set.of("groupIds"));
+    Portlet stored = new Portlet();
+    stored.setValue("groupIds", "[{\"groupId\":\"/platform/x\"}]");
+    stored.setValue("headerTranslations", "{\"en\":\"Team\"}");
+    when(layoutService.load(application.getState())).thenReturn(stored);
+
+    pageLayoutService.updatePageApplicationPreferences(PAGE_KEY,
+                                                       2l,
+                                                       List.of(new PortletInstancePreference("pageSize", "20")),
+                                                       TEST_USER,
+                                                       false);
+
+    verify(layoutService).save(eq(application.getState()),
+                               argThat(prefs -> "20".equals(prefs.getValue("pageSize"))
+                                                && "[{\"groupId\":\"/platform/x\"}]".equals(prefs.getValue("groupIds"))
+                                                && prefs.getPreference("headerTranslations") == null));
+  }
+
+  @Test
+  public void updatePageLayoutStripsTheProtectedPreferencesBeforeTheStorageReset() throws Exception {
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(page);
+    when(aclService.canEditPage(PAGE_KEY, TEST_USER)).thenReturn(true);
+    when(page.getPageKey()).thenReturn(PAGE_KEY);
+    ArrayList<ModelObject> children = new ArrayList<>();
+    when(page.getChildren()).thenReturn(children);
+
+    pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER);
+
+    org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(portletService, page, layoutService);
+    inOrder.verify(portletService).stripProtectedPreferences(children);
+    inOrder.verify(page).resetStorage();
+    inOrder.verify(layoutService).save(page);
+  }
+
+  @Test
+  public void cloneSectionCopiesTheWindowsAsACopyNotATemplate() throws Exception {
+    Container section = new Container("5");
+    Container parent = new Container("4");
+    parent.setChildren(new ArrayList<>(List.of(section)));
+    when(containerLayoutService.findContainer(PAGE_KEY, 5l)).thenReturn(section);
+    when(aclService.canEditPage(PAGE_KEY, TEST_USER)).thenReturn(true);
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(page);
+    when(page.getChildren()).thenReturn(new ArrayList<>(List.of(parent)));
+    when(page.getPageKey()).thenReturn(PAGE_KEY);
+    Container clone = new Container();
+    when(containerLayoutService.cloneContainer(section, true)).thenReturn(clone);
+
+    pageLayoutService.cloneSection(PAGE_KEY, 5l, TEST_USER);
+
+    verify(containerLayoutService).cloneContainer(section, true);
+    verify(containerLayoutService, never()).cloneContainer(section);
+    assertEquals(clone, parent.getChildren().get(1));
+  }
+
+  private Application mockPageApplication() {
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(page);
+    when(aclService.canEditPage(PAGE_KEY, TEST_USER)).thenReturn(true);
+    Container container = mock(Container.class);
+    Application application = mock(Application.class);
+    when(container.getChildren()).thenReturn(new ArrayList<>(Collections.singleton(application)));
+    when(page.getChildren()).thenReturn(new ArrayList<>(Collections.singleton(container)));
+    when(application.getStorageId()).thenReturn("2");
+    ApplicationState state = mock(ApplicationState.class);
+    when(application.getState()).thenReturn(state);
+    when(layoutService.getId(state)).thenReturn("social/PeopleList");
+    return application;
   }
 
   @Test

@@ -18,9 +18,23 @@
  */
 package io.meeds.layout.service;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.commons.collections4.CollectionUtils;
 
 import org.springframework.stereotype.Service;
+
+import org.exoplatform.portal.config.model.Application;
+import org.exoplatform.portal.config.model.Container;
+import org.exoplatform.portal.config.model.ModelObject;
+import org.exoplatform.portal.config.model.TransientApplicationState;
+import org.exoplatform.portal.pom.spi.portlet.Portlet;
+import org.exoplatform.portal.pom.spi.portlet.Preference;
 
 import io.meeds.layout.model.PortletDescriptor;
 import io.meeds.layout.storage.PortletStorage;
@@ -47,6 +61,49 @@ public class PortletService {
    */
   public PortletDescriptor getPortlet(String id) {
     return portletStorage.getPortletDescriptor(id);
+  }
+
+  /**
+   * @param id a portlet's contentId or name
+   * @return the preference names only the portlet itself writes, empty when
+   *         it declares none or is unknown
+   */
+  public Set<String> getProtectedPreferences(String id) {
+    PortletDescriptor portlet = id == null ? null : getPortlet(id);
+    return portlet == null || CollectionUtils.isEmpty(portlet.getProtectedPreferences()) ? Collections.emptySet()
+                                                                                       : Set.copyOf(portlet.getProtectedPreferences());
+  }
+
+  /**
+   * Removes the protected preferences from every window of a client-built
+   * layout that carries its own preferences, a window to create: the window
+   * then gets none of them. A window sent by storage id keeps its stored
+   * preferences, whatever the client sends.
+   *
+   * @param children the layout's children, walked recursively
+   */
+  public void stripProtectedPreferences(Collection<ModelObject> children) {
+    if (CollectionUtils.isEmpty(children)) {
+      return;
+    }
+    for (ModelObject child : children) {
+      if (child instanceof Container container) {
+        stripProtectedPreferences(container.getChildren());
+      } else if (child instanceof Application application
+                 && application.getState() instanceof TransientApplicationState state
+                 && state.getContentState() instanceof Portlet preferences) {
+        Set<String> protectedPreferences = getProtectedPreferences(state.getContentId());
+        if (!protectedPreferences.isEmpty()) {
+          Map<String, Preference> kept = new LinkedHashMap<>();
+          for (Preference preference : preferences) {
+            if (!protectedPreferences.contains(preference.getName())) {
+              kept.put(preference.getName(), preference);
+            }
+          }
+          state.setContentState(new Portlet(kept));
+        }
+      }
+    }
   }
 
 }

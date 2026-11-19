@@ -149,4 +149,29 @@ public class PortletStorageTest {
     portletStorage.setPortletDescriptors(null);
     assertNull(portletStorage.getPortletDescriptor(PORTLET_NAME));
   }
+
+  @Test
+  @SneakyThrows
+  public void getPortletDescriptorReadsTheProtectedPreferences() {
+    org.gatein.pc.portlet.impl.info.ContainerPortletInfo containerInfo =
+                                                                     org.mockito.Mockito.mock(org.gatein.pc.portlet.impl.info.ContainerPortletInfo.class);
+    when(portletInvoker.getPortlets()).thenReturn(Collections.singleton(portlet));
+    when(portlet.getInfo()).thenReturn(containerInfo);
+    when(containerInfo.getApplicationName()).thenReturn(APPLICATION_NAME);
+    when(containerInfo.getName()).thenReturn(PORTLET_NAME);
+    org.gatein.pc.portlet.impl.info.ContainerMetaInfo containerMetaInfo =
+                                                                     org.mockito.Mockito.mock(org.gatein.pc.portlet.impl.info.ContainerMetaInfo.class);
+    org.gatein.pc.portlet.impl.info.ContainerCapabilitiesInfo containerCapabilitiesInfo =
+                                                                                     org.mockito.Mockito.mock(org.gatein.pc.portlet.impl.info.ContainerCapabilitiesInfo.class);
+    when(containerInfo.getMeta()).thenReturn(containerMetaInfo);
+    when(containerInfo.getCapabilities()).thenReturn(containerCapabilitiesInfo);
+    when(containerInfo.getInitParameter("layout-content-editable")).thenReturn("true");
+    when(containerInfo.getInitParameter(PortletStorage.PROTECTED_PREFERENCES_PARAM)).thenReturn(" groupIds, showHidden ,,groupIds ");
+
+    assertEquals(List.of("groupIds", "showHidden"), portletStorage.getPortletDescriptor(PORTLET_NAME).getProtectedPreferences());
+
+    when(containerInfo.getInitParameter(PortletStorage.PROTECTED_PREFERENCES_PARAM)).thenReturn(null);
+    portletStorage.setPortletDescriptors(null);
+    assertEquals(List.of(), portletStorage.getPortletDescriptor(PORTLET_NAME).getProtectedPreferences());
+  }
 }
