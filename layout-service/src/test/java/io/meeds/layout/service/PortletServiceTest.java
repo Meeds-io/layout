@@ -18,10 +18,10 @@
  */
 package io.meeds.layout.service;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
@@ -109,9 +109,8 @@ class PortletServiceTest {
 
   @Test
   void stripAcceptsNoChildren() {
-    portletService.stripProtectedPreferences(null);
-    portletService.stripProtectedPreferences(new ArrayList<>());
-    assertTrue(true);
+    assertDoesNotThrow(() -> portletService.stripProtectedPreferences(null));
+    assertDoesNotThrow(() -> portletService.stripProtectedPreferences(new ArrayList<>()));
   }
 
   private static Application transientWindow(String contentId) {

@@ -27,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -43,6 +44,7 @@ import java.util.Objects;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -475,7 +477,7 @@ public class PageLayoutServiceTest {
 
     pageLayoutService.updatePageLayout(PAGE_KEY.format(), page, true, TEST_USER);
 
-    org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(portletService, page, layoutService);
+    InOrder inOrder = inOrder(portletService, page, layoutService);
     inOrder.verify(portletService).stripProtectedPreferences(children);
     inOrder.verify(page).resetStorage();
     inOrder.verify(layoutService).save(page);
