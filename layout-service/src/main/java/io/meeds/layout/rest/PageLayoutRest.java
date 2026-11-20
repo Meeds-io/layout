@@ -24,6 +24,7 @@ import java.util.Optional;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +38,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.server.ResponseStatusException;
 
 import org.exoplatform.commons.exception.ObjectNotFoundException;
@@ -65,6 +65,8 @@ import jakarta.servlet.http.HttpServletRequest;
 @Tag(name = "pages", description = "Managing site pages")
 public class PageLayoutRest {
 
+  public static final String PRIVATE_NO_STORE = "private, no-store";
+
   @Autowired
   private PageLayoutService pageLayoutService;
 
@@ -76,7 +78,7 @@ public class PageLayoutRest {
   @ApiResponses(value = {
     @ApiResponse(responseCode = "200", description = "Request fulfilled"),
   })
-  public List<PageContext> getPages(
+  public ResponseEntity<List<PageContext>> getPages(
                                     HttpServletRequest request,
                                     @Parameter(description = "Portal site type, possible values: PORTAL, GROUP or USER", required = false)
                                     @RequestParam(name = "siteType", required = false)
@@ -93,19 +95,22 @@ public class PageLayoutRest {
                                     @Parameter(description = "Results limit", required = false)
                                     @RequestParam(name = "limit", required = false, defaultValue = "10")
                                     int limit) {
-    return pageLayoutService.getPages(siteType, siteName, pageDisplayName, offset, limit, request.getRemoteUser());
+    return privateResponse(HttpStatus.OK).body(pageLayoutService.getPages(siteType,
+                                                                         siteName,
+                                                                         pageDisplayName,
+                                                                         offset,
+                                                                         limit,
+                                                                         request.getRemoteUser()));
   }
 
   @GetMapping("layout")
   @Operation(summary = "Retrieve page layout by reference", method = "GET", description = "This retrieves page by reference")
   @ApiResponses(value = {
     @ApiResponse(responseCode = "200", description = "Request fulfilled"),
-    @ApiResponse(responseCode = "304", description = "Not modified"),
     @ApiResponse(responseCode = "403", description = "Forbidden"),
     @ApiResponse(responseCode = "404", description = "Not found"),
   })
   public ResponseEntity<LayoutModel> getPageLayout(
-                                                   WebRequest webRequest,
                                                    HttpServletRequest request,
                                                    @Parameter(description = "page reference", required = true)
                                                    @RequestParam("pageRef")
@@ -123,19 +128,13 @@ public class PageLayoutRest {
                                                    @RequestParam(name = "expand", required = false)
                                                    String expand) {
     try {
-      LayoutModel pageLayout = getPageLayout(request, pageRef, siteId, applicationId, impersonate, expand);
-      String eTag = String.valueOf(pageLayout.hashCode());
-      if (webRequest.checkNotModified(eTag)) {
-        return ResponseEntity.status(HttpStatus.NOT_MODIFIED).build();
-      } else {
-        return ResponseEntity.ok()
-                             .eTag(eTag)
-                             .body(pageLayout);
-      }
+      // Stored by no cache, the answer is never revalidated: it carries no
+      // validator
+      return privateResponse(HttpStatus.OK).body(readPageLayout(request, pageRef, siteId, applicationId, impersonate, expand));
     } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+      return privateResponse(HttpStatus.NOT_FOUND).build();
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+      return privateResponse(HttpStatus.FORBIDDEN).build();
     }
   }
 
@@ -146,17 +145,17 @@ public class PageLayoutRest {
     @ApiResponse(responseCode = "403", description = "Forbidden"),
     @ApiResponse(responseCode = "404", description = "Not found"),
   })
-  public PageContext getPage(
+  public ResponseEntity<PageContext> getPage(
                              HttpServletRequest request,
                              @Parameter(description = "page reference", required = true)
                              @RequestParam("pageRef")
                              String pageRef) {
     try {
-      return pageLayoutService.getPage(PageKey.parse(pageRef), request.getRemoteUser());
+      return privateResponse(HttpStatus.OK).body(pageLayoutService.getPage(PageKey.parse(pageRef), request.getRemoteUser()));
     } catch (ObjectNotFoundException e) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage());
+      return privateResponse(HttpStatus.NOT_FOUND).build();
     } catch (IllegalAccessException e) {
-      throw new ResponseStatusException(HttpStatus.FORBIDDEN, e.getMessage());
+      return privateResponse(HttpStatus.FORBIDDEN).build();
     }
   }
 
@@ -208,7 +207,7 @@ public class PageLayoutRest {
                                          layoutModel.toPage(),
                                          publish.orElse(false).booleanValue(),
                                          request.getRemoteUser());
-      return getPageLayout(request, pageRef, 0, 0, false, expand);
+      return readPageLayout(request, pageRef, 0, 0, false, expand);
     } catch (IllegalArgumentException | IllegalStateException e) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage());
     } catch (ObjectNotFoundException e) {
@@ -352,12 +351,21 @@ public class PageLayoutRest {
     }
   }
 
-  private LayoutModel getPageLayout(HttpServletRequest request,
-                                    String pageRef,
-                                    long siteId,
-                                    long applicationId,
-                                    boolean impersonate,
-                                    String expand) throws ObjectNotFoundException, IllegalAccessException {
+  /**
+   * A page read's answer depends on the reader's permissions, a draft's on
+   * the live page's edit permission: no shared cache may serve it to another
+   * reader, whatever the status
+   */
+  private ResponseEntity.BodyBuilder privateResponse(HttpStatus status) {
+    return ResponseEntity.status(status).header(HttpHeaders.CACHE_CONTROL, PRIVATE_NO_STORE);
+  }
+
+  private LayoutModel readPageLayout(HttpServletRequest request,
+                                     String pageRef,
+                                     long siteId,
+                                     long applicationId,
+                                     boolean impersonate,
+                                     String expand) throws ObjectNotFoundException, IllegalAccessException {
     ModelObject modelObject = applicationId > 0 ? pageLayoutService.getPageApplicationLayout(PageKey.parse(pageRef),
                                                                                              applicationId,
                                                                                              request.getRemoteUser()) :

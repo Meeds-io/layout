@@ -25,7 +25,7 @@
     <div
       v-show="display || hoverButton"
       :style="leftButtonStyle"
-      class="position-absolute t-10 full-height justify-center z-index-two">
+      class="layout-editor-control position-absolute t-10 full-height justify-center z-index-two">
       <div class="position-relative full-height">
         <div class="position-sticky t-20 z-index-one">
           <v-tooltip :disabled="moving" bottom>

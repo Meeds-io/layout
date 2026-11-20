@@ -19,7 +19,9 @@
 
 -->
 <template>
-  <div class="absolute-full-size">
+  <div
+    class="absolute-full-size"
+    style="--appIconColor: initial; --appTextColor: initial; --allPagesBaseIconColor: initial; --allPagesBaseTextColor: initial;">
     <div class="position-relative full-width full-height d-flex flex-column">
       <div class="position-sticky t-0 mb-auto"></div>
       <div class="position-sticky t-quarter b-quarter z-index-floating-button d-flex align-center">

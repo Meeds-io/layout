@@ -317,7 +317,7 @@ export default {
       return this.container?.children?.[0]?.contentId || this.container?.contentId;
     },
     application() {
-      return this.$root.portletInstances?.find?.(a => a?.contentId === this.applicationContentId);
+      return this.$root.portlets?.find?.(a => a?.contentId === this.applicationContentId);
     },
     supportedModes() {
       return this.application?.supportedModes || [];

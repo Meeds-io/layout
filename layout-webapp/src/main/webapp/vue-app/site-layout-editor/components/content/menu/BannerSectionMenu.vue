@@ -21,6 +21,7 @@
 <template>
   <div
     v-show="displayBorder"
+    class="layout-editor-control"
     :class="moving && 'layout-section-moving' || 'layout-section-hover'">
     <v-fade-transition>
       <!-- eslint-disable-next-line vuejs-accessibility/no-static-element-interactions -->
