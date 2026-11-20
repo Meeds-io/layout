@@ -41,6 +41,13 @@ public class PortletDescriptor {
 
   private boolean      editable;
 
+  /**
+   * The preference names only the portlet itself writes, declared by its
+   * {@code layout-protected-preferences} init-param: the layout API neither
+   * stores nor returns them on a client's behalf.
+   */
+  private List<String> protectedPreferences;
+
   public String getContentId() {
     return applicationName + "/" + portletName;
   }
