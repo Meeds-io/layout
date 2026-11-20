@@ -235,4 +235,24 @@ class ContainerLayoutServiceTest {
                                                                 newFileId));
   }
 
+
+  @Test
+  public void cloneContainerAsACopyExportsEveryNestedWindowAsACopy() {
+    org.exoplatform.portal.config.model.Application window = new org.exoplatform.portal.config.model.Application("7");
+    window.setState(new org.exoplatform.portal.config.model.PersistentApplicationState("7"));
+    org.exoplatform.portal.config.model.Container column = new org.exoplatform.portal.config.model.Container("6");
+    column.setChildren(new java.util.ArrayList<>(java.util.List.of(window)));
+    org.exoplatform.portal.config.model.Container section = new org.exoplatform.portal.config.model.Container("5");
+    section.setTemplate("FlexContainer");
+    column.setTemplate("CellContainer");
+    section.setChildren(new java.util.ArrayList<>(java.util.List.of(column)));
+
+    containerLayoutService.cloneContainer(section, true);
+    org.mockito.Mockito.verify(portletInstanceService).exportApplicationPreferences(window, true);
+
+    org.mockito.Mockito.clearInvocations(portletInstanceService);
+    containerLayoutService.cloneContainer(section);
+    org.mockito.Mockito.verify(portletInstanceService).exportApplicationPreferences(window, false);
+    org.mockito.Mockito.verify(portletInstanceService, org.mockito.Mockito.never()).exportApplicationPreferences(window, true);
+  }
 }
