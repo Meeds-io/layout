@@ -18,6 +18,7 @@
  */
 package io.meeds.layout.storage;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -43,6 +44,12 @@ import lombok.SneakyThrows;
 
 @Component
 public class PortletStorage {
+
+  /**
+   * The portlet.xml init-param naming, comma-separated, the preferences only
+   * the portlet itself writes.
+   */
+  public static final String      PROTECTED_PREFERENCES_PARAM = "layout-protected-preferences";
 
   // Can't be injected using @Autowired since it's injected by code
   // in org.exoplatform.portal.pc.ExoKernelIntegration
@@ -91,6 +98,12 @@ public class PortletStorage {
                                         .toList());
     if(info instanceof ContainerPortletInfo containerPortletInfo) {
       portletDescriptor.setEditable(StringUtils.equals("true", containerPortletInfo.getInitParameter("layout-content-editable")));
+      portletDescriptor.setProtectedPreferences(Arrays.stream(StringUtils.split(StringUtils.defaultString(containerPortletInfo.getInitParameter(PROTECTED_PREFERENCES_PARAM)),
+                                                                                ','))
+                                                      .map(StringUtils::trim)
+                                                      .filter(StringUtils::isNotBlank)
+                                                      .distinct()
+                                                      .toList());
     }
     return portletDescriptor;
   }

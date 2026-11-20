@@ -113,17 +113,31 @@ public class ContainerLayoutService {
   private long                   superUserIdentityId;
 
   public Container cloneContainer(Container container) {
-    exportPortletPreferences(container);
+    return cloneContainer(container, false);
+  }
+
+  /**
+   * @param container the container to clone
+   * @param copy whether the clone is a copy of the section on a page, whose
+   *          windows keep their protected preferences, rather than a template
+   * @return the clone, with no storage id
+   */
+  public Container cloneContainer(Container container, boolean copy) {
+    exportPortletPreferences(container, copy);
     LayoutModel sectionLayoutModel = new LayoutModel(container);
     sectionLayoutModel.resetStorage();
     return (Container) EntityMapper.toModelObject(sectionLayoutModel);
   }
 
   public void exportPortletPreferences(ModelObject object) {
+    exportPortletPreferences(object, false);
+  }
+
+  private void exportPortletPreferences(ModelObject object, boolean copy) {
     if (object instanceof Container container && CollectionUtils.isNotEmpty(container.getChildren())) {
-      container.getChildren().forEach(this::exportPortletPreferences);
+      container.getChildren().forEach(child -> exportPortletPreferences(child, copy));
     } else if (object instanceof Application application) {
-      portletInstanceService.exportApplicationPreferences(application);
+      portletInstanceService.exportApplicationPreferences(application, copy);
     }
   }
 

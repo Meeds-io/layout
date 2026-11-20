@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -105,6 +106,9 @@ public class PageLayoutService {
 
   @Autowired
   private ListenerService        listenerService;
+
+  @Autowired
+  private PortletService         portletService;
 
   public List<PageContext> getPages(String siteTypeName,
                                     String siteName,
@@ -283,7 +287,7 @@ public class PageLayoutService {
     }
     Page page = getPageLayout(pageKey);
     Container parentContainer = findParentContainer(page, String.valueOf(containerId));
-    Container clonedContainer = containerLayoutService.cloneContainer(container);
+    Container clonedContainer = containerLayoutService.cloneContainer(container, true);
     int containerIndex = parentContainer.getChildren()// NOSONAR
                                         .stream()
                                         .map(ModelObject::getStorageId)
@@ -317,11 +321,26 @@ public class PageLayoutService {
                                                       applicationId,
                                                       pageKey));
     }
-    Portlet portletPreferences = new Portlet();
+    // a protected preference is written by its portlet only: refused when
+    // posted, and its stored value kept whatever the mode
+    Set<String> protectedPreferences = portletService.getProtectedPreferences(layoutService.getId(application.getState()));
+    if (preferences.stream().anyMatch(preference -> protectedPreferences.contains(preference.getName()))) {
+      throw new IllegalAccessException(String.format("A protected preference of application %s can't be set by user %s",
+                                                     applicationId,
+                                                     username));
+    }
+    Portlet storedPreferences = keepExisting || !protectedPreferences.isEmpty() ? layoutService.load(application.getState())
+                                                                                : null;
+    Portlet portletPreferences;
     if (keepExisting) {
-      portletPreferences = layoutService.load(application.getState());
-      if (portletPreferences == null) {
-        portletPreferences = new Portlet();
+      portletPreferences = storedPreferences == null ? new Portlet() : storedPreferences;
+    } else {
+      portletPreferences = new Portlet();
+      if (storedPreferences != null) {
+        protectedPreferences.stream()
+                            .map(storedPreferences::getPreference)
+                            .filter(Objects::nonNull)
+                            .forEach(portletPreferences::putPreference);
       }
     }
     for (PortletInstancePreference preference : preferences) {
@@ -345,6 +364,9 @@ public class PageLayoutService {
     } else if (!aclService.canEditPage(pageKey, username)) {
       throw new IllegalAccessException(String.format(PAGE_NOT_EDITABLE_MESSAGE, pageKey.format(), username));
     }
+    // a window the client creates gets no protected preference; a stored one
+    // keeps its own, which the storage reset copies
+    portletService.stripProtectedPreferences(page.getChildren());
 
     try {
       if (publish) {
