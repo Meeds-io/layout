@@ -21,6 +21,7 @@ package io.meeds.layout.storage;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
@@ -34,6 +35,9 @@ import org.gatein.pc.api.info.MetaInfo;
 import org.gatein.pc.api.info.ModeInfo;
 import org.gatein.pc.api.info.PortletInfo;
 import org.gatein.pc.api.info.PreferencesInfo;
+import org.gatein.pc.portlet.impl.info.ContainerCapabilitiesInfo;
+import org.gatein.pc.portlet.impl.info.ContainerMetaInfo;
+import org.gatein.pc.portlet.impl.info.ContainerPortletInfo;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -148,5 +152,27 @@ public class PortletStorageTest {
     when(portlet.isRemote()).thenReturn(true);
     portletStorage.setPortletDescriptors(null);
     assertNull(portletStorage.getPortletDescriptor(PORTLET_NAME));
+  }
+
+  @Test
+  @SneakyThrows
+  public void getPortletDescriptorReadsTheProtectedPreferences() {
+    ContainerPortletInfo containerInfo = mock(ContainerPortletInfo.class);
+    when(portletInvoker.getPortlets()).thenReturn(Collections.singleton(portlet));
+    when(portlet.getInfo()).thenReturn(containerInfo);
+    when(containerInfo.getApplicationName()).thenReturn(APPLICATION_NAME);
+    when(containerInfo.getName()).thenReturn(PORTLET_NAME);
+    ContainerMetaInfo containerMetaInfo = mock(ContainerMetaInfo.class);
+    ContainerCapabilitiesInfo containerCapabilitiesInfo = mock(ContainerCapabilitiesInfo.class);
+    when(containerInfo.getMeta()).thenReturn(containerMetaInfo);
+    when(containerInfo.getCapabilities()).thenReturn(containerCapabilitiesInfo);
+    when(containerInfo.getInitParameter("layout-content-editable")).thenReturn("true");
+    when(containerInfo.getInitParameter(PortletStorage.PROTECTED_PREFERENCES_PARAM)).thenReturn(" groupIds, showHidden ,,groupIds ");
+
+    assertEquals(List.of("groupIds", "showHidden"), portletStorage.getPortletDescriptor(PORTLET_NAME).getProtectedPreferences());
+
+    when(containerInfo.getInitParameter(PortletStorage.PROTECTED_PREFERENCES_PARAM)).thenReturn(null);
+    portletStorage.setPortletDescriptors(null);
+    assertEquals(List.of(), portletStorage.getPortletDescriptor(PORTLET_NAME).getProtectedPreferences());
   }
 }

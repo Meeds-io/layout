@@ -110,6 +110,9 @@ public class DraftPageAccessTest {
   @MockitoBean
   private IdentityManager         identityManager;
 
+  @MockitoBean
+  private PortletService          portletService;
+
   @Autowired
   private UserACL                 userAcl;
 

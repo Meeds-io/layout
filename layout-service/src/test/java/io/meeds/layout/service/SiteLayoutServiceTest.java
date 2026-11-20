@@ -141,6 +141,9 @@ public class SiteLayoutServiceTest {
   @MockitoBean
   private TranslationService      translationService;
 
+  @MockitoBean
+  private PortletService          portletService;
+
   @Autowired
   private SiteLayoutService       siteLayoutService;
 
@@ -871,6 +874,30 @@ public class SiteLayoutServiceTest {
     siteLayoutService.updateSiteLayout(SITE_KEY, site, false, TEST_USER);
     verify(portalConfig).setPortalLayout(siteLayout);
     verify(layoutService).save(portalConfig);
+  }
+
+  @Test
+  @SneakyThrows
+  public void updateSiteLayoutStripsTheProtectedPreferencesBeforeTheStorageReset() {
+    PortalConfig site = mock(PortalConfig.class);
+    SiteLayout siteLayout = new SiteLayout();
+    when(site.getPortalLayout()).thenReturn(siteLayout);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(portalConfig);
+    when(aclService.canEditSite(SITE_KEY, TEST_USER)).thenReturn(true);
+
+    for (boolean publish : new boolean[] { true, false }) {
+      org.mockito.Mockito.clearInvocations(portletService, portalConfig, layoutService);
+      siteLayoutService.updateSiteLayout(SITE_KEY, site, publish, TEST_USER);
+
+      org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(portletService, portalConfig, layoutService);
+      inOrder.verify(portletService).stripProtectedPreferences(List.of(siteLayout));
+      if (publish) {
+        inOrder.verify(portalConfig).resetStorage();
+      } else {
+        inOrder.verify(portalConfig).checkStorage();
+      }
+      inOrder.verify(layoutService).save(portalConfig);
+    }
   }
 
   @Test
