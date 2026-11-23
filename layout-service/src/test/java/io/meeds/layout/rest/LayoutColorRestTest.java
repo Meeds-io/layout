@@ -52,7 +52,8 @@ import io.meeds.spring.web.security.WebSecurityConfiguration;
 
 import jakarta.servlet.Filter;
 
-@SpringBootTest(classes = { LayoutColorRest.class, LayoutDarkColorService.class, PortalAuthenticationManager.class, })
+@SpringBootTest(classes = { LayoutColorRest.class, LayoutDarkColorService.class, PortalAuthenticationManager.class, },
+    properties = "spring.jackson.deserialization.fail-on-null-for-primitives=false")
 @ContextConfiguration(classes = { WebSecurityConfiguration.class })
 @AutoConfigureWebMvc
 @AutoConfigureMockMvc(addFilters = false)
