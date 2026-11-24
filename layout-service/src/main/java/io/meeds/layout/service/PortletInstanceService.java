@@ -386,8 +386,18 @@ public class PortletInstanceService {
   }
 
   public Portlet getApplicationPortletPreferences(Application application) {
-    List<PortletInstancePreference> exportedPreferences = getApplicationPreferences(application,
-                                                                                    new PortletInstanceContext(false, null));
+    return getApplicationPortletPreferences(application, new PortletInstanceContext(false, null));
+  }
+
+  /**
+   * @param application the window
+   * @param portletInstanceContext the context the preferences are generated
+   *          for, passed to the portlet's preference plugin
+   * @return the window's preferences as its plugin generates them for that
+   *         context
+   */
+  public Portlet getApplicationPortletPreferences(Application application, PortletInstanceContext portletInstanceContext) {
+    List<PortletInstancePreference> exportedPreferences = getApplicationPreferences(application, portletInstanceContext);
     Map<String, Preference> preferencesMap = exportedPreferences.stream()
                                                                 .collect(Collectors.toMap(PortletInstancePreference::getName,
                                                                                           p -> new Preference(p.getName(),
