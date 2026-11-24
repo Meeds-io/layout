@@ -21,6 +21,7 @@ package io.meeds.layout.service;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -54,6 +55,7 @@ import io.meeds.layout.model.LayoutModel;
 import io.meeds.layout.model.PageCreateModel;
 import io.meeds.layout.model.PageTemplate;
 import io.meeds.layout.model.PermissionUpdateModel;
+import io.meeds.layout.model.PortletInstanceContext;
 import io.meeds.layout.model.PortletInstancePreference;
 import io.meeds.layout.util.EntityMapper;
 import io.meeds.layout.util.JsonUtils;
@@ -163,17 +165,34 @@ public class PageLayoutService {
   }
 
   public void impersonateSite(SiteKey siteKey) {
+    impersonateSite(siteKey, false);
+  }
+
+  /**
+   * Makes the windows of a site created from another one hold their own
+   * preferences, as their preference plugins generate them.
+   *
+   * @param siteKey the created site
+   * @param copy whether the site is a copy of a live site, a duplicated site,
+   *          whose windows keep their own settings
+   *          ({@link PortletInstanceContext#COPY_PROPERTY}), rather than a site
+   *          made from a template or a template made from a site
+   */
+  public void impersonateSite(SiteKey siteKey, boolean copy) {
+    PortletInstanceContext portletInstanceContext = copy ? new PortletInstanceContext(false,
+                                                                                      Map.of(PortletInstanceContext.COPY_PROPERTY,
+                                                                                             "true"))
+                                                         : null;
     PortalConfig portalConfig = layoutService.getPortalConfig(siteKey);
-    impersonateModel(portalConfig.getPortalLayout(), null);
+    impersonateModel(portalConfig.getPortalLayout(), null, portletInstanceContext);
     List<PageContext> pages = layoutService.findPages(siteKey);
     if (CollectionUtils.isNotEmpty(pages)) {
-      pages.forEach(page -> impersonatePage(page.getKey()));
+      pages.forEach(page -> impersonatePage(page.getKey(), portletInstanceContext));
     }
   }
 
   public void impersonatePage(PageKey pageKey) {
-    Page page = getPageLayout(pageKey);
-    impersonateModel(page, page);
+    impersonatePage(pageKey, null);
   }
 
   public ModelObject getPageLayout(PageKey pageKey, String username) throws ObjectNotFoundException, IllegalAccessException {
@@ -595,8 +614,13 @@ public class PageLayoutService {
     return modelObject;
   }
 
+  private void impersonatePage(PageKey pageKey, PortletInstanceContext portletInstanceContext) {
+    Page page = getPageLayout(pageKey);
+    impersonateModel(page, page, portletInstanceContext);
+  }
+
   @SneakyThrows
-  private void impersonateModel(ModelObject object, Page page) {
+  private void impersonateModel(ModelObject object, Page page, PortletInstanceContext portletInstanceContext) {
     if (object instanceof Container container
         // Keep the addonContainer reference instead of storing its children
         && !StringUtils.equals(container.getFactoryId(), ADDON_CONTAINER_FACTORY_ID)) {
@@ -610,7 +634,7 @@ public class PageLayoutService {
                  e);
       }
       if (CollectionUtils.isNotEmpty(children)) {
-        children.forEach(c -> impersonateModel(c, page));
+        children.forEach(c -> impersonateModel(c, page, portletInstanceContext));
       }
     } else if (object instanceof Application application) {
       ModelStyle cssStyle = object.getCssStyle();
@@ -622,7 +646,9 @@ public class PageLayoutService {
           cssStyle.setBackgroundImage(clonedBackgroundImageUrl);
         }
       }
-      Portlet preferences = portletInstanceService.getApplicationPortletPreferences(application);
+      Portlet preferences = portletInstanceContext == null ? portletInstanceService.getApplicationPortletPreferences(application)
+                                                           : portletInstanceService.getApplicationPortletPreferences(application,
+                                                                                                                     portletInstanceContext);
       if (preferences != null && StringUtils.isNotBlank(application.getStorageId())) {
         layoutService.save(application.getState(), preferences);
       }

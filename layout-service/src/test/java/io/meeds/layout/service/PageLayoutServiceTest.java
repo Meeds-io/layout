@@ -46,6 +46,7 @@ import java.util.Objects;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.InOrder;
@@ -82,6 +83,7 @@ import org.exoplatform.services.listener.ListenerService;
 import io.meeds.layout.model.PageCreateModel;
 import io.meeds.layout.model.PageTemplate;
 import io.meeds.layout.model.PermissionUpdateModel;
+import io.meeds.layout.model.PortletInstanceContext;
 import io.meeds.layout.model.PortletInstancePreference;
 
 import lombok.SneakyThrows;
@@ -207,6 +209,42 @@ public class PageLayoutServiceTest {
     when(application.getStorageId()).thenReturn("2");
     pageLayoutService.impersonateSite(SITE_KEY);
     verify(layoutService).save(state, preferences);
+  }
+
+  /**
+   * A duplicated site's windows keep their own settings: their preferences are
+   * generated with the copy marker, on the site layout as on every page; a
+   * site made from a template gets them without it.
+   */
+  @Test
+  @SneakyThrows
+  public void impersonateSiteAsACopyPassesTheCopyMarkerToEveryWindow() {
+    Application siteApplication = mock(Application.class);
+    SiteLayout siteLayout = mock(SiteLayout.class);
+    when(siteLayout.getChildren()).thenReturn(new ArrayList<>(Collections.singleton(siteApplication)));
+    when(site.getPortalLayout()).thenReturn(siteLayout);
+    when(layoutService.getPortalConfig(SITE_KEY)).thenReturn(site);
+    when(layoutService.findPages(SITE_KEY)).thenReturn(Collections.singletonList(pageContext));
+    when(pageContext.getKey()).thenReturn(PAGE_KEY);
+    when(layoutService.getPage(PAGE_KEY)).thenReturn(page);
+    Container container = mock(Container.class);
+    Application pageApplication = mock(Application.class);
+    when(container.getChildren()).thenReturn(new ArrayList<>(Collections.singleton(pageApplication)));
+    when(page.getChildren()).thenReturn(new ArrayList<>(Collections.singleton(container)));
+    ArgumentCaptor<PortletInstanceContext> context = ArgumentCaptor.forClass(PortletInstanceContext.class);
+
+    pageLayoutService.impersonateSite(SITE_KEY, true);
+
+    verify(portletInstanceService).getApplicationPortletPreferences(eq(siteApplication), context.capture());
+    verify(portletInstanceService).getApplicationPortletPreferences(eq(pageApplication), context.capture());
+    context.getAllValues()
+           .forEach(c -> assertEquals("true", c.getProperties().get(PortletInstanceContext.COPY_PROPERTY)));
+    verify(portletInstanceService, never()).getApplicationPortletPreferences(any(Application.class));
+
+    pageLayoutService.impersonateSite(SITE_KEY, false);
+
+    verify(portletInstanceService).getApplicationPortletPreferences(siteApplication);
+    verify(portletInstanceService).getApplicationPortletPreferences(pageApplication);
   }
 
   @Test
