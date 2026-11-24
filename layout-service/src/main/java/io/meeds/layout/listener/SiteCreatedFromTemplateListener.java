@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component;
 
 import org.exoplatform.portal.config.UserPortalConfigService;
 import org.exoplatform.portal.mop.SiteKey;
+import org.exoplatform.portal.mop.SiteType;
 import org.exoplatform.services.listener.Event;
 import org.exoplatform.services.listener.ListenerBase;
 import org.exoplatform.services.listener.ListenerService;
@@ -45,9 +46,24 @@ public class SiteCreatedFromTemplateListener implements ListenerBase<SiteKey, Si
     listenerService.addListener(UserPortalConfigService.SITE_TEMPLATE_INSTANTIATED, this);
   }
 
+  /**
+   * Makes the windows of the created site hold their own preferences. The
+   * event's source is the site it was created from: when both are live sites,
+   * the created site is a duplicate, whose windows keep their own settings; a
+   * site made from a template, or a template made from a site, gets what the
+   * preference plugins give a template.
+   */
   @Override
   public void onEvent(Event<SiteKey, SiteKey> event) throws Exception {
-    pageLayoutService.impersonateSite(event.getData());
+    pageLayoutService.impersonateSite(event.getData(), isLiveSite(event.getSource()) && isLiveSite(event.getData()));
+  }
+
+  private static boolean isLiveSite(SiteKey siteKey) {
+    if (siteKey == null) {
+      return false;
+    }
+    SiteType type = siteKey.getType();
+    return type == SiteType.PORTAL || type == SiteType.GROUP || type == SiteType.USER || type == SiteType.SPACE;
   }
 
 }

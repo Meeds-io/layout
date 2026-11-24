@@ -664,6 +664,54 @@ public class PortletInstanceServiceTest {
     assertEquals("12", template.getValue("pageSize"));
   }
 
+  /**
+   * The People Directory's plugin and the protected-preference filter
+   * together: a duplicated site's window, read with the copy marker, keeps
+   * its groups; a template or a page-API read gets the marker and no groups.
+   */
+  @Test
+  public void peopleListWindowKeepsItsGroupsOnACopyAndGetsTheMarkerOtherwise() {
+    io.meeds.layout.plugin.renderer.PeopleListPortletInstancePreferencePlugin peopleListPlugin =
+                                                                                             new io.meeds.layout.plugin.renderer.PeopleListPortletInstancePreferencePlugin();
+    portletInstanceService.addPortletInstancePreferencePlugin(peopleListPlugin);
+    try {
+      when(application.getStorageId()).thenReturn("3");
+      org.exoplatform.portal.config.model.ApplicationState state = mock(org.exoplatform.portal.config.model.ApplicationState.class);
+      when(application.getState()).thenReturn(state);
+      when(layoutService.getId(state)).thenReturn("social/PeopleList");
+      when(portletInstanceLayoutStorage.getApplicationPortletName(application)).thenReturn("PeopleList");
+      when(portletService.getProtectedPreferences("PeopleList")).thenReturn(Set.of("groupIds"));
+      Portlet portlet = new Portlet();
+      portlet.setValue("pageSize", "12");
+      portlet.setValue("groupIds", "[{\"groupId\":\"/spaces/hidden\",\"spaceId\":\"3\"}]");
+      when(portletInstanceLayoutStorage.getApplicationPreferences(3L)).thenReturn(portlet);
+
+      Portlet copy = portletInstanceService.getApplicationPortletPreferences(application,
+                                                                             new PortletInstanceContext(false,
+                                                                                                        Map.of(PortletInstanceContext.COPY_PROPERTY,
+                                                                                                               "true")));
+      assertEquals("[{\"groupId\":\"/spaces/hidden\",\"spaceId\":\"3\"}]", copy.getValue("groupIds"));
+      assertEquals("12", copy.getValue("pageSize"));
+      assertNull(copy.getPreference("groupsToSet"));
+
+      Portlet template = portletInstanceService.getApplicationPortletPreferences(application);
+      assertNull(template.getPreference("groupIds"));
+      assertEquals("true", template.getValue("groupsToSet"));
+      assertEquals("12", template.getValue("pageSize"));
+
+      // the page API's read by application id passes no context
+      org.mockito.ArgumentCaptor<org.exoplatform.portal.config.model.ApplicationState> read =
+                                                                                         org.mockito.ArgumentCaptor.forClass(org.exoplatform.portal.config.model.ApplicationState.class);
+      portletInstanceService.expandPortletPreferences(application, null);
+      verify(application).setState(read.capture());
+      Portlet viewer = ((org.exoplatform.portal.config.model.TransientApplicationState) read.getValue()).getContentState();
+      assertNull(viewer.getPreference("groupIds"));
+      assertEquals("true", viewer.getValue("groupsToSet"));
+    } finally {
+      portletInstanceService.removePortletInstancePreferencePlugin(peopleListPlugin.getPortletName());
+    }
+  }
+
   @Test
   @SneakyThrows
   public void getPortletInstancePreferencesWhenNoPluginNoPreferences() {
