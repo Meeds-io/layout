@@ -42,6 +42,7 @@ import org.exoplatform.portal.config.model.Page;
 import org.exoplatform.portal.config.model.PortalConfig;
 import org.exoplatform.portal.mop.page.PageKey;
 import org.exoplatform.portal.mop.service.LayoutService;
+import org.exoplatform.portal.pom.data.MappedAttributes;
 import org.exoplatform.services.log.ExoLogger;
 import org.exoplatform.services.log.Log;
 
@@ -57,8 +58,11 @@ import io.meeds.common.ContainerTransactional;
  * depth. Each value of style.values (a style property, as
  * textTitleColor, and its shipped value) is removed where the stored one
  * equals it, ignoring case: it cannot be told apart from the shipped one and
- * is removed whoever set it, and any other value is kept. A page or a site
- * that changes is saved whole through {@link LayoutService}.
+ * is removed whoever set it, and any other value is kept. A window's value is
+ * removed from its stored properties as well: the storage reads every stored
+ * property of a window back into it and writes them all again, so a value
+ * cleared from its style alone would stay stored. A page or a site that
+ * changes is saved whole through {@link LayoutService}.
  */
 public class ShippedStyleUpgradePlugin extends UpgradeProductPlugin {
 
@@ -102,6 +106,18 @@ public class ShippedStyleUpgradePlugin extends UpgradeProductPlugin {
                                                                                   ModelStyle::setTextColor,
                                                                                   "textSubtitleColor",
                                                                                   ModelStyle::setTextSubtitleColor);
+
+  private static final Map<String, String>                       STORED_KEYS               =
+                                                                             Map.of("backgroundColor",
+                                                                                    MappedAttributes.BACKGROUND_COLOR.getName(),
+                                                                                    "textTitleColor",
+                                                                                    MappedAttributes.TEXT_TITLE_COLOR.getName(),
+                                                                                    "textHeaderColor",
+                                                                                    MappedAttributes.TEXT_HEADER_COLOR.getName(),
+                                                                                    "textColor",
+                                                                                    MappedAttributes.TEXT_COLOR.getName(),
+                                                                                    "textSubtitleColor",
+                                                                                    MappedAttributes.TEXT_SUBTITLE_COLOR.getName());
 
   private LayoutService                                          layoutService;
 
@@ -248,7 +264,7 @@ public class ShippedStyleUpgradePlugin extends UpgradeProductPlugin {
     boolean changed = false;
     if (object instanceof Application application) {
       changed = application.getState() != null && StringUtils.equals(applicationContent, layoutService.getId(application.getState()))
-                && clear(application.getCssStyle());
+                && clear(application.getCssStyle(), application.getProperties());
     } else if (object instanceof Container container && container.getChildren() != null) {
       for (ModelObject child : container.getChildren()) {
         changed |= clearWindows(child);
@@ -270,17 +286,27 @@ public class ShippedStyleUpgradePlugin extends UpgradeProductPlugin {
   }
 
   private boolean clear(ModelStyle style) {
-    if (style == null) {
-      return false;
-    }
+    return clear(style, null);
+  }
+
+  private boolean clear(ModelStyle style, Map<String, String> storedProperties) {
     boolean changed = false;
     for (Map.Entry<String, String> shipped : styleValues.entrySet()) {
-      if (StringUtils.equalsIgnoreCase(StringUtils.trim(GETTERS.get(shipped.getKey()).apply(style)), shipped.getValue())) {
+      if (style != null && isShipped(GETTERS.get(shipped.getKey()).apply(style), shipped.getValue())) {
         SETTERS.get(shipped.getKey()).accept(style, null);
+        changed = true;
+      }
+      String storedKey = STORED_KEYS.get(shipped.getKey());
+      if (storedProperties != null && isShipped(storedProperties.get(storedKey), shipped.getValue())) {
+        storedProperties.remove(storedKey);
         changed = true;
       }
     }
     return changed;
+  }
+
+  private static boolean isShipped(String value, String shippedValue) {
+    return StringUtils.equalsIgnoreCase(StringUtils.trim(value), shippedValue);
   }
 
   private static String getValueParam(InitParams initParams, String name) {

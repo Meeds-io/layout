@@ -46,10 +46,10 @@ import io.meeds.layout.constant.ThemeOptions;
  * Updates one part of the theme the way the Branding page's Apply button
  * does: the whole branding is loaded, the part's options and resets are
  * merged into it, and the whole is submitted, so that every field the caller
- * did not name keeps its stored value. An untouched theme variable stored at
- * its configured default is submitted absent, so that it keeps following that
- * default; a reset option is submitted empty, which the branding service reads
- * as a reset, an absent one being kept. A page field's
+ * did not name keeps its stored value. An untouched option at its configured
+ * default is left out, so that the branding service keeps it as stored; a
+ * reset option is submitted empty, which the branding service reads as a
+ * reset, an absent one being kept. A page field's
  * value is validated here against the Page drawer's vocabulary; a theme
  * variable's value by the branding service before its first write, whose
  * message code is answered as the option it names, or as the options
