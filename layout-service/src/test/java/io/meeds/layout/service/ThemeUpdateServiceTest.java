@@ -152,7 +152,7 @@ public class ThemeUpdateServiceTest {
 
     service.updateTheme(ThemePart.COLORS, null, List.of("secondaryColor"), USER);
 
-    assertEquals(Map.of("topBarTextColor", "#222222"), submitted().getThemeStyle());
+    assertEquals(Map.of("topBarTextColor", "#222222", "secondaryColor", ""), submitted().getThemeStyle());
   }
 
   @Test
@@ -216,7 +216,7 @@ public class ThemeUpdateServiceTest {
     Branding submitted = submitted();
     assertEquals("1200px", submitted.getPageWidth());
     assertEquals("radial-gradient(circle, #fff, #000)", submitted.getThemeStyle().get("appBackgroundImage"));
-    assertNull(submitted.getPageBackgroundColor());
+    assertEquals("", submitted.getPageBackgroundColor());
     assertEquals("24px", submitted.getThemeStyle().get("appMarginTop"));
     assertEquals("#111111", submitted.getThemeStyle().get("secondaryColor"));
   }
