@@ -38,6 +38,14 @@ public class PortletInstanceContext {
    */
   public static final String  DRAFT_PROPERTY = "draft";
 
+  /**
+   * Property set to "true" when the preferences are generated for a copy of
+   * the window on a page, a duplicated section: the copy keeps the window's
+   * own settings, its protected preferences included. Never set on a
+   * template path, whose content clients can read and post back.
+   */
+  public static final String  COPY_PROPERTY  = "copy";
+
   private boolean             export;
 
   private Map<String, String> properties;

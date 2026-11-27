@@ -23,6 +23,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -366,14 +367,37 @@ public class PortletInstanceService {
   }
 
   public void exportApplicationPreferences(Application application) {
-    Portlet preferences = getApplicationPortletPreferences(application);
+    exportApplicationPreferences(application, false);
+  }
+
+  /**
+   * @param application the window whose preferences become its own state
+   * @param copy whether the window is copied on a page, so that it keeps its
+   *          protected preferences ({@link PortletInstanceContext#COPY_PROPERTY})
+   */
+  public void exportApplicationPreferences(Application application, boolean copy) {
+    Portlet preferences = copy ? toPortlet(getApplicationPreferences(application,
+                                                                     new PortletInstanceContext(false,
+                                                                                                Map.of(PortletInstanceContext.COPY_PROPERTY,
+                                                                                                       "true"))))
+                               : getApplicationPortletPreferences(application);
     String portletContentId = layoutService.getId(application.getState());
     application.setState(new TransientApplicationState(portletContentId, preferences));
   }
 
   public Portlet getApplicationPortletPreferences(Application application) {
-    List<PortletInstancePreference> exportedPreferences = getApplicationPreferences(application,
-                                                                                    new PortletInstanceContext(false, null));
+    return getApplicationPortletPreferences(application, new PortletInstanceContext(false, null));
+  }
+
+  /**
+   * @param application the window
+   * @param portletInstanceContext the context the preferences are generated
+   *          for, passed to the portlet's preference plugin
+   * @return the window's preferences as its plugin generates them for that
+   *         context
+   */
+  public Portlet getApplicationPortletPreferences(Application application, PortletInstanceContext portletInstanceContext) {
+    List<PortletInstancePreference> exportedPreferences = getApplicationPreferences(application, portletInstanceContext);
     Map<String, Preference> preferencesMap = exportedPreferences.stream()
                                                                 .collect(Collectors.toMap(PortletInstancePreference::getName,
                                                                                           p -> new Preference(p.getName(),
@@ -467,15 +491,43 @@ public class PortletInstanceService {
       preferences = null;
     }
     PortletInstancePreferencePlugin plugin = preferencePlugins.get(portletName);
+    List<PortletInstancePreference> applicationPreferences;
     if (plugin == null && preferences == null) {
       return Collections.emptyList();
     } else if (plugin != null) {
-      return plugin.generatePreferences(application, preferences, portletInstanceContext);
+      applicationPreferences = plugin.generatePreferences(application, preferences, portletInstanceContext);
     } else {
-      return StreamSupport.stream(preferences.spliterator(), false)
-                          .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
-                          .toList();
+      applicationPreferences = StreamSupport.stream(preferences.spliterator(), false)
+                                            .map(p -> new PortletInstancePreference(p.getName(), p.getValue()))
+                                            .toList();
     }
+    // the protected preferences reach no reader nor template, but a draft of
+    // the same window, published back over it, or its copy on a page
+    if (isDraft(portletInstanceContext) || CollectionUtils.isEmpty(applicationPreferences)) {
+      return applicationPreferences;
+    }
+    Set<String> protectedPreferences = portletService.getProtectedPreferences(portletName);
+    return protectedPreferences.isEmpty() ? applicationPreferences
+                                          : applicationPreferences.stream()
+                                                                  .filter(preference -> !protectedPreferences.contains(preference.getName()))
+                                                                  .toList();
+  }
+
+  /**
+   * @return whether the preferences are generated for the window itself: its
+   *         draft, published back over it, or its copy on a page
+   */
+  private static boolean isDraft(PortletInstanceContext portletInstanceContext) {
+    return portletInstanceContext != null
+           && portletInstanceContext.getProperties() != null
+           && (StringUtils.equals(portletInstanceContext.getProperties().get(PortletInstanceContext.DRAFT_PROPERTY), "true")
+               || StringUtils.equals(portletInstanceContext.getProperties().get(PortletInstanceContext.COPY_PROPERTY), "true"));
+  }
+
+  private static Portlet toPortlet(List<PortletInstancePreference> preferences) {
+    return new Portlet(preferences.stream()
+                                  .collect(Collectors.toMap(PortletInstancePreference::getName,
+                                                            p -> new Preference(p.getName(), p.getValue(), false))));
   }
 
   private String getLabel(String objectType, long objectId, String fieldName, Locale locale) {
