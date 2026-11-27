@@ -110,6 +110,29 @@ class ShippedStyleUpgradePluginTest {
   }
 
   @Test
+  void removesTheShippedValuesFromTheWindowsStoredPropertiesWhichTheStorageWritesBack() {
+    ShippedStyleUpgradePlugin plugin = newPlugin("social/PlatformName", SHIPPED, "login");
+    Application platformName = window("social/PlatformName", style("#20282C", "#707070", "#123456", null));
+    // as the storage reads a window back: every stored property, its colours
+    // included
+    platformName.getProperties()
+                .putAll(Map.of("text-title-color", "#20282c",
+                               "text-header-color", "#707070",
+                               "text-color", "#123456",
+                               "css-class", "loginTitle"));
+    Application sidebar = window("social/SidebarLogin", null);
+    sidebar.getProperties().put("text-header-color", "#707070");
+    Page page = page(container(null, sidebar, platformName));
+    when(layoutService.getPage(LOGIN)).thenReturn(page);
+
+    assertTrue(plugin.clearPage(LOGIN));
+
+    assertEquals(Map.of("text-color", "#123456", "css-class", "loginTitle"), platformName.getProperties());
+    assertEquals("#707070", sidebar.getProperties().get("text-header-color"));
+    verify(layoutService).save(page);
+  }
+
+  @Test
   void keepsAValueChosenSinceAndDoesNotSaveAnUnchangedPage() {
     ShippedStyleUpgradePlugin plugin = newPlugin("social/PlatformName", SHIPPED, "login");
     Application platformName = window("social/PlatformName", style("#123456", null, "#654321", null));
